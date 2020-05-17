@@ -1,0 +1,13 @@
+# general things to ignore
+build/
+dist/
+*.py[cod]
+__pycache__/
+*.so
+*~
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+.idea/
