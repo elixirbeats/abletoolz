@@ -35,9 +35,14 @@ create a new one `set_dir/abletoolz_backup/project_name_1.als` and keep increasi
 way your previous version are always still intact.
 
 ***Disclaimer*** Use the save argument your own risk! Because this is the initial version of the project, it is possible 
-there are unknown bugs that could potentially break your sets! Use a copy of your sets in another folder, commit changes
- to them, then open them in ableton to be sure they load correctly. All other arguments modify the set in memory and 
- only if this argument is specified does it save the changes to a file, so they are safe to run.
+there are unknown bugs that could potentially corrupt your sets! Use a copy of your sets in another folder, commit changes
+to them, then open them in ableton to be sure they load correctly(And if you find any bugs please open an issue!). The 
+main risk is if you kill the script when its writing a file, that can corrupt the data. Because the longest part of 
+parsing is writing a file, killing the process gives a high likelyhood that it will be at that moment. That is why 
+when building this I first implemented the backup/move operation to ensure the original file is intact. Still, make 
+sure before you do any large directory operations you play with `-f` on single copied sets so you are sure of what 
+edit arguments you use and allow the script to complete. All other arguments only modify the set in memory(safe) and 
+only if this argument is specified does it commit changes to a file.
 
 `-x`, `--xml`  Dumps the uncompressed set XML in same directory as set_name.xml Useful to understand set structure for 
 development. If you run with this option multiple times, the previous xml file will be moved into the abletoolz_backup 
@@ -100,6 +105,7 @@ python main.py -f "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --un
 ![Check plugins](/doc/everything.png)
 
 ## Future plans
+- Add a thread with signal trapping that can finish any file writing operations before process is killed 
 - Continue to add support for pre Ableton 10 versions. Some of this is done already.
 - Add color functions to color tracks/clips with gradients or other fun stuff.
 - Collect samplepath errors when both absolute and relative paths are broken into a report file.
