@@ -32,7 +32,7 @@ of the path hierarchy, the set is skipped.
 Save changes to set. When you use this option, as a safety precaution the original file is stored under the same 
 directory as the original set under `set_dir/abletoolz_backup/project_name.als`. If that file exists, it will automatically 
 create a new one `set_dir/abletoolz_backup/project_name_1.als` and keep increasing the number as files get created. That 
-way your previous version are always still intact.
+way your previous versions are always still intact.
 
 ***Disclaimer*** Use the save argument your own risk! Because this is the initial version of the project, it is possible 
 there are unknown bugs that could potentially corrupt your sets! Use a copy of your sets in another folder, commit changes
@@ -46,7 +46,7 @@ only if this argument is specified does it commit changes to a file.
 
 `-x`, `--xml`  Dumps the uncompressed set XML in same directory as set_name.xml Useful to understand set structure for 
 development. If you run with this option multiple times, the previous xml file will be moved into the abletoolz_backup 
-folder with the same renaming behavior as --save.
+folder with the same renaming behavior as `--save`.
 
 ### Analysis
 `--list-tracks` List track information.
@@ -61,7 +61,7 @@ AU are not stored as paths but component names. Ableton stores the AU name diffe
 `/Library/Audio/Plug-Ins/Components`.
 
 ### Edit
-These will only edit sets in memory unless you use --save explicitly to commit changes.
+These will only edit sets in memory unless you use `--save` explicitly to commit changes.
 
 `--unfold` or `--fold` unfolds/folds all tracks in set.
 
@@ -105,7 +105,7 @@ python main.py -f "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --un
 ![Check plugins](/doc/everything.png)
 
 ## Future plans
-- Add a thread with signal trapping that can finish any file writing operations before process is killed 
+- Add an extra layer of safety by using a thread that will finish any file current writing operations if the process is killed.
 - Continue to add support for pre Ableton 10 versions. Some of this is done already.
 - Add color functions to color tracks/clips with gradients or other fun stuff.
 - Collect samplepath errors when both absolute and relative paths are broken into a report file.
