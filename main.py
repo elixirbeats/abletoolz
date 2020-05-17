@@ -45,19 +45,19 @@ def parse_arguments():
                         help='unfolds all tracks/automation lanes in arrangement.')
     parser.add_argument('--fold', action="store_true", default=False,
                         help='folds all tracks/automation lanes in arrangement.')
-    parser.add_argument('--set_track_heights', type=int, help='Set arrangement track heights')
-    parser.add_argument('--set_track_widths', type=int, help='Set clip view track width.')
-    parser.add_argument('--cue_out', type=int,
+    parser.add_argument('--set-track-heights', type=int, help='Set arrangement track heights')
+    parser.add_argument('--set-track-widths', type=int, help='Set clip view track width.')
+    parser.add_argument('--cue-out', type=int,
                         help='set Cue audio output tracks. Set to 1 for stereo 1/2, 2 for 3/4 etc')
-    parser.add_argument('--master_out', type=int,
+    parser.add_argument('--master-out', type=int,
                         help=f'number to set Master audio output tracks to. Same numbers as --cue-out')
 
     # Analysis arguments.
-    parser.add_argument('--list_tracks', action='store_true', default=False,
+    parser.add_argument('--list-tracks', action='store_true', default=False,
                         help='Load and list all track information.')
-    parser.add_argument('--check_samples', action="store_true", default=False,
+    parser.add_argument('--check-samples', action="store_true", default=False,
                         help='Checks relative and absolute sample paths and verifies if sample exists there.')
-    parser.add_argument('--check_plugins', action="store_true", default=False,
+    parser.add_argument('--check-plugins', action="store_true", default=False,
                         help='Checks plugin VST paths and verifies they exists. Note: If Ableton finds the '
                              'plugin name in a different path it will automatically update these paths the next time '
                              'you save your project, so take it with a grain of salt. AU are not stored as paths in sets'
