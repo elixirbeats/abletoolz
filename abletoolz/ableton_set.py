@@ -279,6 +279,7 @@ class AbletonSet(object):
             from_project_root = f'{os.path.sep.join(sub_directory_path)}{os.path.sep}{name}'
             full_path = self.project_root_folder / os.path.sep.join(sub_directory_path) / name
             return full_path, from_project_root
+        return None, None
 
     def list_samples(self):
         """Iterates through all sample references and checks absolute and relative paths."""
