@@ -4,7 +4,7 @@ import pathlib
 from xml.etree import ElementTree
 
 from abletoolz.ableton_track import AbletonTrack
-from abletoolz import RST, R, G, B, Y, C, BACKUP_DIR, STEREO_OUTPUTS
+from abletoolz import RST, R, G, B, Y, C, M, BACKUP_DIR, STEREO_OUTPUTS
 from abletoolz import get_element
 
 
@@ -276,19 +276,21 @@ class AbletonSet(object):
             sub_directory_path = []
             for path in relative_path_element:
                 sub_directory_path.append(path.get('Dir'))
+            from_project_root = f'{os.path.sep.join(sub_directory_path)}{os.path.sep}{name}'
             full_path = self.project_root_folder / os.path.sep.join(sub_directory_path) / name
-            return full_path
+            return full_path, from_project_root
 
     def list_samples(self):
         """Iterates through all sample references and checks absolute and relative paths."""
         for sample_element in self.root.iter('SampleRef'):
             name = get_element(sample_element, 'FileRef.Name', attribute='Value')
             print(f'{C}Sample name: {name}')
-            relative_path = self.check_relative_path(name, sample_element)
+            relative_path, from_project_root = self.check_relative_path(name, sample_element)
             if relative_path:
                 rel_exists = pathlib.Path(relative_path).exists()
                 color = G if rel_exists else R
-                print(f'\t{color}Relative path: {Y}{relative_path}, {color}Exists: {rel_exists}')
+                print(f'\t{color}Relative path: {Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, '
+                      f'{color}Exists: {rel_exists}')
             abs_path = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
             abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
             color = G if abs_exists else R
