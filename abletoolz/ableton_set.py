@@ -54,12 +54,6 @@ class AbletonSet(object):
         """Returns easy to read date."""
         return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %H:%M:%S")
 
-    def get_file_times(self):
-        self.creation_time = os.path.getctime(self.pathlib_obj)
-        self.last_modification_time = os.path.getmtime(self.pathlib_obj)
-        print(f'{Y}File creation time {self.human_readable_date(self.creation_time)}, '
-              f'Last modification time: {self.human_readable_date(self.last_modification_time)}')
-
     def parse(self):
         """Uncompresses ableton set and loads into element tree."""
         with open(self.pathlib_obj, 'rb') as fd:
@@ -127,6 +121,15 @@ class AbletonSet(object):
         with xml_file as fd:  # with pathlib.Path(xml_file) as fd:
             fd.write_bytes(self.generate_xml())
         print(f'{G}Saved xml to {xml_file}')
+
+    def get_file_times(self):
+        if sys.platform == 'win32':
+            self.creation_time = os.path.getctime(self.pathlib_obj)
+        else:
+            self.creation_time = os.stat(self.pathlib_obj).st_birthtime
+        self.last_modification_time = os.path.getmtime(self.pathlib_obj)
+        print(f'{Y}File creation time {self.human_readable_date(self.creation_time)}, '
+              f'Last modification time: {self.human_readable_date(self.last_modification_time)}')
 
     def restore_file_times(self, pathlib_obj):
         """Restore original creation and modification times to file."""
