@@ -49,9 +49,10 @@ class AbletonSet(object):
             return False
         return True
 
-    def human_readable_date(self, timestamp):
+    @staticmethod
+    def human_readable_date(timestamp):
         """Returns easy to read date."""
-        return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %I:%M")
+        return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %H:%M:%S")
 
     def get_file_times(self):
         self.creation_time = os.path.getctime(self.pathlib_obj)
@@ -133,8 +134,9 @@ class AbletonSet(object):
         if sys.platform == 'win32':
             win32_setctime.setctime(self.pathlib_obj, self.creation_time)
         elif sys.platform == 'darwin':
-            date = datetime.datetime.fromtimestamp(self.creation_time).strftime('%m/%d/%Y %H:%M:%S')
-            os.system(f'SetFile -d "{date}" {pathlib_obj}')
+            date = self.human_readable_date(self.creation_time)
+            path = str(pathlib_obj).replace(' ', r'\ ')
+            os.system(f'SetFile -d "{date}" {path} >/dev/null')
         print(f'{G}Restored creation and modification times: {self.human_readable_date(self.creation_time)}, '
               f'{self.human_readable_date(self.last_modification_time)}')
 
