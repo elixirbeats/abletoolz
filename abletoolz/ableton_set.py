@@ -1,5 +1,7 @@
+import datetime
 import gzip
 import os
+import sys
 import pathlib
 from xml.etree import ElementTree
 
@@ -7,12 +9,17 @@ from abletoolz.ableton_track import AbletonTrack
 from abletoolz import RST, R, G, B, Y, C, M, BACKUP_DIR, STEREO_OUTPUTS
 from abletoolz import get_element
 
+if sys.platform == "win32":
+    import win32_setctime
+
 
 class AbletonSet(object):
     """Set object"""
 
     def __init__(self, pathlib_obj):
         self.pathlib_obj = pathlib_obj
+        self.last_modification_time = None
+        self.creation_time = None
         self.project_root_folder = None  # Folder where Ableton Project Info resides.
         self.tree = None
         self.creator = None  # Official Ableton live version.
@@ -42,6 +49,16 @@ class AbletonSet(object):
             return False
         return True
 
+    def human_readable_date(self, timestamp):
+        """Returns easy to read date."""
+        return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %I:%M")
+
+    def get_file_times(self):
+        self.creation_time = os.path.getctime(self.pathlib_obj)
+        self.last_modification_time = os.path.getmtime(self.pathlib_obj)
+        print(f'{Y}File creation time {self.human_readable_date(self.creation_time)}, '
+              f'Last modification time: {self.human_readable_date(self.last_modification_time)}')
+
     def parse(self):
         """Uncompresses ableton set and loads into element tree."""
         with open(self.pathlib_obj, 'rb') as fd:
@@ -52,10 +69,12 @@ class AbletonSet(object):
             elif first_two_bytes != b'\x1f\x8b':
                 print(f'{R}{self.pathlib_obj} File format is not gzip!, cannot open.')
                 return False
-
+        self.get_file_times()
         with gzip.open(self.pathlib_obj, 'r') as fd:
             data = fd.read().decode('utf-8')
-            assert data, f'{R}Error loading data {self.pathlib_obj}!'
+            if not data:
+                print(f'{R}Error loading data {self.pathlib_obj}!')
+                return False
             self.root = ElementTree.fromstring(data)
             return True
 
@@ -108,12 +127,24 @@ class AbletonSet(object):
             fd.write_bytes(self.generate_xml())
         print(f'{G}Saved xml to {xml_file}')
 
+    def restore_file_times(self, pathlib_obj):
+        """Restore original creation and modification times to file."""
+        os.utime(self.pathlib_obj, (self.last_modification_time, self.last_modification_time))
+        if sys.platform == 'win32':
+            win32_setctime.setctime(self.pathlib_obj, self.creation_time)
+        elif sys.platform == 'darwin':
+            date = datetime.datetime.fromtimestamp(self.creation_time).strftime('%m/%d/%Y %H:%M:%S')
+            os.system(f'SetFile -d "{date}" {pathlib_obj}')
+        print(f'{G}Restored creation and modification times: {self.human_readable_date(self.creation_time)}, '
+              f'{self.human_readable_date(self.last_modification_time)}')
+
     def save_set(self):
         self.move_original_file_to_backup_dir(self.pathlib_obj)
         # Recompress as gzip.
         with gzip.open(self.pathlib_obj, 'wb') as fd:
             fd.write(self.generate_xml())
         print(f'{G}Saved set to {self.pathlib_obj}')
+        self.restore_file_times(self.pathlib_obj)
 
     # Data parsing functions.
     def load_tracks(self):
