@@ -16,7 +16,7 @@ class AbletonTrack(object):
     def __init__(self, track_root):
         self.track_root = track_root
         self.type = track_root.tag
-        self.name = get_element(track_root, 'Name.EffectiveName', attribute='Value')
+        self.name = get_element(track_root, 'Name.UserName', attribute='Value')
         self.id = track_root.get('Id')
         self.group_id = get_element(track_root, 'TrackGroupId', attribute='Value')
 
