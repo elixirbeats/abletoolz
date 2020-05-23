@@ -79,8 +79,9 @@ def process(args):
     for pathlib_obj in pathlib_objects:
         print(f'\n{G}Parsing : {pathlib_obj}')
         ableton_set = AbletonSet(pathlib_obj)
-        if not ableton_set.parse() or not ableton_set.supported_version():
+        if not ableton_set.parse():
             continue
+        ableton_set.load_version()
         print(f'{C}Set name: {pathlib_obj.stem}, {B}BPM: {ableton_set.get_bpm()}')
         ableton_set.find_project_root_folder()
         ableton_set.find_furthest_bar()

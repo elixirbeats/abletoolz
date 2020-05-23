@@ -17,6 +17,8 @@ class AbletonTrack(object):
         self.track_root = track_root
         self.type = track_root.tag
         self.name = get_element(track_root, 'Name.UserName', attribute='Value')
+        if not self.name:
+            self.name = get_element(track_root, 'Name.EffectiveName', attribute='Value')
         self.id = track_root.get('Id')
         self.group_id = get_element(track_root, 'TrackGroupId', attribute='Value')
 

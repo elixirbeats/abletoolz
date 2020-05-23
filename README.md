@@ -30,8 +30,8 @@ of the path hierarchy, the set is skipped.
 ### Output
 `-s`, `--save` 
 Save changes to set. When you use this option, as a safety precaution the original file is stored under the same 
-directory as the original set under `set_dir/abletoolz_backup/project_name.als`. If that file exists, it will automatically 
-create a new one `set_dir/abletoolz_backup/project_name_1.als` and keep increasing the number as files get created. That 
+directory as the original set under `set_dir/abletoolz_backup/set_name__1.als`. If that file exists, it will automatically 
+create a new one `set_dir/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That 
 way your previous versions are always still intact.
 
 ***Disclaimer*** Use the save argument your own risk! Because this is the initial version of the project, it is possible 
@@ -46,7 +46,8 @@ only if this argument is specified does it commit changes to a file.
 
 `-x`, `--xml`  Dumps the uncompressed set XML in same directory as set_name.xml Useful to understand set structure for 
 development. If you run with this option multiple times, the previous xml file will be moved into the abletoolz_backup 
-folder with the same renaming behavior as `--save`.
+folder with the same renaming behavior as `--save`. You can also rename the extension from `.xml` to `.als` and ableton
+will still load it! The next time you save though it will be compressed gzip again.
 
 ### Analysis
 `--list-tracks` List track information.

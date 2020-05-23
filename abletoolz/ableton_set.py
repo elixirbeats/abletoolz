@@ -1,6 +1,7 @@
 import datetime
 import gzip
 import os
+import re
 import sys
 import pathlib
 from xml.etree import ElementTree
@@ -13,6 +14,29 @@ if sys.platform == "win32":
     import win32_setctime
 
 
+def version_supported(supported_version, set_version):
+    digits = set_version.split()[-1]
+    if len([x for x in digits if x == '.']) < 2:
+        digits = f'{digits}0'
+    set_int = int(re.sub(r'\D|\.', '', digits))
+    supported_int = int(supported_version.replace('.', ''))
+    if set_int > supported_int:
+        return True
+    return False
+
+
+def above_version(supported_version):
+    """Decorator to prevent Exceptions in older sets where the xml schema was different."""
+    def wrapper(f):
+        def wrapped_func(self, *args, **kwargs):
+            if not version_supported(supported_version, self.creator):
+                print(f'Function {f.__name__} is only supported for {supported_version} and above.')
+                return None
+            return f(self, *args, **kwargs)
+        return wrapped_func
+    return wrapper
+
+
 class AbletonSet(object):
     """Set object"""
 
@@ -22,6 +46,7 @@ class AbletonSet(object):
         self.creation_time = None
         self.project_root_folder = None  # Folder where Ableton Project Info resides.
         self.tree = None
+        self.root = None
         self.creator = None  # Official Ableton live version.
         self.schema_change = None  # Xml schema change version.
         self.major_version = None
@@ -34,20 +59,15 @@ class AbletonSet(object):
         self.key = None
         self.tracks = []
         self.furthest_bar = None
+        self.bpm = None
 
-    def supported_version(self):
-        """Checks if version is currently supported."""
+    def load_version(self):
+        """Loads version."""
         self.creator = self.root.get('Creator')
         self.schema_change = self.root.get('SchemaChangeCount')
         self.major_version = self.root.get('MajorVersion')
         self.minor_version = self.root.get('MinorVersion')
-        print(f'{Y}Official version: {self.creator}, Schema version: {self.schema_change}, '
-              f'Major ver: {self.major_version}, Minor ver: {self.minor_version}')
-        major_version = self.creator.split()[2].split('.')[0]
-        if int(major_version) < 10:
-            print(f'{R}Version {self.creator} is currently not supported.')
-            return False
-        return True
+        print(f'{Y}Official version: {M}{self.creator}, {G}Schema version: {self.schema_change}')
 
     @staticmethod
     def human_readable_date(timestamp):
@@ -152,6 +172,7 @@ class AbletonSet(object):
         self.restore_file_times(self.pathlib_obj)
 
     # Data parsing functions.
+    @above_version(supported_version='8.0.0')
     def load_tracks(self):
         """Load tracks into AbletonTrack src."""
         tracks = get_element(self.root, 'LiveSet.Tracks')
@@ -168,19 +189,22 @@ class AbletonSet(object):
         self.furthest_bar = int(max(current_end_times) / 4) if current_end_times else 0
         return self.furthest_bar
 
+    @above_version(supported_version='8.2.0')
     def get_bpm(self):
-        """Gets bpm. Note, float numbers can appear to have trailing digits which can be misleading."""
-        ableton_10_bpm = 'LiveSet.MasterTrack.DeviceChain.Mixer.Tempo.Manual'
-        ableton_9_bpm = 'LiveSet.MasterTrack.MasterChain.Mixer.Tempo.ArrangerAutomation.Events.FloatEvent'
-        bpm_elem = get_element(self.root, ableton_10_bpm, attribute='Value', silent_error=True)
+        """Gets bpm."""
+        bpm = 'LiveSet.MasterTrack.DeviceChain.Mixer.Tempo.Manual'
+        pre_10_bpm = 'LiveSet.MasterTrack.MasterChain.Mixer.Tempo.ArrangerAutomation.Events.FloatEvent'
+        bpm_elem = get_element(self.root, bpm, attribute='Value', silent_error=True)
         if not bpm_elem:
-            bpm_elem = get_element(self.root, ableton_9_bpm, attribute='Value')
+            bpm_elem = get_element(self.root, pre_10_bpm, attribute='Value')
         self.bpm = round(float(bpm_elem), 6)
         return self.bpm
 
     def estimate_length(self):
         """Multiply the longest bar with length per bar by inverting BPM."""
-        assert self.bpm is not None and self.furthest_bar is not None, f'{R}Must find bpm and furthest bar first.'
+        if self.bpm is None or self.furthest_bar is None:
+            print(f"{R}Can't estimate length without bpm and furthest bar.")
+            return
         # TODO improve this to find the time signature from the set and use it here instead of only 4/4.
         seconds_total = ((4 * int(self.furthest_bar)) / self.bpm) * 60
         length = f"{int(seconds_total // 60)}:{round(seconds_total % 60):02d}"
@@ -210,14 +234,22 @@ class AbletonSet(object):
         [el.set('Value', 'true') for el in self.root.iter('TrackUnfolded')]
         print(f'{G}Unfolded all tracks.')
 
+    @above_version(supported_version='8.2.0')
     def set_audio_output(self, output_number, element_string):
         """Sets audio output."""
         if output_number not in STEREO_OUTPUTS:
             raise Exception(f'{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}')
         output_obj = STEREO_OUTPUTS[output_number]
-        out_target_element = get_element(self.root, f'LiveSet.{element_string}.DeviceChain.AudioOutputRouting.Target')
-        lower_display_string_element = get_element(
-            self.root, f'LiveSet.{element_string}.DeviceChain.AudioOutputRouting.LowerDisplayString')
+        out_target_element = get_element(self.root, f'LiveSet.{element_string}.DeviceChain.AudioOutputRouting.Target',
+                                         silent_error=True)
+        if not isinstance(out_target_element, ElementTree.Element):
+            out_target_element = get_element(  # ableton 8 sets use "MasterChain" for master track.
+                self.root, f'LiveSet.{element_string}.MasterChain.AudioOutputRouting.Target')
+            lower_display_string_element = get_element(
+                self.root, f'LiveSet.{element_string}.MasterChain.AudioOutputRouting.LowerDisplayString')
+        else:
+            lower_display_string_element = get_element(
+                self.root, f'LiveSet.{element_string}.DeviceChain.AudioOutputRouting.LowerDisplayString')
         out_target_element.set('Value', output_obj['target'])
         lower_display_string_element.set('Value', output_obj['lower_display_string'])
         print(f"{G}Set {element_string} to {output_obj['lower_display_string']}")
@@ -326,8 +358,8 @@ class AbletonSet(object):
             if relative_path:
                 rel_exists = pathlib.Path(relative_path).exists()
                 color = G if rel_exists else R
-                print(f'\t{color}Relative path: {Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, '
-                      f'{color}Exists: {rel_exists}')
+                print(f'\t{color}Relative path to project root(highlighted): '
+                      f'{Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, {color}Exists: {rel_exists}')
             abs_path = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
             abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
             color = G if abs_exists else R
