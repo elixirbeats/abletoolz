@@ -3,6 +3,7 @@ import gzip
 import os
 import re
 import sys
+import threading
 import pathlib
 from xml.etree import ElementTree
 
@@ -163,13 +164,25 @@ class AbletonSet(object):
         print(f'{G}Restored creation and modification times: {self.human_readable_date(self.creation_time)}, '
               f'{self.human_readable_date(self.last_modification_time)}')
 
-    def save_set(self):
-        self.move_original_file_to_backup_dir(self.pathlib_obj)
-        # Recompress as gzip.
+    def write_set(self, pathlib_obj):
+        """Recompresses set to gzip. Used in thread to help prevent file getting corrupted mid write."""
         with gzip.open(self.pathlib_obj, 'wb') as fd:
             fd.write(self.generate_xml())
         print(f'{G}Saved set to {self.pathlib_obj}')
         self.restore_file_times(self.pathlib_obj)
+
+    def save_set(self, append_bars_bpm=False):
+        self.move_original_file_to_backup_dir(self.pathlib_obj)
+        if append_bars_bpm:
+            cleaned_name = re.sub(r'_\d{1,3}bars_\d{1,3}\.\d{2}bpm', '', self.pathlib_obj.stem)
+            new_filename = cleaned_name + f'_{self.furthest_bar}bars_{self.bpm:.2f}bpm.als'
+            self.pathlib_obj = pathlib.Path(self.pathlib_obj.parent / new_filename)
+            print(f'{M}Appending bars and bpm, new set name: {self.pathlib_obj.stem}.als')
+
+        # Create non daemon thread so that it is not forcibly killed when parent process dies.
+        thread = threading.Thread(target=self.write_set, args=(self.pathlib_obj,))
+        thread.start()
+        thread.join()
 
     # Data parsing functions.
     @above_version(supported_version='8.0.0')

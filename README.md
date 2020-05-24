@@ -4,7 +4,12 @@
 Python command line tool for batch editing and analyzing Ableton Live Sets. 
 
 Supports both Windows and MacOS created sets.
-Currently only Ableton 10 sets are supported. Some versions of Ableton 8 and 9 will be supported in the future.
+
+## Updates
+- Ableton 8, 9, and 10 sets are now supported.
+- Added feature to store set creation/last modified time and apply them to the newly created set.
+- Added `--append-bars-bpm` argument and used non daemon thread for set write to help safeguard against process being 
+killed.
 
 ## Installation:
 I developed this using Python 3.8, but most likely it will work with other Python 3.x versions. I recommend 3.6+
@@ -34,20 +39,27 @@ directory as the original set under `set_dir/abletoolz_backup/set_name__1.als`. 
 create a new one `set_dir/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That 
 way your previous versions are always still intact.
 
-***Disclaimer*** Use the save argument your own risk! Because this is the initial version of the project, it is possible 
-there are unknown bugs that could potentially corrupt your sets! Use a copy of your sets in another folder, commit changes
-to them, then open them in ableton to be sure they load correctly(And if you find any bugs please open an issue!). The 
-main risk is if you kill the script when its writing a file, that can corrupt the data. Because the longest part of 
-parsing is writing a file, killing the process gives a high likelyhood that it will be at that moment. That is why 
-when building this I first implemented the backup/move operation to ensure the original file is intact. Still, make 
-sure before you do any large directory operations you play with `-f` on single copied sets so you are sure of what 
-edit arguments you use and allow the script to complete. All other arguments only modify the set in memory(safe) and 
-only if this argument is specified does it commit changes to a file.
+***Disclaimer*** Use the save argument your own risk! Use a copy of your sets in another folder, commit changes
+to them, then open them in ableton to be sure they load correctly so that you can be sure it's doing what you expect
+before using the tool on entire directories. Because I understand how many hours of hard work go into set files, 
+I've put in multiple safeguards to prevent you losing anything:
+- Original file is first moved to backup directory `abletoolz_backup` as described above.
+- I use a non daemon thread to do the actual file write, which will not be forcibly killed if you kill the script 
+during some long operation. Rather than rely on this, please just allow the script to finish processing to avoid any 
+issues. 
+
+All other arguments only modify the set in memory which is safe and 
+only if this argument is specified does it commit changes to a file. Now that I've scared you completely, I have run 
+the save argument on my entire track library(700+ sets) with many years of work without breaking a single set. 
 
 `-x`, `--xml`  Dumps the uncompressed set XML in same directory as set_name.xml Useful to understand set structure for 
-development. If you run with this option multiple times, the previous xml file will be moved into the abletoolz_backup 
-folder with the same renaming behavior as `--save`. You can also rename the extension from `.xml` to `.als` and ableton
+development. If you run with this option multiple times, the previous xml file will be moved into the `abletoolz_backup` 
+folder with the same renaming behavior as `-s/--save`. You can also rename the extension from `.xml` to `.als` and ableton
 will still load it! The next time you save though it will be compressed gzip again.
+
+`--append-bars-bpm` Used with `-s/--save`, appends furthest bar length and bpm to set name. For example, 
+`myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename 
+wont keep growing).
 
 ### Analysis
 `--list-tracks` List track information.
@@ -105,11 +117,14 @@ python main.py -f "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --un
 ```
 ![Check plugins](/doc/everything.png)
 
+```
+python main.py -f "D:\all_sets\myset.als" -s --append-bars-bpm
+```
+![Append bars bpm](/doc/append_bars_bpm.png)
+
 ## Future plans
-- Add an extra layer of safety by using a thread that will finish any file current writing operations if the process is killed.
-- Continue to add support for pre Ableton 10 versions. Some of this is done already.
 - Add color functions to color tracks/clips with gradients or other fun stuff.
-- Collect samplepath errors when both absolute and relative paths are broken into a report file.
+- Collect sample path errors when both absolute and relative paths are broken into a report file.
 - Add crc verify for samples.
 - Fix broken sample paths. For windows this should be easy, for Mac ... a challenge. Will need to figure out how to 
 correctly create byte data that ableton loads happily.
@@ -117,6 +132,5 @@ correctly create byte data that ableton loads happily.
 - Figure out way to verify AU plugins.
 - Attempt to detect key based on non drum track midi notes.
 - Add support for different time signatures besides 4/4.
-- Add more track and clip specific analying/editing functions.
-- Create a GUI.
+- Add more track and clip specific analysing/editing functions.
 - Figure out how to create package with setup tools

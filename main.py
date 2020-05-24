@@ -39,6 +39,9 @@ def parse_arguments():
                              'what you are doing! The original file is always renamed to '
                              f'set_directory/{BACKUP_DIR}/set_name_xx.als, where xx will automatically increase to '
                              'to avoid overwriting files.')
+    parser.add_argument('--append-bars-bpm', action='store_true', default=False,
+                        help='Append furthest bar length and bpm to filename to help organize your set collection. '
+                             'For example, my_set.als --> my_set_32bars_90.00bpm.als Option only works with -s/--save')
 
     # Edit set arguments.
     parser.add_argument('--unfold', action="store_true", default=False,
@@ -60,8 +63,8 @@ def parse_arguments():
     parser.add_argument('--check-plugins', action="store_true", default=False,
                         help='Checks plugin VST paths and verifies they exists. Note: If Ableton finds the '
                              'plugin name in a different path it will automatically update these paths the next time '
-                             'you save your project, so take it with a grain of salt. AU are not stored as paths in sets'
-                             'but abbreviated component names. Might possibly add support for them later.')
+                             'you save your project, so take it with a grain of salt. AU are not stored as paths in '
+                             'sets but abbreviated component names. Might possibly add support for them later.')
     args = parser.parse_args()
 
     assert not (args.fold and args.unfold), 'Only set unfold or fold, not both.'
@@ -111,7 +114,7 @@ def process(args):
         if args.xml:
             ableton_set.save_xml()
         if args.save:
-            ableton_set.save_set()
+            ableton_set.save_set(args.append_bars_bpm)
         else:
             print(f'{C}Data only modified in memory, use -s/--save option to commit changes to file.')
 
