@@ -25,6 +25,8 @@ def version_supported(supported_version, set_version):
         return True
     return False
 
+def parse_version_tuple():
+    pass
 
 def above_version(supported_version):
     """Decorator to prevent Exceptions in older sets where the xml schema was different."""
@@ -65,6 +67,9 @@ class AbletonSet(object):
     def load_version(self):
         """Loads version."""
         self.creator = self.root.get('Creator')
+        # if self.creator.startswith('Ableton Live 11'):
+        parsed = re.findall(r"Ableton Live ([1-9]{1,2})\.([0-9]{1,3})\.([0-9]{1,3})", self.creator)
+        major, minor, patch = [int(x) for x in parsed[0]]
         self.schema_change = self.root.get('SchemaChangeCount')
         self.major_version = self.root.get('MajorVersion')
         self.minor_version = self.root.get('MinorVersion')
@@ -362,7 +367,23 @@ class AbletonSet(object):
             return full_path, from_project_root
         return None, None
 
-    def list_samples(self):
+    def list_samples_v11(self):
+        """Ableton 11 sample find."""
+        for sample_element in self.root.iter('SampleRef'):
+            name = get_element(sample_element, 'FileRef.Name', attribute='Value')
+            print(f'{C}Sample name: {name}')
+            relative_path, from_project_root = self.check_relative_path(name, sample_element)
+            if relative_path:
+                rel_exists = pathlib.Path(relative_path).exists()
+                color = G if rel_exists else R
+                print(f'\t{color}Relative path to project root(highlighted): '
+                      f'{Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, {color}Exists: {rel_exists}')
+            abs_path = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
+            abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
+            color = G if abs_exists else R
+            print(f'\t{color}Absolute path: {Y}{abs_path}, {color}Exists: {abs_exists}')
+
+    def list_samples_pre_v11(self):
         """Iterates through all sample references and checks absolute and relative paths."""
         for sample_element in self.root.iter('SampleRef'):
             name = get_element(sample_element, 'FileRef.Name', attribute='Value')
@@ -377,3 +398,8 @@ class AbletonSet(object):
             abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
             color = G if abs_exists else R
             print(f'\t{color}Absolute path: {Y}{abs_path}, {color}Exists: {abs_exists}')
+
+    def list_samples(self):
+        if self.major_version >= 11:
+            return self.list_samples_v11()
+        return self.list_samples_pre_v11()
