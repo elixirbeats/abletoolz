@@ -1,11 +1,14 @@
-import colorama
 import sys
+from xml.etree import ElementTree
+
+import colorama
 
 colorama.init(autoreset=True)
 
 # Shorten color variables
 RST = colorama.Fore.RESET
-if sys.platform == "win32":
+if sys.platform == 'win32':
+    BOLD = "\x1b"
     # Windows terminal colors are hard to see.
     R = colorama.Fore.LIGHTRED_EX
     G = colorama.Fore.LIGHTGREEN_EX
@@ -14,12 +17,21 @@ if sys.platform == "win32":
     C = colorama.Fore.LIGHTCYAN_EX
     M = colorama.Fore.LIGHTMAGENTA_EX
 else:
+    BOLD = '\033[1m'
     R = colorama.Fore.RED
     G = colorama.Fore.GREEN
     B = colorama.Fore.BLUE
     Y = colorama.Fore.YELLOW
     C = colorama.Fore.CYAN
     M = colorama.Fore.MAGENTA
+
+RB = R + colorama.Style.BRIGHT + BOLD
+GB = G + colorama.Style.BRIGHT + BOLD
+BB = B + colorama.Style.BRIGHT + BOLD
+YB = Y + colorama.Style.BRIGHT + BOLD
+CB = C + colorama.Style.BRIGHT + BOLD
+MB = M + colorama.Style.BRIGHT + BOLD
+
 
 BACKUP_DIR = 'abletoolz_backup'
 STEREO_OUTPUTS = {
@@ -35,6 +47,7 @@ STEREO_OUTPUTS = {
     10: {'target': 'AudioOut/External/S9', 'lower_display_string': '19/20'},
 }
 
+
 class ElementNotFound(Exception):
     """Element doesnt exist within the xml hierarchy where expected."""
 
@@ -45,6 +58,7 @@ def get_element(root, attribute_path, attribute=None, silent_error=False):
     if not element:
         if silent_error:
             return None
+        ElementTree.dump(root)
         raise ElementNotFound(f'{R}No element for path [{attribute_path}]{RST}')
     if attribute:
         return element[0].get(attribute)
@@ -53,7 +67,7 @@ def get_element(root, attribute_path, attribute=None, silent_error=False):
 
 def note_translator(midi_note_number):
     """Returns note and octave from midi note number."""
-    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
     octave = midi_note_number // 12 - 1
     noteIndex = midi_note_number % 12
     return notes[noteIndex], octave

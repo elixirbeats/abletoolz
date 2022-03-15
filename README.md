@@ -140,8 +140,9 @@ python main.py -f "D:\all_sets\myset.als" -s --append-bars-bpm
 ## Future plans
 - Add color functions to color tracks/clips with gradients or other fun stuff.
 - Collect sample path errors when both absolute and relative paths are broken into a report file.
-- Add crc verify for samples, since ableton does store a crc number in the set.
-- Fix broken sample paths. For windows this should be easy, for Mac ... a challenge. Will need to figure out how to 
+- Sample refix feature:
+    - Add crc verify for samples, since ableton does store a crc number in the set.
+    - Fix broken sample paths. For windows this should be easy, for Mac ... a challenge. Will need to figure out how to 
 correctly create byte data that ableton loads happily.
 - Add parsing for older non gzipped ableton sets(Early ableton 8 and before).
 - Figure out way to verify AU plugins on MacOs.
@@ -149,3 +150,4 @@ correctly create byte data that ableton loads happily.
 - Add support for different time signatures besides 4/4.
 - Add more track and clip specific analysing/editing functions.
 - Figure out how to create package with setup tools and put this on PyPy.
+- Renaming default naming (0001-blah) to match project/instrument better.. helps 
