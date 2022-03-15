@@ -1,42 +1,59 @@
 import datetime
 import gzip
 import os
+import enum
+import pathlib
 import re
 import sys
 import threading
-import pathlib
+from typing import Optional
 from xml.etree import ElementTree
 
+import chardet
 from abletoolz.ableton_track import AbletonTrack
-from abletoolz import RST, R, G, B, Y, C, M, BACKUP_DIR, STEREO_OUTPUTS
+
+from abletoolz import B
+from abletoolz import BACKUP_DIR
+from abletoolz import C
+from abletoolz import G
+from abletoolz import M
+from abletoolz import R
+from abletoolz import RST
+from abletoolz import STEREO_OUTPUTS
+from abletoolz import Y
 from abletoolz import get_element
 
 if sys.platform == "win32":
     import win32_setctime
 
+class SetOperatingSystem(enum.Enum):
+    """Pre ableton 11, sets store data differently."""
+    MAC_OS = enum.auto()
+    WINDOWS_OS = enum.auto()
+    UNSET = enum.auto()
 
-def version_supported(supported_version, set_version):
-    digits = set_version.split()[-1]
-    if len([x for x in digits if x == '.']) < 2:
-        digits = f'{digits}0'
-    set_int = int(re.sub(r'\D|\.', '', digits))
-    supported_int = int(supported_version.replace('.', ''))
-    if set_int > supported_int:
-        return True
-    return False
 
-def parse_version_tuple():
-    pass
+def version_supported(set_version, supported_version):
+    for set_v, supported_v in zip(set_version, supported_version):
+        if set_v > supported_v:
+            return True
+        elif set_v < supported_v:
+            return False
+    return True
+
 
 def above_version(supported_version):
-    """Decorator to prevent Exceptions in older sets where the xml schema was different."""
+    """Decorator to handle function support for changing XML schemas across Ableton versions."""
+    # https://help.ableton.com/hc/en-us/articles/360000841004-Backward-Compatibility
     def wrapper(f):
         def wrapped_func(self, *args, **kwargs):
-            if not version_supported(supported_version, self.creator):
+            if not version_supported(self.major_minor_patch, supported_version):
                 print(f'Function {f.__name__} is only supported for {supported_version} and above.')
                 return None
             return f(self, *args, **kwargs)
+
         return wrapped_func
+
     return wrapper
 
 
@@ -54,6 +71,8 @@ class AbletonSet(object):
         self.schema_change = None  # Xml schema change version.
         self.major_version = None
         self.minor_version = None
+        self.major_minor_patch = None
+        self.set_os: SetOperatingSystem = SetOperatingSystem.UNSET
 
         # Parsed set variables.
         self.master_output = None
@@ -63,17 +82,25 @@ class AbletonSet(object):
         self.tracks = []
         self.furthest_bar = None
         self.bpm = None
+        self.missing_absolute_samples = []
+        self.missing_relative_samples = []
 
     def load_version(self):
         """Loads version."""
         self.creator = self.root.get('Creator')
-        # if self.creator.startswith('Ableton Live 11'):
-        parsed = re.findall(r"Ableton Live ([1-9]{1,2})\.([0-9]{1,3})\.([0-9]{1,3})", self.creator)
-        major, minor, patch = [int(x) for x in parsed[0]]
-        self.schema_change = self.root.get('SchemaChangeCount')
-        self.major_version = self.root.get('MajorVersion')
-        self.minor_version = self.root.get('MinorVersion')
-        print(f'{Y}Official version: {M}{self.creator}, {G}Schema version: {self.schema_change}')
+        parsed = re.findall(r"Ableton Live ([0-9]{1,2})\.([0-9]{1,3})[\.b]{0,1}([0-9]{1,3}){0,1}", self.creator)[0]
+        parsed = [int(x) if x.isdigit() else x for x in parsed if x != '']
+        if len(parsed) == 3:
+            major, minor, patch = parsed
+        elif len(parsed) == 2:
+            major, minor = parsed
+            patch = 0
+        else:
+            raise Exception(f"Could not parse version from: {self.creator}")
+        self.major_minor_patch = major, minor, patch
+        print(f'{B}Set version: {M}{self.creator}')
+        if "b" in self.creator.split()[-1]:
+            print(f'{Y}Set is from a beta version, some commands might not work properly!')
 
     @staticmethod
     def human_readable_date(timestamp):
@@ -85,7 +112,7 @@ class AbletonSet(object):
         with open(self.pathlib_obj, 'rb') as fd:
             first_two_bytes = fd.read(2)
             if first_two_bytes == b'\xab\x1e':  # yes, it spells able :P
-                print(f'{R}{self.pathlib_obj} Is an older unsupported version that is not compressed xml.')
+                print(f'{R}{self.pathlib_obj} Is pre Ableton 8.2.x which is unsupported.')
                 return False
             elif first_two_bytes != b'\x1f\x8b':
                 print(f'{R}{self.pathlib_obj} File format is not gzip!, cannot open.')
@@ -126,12 +153,12 @@ class AbletonSet(object):
         for i, current_dir in enumerate(self.pathlib_obj.parents):
             if i > max_folder_search_depth:
                 print(f'{R}Reached maximum search depth, exiting..')
-                return
+                break
             elif pathlib.Path(current_dir / "Ableton Project Info").exists():
                 self.project_root_folder = current_dir
-                print(f'{G}Project root folder: {current_dir}')
+                print(f'{C}Project root folder: {current_dir}')
                 return
-        print(f'{R}Did not find project root folder, relative paths will not be verifiable.')
+        print(f'{R}Could not find project folder(Ableton Project Info), unable to validate relative paths!')
 
     def generate_xml(self):
         """Add header and footer to xml data."""
@@ -144,7 +171,7 @@ class AbletonSet(object):
         xml_file = self.pathlib_obj.parent / (self.pathlib_obj.stem + '.xml')
         if xml_file.exists():
             self.move_original_file_to_backup_dir(xml_file)
-        with xml_file as fd:  # with pathlib.Path(xml_file) as fd:
+        with xml_file as fd:
             fd.write_bytes(self.generate_xml())
         print(f'{G}Saved xml to {xml_file}')
 
@@ -154,7 +181,7 @@ class AbletonSet(object):
         else:
             self.creation_time = os.stat(self.pathlib_obj).st_birthtime
         self.last_modification_time = os.path.getmtime(self.pathlib_obj)
-        print(f'{Y}File creation time {self.human_readable_date(self.creation_time)}, '
+        print(f'{B}File creation time {self.human_readable_date(self.creation_time)}, '
               f'Last modification time: {self.human_readable_date(self.last_modification_time)}')
 
     def restore_file_times(self, pathlib_obj):
@@ -166,7 +193,7 @@ class AbletonSet(object):
             date = self.human_readable_date(self.creation_time)
             path = str(pathlib_obj).replace(' ', r'\ ')
             os.system(f'SetFile -d "{date}" {path} >/dev/null')
-        print(f'{G}Restored creation and modification times: {self.human_readable_date(self.creation_time)}, '
+        print(f'{G}Restored set creation and modification times: {self.human_readable_date(self.creation_time)}, '
               f'{self.human_readable_date(self.last_modification_time)}')
 
     def write_set(self, pathlib_obj):
@@ -190,7 +217,7 @@ class AbletonSet(object):
         thread.join()
 
     # Data parsing functions.
-    @above_version(supported_version='8.0.0')
+    @above_version(supported_version=(8, 0, 0))
     def load_tracks(self):
         """Load tracks into AbletonTrack src."""
         tracks = get_element(self.root, 'LiveSet.Tracks')
@@ -207,13 +234,15 @@ class AbletonSet(object):
         self.furthest_bar = int(max(current_end_times) / 4) if current_end_times else 0
         return self.furthest_bar
 
-    @above_version(supported_version='8.2.0')
+    @above_version(supported_version=(8, 2, 0))
     def get_bpm(self):
         """Gets bpm."""
-        bpm = 'LiveSet.MasterTrack.DeviceChain.Mixer.Tempo.Manual'
+        post_10_bpm = 'LiveSet.MasterTrack.DeviceChain.Mixer.Tempo.Manual'
         pre_10_bpm = 'LiveSet.MasterTrack.MasterChain.Mixer.Tempo.ArrangerAutomation.Events.FloatEvent'
-        bpm_elem = get_element(self.root, bpm, attribute='Value', silent_error=True)
-        if not bpm_elem:
+        major, minor, patch = self.major_minor_patch
+        if major >= 10 or major >= 9 and minor >= 7:
+            bpm_elem = get_element(self.root, post_10_bpm, attribute='Value', silent_error=True)
+        else:
             bpm_elem = get_element(self.root, pre_10_bpm, attribute='Value')
         self.bpm = round(float(bpm_elem), 6)
         return self.bpm
@@ -226,7 +255,7 @@ class AbletonSet(object):
         # TODO improve this to find the time signature from the set and use it here instead of only 4/4.
         seconds_total = ((4 * int(self.furthest_bar)) / self.bpm) * 60
         length = f"{int(seconds_total // 60)}:{round(seconds_total % 60):02d}"
-        print(f'{Y}Longest clip or furthest arrangement position: {self.furthest_bar} bars. '
+        print(f'{M}Longest clip or furthest arrangement position: {self.furthest_bar} bars. '
               f'{C}Estimated length(Only valid for 4/4 Time signature): {length}.')
 
     def set_track_heights(self, height):
@@ -252,7 +281,7 @@ class AbletonSet(object):
         [el.set('Value', 'true') for el in self.root.iter('TrackUnfolded')]
         print(f'{G}Unfolded all tracks.')
 
-    @above_version(supported_version='8.2.0')
+    @above_version(supported_version=(8, 2, 0))
     def set_audio_output(self, output_number, element_string):
         """Sets audio output."""
         if output_number not in STEREO_OUTPUTS:
@@ -292,7 +321,7 @@ class AbletonSet(object):
                     and 0 not in byte_data[i + 1:potential_end] and byte_data[potential_end] == 0):
                 if debug:
                     print(f'\t{Y}i: {i}, value at i: {byte_data[i]}, potential (e)ndex: {potential_end}, '
-                              f'data: {byte_data[i + 1: potential_end]}')
+                          f'data: {byte_data[i + 1: potential_end]}')
                 itm_lst.append(byte_data[i + 1:potential_end])
                 i = potential_end + 1
                 continue
@@ -320,8 +349,10 @@ class AbletonSet(object):
         abs_hash_path = text.replace('\t', '').replace('\n', '')
         byte_data = bytearray.fromhex(abs_hash_path)
         if byte_data[0:3] == b'\x00' * 3:  # Header only on mac projects.
+            self.set_os = SetOperatingSystem.MAC_OS
             return self._parse_mac_data(byte_data, abs_hash_path)
         else:
+            self.set_os = SetOperatingSystem.WINDOWS_OS
             return self._parse_windows_data(byte_data, abs_hash_path)
 
     # Plugin related functions.
@@ -341,20 +372,20 @@ class AbletonSet(object):
                     full_path = f'{path}{os.path.sep}{name}'
                 exists = pathlib.Path(full_path).exists()
                 color = G if exists else R
-                print(f'{color}Plugin: {name}, {Y}Plugin folder path: {full_path}, {color}Exists: {exists}')
+                print(f'{color}Plugin: {name}, {M}Plugin folder path: {full_path}, {color}Exists: {exists}')
             elif plugin_element.findall('./AuPluginInfo'):
                 name = get_element(plugin_element, 'AuPluginInfo.Name', attribute='Value')
                 manufacturer = get_element(plugin_element, 'AuPluginInfo.Manufacturer', attribute='Value')
-                print(f"{Y}Audio Units do not store paths. Plugin {manufacturer}: {name} cannot be verified.")
+                print(f"{M}Audio Units do not store paths. Plugin {manufacturer}: {name} cannot be verified.")
                 # TODO figure out how to match different name from components installed to stored set plugin.
                 # au_components = pathlib.Path('/Library/Audio/Plug-Ins/Components').rglob('*.component')
 
     # Sample related functions.
+    @above_version(supported_version=(8, 2, 0))
     def check_relative_path(self, name, sample_element):
         """Constructs absolute path from project root and relative path stored in set."""
         if not self.project_root_folder:
-            print(f'{R}Error, project root folder is undefined, cant find relative paths.')
-            return
+            return None, None
         relative_path_enabled = get_element(sample_element, 'FileRef.HasRelativePath', attribute='Value')
         relative_path_type = get_element(sample_element, 'FileRef.RelativePathType', attribute='Value')
         if relative_path_enabled == 'true' and relative_path_type == '3':
@@ -367,39 +398,132 @@ class AbletonSet(object):
             return full_path, from_project_root
         return None, None
 
-    def list_samples_v11(self):
-        """Ableton 11 sample find."""
+    def list_samples_pre_11(self, verbose: bool = False, dump_xml: bool = True) -> None:
+        """Iterates through all sample references and checks absolute and relative paths.
+
+        file paths are mixed binary data for MacOs and Windows.
+        """
+        missing_samples = 0
         for sample_element in self.root.iter('SampleRef'):
             name = get_element(sample_element, 'FileRef.Name', attribute='Value')
-            print(f'{C}Sample name: {name}')
             relative_path, from_project_root = self.check_relative_path(name, sample_element)
-            if relative_path:
-                rel_exists = pathlib.Path(relative_path).exists()
-                color = G if rel_exists else R
-                print(f'\t{color}Relative path to project root(highlighted): '
-                      f'{Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, {color}Exists: {rel_exists}')
-            abs_path = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
-            abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
-            color = G if abs_exists else R
-            print(f'\t{color}Absolute path: {Y}{abs_path}, {color}Exists: {abs_exists}')
+            abs_str = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
+            absolute_path = pathlib.Path(abs_str)
+            file_ref = sample_element.find("FileRef")
 
-    def list_samples_pre_v11(self):
-        """Iterates through all sample references and checks absolute and relative paths."""
+            for file_size_str in ["OriginalFileSize", "FileSize"]:
+                file_size = file_ref.findall(f'.//{file_size_str}')
+                if len(file_size):
+                    saved_filesize = int(file_size[0].get("Value"))
+                    break
+            else:
+                ElementTree.dump(file_ref)
+                raise Exception("Could not parse saved sample size.")
+            if not self._parse_samplepaths(absolute_path, relative_path, verbose, saved_filesize):
+                missing_samples += 1
+            # if self.major_minor_patch[0] < 10:
+            #     ElementTree.dump(sample_element)
+
+        self.sample_results(missing_samples)
+
+    def list_samples_post_11(self, verbose: bool = False, dump_xml: bool = False) -> None:
+        """Post Ableton 11 sample parser. Format changed from binary encoded paths to simple strings for all OSes."""
+        missing_samples = 0
         for sample_element in self.root.iter('SampleRef'):
-            name = get_element(sample_element, 'FileRef.Name', attribute='Value')
-            print(f'{C}Sample name: {name}')
-            relative_path, from_project_root = self.check_relative_path(name, sample_element)
-            if relative_path:
-                rel_exists = pathlib.Path(relative_path).exists()
-                color = G if rel_exists else R
-                print(f'\t{color}Relative path to project root(highlighted): '
-                      f'{Y}{self.project_root_folder}{os.path.sep}{M}{from_project_root}, {color}Exists: {rel_exists}')
-            abs_path = self._parse_hex_path(get_element(sample_element, 'FileRef.Data').text)
-            abs_exists = pathlib.Path(abs_path).exists() if abs_path else None
-            color = G if abs_exists else R
-            print(f'\t{color}Absolute path: {Y}{abs_path}, {color}Exists: {abs_exists}')
 
-    def list_samples(self):
-        if self.major_version >= 11:
-            return self.list_samples_v11()
-        return self.list_samples_pre_v11()
+            file_ref = sample_element.find("FileRef")
+            absolute_path = pathlib.Path(file_ref.find("Path").get("Value"))
+            relative_path_type = file_ref.find("RelativePathType").get("Value")
+
+            # Experimental, seems 11.1 beta changed how paths work?
+            if self.major_minor_patch[0:2] == (11, 1) and relative_path_type == "0":
+                absolute_path = None
+                relative_path = pathlib.Path(self.project_root_folder) / file_ref.find("Path").get("Value")
+            elif relative_path_type == "3":
+                relative_path = pathlib.Path(self.project_root_folder) / file_ref.find("RelativePath").get("Value")
+            else:
+                relative_path = None
+            saved_filesize = int(file_ref.find("OriginalFileSize").get("Value"))
+            if not self._parse_samplepaths(absolute_path, relative_path, verbose, saved_filesize):
+                missing_samples += 1
+
+            ElementTree.dump(sample_element)
+        self.sample_results(missing_samples)
+
+    def _parse_samplepaths(self, absolute_path: Optional[pathlib.Path], relative_path: Optional[pathlib.Path], verbose: bool,
+                           saved_filesize: int) -> bool:
+        absolute_found = absolute_path and absolute_path.exists()
+        relative_found = relative_path and relative_path.exists()
+        if not absolute_found and not relative_found:
+            if absolute_path not in self.missing_absolute_samples:
+                self.missing_absolute_samples.append(absolute_path)
+            if relative_path and relative_path not in self.missing_relative_samples:
+                self.missing_relative_samples.append(relative_path)
+            return False
+        else:
+            if absolute_found:
+                local_filesize = absolute_path.stat().st_size
+                if verbose:
+                    size_match = saved_filesize == local_filesize
+                    color = G if size_match else R
+                    print(f'{G}Absolute path sample found: {absolute_path}\n\tFile size '
+                          f'{local_filesize} matches saved filesize {saved_filesize}: {color}{size_match}')
+            if relative_found:
+                local_filesize = relative_path.stat().st_size
+                size_match = saved_filesize == local_filesize
+                color = G if size_match else R
+                if verbose:
+                    print(f'{G}Relative(collect and save) sample found: {relative_path}\n\tFile size '
+                          f'{local_filesize} matches saved filesize {saved_filesize}: {color}{size_match}')
+            if absolute_found or relative_found:
+                return True
+        return False
+
+    def sample_results(self, missing_samples: int) -> None:
+        """Print results of sample search."""
+        color = G if not missing_samples else Y
+        print(f'{color}Total missing sample references: {M}{missing_samples}{color}, this can include duplicate '
+              f'references to the same sample so only unique paths are listed here. Relative paths are created using '
+              f'collect-and-save. If either sample path is found Ableton will load the sample.')
+        if self.missing_relative_samples:
+            rel_string = '\n\t'.join((str(x) for x in self.missing_relative_samples))
+            print(f'{Y}Missing Relative paths:{R}\n\t{rel_string}')
+        if self.missing_absolute_samples:
+            abs_string = '\n\t'.join((str(x) for x in self.missing_absolute_samples))
+            print(f'{Y}Missing Absolute paths:{R}\n\t{abs_string}')
+
+    def list_samples(self, verbose: bool) -> None:
+        """Select correct sample parsing function."""
+        if self.major_minor_patch[0] >= 11:
+            return self.list_samples_post_11(verbose)
+        return self.list_samples_pre_11(verbose)
+
+    # Plugin related functions.
+    @above_version(supported_version=(11, 0, 0))
+    def plugin_buffers(self, verbose: bool) -> None:
+        for plugin in self.root.iter('VstPluginInfo'):
+            path_str = plugin.find("Path").get("Value")
+            name = plugin.find("PlugName").get("Value")
+            buffer_str = plugin.find("Preset").find("VstPreset").find("Buffer").text
+            parsed_buf = buffer_str.replace("\t", "").replace("\n", "")
+            buffer_bytes = bytes.fromhex(parsed_buf)
+
+            encodings = ["utf-8", "ascii", "utf-16", "Windows-1254", "ISO-8859-1", "IBM866"]
+            detected_enc = chardet.detect(buffer_bytes)['encoding']
+            if detected_enc:
+                encodings.insert(0, detected_enc)
+            for encoding in encodings:
+                try:
+                    decoded = buffer_bytes.decode(encoding=encoding, errors="ignore")
+                    break
+                except UnicodeDecodeError as exc:
+                    if verbose:
+                        print(f"{R}Couldn't decode with {encoding} for bytes: {exc}, data:\n{buffer_bytes}")
+                    decoded = "COULD NOT DECODE"
+
+            end_index = min(len(decoded), 800) if not verbose else len(decoded)
+            if not verbose and len(decoded) > 800:
+                print(f'{G}Name: {name}, {B}Path: {path_str}, {C}Encoding: {detected_enc}, '
+                      f'Buffer(truncated if more than 800 characters):\n{decoded[:end_index]}')
+            else:
+                print(f'{G}Name: {name}, {B}Path: {path_str}, {C}Encoding: {detected_enc}, Buffer:\n{decoded}\n\n')

@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import pathlib
+import sys
 import time
 
 from abletoolz.ableton_set import AbletonSet
@@ -21,15 +22,23 @@ def get_pathlib_objects(filepath=None, directory=None):
     elif filepath:
         return [pathlib.Path(filepath)]
 
+def is_valid_dir_path(path: str) -> str:
+    """Checks if the path is a valid path"""
+    if sys.platform.startswith('win') and "\"" in path:
+        raise Exception(f'{R}Windows paths must not end in backslash: -d \'C:\\somepath\\\'(BAD) -d \'C:\\somepath\' '
+                        f'(GOOD). This is due to a bug in how Windows handles backslashes before quotes.')
+    return path
+
 
 def parse_arguments():
     """Get command line arguments."""
     parser = argparse.ArgumentParser()
 
     # Input arguments.
-    parser.add_argument('-d', '--directory',
+    parser.add_argument('-d', '--directory', type=is_valid_dir_path,
                         help='directory to recursively parse sets in, cannot be combined with --file. If no options '
-                             'are set defaults to present working directory.')
+                             'are set defaults to present working directory. NOTE: ON WINDOWS do not include a trailing'
+                             '"\\" !! ')
     parser.add_argument('-f', '--file', help='individual set file to parse, cannot be combined with --directory.')
     # Output arguments.
     parser.add_argument('-x', '--xml', action="store_true", default=False,
@@ -39,6 +48,9 @@ def parse_arguments():
                              'what you are doing! The original file is always renamed to '
                              f'set_directory/{BACKUP_DIR}/set_name_xx.als, where xx will automatically increase to '
                              'to avoid overwriting files.')
+    parser.add_argument('-v', '--verbose', action="store_true", default=False,
+                        help='Adds extra verbosity, for some commands this will print more information.')
+
     parser.add_argument('--append-bars-bpm', action='store_true', default=False,
                         help='Append furthest bar length and bpm to filename to help organize your set collection. '
                              'For example, my_set.als --> my_set_32bars_90.00bpm.als Option only works with -s/--save')
@@ -60,6 +72,8 @@ def parse_arguments():
                         help='Load and list all track information.')
     parser.add_argument('--check-samples', action="store_true", default=False,
                         help='Checks relative and absolute sample paths and verifies if sample exists there.')
+    parser.add_argument('--plugin-buffers', action="store_true", default=False,
+                        help='Experimental feature, attempts to print each plugin\'s save buffer.')
     parser.add_argument('--check-plugins', action="store_true", default=False,
                         help='Checks plugin VST paths and verifies they exists. Note: If Ableton finds the '
                              'plugin name in a different path it will automatically update these paths the next time '
@@ -80,7 +94,7 @@ def process(args):
         return
 
     for pathlib_obj in pathlib_objects:
-        print(f'\n{G}Parsing : {pathlib_obj}')
+        print(f'\n{C}Parsing : {pathlib_obj}')
         ableton_set = AbletonSet(pathlib_obj)
         if not ableton_set.parse():
             continue
@@ -106,17 +120,23 @@ def process(args):
         if args.list_tracks:
             ableton_set.load_tracks()
             ableton_set.print_tracks()
+        if args.plugin_buffers:
+            ableton_set.plugin_buffers(args.verbose)
         if args.check_plugins:
             ableton_set.list_plugins()
         if args.check_samples:
-            ableton_set.list_samples()
+            try:
+                ableton_set.list_samples(args.verbose)
+            except Exception as e:
+                import traceback
+                print(traceback.format_exc())
 
         if args.xml:
             ableton_set.save_xml()
         if args.save:
             ableton_set.save_set(args.append_bars_bpm)
-        else:
-            print(f'{C}Data only modified in memory, use -s/--save option to commit changes to file.')
+        elif any([args.master_out, args.cue_out, args.fold,args.unfold, args.set_track_heights, args.set_track_widths]):
+            print(f'{Y}No changes saved, use -s/--save option to write changes(if any) to file.')
 
         # Unload from memory.
         del ableton_set
