@@ -1,4 +1,4 @@
-![Check plugins](/doc/top.png)
+![Check plugins](/doc/new.png)
 # Abletoolz
 
 So what is Abletoolz? It's a Python command line tool to do operations & analysis on one/whole directories of Ableton
@@ -50,6 +50,38 @@ in how it handles backslashes and python's argparse:
 `-d "D:\somefolder\"` # BAD
 `-d "D:\somefolder"` # GOOD
 
+### Analysis - checking samples/tracks/plugins
+![Analyze set](/doc/new.png)
+
+`--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the 
+sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path 
+is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
+
+`--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the 
+same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This 
+command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
+Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
+`/Library/Audio/Plug-Ins/Components`.
+
+`--list-tracks` List track information.
+
+### Edit
+These will only edit sets in memory unless you use `-s/--save` explicitly to commit changes.
+
+`--unfold` or `--fold` unfolds/folds all tracks in set.
+
+`--set-track-heights`  Set arrangement track heights for all tracks, including groups and automation lanes. The values 
+will be different on different computers/OSes because it's based on your screen resolution, so first experiment 
+with this command and `--set-track-widths` on a set with different values and open it after to see how it looks. On my
+setup the Min is 17, Default 68, Max 425 for track height.
+
+`--set-track-widths` Set clip view track widths for all tracks. On my setup, Min 17, Default 24, Max 264. 
+
+`--master-out` number to set Master audio output channels to. 1 correlates to stereo out 1/2, 2 to stereo out 3/4 etc.
+
+`--cue-out` set Cue audio output channels. Same numbering for stereo outputs as master out.
+
+
 ### Output - saving edited sets to disk
 `-s`, `--save` 
 Saves modified set in the same location as the original file. This only applies if you use options that actually alter
@@ -83,34 +115,6 @@ set name. For example,
 `myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename 
 wont keep growing).
 
-### Analysis - checking samples/tracks/plugins
-`--list-tracks` List track information.
-
-`--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the 
-sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path 
-is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
-
-`--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the 
-same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This 
-command attempts to find missing VSTs and if it finds a name match it's most likely Ableton will load it fine.
-Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
-`/Library/Audio/Plug-Ins/Components`.
-
-### Edit
-These will only edit sets in memory unless you use `--save` explicitly to commit changes.
-
-`--unfold` or `--fold` unfolds/folds all tracks in set.
-
-`--set-track-heights`  Set arrangement track heights for all tracks, including groups and automation lanes. The values 
-will be different on different computers/OSes because it's based on your screen resolution, so first experiment 
-with this command and `--set-track-widths` on a set with different values and open it after to see how it looks. On my
-setup the Min is 17, Default 68, Max 425 for track height.
-
-`--set-track-widths` Set clip view track widths for all tracks. On my setup, Min 17, Default 24, Max 264. 
-
-`--master-out` number to set Master audio output channels to. 1 correlates to stereo out 1/2, 2 to stereo out 3/4 etc.
-
-`--cue-out` set Cue audio output channels. Same numbering for stereo outputs as master out.
 
 ## Examples
 Check all samples in sets
