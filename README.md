@@ -11,41 +11,49 @@ under the directory `abletoolz_backup` before creating the edited set file as a 
 Supports both Windows and MacOS created sets.
 
 ## Updates
-- Ableton 8, 9, and 10 sets are now supported.
+- Ableton 8, 9, 10 and 11/11.1b sets are now supported.
 - Abletoolz now preserves your set file creation/modification times by storing them before writing changes and then 
 modifying the file after.
 - Added `--append-bars-bpm` argument and used non daemon thread for set write to help safeguard against process being 
 killed.
 
 ## Installation:
-I developed this using Python 3.8, but most likely it will work with other Python 3.x versions. I recommend 3.6+
+I developed this using Python 3.8, but most likely it will work with other Python 3.x versions. I recommend 3.8+
 
 (https://www.python.org/downloads/)
 
-Use git clone or download the zip file and extract to a directory.
-Make sure you're using a 3.6+ version of python:
+Open a command line shell and make sure you installed Python 3.8+ correctly:
 ```
-python -V
+python -V  # Should give you a version
 ```
+Use git clone, or download this repo's zip file and extract. Navigate to that folder on the command line.
 Then install dependencies:
 ```
 python -m pip install -r requirements.txt
 ```
-
+That's it! Now you can run commands:
+```
+python main.py -h
+```
 ## Usage:
 `-h` Print argument usage.
+`-v` For some commands, displays more information.
 
-### Input
+### Input - Parsing single or multiple sets.
 Only one input option can be used at a time.
 
-`-f` Process single set.
+`-f setname.als` Process single set.
 
-`-d` Finds all sets in directory and all subdirectories. If "backup", "Backup" or "abletoolz_backup" are in any 
-of the path hierarchy, those sets is skipped.
+`-d "D:\somefolder"` Finds all sets in directory and all subdirectories. If "backup", "Backup" or "abletoolz_backup" are in any 
+of the path hierarchy, those sets is skipped. NOTE: On windows, do NOT include the ending backslash! There is a bug with powershell 
+in how it handles backslashes and python's argparse: 
+`-d "D:\somefolder\"` # BAD
+`-d "D:\somefolder"` # GOOD
 
-### Output
+### Output - saving edited sets to disk
 `-s`, `--save` 
-Creates modified set in the same location as the original file. When you use this option, as a safety precaution the original file is stored under the same 
+Saves modified set in the same location as the original file. This only applies if you use options that actually alter
+the set, not just analyze plugins/samples/etc. When you use this option, as a safety precaution the original file is stored under the same 
 directory as the original set under `set_dir/abletoolz_backup/set_name__1.als`. If that file exists, it will automatically 
 create a new one `set_dir/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That 
 way your previous versions are always still intact (be sure to clean this folder up if you run this a bunch of times).
@@ -66,24 +74,25 @@ only if this argument is specified does it commit changes to the set file. Now t
 run the save argument on my entire track library(700+ sets) with many years of work without breaking a single set. 
 
 `-x`, `--xml`  Dumps the uncompressed set XML in same directory as set_name.xml Useful to understand set structure for 
-development. If you run with this option multiple times, the previous xml file will be moved into the `abletoolz_backup` 
-folder with the same renaming behavior as `-s/--save`. You can also rename the extension from `.xml` to `.als` and ableton
-will still load it! The next time you save though it will be compressed gzip again.
+development. You can edit this xml file, rename it from `.xml` to  `.als` and Ableton will load it! If you run with this 
+option multiple times, the previous xml file will be moved into the `abletoolz_backup` 
+folder with the same renaming behavior as `-s/--save`.
 
 `--append-bars-bpm` Used with `-s/--save`, appends furthest bar length and bpm to set name. For example, 
 `myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename 
 wont keep growing).
 
-### Analysis
+### Analysis - checking samples/tracks/plugins
 `--list-tracks` List track information.
 
 `--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the 
 sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path 
-is checked.
+is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
 
 `--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the 
-same plugin name in a different path it will automatically fix any broken paths the next time you save your project. 
-AU are not stored as paths but component names. Ableton stores the AU name differently than what is stored under
+same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This 
+command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
+Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
 `/Library/Audio/Plug-Ins/Components`.
 
 ### Edit

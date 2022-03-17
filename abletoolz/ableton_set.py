@@ -561,12 +561,25 @@ class AbletonSet(object):
         return self.list_samples_pre_11(verbose)
 
     # Plugin related functions.
-    @above_version(supported_version=(11, 0, 0))
+    @above_version(supported_version=(9, 0, 0))
     def plugin_buffers(self, verbose: bool) -> None:
         for plugin in self.root.iter('VstPluginInfo'):
-            path_str = plugin.find('Path').get('Value')
+            self.last_elem = plugin
+            # ElementTree.dump(plugin)
+            for path_query in ['Path', 'Dir']:
+                path_ele = plugin.findall(f'.//{path_query}')
+                if len(path_ele):
+                    if path_query == 'Dir':
+                        data = path_ele[0].findall('.//Data')
+                        path_str = self._parse_hex_path(data[0].text)
+                        break
+                    else:
+                        path_str = path_ele[0].get('Value')
+
             name = plugin.find('PlugName').get('Value')
-            buffer_str = plugin.find('Preset').find('VstPreset').find('Buffer').text
+            buffer_str = plugin.findall('.//Buffer')[0].text
+            if not buffer_str:
+                continue
             parsed_buf = buffer_str.replace('\t', '').replace('\n', '')
             buffer_bytes = bytes.fromhex(parsed_buf)
 
@@ -577,7 +590,8 @@ class AbletonSet(object):
             for encoding in encodings:
                 try:
                     decoded = buffer_bytes.decode(encoding=encoding, errors='ignore')
-                    break
+                    print(name, encoding, decoded[:500] if len(decoded) >= 1000 else decoded)
+                    # break
                 except UnicodeDecodeError as exc:
                     if verbose:
                         print(f'{R}Couldn\'t decode with {encoding} for bytes: {exc}, data:\n{buffer_bytes}')
