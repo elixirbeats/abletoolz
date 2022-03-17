@@ -26,8 +26,8 @@ Open a command line shell and make sure you installed Python 3.8+ correctly:
 ```
 python -V  # Should give you a version
 ```
-Use git clone, or download this repo's zip file and extract. Navigate to that folder on the command line.
-Then install dependencies:
+Use git clone, or download this repo's zip file and extract it to a folder. Navigate to that folder on the command line, 
+then install dependencies:
 ```
 python -m pip install -r requirements.txt
 ```
@@ -37,7 +37,7 @@ python main.py -h
 ```
 ## Usage:
 `-h` Print argument usage.
-`-v` For some commands, displays more information.
+`-v` Verbosity. For some commands, displays more information.
 
 ### Input - Parsing single or multiple sets.
 Only one input option can be used at a time.
@@ -58,12 +58,12 @@ directory as the original set under `set_dir/abletoolz_backup/set_name__1.als`. 
 create a new one `set_dir/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That 
 way your previous versions are always still intact (be sure to clean this folder up if you run this a bunch of times).
 
-***Disclaimer*** Before using save on sets you spent hours making, experiment on simple sets you don't care about,
+***Disclaimer*** Before using `Edit` options with save, experiment on simple sets you don't care about,
 then open them in ableton to make sure they load correctly and the changes are what you expect. Once you are confident 
-of the options you use then you can use it on real work. Because I understand how many hours of hard work go into set files, 
+of the options you use then edit . Because I understand how many hours of hard work go into set files, 
 I've put in multiple safeguards to prevent you losing anything:
-- Original file is first moved to backup directory `abletoolz_backup` as described above, so you can always move that 
-file back if for some reason it breaks(so far I have not been able to break one, on Windows and MacOs).
+- Original file is ALWAYS moved to the backup directory `abletoolz_backup` as described above, so you can always move that 
+file back if for some reason the set breaks(so far I have not been able to break one, on Windows and MacOs).
 - I use a non daemon thread to do the actual file write, which will not be forcibly killed if you kill the script 
 during some long operation. Rather than rely on this, please just allow the script to finish processing to avoid any 
 issues, and make sure the options you're using do what you expect before executing a long running operation(hundreds 
@@ -78,7 +78,8 @@ development. You can edit this xml file, rename it from `.xml` to  `.als` and Ab
 option multiple times, the previous xml file will be moved into the `abletoolz_backup` 
 folder with the same renaming behavior as `-s/--save`.
 
-`--append-bars-bpm` Used with `-s/--save`, appends furthest bar length and bpm to set name. For example, 
+`--append-bars-bpm` Used with `-s/--save`, appends the longest clip or furthest arrangement bar length and bpm to the 
+set name. For example, 
 `myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename 
 wont keep growing).
 
@@ -91,7 +92,7 @@ is checked. By default only missing samples are displayed to reduce clutter, use
 
 `--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the 
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This 
-command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
+command attempts to find missing VSTs and if it finds a name match it's most likely Ableton will load it fine.
 Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
 `/Library/Audio/Plug-Ins/Components`.
 
