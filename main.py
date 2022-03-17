@@ -5,6 +5,7 @@ import datetime
 import pathlib
 import sys
 import time
+import traceback
 
 from abletoolz.ableton_set import AbletonSet
 from abletoolz import R, G, B, C, BACKUP_DIR
@@ -88,6 +89,7 @@ def parse_arguments():
 def process(args):
     """Process arguments."""
     start_time = time.time()
+    vst_dirs = []
     pathlib_objects = get_pathlib_objects(filepath=args.file, directory=args.directory)
     if not pathlib_objects:
         print(f'{R} Error, no sets to process!')
@@ -123,13 +125,18 @@ def process(args):
         if args.plugin_buffers:
             ableton_set.plugin_buffers(args.verbose)
         if args.check_plugins:
-            ableton_set.list_plugins()
+            try:
+                result = ableton_set.list_plugins(args.verbose, vst_dirs)
+                vst_dirs = list(set(result))
+            except Exception:
+                print(traceback.format_exc())
+                ableton_set.dump_element()
         if args.check_samples:
             try:
                 ableton_set.list_samples(args.verbose)
-            except Exception as e:
-                import traceback
+            except Exception:
                 print(traceback.format_exc())
+                ableton_set.dump_element()
 
         if args.xml:
             ableton_set.save_xml()

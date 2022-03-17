@@ -8,7 +8,7 @@ colorama.init(autoreset=True)
 # Shorten color variables
 RST = colorama.Fore.RESET
 if sys.platform == 'win32':
-    BOLD = "\x1b"
+    BOLD = '[1m'
     # Windows terminal colors are hard to see.
     R = colorama.Fore.LIGHTRED_EX
     G = colorama.Fore.LIGHTGREEN_EX
