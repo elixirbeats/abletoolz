@@ -1,3 +1,6 @@
 colorama
+chardet
+tqdm
+pydantic
 # For setting file creation date.
 win32_setctime; platform_system == "Windows"
