@@ -53,7 +53,9 @@ of the path hierarchy, those sets is skipped.
 NOTE: On windows, do NOT include the ending backslash! There is a bug with powershell
 in how it handles backslashes and how python interprets backslashes as escape characters:
 `abletoolz "D:\somefolder\"` # BAD
+
 `abletoolz "D:\somefolder"` # GOOD
+
 without quotes, backslashes are fine (but you'll need to use quotes if you have spaces in the directory path)
 `abletoolz D:\somefolder\` # GOOD
 

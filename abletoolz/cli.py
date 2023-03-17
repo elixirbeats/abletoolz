@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 
 from abletoolz import __version__
 from abletoolz.ableton_set import AbletonSet
-from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, R, Y
+from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, M, R, Y
 from abletoolz.sample_databaser import create_db
 
 logger = logging.getLogger(__name__)
@@ -252,7 +252,7 @@ def process(args: argparse.Namespace) -> int:
         # TODO(fix this general exception and below)
         except ElementNotFound:
             logger.info(traceback.format_exc())
-
+        logger.info("%s\n\n%s\n\n", M, "|" * 100)
     logger.info(
         "%sTook %s to process %s set(s)", CB, datetime.timedelta(seconds=time.time() - start_time), len(pathlib_objects)
     )

@@ -161,7 +161,9 @@ class AbletonSet(object):
                 logger.error("%s%sIs pre Ableton 8.2.x which is unsupported.", R, self.path)
                 return False
             elif first_two_bytes != b"\x1f\x8b":
-                logger.error("%s%sFile format is not gzip!, cannot open.", R, self.path)
+                logger.error(
+                    "%s%sFile is not .als or is an older format that doesn't use gzip!, cannot open...", R, self.path
+                )
                 return False
         self.get_file_times()
         with gzip.open(self.path, "r") as fd:
