@@ -1,8 +1,10 @@
 """Cli entry point."""
 
 import argparse
+import copy
 import datetime
 import logging
+import os
 import pathlib
 import sys
 import time
@@ -11,7 +13,7 @@ from typing import Dict, List, Optional
 
 from abletoolz import __version__
 from abletoolz.ableton_set import AbletonSet
-from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, M, R, Y
+from abletoolz.misc import BACKUP_DIR, CB, MB, B, C, ElementNotFound, M, R, Y
 from abletoolz.sample_databaser import create_db
 
 logger = logging.getLogger(__name__)
@@ -112,6 +114,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Append furthest bar length and bpm to filename to help organize your set collection. "
         "For example, my_set.als --> my_set_32bars_90.00bpm.als Option only works with -s/--save",
     )
+    parser.add_argument(
+        "--prepend-version",
+        action="store_true",
+        default=False,
+        help="Appends set version to set filename",
+    )
 
     # Edit set arguments.
     parser.add_argument(
@@ -137,6 +145,21 @@ def parse_arguments() -> argparse.Namespace:
         "--master-out",
         type=int,
         help="number to set Master audio output tracks to. Same numbers as --cue-out",
+    )
+    parser.add_argument(
+        "--fix-samples-absolute",
+        action="store_true",
+        default=False,
+        help="Finds missing samples and fixes the broken references in your ableton sets. Does not copy sample into "
+        "project folder. Run --db on folders first "
+        "to create your database.",
+    )
+    parser.add_argument(
+        "--fix-samples-collect",
+        action="store_true",
+        default=False,
+        help="Collects and saves missing samples into the set's project folder, the same as collect and save in "
+        "Ableton. Run --db on folders first to create your database.",
     )
 
     # Analysis arguments.
@@ -164,14 +187,33 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     args = parser.parse_args()
+    assert not (
+        args.fix_samples_absolute and args.fix_samples_collect
+    ), "Can only use --fix-samples-collect or --fix-samples-absolute, not both!"
     assert not (args.fold and args.unfold), "Only set unfold or fold, not both."
-    assert not (args.db and any([args.save, args.list_tracks])), "--db/--database cannot be used with other commands!"
+    assert not (
+        args.db
+        and any(
+            [
+                # TODO(add rest of commands.)
+                args.save,
+                args.list_tracks,
+                args.check_plugins,
+                args.master_out,
+                args.cue_out,
+                args.fold,
+                args.unfold,
+                args.set_track_heights,
+                args.set_track_widths,
+                args.fix_samples,
+            ]
+        )
+    ), "--db/--database cannot be used with other commands!"
     return args
 
 
 def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optional[Dict]) -> int:
     """Process individual set."""
-    del db  # TODO(implement sample fix using db of samples)
     logger.info("%sParsing: %s", C, pathlib_obj)
     ableton_set = AbletonSet(pathlib_obj)
     if not ableton_set.parse():
@@ -181,6 +223,8 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
     ableton_set.find_project_root_folder()
     ableton_set.find_furthest_bar()
     ableton_set.estimate_length()
+    if args.save:
+        backup = copy.deepcopy(ableton_set)
 
     if args.master_out:
         ableton_set.set_audio_output(args.master_out, element_string="MasterTrack")
@@ -199,19 +243,24 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
         ableton_set.load_tracks()
         ableton_set.print_tracks()
 
+    if args.check_samples:
+        ableton_set.list_samples()
+
+    if args.fix_samples_absolute or args.fix_samples_collect:
+        ableton_set.fix_samples(db, collect_and_save=args.fix_samples_collect)
+
     if args.check_plugins:
         vst_dirs: List[pathlib.Path] = []
-        result = ableton_set.list_plugins(args.verbose, vst_dirs)
+        result = ableton_set.list_plugins(vst_dirs)
         vst_dirs = list(set(result))
-        # ableton_set.dump_element()
-    if args.check_samples:
-        ableton_set.list_samples(args.verbose)
-        # ableton_set.dump_element()
 
     if args.xml:
         ableton_set.save_xml()
     if args.save:
-        ableton_set.save_set(args.append_bars_bpm)
+        # if backup == ableton_set:
+        #     logger.info("%sSet has no changes from originally, not saving...", MB)
+        #     return 0
+        ableton_set.save_set(append_bars_bpm=args.append_bars_bpm, prepend_version=args.prepend_version)
     elif any(
         [
             args.master_out,
@@ -220,6 +269,7 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
             args.unfold,
             args.set_track_heights,
             args.set_track_widths,
+            args.fix_samples,
         ]
     ):
         logger.info("%sNo changes saved, use -s/--save option to write changes to file.", Y)
@@ -239,6 +289,9 @@ def process(args: argparse.Namespace) -> int:
         create_db.create_or_update_db(args.srcs)
         return 0
     db = None
+    if args.fix_samples_collect or args.fix_samples_absolute:
+        logger.info("%sLoading db...", M)
+        db = create_db.load_db()
 
     start_time = time.time()
     pathlib_objects = get_pathlib_objects(srcs=args.srcs)
@@ -249,10 +302,9 @@ def process(args: argparse.Namespace) -> int:
     for pathlib_obj in pathlib_objects:
         try:
             process_set(args, pathlib_obj, db)
-        # TODO(fix this general exception and below)
         except ElementNotFound:
             logger.info(traceback.format_exc())
-        logger.info("%s\n\n%s\n\n", M, "|" * 100)
+        logger.info("%s\n\n%s\n\n", M, "^" * os.get_terminal_size().columns)
     logger.info(
         "%sTook %s to process %s set(s)", CB, datetime.timedelta(seconds=time.time() - start_time), len(pathlib_objects)
     )
@@ -261,13 +313,13 @@ def process(args: argparse.Namespace) -> int:
 
 def main() -> None:
     """Entry point to cli."""
+    args = parse_arguments()
     logging.basicConfig(
         stream=sys.stdout,
-        level=logging.DEBUG,
+        level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(message)s",
         datefmt="%H:%M:%S",
     )
-    args = parse_arguments()
     sys.exit(process(args))
 
 
