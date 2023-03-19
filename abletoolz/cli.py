@@ -269,7 +269,8 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
             args.unfold,
             args.set_track_heights,
             args.set_track_widths,
-            args.fix_samples,
+            args.fix_samples_absolute,
+            args.fix_samples_collect,
         ]
     ):
         logger.info("%sNo changes saved, use -s/--save option to write changes to file.", Y)
