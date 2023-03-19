@@ -2,16 +2,16 @@
 
 import pathlib
 import sys
-import xml.etree
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Literal, Optional, Tuple, Union, overload
 from xml.etree import ElementTree
 
 import colorama
 
 colorama.init(autoreset=True)
 
-# These are the hex values of the drop down color menu, arranged in the same order.
+# These are the hex values of the drop down color menu, arranged in the same order of rows and columns.
 # yapf: disable
+# fmt: off
 ableton_colors = [
     0xFF94A6, 0xFFA428, 0xCD9827, 0xF6F57C, 0xBEFA00, 0x21FF41, 0x25FEA9, 0x5DFFE9, 0x8AC5FE, 0x5480E4, 0x93A6FF, 0xD86CE4, 0xE552A1, 0xFFFEFE,
     0xFE3637, 0xF66D02, 0x99734A, 0xFEF134, 0x87FF67, 0x3DC201, 0x01BEAF, 0x18E9FE, 0x10A4EE, 0x007DC0, 0x886CE4, 0xB776C6, 0xFE38D4, 0xD1D0D1,
@@ -23,17 +23,18 @@ ableton_colors = [
 
 STEREO_OUTPUTS: Dict[int, Dict[str, str]] = {
     1: {"target": "AudioOut/External/S0",  "lower_display_string": "1/2"},
-    2: { "target": "AudioOut/External/S1", "lower_display_string": "3/4"},
+    2: {"target": "AudioOut/External/S1", "lower_display_string": "3/4"},
     3: {"target": "AudioOut/External/S2", "lower_display_string": "5/6"},
     4: {"target": "AudioOut/External/S3", "lower_display_string": "7/8"},
     5: {"target": "AudioOut/External/S4", "lower_display_string": "9/10"},
-    6: { "target": "AudioOut/External/S5", "lower_display_string": "11/12"},
-    7: { "target": "AudioOut/External/S6", "lower_display_string": "13/14"},
+    6: {"target": "AudioOut/External/S5", "lower_display_string": "11/12"},
+    7: {"target": "AudioOut/External/S6", "lower_display_string": "13/14"},
     8: {"target": "AudioOut/External/S7", "lower_display_string": "15/16"},
     9: {"target": "AudioOut/External/S8", "lower_display_string": "17/18"},
     10: {"target": "AudioOut/External/S9","lower_display_string": "19/20"},
 }
 # yapf: enable
+# fmt: on
 
 
 # Shorten color variables
@@ -76,12 +77,46 @@ class ElementNotFound(Exception):
     """Element doesnt exist within the xml hierarchy where expected."""
 
 
+@overload
 def get_element(
     root: ElementTree.Element,
     attribute_path: str,
-    attribute: Optional[str] = None,
+    *,
+    silent_error: Literal[False],
+    attribute: Literal[None] = None,
+) -> ElementTree.Element:
+    ...
+
+
+@overload
+def get_element(
+    root: ElementTree.Element,
+    attribute_path: str,
+    *,
+    silent_error: Literal[True],
+    attribute: Literal[None] = None,
+) -> Optional[ElementTree.Element]:
+    ...
+
+
+@overload
+def get_element(
+    root: ElementTree.Element,
+    attribute_path: str,
+    *,
+    silent_error: Literal[False] = False,
+    attribute: str,
+) -> str:
+    ...
+
+
+def get_element(
+    root: ElementTree.Element,
+    attribute_path: str,
+    *,
     silent_error: bool = False,
-) -> Union[xml.etree.ElementTree.Element, str, None]:
+    attribute: Optional[str] = None,
+) -> Union[ElementTree.Element, str, None]:
     """Get element using Element tree xpath syntax."""
     element = root.findall(f"./{'/'.join(attribute_path.split('.'))}")
     if not element:

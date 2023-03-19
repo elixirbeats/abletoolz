@@ -1,8 +1,7 @@
 ![Check plugins](/doc/new.png)
 # Abletoolz
 
-So what is Abletoolz? It's a Python command line tool to do operations & analysis on single files and directories of Ableton
-Live sets. Currently you can change all your Master/Cue out channels (for example make all your sets use
+So what is Abletoolz? It's a Python command line tool to change and Ableton sets. Currently you can change all your Master/Cue out channels (for example make all your sets use
 stereo out 7/8 for master),
 find out all your missing
 samples and plugins and change your set filenames to append the length of the longest clip/furthest bar and bpm. The
@@ -13,6 +12,8 @@ under the directory `abletoolz_backup` before creating the edited set file as a 
 Supports both Windows and MacOS created sets.
 
 ## Updates
+- Added `--db` to create a sample database, which can then be used with `--fix-samples-collect` and `--fix-samples-absolute` to automatically fix any broken
+sample references.
 - Ableton 8, 9, 10 and 11/11.1b sets are now supported.
 - Abletoolz now preserves your set file creation/modification times by storing them before writing changes and then
 modifying the file after.
@@ -75,8 +76,20 @@ Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not s
 
 `--list-tracks` List track information.
 
+### Create sample database(used for automatic sample fixing)
+
+`--db folder/with/samples` Build up a database of all samples that is used when
+you run `--fix-samples-collect` or `--fix-samples-absolute`. This file gets stored in your home directory.
+
 ### Edit
 These will only edit sets in memory unless you use `-s/--save` explicitly to commit changes.
+
+`--fix-samples-collect` Go through each sample reference in the ableton set, and if any are missing try to match them based on last modification date, file size and name from the database created with `--db`. Sample is copied into the set's
+project folder, the same action as collect and save in ableton.
+
+ `--fix-samples-absolute` The same thing as `--fix-samples-collect`, just doesn't
+ copy the sample and instead puts the full path. Note, on MacOS, ableton 10/9 set
+ files seem to have issues using this, so use `--fix-samples-collect` for those.
 
 `--unfold` or `--fold` unfolds/folds all tracks in set.
 
@@ -124,6 +137,7 @@ set name. For example,
 `myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename
 wont keep growing).
 
+`--prepend-version` Puts the ableton version used to create set at beginning of file name.
 
 ## Examples
 Check all samples in sets
@@ -161,15 +175,9 @@ abletoolz "D:\all_sets\myset.als" -s --append-bars-bpm
 ![Append bars bpm](/doc/append_bars_bpm.png)
 
 ## Future plans
-- Add color functions to color tracks/clips with gradients or other fun stuff.
-- Collect sample path errors when both absolute and relative paths are broken into a report file.
-- Missing sample fix feature:
-    - Add crc verify for samples, since ableton does store a crc number in the set.
-    - Currently I've added a database feature that will build up a json file to track all samples. Implementing
-    the missing sample fix is next, but getting it to work across older ableton versions will take some work since
-    mac/windows use different types of binary encoded hex.
 - Figure out way to verify AU plugins on MacOs.
+- Figure out how ableton calculates CRC's for samples and use it to make more
+accurate sample fixing.
 - Attempt to detect key based on non drum track midi notes.
-- Add support for different time signatures besides 4/4.
-- Add more track and clip specific analysing/editing functions.
-- Figure out how to create package with setup tools and put this on PyPy.
+- Add color functions to color tracks/clips with gradients or other fun stuff.
+- Put this on PyPy so it's easier to install.

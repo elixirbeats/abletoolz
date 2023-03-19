@@ -6,11 +6,12 @@ import logging
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import threading
 import xml
-from typing import Callable, List, Optional, ParamSpec, Tuple, TypeVar
+from typing import Callable, Dict, Generator, List, Optional, ParamSpec, Tuple, TypeVar
 from xml.etree import ElementTree
 
 from abletoolz import utils
@@ -85,6 +86,21 @@ def set_loaded(f: Callable[..., RT]) -> Callable[..., RT]:
     return wrapped_func
 
 
+def elements_equal(e1: ElementTree.Element, e2: ElementTree.Element) -> bool:
+    """Check if two xml.Etree roots are equivalent."""
+    if e1.tag != e2.tag:
+        return False
+    if e1.text != e2.text:
+        return False
+    if e1.tail != e2.tail:
+        return False
+    if e1.attrib != e2.attrib:
+        return False
+    if len(e1) != len(e2):
+        return False
+    return all(elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
+
+
 class AbletonSet(object):
     """Set object."""
 
@@ -109,6 +125,7 @@ class AbletonSet(object):
         self.furthest_bar: Optional[int] = None
         self.bpm: Optional[float] = None
         self.tracks: List[AbletonTrack] = []
+        self.sample_list: List[utils.SampleRef] = []
 
         # TODO WIP, not finished/used necessarily.
         self.set_os: SetOperatingSystem = SetOperatingSystem.UNSET
@@ -118,14 +135,23 @@ class AbletonSet(object):
         self.last_elem = None
         self.key = None
 
+    def __eq__(self, o: object) -> bool:
+        """Compare two sets."""
+        if self.root is None:
+            return False
+        if not isinstance(o, AbletonSet) or isinstance(o, AbletonSet) and o.root is None:
+            return False
+        return elements_equal(self.root, o.root)
+
     def open_folder(self) -> None:
         """Open folder in file explorer/finder.
 
         Currently unused.
         """
         if sys.platform == "win32":
-            Popen_arg = f'explorer /select, "{self.path}"'
-            subprocess.Popen(Popen_arg)
+            subprocess.Popen(f'explorer /select, "{self.path}"')
+        elif sys.platform == "darwin":
+            subprocess.Popen(f"open {self.path}")
 
     @set_loaded
     def load_version(self) -> None:
@@ -175,7 +201,7 @@ class AbletonSet(object):
             return True
 
     def find_project_root_folder(self) -> Optional[pathlib.Path]:
-        """Finds project root folder for set."""
+        """Find project root folder for set."""
         # TODO Parse project .cfg file and logger.info information.
         if self.project_root_folder:
             return self.project_root_folder
@@ -187,7 +213,7 @@ class AbletonSet(object):
                 break
             elif pathlib.Path(current_dir / "Ableton Project Info").exists():
                 self.project_root_folder = current_dir
-                logger.info("%sProject root folder: %s", C, current_dir)
+                logger.debug("%sProject root folder: %s", C, current_dir)
                 return self.project_root_folder
         logger.error("%sCould not find project folder(Ableton Project Info), unable to validate relative paths!", R)
         return None
@@ -250,7 +276,7 @@ class AbletonSet(object):
         logger.info("%sSaved set to %s", G, self.path)
         self.restore_file_times(self.path)
 
-    def save_set(self, append_bars_bpm: bool = False) -> None:
+    def save_set(self, append_bars_bpm: bool = False, prepend_version: bool = False) -> None:
         """Save set to disk.
 
         Puts original file under backup directory.
@@ -263,6 +289,11 @@ class AbletonSet(object):
             new_filename = cleaned_name + f"_{self.furthest_bar}bars_{self.bpm:.2f}bpm.als"
             self.path = pathlib.Path(self.path.parent / new_filename)
             logger.debug("%sAppending bars and bpm, new set name: %s.als", M, self.path.stem)
+
+        if self.version_tuple and prepend_version:
+            version_string = f"{self.version_tuple[0]}.{self.version_tuple[1]}.{self.version_tuple[2]}_"
+            cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.\d{1,3}_", "", self.path.stem)
+            self.path = self.path.parent / (version_string + cleaned_name + self.path.suffix)
 
         # Create non daemon thread so that it is not forcibly killed when parent process dies.
         thread = threading.Thread(target=self.write_set)
@@ -324,7 +355,7 @@ class AbletonSet(object):
     @set_loaded
     def set_track_heights(self, height: int) -> None:
         """In Arrangement view, sets all track lanes/automation lanes to specified height."""
-        assert self.root is not None  # Shutup mypy.
+        assert self.root is not None  # Shutup mypy, not possible at runtime.
         height = min(425, (max(17, height)))  # Clamp to valid range.
         for el in self.root.iter("LaneHeight"):
             el.set("Value", str(height))
@@ -468,11 +499,7 @@ class AbletonSet(object):
         logger.error("%sCouldn't parse plugin!", R)
         return None, None, None
 
-    def dump_element(self) -> None:
-        if self.last_elem is not None:
-            ElementTree.dump(self.last_elem)
-
-    def list_plugins(self, verbose: bool, vst_dirs: List[pathlib.Path]) -> List[pathlib.Path]:
+    def list_plugins(self, vst_dirs: List[pathlib.Path]) -> List[pathlib.Path]:
         """Iterates through all plugin references and checks paths for VSTs."""
         self.found_vst_dirs.extend(vst_dirs)
         for plugin_element in self.root.iter("PluginDesc"):
@@ -506,79 +533,28 @@ class AbletonSet(object):
                 # au_components = pathlib.Path('/Library/Audio/Plug-Ins/Components').rglob('*.component')
         return self.found_vst_dirs
 
-    # Sample related functions.
-    @above_version(supported_version=(8, 2, 0))
-    def check_relative_path(
-        self, name: str, sample_element: xml.etree.ElementTree.Element
-    ) -> Tuple[Optional[pathlib.Path], Optional[pathlib.Path]]:
-        """Constructs absolute path from project root and relative path stored in set."""
-        if not self.project_root_folder:
-            return None, None
-        relative_path_enabled = get_element(sample_element, "FileRef.HasRelativePath", attribute="Value")
-        relative_path_type = get_element(sample_element, "FileRef.RelativePathType", attribute="Value")
-        if relative_path_enabled == "true" and relative_path_type == "3":
-            relative_path_element = get_element(sample_element, "FileRef.RelativePath")
-            sub_directory_path = []
-            for path in relative_path_element:
-                sub_directory_path.append(path.get("Dir"))
-            from_project_root = f"{os.path.sep.join(sub_directory_path)}{os.path.sep}{name}"
-            full_path = self.project_root_folder / os.path.sep.join(sub_directory_path) / name
-            return full_path, from_project_root
-        return None, None
-
-    def list_samples_pre_11(self, verbose: bool = False, dump_xml: bool = True) -> None:
-        """Iterates through all sample references and checks absolute and relative paths.
-
-        file paths are mixed binary data for MacOs and Windows.
-        """
-        missing_samples = 0
-        for sample_element in self.root.iter("SampleRef"):
-            self.last_elem = sample_element
-            file_ref = sample_element.find("FileRef")
-            name = get_element(sample_element, "FileRef.Name", attribute="Value")
-            relative_path, from_project_root = self.check_relative_path(name, sample_element)
-            abs_str = self._parse_hex_path(get_element(sample_element, "FileRef.Data").text)
-            absolute_path = pathlib.Path(abs_str)
-
-            for file_size_str in ["OriginalFileSize", "FileSize"]:
-                file_size = file_ref.findall(f".//{file_size_str}")
-                if len(file_size):
-                    saved_filesize = int(file_size[0].get("Value"))
-                    break
-            else:
-                raise Exception("Could not parse saved sample size.")
-            if not self._parse_samplepaths(absolute_path, relative_path, verbose, saved_filesize):
-                missing_samples += 1
-
-        self.sample_results(missing_samples)
-
-    def list_samples_post_11(self, verbose: bool = False, dump_xml: bool = False) -> None:
+    def _list_samples(self) -> None:
         """Post Ableton 11 sample parser. Format changed from binary encoded paths to simple strings for all OSes."""
         missing_samples = 0
-        for sample_element in self.root.iter("SampleRef"):
-            self.last_elem = sample_element
-            file_ref = sample_element.find("FileRef")
-            absolute_path = pathlib.Path(file_ref.find("Path").get("Value"))
-            relative_path_type = file_ref.find("RelativePathType").get("Value")
-            relative_path = None
-            if str(absolute_path).startswith("Samples"):
-                relative_path = pathlib.Path(self.project_root_folder) / file_ref.find("Path").get("Value")
-                absolute_path = None
-            if relative_path_type == "3":
-                relative_path = pathlib.Path(self.project_root_folder) / file_ref.find("RelativePath").get("Value")
+        for parsed in self._iterate_samples():
+            if parsed.absolute_exists or parsed.relative_exists:
+                # Sample will load in ableton, no need to do anything.
+                logger.debug(
+                    "%sSample %s found: Absolute %s, Relative %s", G, parsed.name, parsed.absolute, parsed.relative
+                )
+                continue
+            missing_samples += 1
+            logger.warning(
+                "%sSample %s missing: \n\tAbsolute[%s], Relative [%s]", R, parsed.name, parsed.absolute, parsed.relative
+            )
 
-            saved_filesize = int(file_ref.find("OriginalFileSize").get("Value"))
-            if not self._parse_samplepaths(absolute_path, relative_path, verbose, saved_filesize):
-                missing_samples += 1
-
-        self.sample_results(missing_samples)
-
-    def _get_sample_size(self, file_ref: xml.etree.ElementTree.Element) -> int:
-        for file_size_str in ["OriginalFileSize", "FileSize"]:
-            file_size = file_ref.findall(f".//{file_size_str}")
-            if len(file_size):
-                return int(file_size[0].get("Value"))
-        raise Exception("Could not parse saved sample size.")
+    def list_samples(self) -> None:
+        """Select correct sample parsing function."""
+        if self.version_tuple is None:
+            self.load_version()
+        if self.version_tuple is None:
+            raise SetError("Version not parsed!")
+        return self._list_samples()
 
     def _parse_samplepaths(
         self,
@@ -595,7 +571,7 @@ class AbletonSet(object):
             if relative_path and relative_path not in self.missing_relative_samples:
                 self.missing_relative_samples.append(relative_path)
             return False
-        if absolute_found:
+        if absolute_found and absolute_path is not None:
             local_filesize = absolute_path.stat().st_size
             if verbose:
                 size_match = saved_filesize == local_filesize
@@ -608,7 +584,7 @@ class AbletonSet(object):
                     G if size_match else R,
                     size_match,
                 )
-        if relative_found:
+        if relative_found and relative_path is not None:
             local_filesize = relative_path.stat().st_size
             size_match = saved_filesize == local_filesize
             if verbose:
@@ -644,12 +620,132 @@ class AbletonSet(object):
             abs_string = "\n\t".join((str(x) for x in self.missing_absolute_samples))
             logger.info("%sMissing Absolute paths:%s\n\t%s", Y, R, abs_string)
 
-    def list_samples(self, verbose: bool) -> None:
-        """Select correct sample parsing function."""
-        if self.version_tuple is None:
-            self.load_version()
-        if self.version_tuple is None:
-            raise SetError("Version not parsed!")
-        if self.version_tuple[0] >= 11:
-            return self.list_samples_post_11(verbose)
-        return self.list_samples_pre_11(verbose)
+    def _iterate_samples(self) -> Generator[utils.SampleRef, None, None]:
+        """Iterate through set sample references and build sample list."""
+        if self.sample_list:
+            for parsed in self.sample_list:
+                yield parsed
+            return
+        for sample_ref in self.root.iter("SampleRef"):
+            parsed = utils.SampleRef.from_element(sample_ref, self.version_tuple, self.project_root_folder)
+            self.sample_list.append(parsed)
+            yield parsed
+        return
+
+    # @above_version((11, 0, 0))
+    def fix_samples(self, db: Dict[str, Dict[str, str]], collect_and_save: bool = False, force: bool = False) -> bool:
+        """Fix broken sample paths.
+
+        Args:
+            db: database loaded from json.
+            collect_and_save: copy any found samples into the project folder, the same as ableton's collect
+                and save
+            force: used with collect_and_save. When the same name sample is found in the project, force replace
+                it if the project's current file is a different file size.
+        """
+        self.find_project_root_folder()
+        found_samples: Dict[str, Dict[str, str]] = {}
+        missing_samples = 0
+        fixed_samples = 0
+        skip_search = False
+        for parsed in self._iterate_samples():
+            if parsed.absolute_exists or parsed.relative_exists:
+                # Sample will load in ableton, no need to do anything.
+                continue
+            missing_samples += 1
+
+            # Skip builtin pack content for now. Can revisit this later but these samples probably will fix automatically
+            # in ableton on set load.
+            factory_packs = ["/Resources/Builtin/Samples", "Ableton/Factory Packs"]
+            if any([x in str(parsed.absolute.parent) for x in factory_packs]):
+                logger.debug("%sSkipping builtin pack content: %s", Y, parsed.absolute)
+                continue
+
+            # There's often the same sample referenced many times in the same set, check previous found first.
+            for smp_path, smp_info in found_samples.items():
+                if self._fix_sample(collect_and_save, parsed, smp_info, smp_path, found_samples, force):
+                    fixed_samples += 1
+                    skip_search = True
+                    break
+            if skip_search:
+                skip_search = False
+                continue
+            # Iterating through hashes is extremely fast :D
+            for smp_path, smp_info in db.items():
+                if self._fix_sample(collect_and_save, parsed, smp_info, smp_path, found_samples, force):
+                    fixed_samples += 1
+                    break
+            else:
+                logger.warning(
+                    "%sCould not find sample for %s\n%s\n%s", Y, parsed.name, parsed.absolute, parsed.relative
+                )
+
+        logger.info(
+            "%sOrignal missing sample count: %s, Samples fixed: %s, Couldn't fix: %s",
+            G if fixed_samples == missing_samples else R,
+            missing_samples,
+            fixed_samples,
+            missing_samples - fixed_samples,
+        )
+
+    def _fix_sample(
+        self,
+        collect_and_save: bool,
+        parsed: utils.SampleRef,
+        smp_info: Dict[str, str],
+        smp_path: str,
+        found_samples: Dict[str, Dict[str, str]],
+        force: bool,
+    ) -> bool:
+        """Attempt to fix sample if matches DB entry.
+
+        size is not always stored in ableton sets unfortunately, but we do usually have last_modified.
+        This is not perfect, but the probability of a file name matching and it's last modification time
+        matching and being a false positive are quite low.
+        """
+        if smp_info.get("name") != parsed.name:
+            return False
+        size_match = parsed.size and smp_info.get("size") == parsed.size
+        modified_match = parsed.last_modified and parsed.last_modified == int(smp_info.get("last_modified"))
+        if not size_match and not modified_match:
+            return False
+
+        logger.debug("\n\n%sFound potential match %s, \n[%s]\n%s%s", G, smp_path, smp_info,
+                    M, parsed)
+        found_samples[smp_path] = smp_info
+        replacement_sample = pathlib.Path(smp_path)
+
+        if collect_and_save and self.project_root_folder:
+            # Relative type 3 is collected and saved, 1 is absolute path.
+            relative_type = parsed.get_relative_type()
+            if relative_type == 3:
+                rel_path = str(parsed.get_relative_value())
+            else:
+                rel_path = "Samples/Imported"
+            (self.project_root_folder / rel_path).mkdir(parents=True, exist_ok=True)
+
+            copied_sample = self.project_root_folder / rel_path / smp_info.get("name")
+            if copied_sample.exists() and copied_sample.stat().st_size != parsed.size:
+                logger.error(
+                    "%sCannot copy sample %s, would replace existing one in project with " "same name! Skipping...",
+                    R,
+                    copied_sample,
+                )
+                return False
+            elif copied_sample.exists() and copied_sample.stat().st_size == parsed.size:
+                pass
+            else:
+                shutil.copy(replacement_sample, copied_sample)
+            parsed.set_relative(f"{rel_path}/{copied_sample.name}")
+            parsed.set_relative_type(3)
+        elif collect_and_save and not self.project_root_folder:
+            logger.warning(
+                "%sProject root () not found, can't collect and save this sample. " "Using absolute path instead..", Y
+            )
+            parsed.set_absolute(replacement_sample)
+            parsed.set_relative_type(1)
+        else:
+            parsed.set_absolute(replacement_sample)
+            parsed.set_relative_type(1)
+        # parsed.clear_search_hints()
+        return True
