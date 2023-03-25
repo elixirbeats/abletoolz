@@ -1,41 +1,52 @@
-![Check plugins](/doc/new.png)
+![Abletoolz](/doc/gradient.png)
 # Abletoolz
 
-So what is Abletoolz? It's a Python command line tool to change and Ableton sets. Currently you can change all your Master/Cue out channels (for example make all your sets use
-stereo out 7/8 for master),
-find out all your missing
-samples and plugins and change your set filenames to append the length of the longest clip/furthest bar and bpm. The
-analysis options do not write anything to files, but if you use the save set options,
-it moves the original file
-under the directory `abletoolz_backup` before creating the edited set file as a precaution(more info below).
+Abletoolz is a Python command line tool to edit, fix and analyze Ableton sets. Primarily the purpose is to automate
+things that aren't available and make your life easier.
+It can:
+    - Run on one set, or an entire directory of sets. So you can fix/analyze etc everything with one command.
+    - Color all your tracks/clips with a random color gradients.
+    - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
+    - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
+    - Validate all plugins in a set are installed. MacOS VST3s currently do not work for this.
+    - Fold/Unfold all tracks, and/or set track height and widths.
+    - Prepend the set version name to the beginning of the file.
+    - Append the number of bars of the track, and the bpm to the end of the file.
+    - Dump the XML of the set, in case you want to disect how they are structured or contribute to this project : )
 
-Supports both Windows and MacOS created sets.
 
-## Updates
-- Added `--db` to create a sample database, which can then be used with `--fix-samples-collect` and `--fix-samples-absolute` to automatically fix any broken
-sample references.
-- Ableton 8, 9, 10 and 11/11.1b sets are now supported.
-- Abletoolz now preserves your set file creation/modification times by storing them before writing changes and then
-modifying the file after.
-- Added `--append-bars-bpm` argument and used non daemon thread for set write to help safeguard against process being
-killed.
+It also:
+    - Moves your original set files to a backup folder before writing any changes, so you are never at risk of losing anything.
+    - Supports both Windows and MacOS created sets.
+    - Works on Ableton 8.2+ sets(not every command works with older versions though).
+    - Preserves the original set modification time.
+
+Future plans:
+    - Figure out way to verify AU plugins on MacOs.
+    - Analyze audio clips and color them based on a Serato like gradient(red for bass, turqoise for hi end etc...)
+    - Build plugin parsers, that can read in the plugin saved buffer and attempt fixes or other things. For instance, a sampler that has a broken filepath could automatically be fixed.
+    - Figure out how ableton calculates CRC's for samples and use it to make perfect sample fixing. The current algorithm has a very low probability of being wrong, but this would guarantee each result is correct.
+    - Attempt to detect key based on non drum track midi notes.
+    - Put this on PyPi so it's easier to install.
+
 
 ## Installation:
-Minimum python required 3.8
+Minimum python required 3.10
 
 (https://www.python.org/downloads/)
 
-Open a command line shell and make sure you installed Python 3.8+ correctly:
+Open a command line shell and make sure you installed Python 3.10+ correctly:
 ```
 python -V  # Should give you a version
 ```
-Once you verify you have python 3.8+, clone this repository using git clone, or download this repo's zip file and
+Once you verify you have python 3.10+, clone this repository using git clone, or download this repo's zip file and
 extract it to a folder. Navigate to that folder on the command line, then run:
 ```
 python -m pip install .
 ```
 This will install abletoolz as a command in your command line, you can now call `abletoolz` from anywhere if the
 installation completed successfully. (Create an issue if you run into any errors please!)
+
 
 ## Usage:
 `-h` Print argument usage.
@@ -51,8 +62,9 @@ Only one input option can be used at a time.
 `"abletoolz D:\somefolder"` Finds all sets in directory and all subdirectories. If "backup", "Backup" or "abletoolz_backup" are in any
 of the path hierarchy, those sets is skipped.
 
-NOTE: On windows, do NOT include the ending backslash! There is a bug with powershell
+NOTE: On Windows, do NOT include the ending backslash when you have quotes! There is a bug with powershell
 in how it handles backslashes and how python interprets backslashes as escape characters:
+
 `abletoolz "D:\somefolder\"` # BAD
 
 `abletoolz "D:\somefolder"` # GOOD
@@ -62,8 +74,7 @@ without quotes, backslashes are fine (but you'll need to use quotes if you have 
 
 
 ### Analysis - checking samples/tracks/plugins
-![Analyze set](/doc/new.png)
-
+![Analyze plugins](/doc/plugins_check.png)
 `--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the
 sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path
 is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
@@ -72,24 +83,30 @@ is checked. By default only missing samples are displayed to reduce clutter, use
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This
 command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
 Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
-`/Library/Audio/Plug-Ins/Components`.
 
 `--list-tracks` List track information.
+![List tracks](/doc/list_tracks.png)
 
 ### Create sample database(used for automatic sample fixing)
-
+![Database](/doc/db_example.png)
 `--db folder/with/samples` Build up a database of all samples that is used when
 you run `--fix-samples-collect` or `--fix-samples-absolute`. This file gets stored in your home directory.
 
 ### Edit
 These will only edit sets in memory unless you use `-s/--save` explicitly to commit changes.
 
+![Fixing sample references](/doc/sample_fix.png)
 `--fix-samples-collect` Go through each sample reference in the ableton set, and if any are missing try to match them based on last modification date, file size and name from the database created with `--db`. Sample is copied into the set's
 project folder, the same action as collect and save in ableton.
 
  `--fix-samples-absolute` The same thing as `--fix-samples-collect`, just doesn't
- copy the sample and instead puts the full path. Note, on MacOS, ableton 10/9 set
- files seem to have issues using this, so use `--fix-samples-collect` for those.
+ copy the sample and instead puts the full path. Note: on MacOS 10/9 sets,
+ this sometimes acts strange, so use `--fix-samples-collect` for those.
+
+![Abletoolz](/doc/gradient.png)
+`--gradient-tracks` Generate random gradients for tracks and clips. The results from this are limited, since
+there are only 70 available colors in ableton, but sometimes you get some pretty good results!
+
 
 `--unfold` or `--fold` unfolds/folds all tracks in set.
 
@@ -109,13 +126,11 @@ setup the Min is 17, Default 68, Max 425 for track height.
 `-s`, `--save`
 Saves modified set in the same location as the original file. This only applies if you use options that actually alter
 the set, not just analyze plugins/samples/etc. When you use this option, as a safety precaution the original file is stored under the same
-directory as the original set under `set_dir/abletoolz_backup/set_name__1.als`. If that file exists, it will automatically
-create a new one `set_dir/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That
+directory as the original set under `${CURRENT_SET_FOLDER}/abletoolz_backup/set_name__1.als`. If that file exists, it will automatically
+create a new one `${CURRENT_SET_FOLDER}/abletoolz_backup/set_name__2.als` and keep increasing the number as files get created. That
 way your previous versions are always still intact (be sure to clean this folder up if you run this a bunch of times).
 
-***Disclaimer*** Before using `Edit` options with save, experiment on simple sets you don't care about,
-then open them in ableton to make sure they load correctly and the changes are what you expect. Once you are confident
-of the options you use then edit . Because I understand how many hours of hard work go into set files,
+***Disclaimer*** Before using `Edit` options with save, experiment on a set you don't care about first and then open them in ableton to be sure the changes are what you expect. Because I understand how many hours of hard work go into set files,
 I've put in multiple safeguards to prevent you losing anything:
 - Original file is ALWAYS moved to the backup directory `${CURRENT_SET_FOLDER}/abletoolz_backup/` as described above,
 so you can always re-open that
@@ -150,12 +165,12 @@ abletoolz "D:\all_sets" --check-samples
 ```
 abletoolz "D:\all_sets" --check-plugins
 ```
-![Check plugins](/doc/check_plugins.png)
+![Check plugins](/doc/plugins_check.png)
 
 ```
 abletoolz "D:\all_sets\some_set.als" --list-tracks
 ```
-![List tracks](/doc/track_list.png)
+![List tracks](/doc/list_tracks.png)
 
 Set all master outs to stereo 1/2 and cue outs to 3/4
 ```
@@ -173,11 +188,3 @@ abletoolz "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --unfold \
 abletoolz "D:\all_sets\myset.als" -s --append-bars-bpm
 ```
 ![Append bars bpm](/doc/append_bars_bpm.png)
-
-## Future plans
-- Figure out way to verify AU plugins on MacOs.
-- Figure out how ableton calculates CRC's for samples and use it to make more
-accurate sample fixing.
-- Attempt to detect key based on non drum track midi notes.
-- Add color functions to color tracks/clips with gradients or other fun stuff.
-- Put this on PyPy so it's easier to install.

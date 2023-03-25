@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 
 from abletoolz import __version__
 from abletoolz.ableton_set import AbletonSet
-from abletoolz.misc import BACKUP_DIR, CB, MB, B, C, ElementNotFound, M, R, Y
+from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, M, R, Y
 from abletoolz.sample_databaser import create_db
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def is_valid_dir_path(path: str) -> str:
     backslash is used for escaping.
     """
     if sys.platform.startswith("win") and '"' in path:
-        raise Exception(
+        raise ValueError(
             f"{R}Windows paths must not end in backslash: \n'C:\\somepath\\'(BAD)\n'C:\\somepath' "
             f"(GOOD)\nThis is due to a bug in how Windows handles backslashes before quotes."
         )
@@ -161,6 +161,14 @@ def parse_arguments() -> argparse.Namespace:
         help="Collects and saves missing samples into the set's project folder, the same as collect and save in "
         "Ableton. Run --db on folders first to create your database.",
     )
+    parser.add_argument(
+        "--gradient-tracks",
+        action="store_true",
+        default=False,
+        help="Generate a random gradient over the tracks and color them. Ableton has a very limited set of available "
+        "colors, so the results are limited, but you still can get some decent results. This uses the CIE2000 "
+        "algorithm which helps create a gradient more natural to the human eye.",
+    )
 
     # Analysis arguments.
     parser.add_argument(
@@ -195,17 +203,22 @@ def parse_arguments() -> argparse.Namespace:
         args.db
         and any(
             [
-                # TODO(add rest of commands.)
-                args.save,
-                args.list_tracks,
+                args.append_bars_bpm,
                 args.check_plugins,
-                args.master_out,
+                args.check_samples,
                 args.cue_out,
+                args.fix_samples_absolute,
+                args.fix_samples_collect,
                 args.fold,
-                args.unfold,
+                args.gradient_tracks,
+                args.list_tracks,
+                args.master_out,
+                args.prepend_version,
+                args.save,
                 args.set_track_heights,
                 args.set_track_widths,
-                args.fix_samples,
+                args.unfold,
+                args.xml,
             ]
         )
     ), "--db/--database cannot be used with other commands!"
@@ -223,8 +236,8 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
     ableton_set.find_project_root_folder()
     ableton_set.find_furthest_bar()
     ableton_set.estimate_length()
-    if args.save:
-        backup = copy.deepcopy(ableton_set)
+    # if args.save:
+    #     backup = copy.deepcopy(ableton_set)
 
     if args.master_out:
         ableton_set.set_audio_output(args.master_out, element_string="MasterTrack")
@@ -238,6 +251,8 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
         ableton_set.set_track_heights(args.set_track_heights)
     if args.set_track_widths:
         ableton_set.set_track_widths(args.set_track_widths)
+    if args.gradient_tracks:
+        ableton_set.gradient_tracks()
 
     if args.list_tracks:
         ableton_set.load_tracks()
@@ -263,14 +278,19 @@ def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: Optiona
         ableton_set.save_set(append_bars_bpm=args.append_bars_bpm, prepend_version=args.prepend_version)
     elif any(
         [
-            args.master_out,
+            args.append_bars_bpm,
+            args.check_plugins,
+            args.check_samples,
             args.cue_out,
-            args.fold,
-            args.unfold,
-            args.set_track_heights,
-            args.set_track_widths,
             args.fix_samples_absolute,
             args.fix_samples_collect,
+            args.fold,
+            args.gradient_tracks,
+            args.master_out,
+            args.prepend_version,
+            args.set_track_heights,
+            args.set_track_widths,
+            args.unfold,
         ]
     ):
         logger.info("%sNo changes saved, use -s/--save option to write changes to file.", Y)
@@ -315,6 +335,8 @@ def process(args: argparse.Namespace) -> int:
 def main() -> None:
     """Entry point to cli."""
     args = parse_arguments()
+
+    logging.getLogger("colormath").setLevel(logging.WARNING)
     logging.basicConfig(
         stream=sys.stdout,
         level=logging.DEBUG if args.verbose else logging.INFO,

@@ -65,6 +65,14 @@ def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None
     for path in paths:
         all_files.extend(get_all_audio_files(pathlib.Path(path)))
 
+    # Remove any broken paths.
+    to_remove: List[str] = []
+    for path in tqdm.tqdm(db.keys(), desc="Validating current db..."):
+        if not pathlib.Path(path).exists():
+            to_remove.append(path)
+    for path in to_remove:
+        db.pop(path)
+
     for sample in tqdm.tqdm(all_files, desc="Progress"):
         if str(sample.resolve()) in db:
             continue
@@ -73,6 +81,8 @@ def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None
             "size": sample.stat().st_size,
             "last_modified": sample.stat().st_mtime,
         }
+
+    # Write db!
     with db_path.open("w") as f:
         json.dump(db, f, indent=2, sort_keys=True)
     logger.info("Updated database at %s", db_path.resolve())

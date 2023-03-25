@@ -4,7 +4,7 @@ import logging
 import os
 import pathlib
 from typing import Optional, Tuple
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import pydantic
 
@@ -109,7 +109,7 @@ def parse_hex_path(text: str) -> Optional[str]:
         return parse_windows_data(byte_data, abs_hash_path)
 
 
-def get_sample_size(file_ref: ElementTree.Element) -> int:
+def get_sample_size(file_ref: ET.Element) -> int:
     for file_size_str in ["OriginalFileSize", "FileSize"]:
         file_size = file_ref.findall(f".//{file_size_str}")
         # if file_size is None:
@@ -135,7 +135,7 @@ def path_separator_type(path_str: str) -> str:
 
 def check_relative_path(
     name: str,
-    sample_element: ElementTree.Element,
+    sample_element: ET.Element,
     project_root_folder: pathlib.Path,
 ) -> Tuple[Optional[pathlib.Path], Optional[pathlib.Path]]:
     """Constructs absolute path from project root and relative path stored in set."""
@@ -189,11 +189,6 @@ class SampleRef(pydantic.BaseModel):
         <RefersToFolder Value="false" />
         <SearchHint>
             <PathHint>
-                <RelativePathElement Id="0" Dir="Ableton Projects" />
-                <RelativePathElement Id="1" Dir="charged Project" />
-                <RelativePathElement Id="2" Dir="Samples" />
-                <RelativePathElement Id="3" Dir="Processed" />
-                <RelativePathElement Id="4" Dir="Freeze" />
             </PathHint>
             <FileSize Value="0" />
             <Crc Value="0" />
@@ -206,10 +201,10 @@ class SampleRef(pydantic.BaseModel):
     size: int
     last_modified: int
     crc: int
-    relative_type_element: ElementTree.Element
-    sample_ref: ElementTree.Element
-    absolute_element: ElementTree.Element
-    relative_element: ElementTree.Element
+    relative_type_element: ET.Element
+    sample_ref: ET.Element
+    absolute_element: ET.Element
+    relative_element: ET.Element
     version_tuple: Tuple[int, int, int]
 
     absolute: Optional[pathlib.Path] = None
@@ -224,7 +219,7 @@ class SampleRef(pydantic.BaseModel):
     @classmethod
     def from_element(
         cls,
-        sample_ref: ElementTree.Element,
+        sample_ref: ET.Element,
         version_tuple: Tuple[int, int, int],
         project_root_folder: pathlib.Path,
     ) -> "SampleRef":
@@ -252,7 +247,7 @@ class SampleRef(pydantic.BaseModel):
                 crc = file_ref.findall(".//Crc")[0].get("Value")
             except IndexError:
                 crc = 0
-                ElementTree.dump(file_ref)
+                ET.dump(file_ref)
             relative, _ = check_relative_path(name, sample_ref, project_root_folder)
             relative_element = file_ref.find("RelativePath")
 
@@ -277,9 +272,9 @@ class SampleRef(pydantic.BaseModel):
 
     @property
     def relative_exists(self) -> bool:
-        return self.relative and (self.project_root / self.relative).exists()
+        return self.relative and self.project_root and (self.project_root / self.relative).exists()
 
-    def get_original_file_ref(self) -> ElementTree.Element:
+    def get_original_file_ref(self) -> ET.Element:
         return get_element(self.sample_ref, "SourceContext.SourceContext.OriginalFileRef.FileRef")
 
     def set_absolute(self, path: pathlib.Path) -> None:
@@ -324,7 +319,7 @@ class SampleRef(pydantic.BaseModel):
             for e in old:
                 self.relative_element.remove(e)
             for i, folder in enumerate(path.split("/")[:-1]):
-                element = ElementTree.Element("RelativePathElement", attrib=dict(Dir=folder))
+                element = ET.Element("RelativePathElement", attrib=dict(Id=i, Dir=folder))
                 element.tail = tails[i]
                 self.relative_element.append(element)
             return
