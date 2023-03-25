@@ -1,10 +1,10 @@
 [build-system]
 requires = ["setuptools", "wheel"]
-requires-python = ">=3.10"
 
 [project]
 name = "abletoolz"
-version = "1.1.0"
+version = "1.1.1"
+requires-python = ">=3.10"
 description = "Tools made for editing, fixing and analyzing Ableton Live sets."
 authors = [
     {name = "ElixirBeats"},
@@ -25,7 +25,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Classifier: Environment :: Console (Text Based)",
     "Development Status :: 4 - Beta",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
