@@ -4,30 +4,30 @@
 Abletoolz is a Python command line tool to edit, fix and analyze Ableton sets. Primarily the purpose is to automate
 things that aren't available and make your life easier.
 It can:
-    - Run on one set, or an entire directory of sets. So you can fix/analyze etc everything with one command.
-    - Color all your tracks/clips with a random color gradients.
-    - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
-    - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
-    - Validate all plugins in a set are installed. MacOS VST3s currently do not work for this.
-    - Fold/Unfold all tracks, and/or set track height and widths.
-    - Prepend the set version name to the beginning of the file.
-    - Append the number of bars of the track, and the bpm to the end of the file.
-    - Dump the XML of the set, in case you want to disect how they are structured or contribute to this project : )
+- Run on one set, or an entire directory of sets. So you can fix/analyze etc everything with one command.
+- Color all your tracks/clips with a random color gradients.
+- Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
+- Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
+- Validate all plugins in a set are installed. MacOS VST3s currently do not work for this.
+- Fold/Unfold all tracks, and/or set track height and widths.
+- Prepend the set version name to the beginning of the file.
+- Append the number of bars of the track, and the bpm to the end of the file.
+- Dump the XML of the set, in case you want to disect how they are structured or contribute to this project : )
 
 
 It also:
-    - Moves your original set files to a backup folder before writing any changes, so you are never at risk of losing anything.
-    - Supports both Windows and MacOS created sets.
-    - Works on Ableton 8.2+ sets(not every command works with older versions though).
-    - Preserves the original set modification time.
+- Moves your original set files to a backup folder before writing any changes, so you are never at risk of losing anything.
+- Supports both Windows and MacOS created sets.
+- Works on Ableton 8.2+ sets(not every command works with older versions though).
+- Preserves the original set modification time.
 
 Future plans:
-    - Figure out way to verify AU plugins on MacOs.
-    - Analyze audio clips and color them based on a Serato like gradient(red for bass, turqoise for hi end etc...)
-    - Build plugin parsers, that can read in the plugin saved buffer and attempt fixes or other things. For instance, a sampler that has a broken filepath could automatically be fixed.
-    - Figure out how ableton calculates CRC's for samples and use it to make perfect sample fixing. The current algorithm has a very low probability of being wrong, but this would guarantee each result is correct.
-    - Attempt to detect key based on non drum track midi notes.
-    - Put this on PyPi so it's easier to install.
+- Figure out way to verify AU plugins on MacOs.
+- Analyze audio clips and color them based on a Serato like gradient(red for bass, turqoise for hi end etc...)
+- Build plugin parsers, that can read in the plugin saved buffer and attempt fixes or other things. For instance, a sampler that has a broken filepath could automatically be fixed.
+- Figure out how ableton calculates CRC's for samples and use it to make perfect sample fixing. The current algorithm has a very low probability of being wrong, but this would guarantee each result is correct.
+- Attempt to detect key based on non drum track midi notes.
+- Put this on PyPi so it's easier to install.
 
 
 ## Installation:
