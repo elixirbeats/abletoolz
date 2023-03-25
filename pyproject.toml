@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+requires-python = ">=3.10"
+
+[project]
+name = "abletoolz"
+version = "1.1.0"
+description = "Tools made for editing, fixing and analyzing Ableton Live sets."
+authors = [
+    {name = "ElixirBeats"},
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = [
+    "colorama",
+    "chardet",
+    "tqdm",
+    "colormath",
+    "pydantic",
+    # For setting file creation date.
+    "win32_setctime; platform_system == 'Windows'"
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Classifier: Environment :: Console (Text Based)",
+    "Development Status :: 4 - Beta",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/elixirbeats/abletoolz"
+Repository = "https://github.com/elixirbeats/abletoolz"
+
+[project.scripts]
+abletoolz = "abletoolz:main"
+
+[tool.setuptools]
+packages = ["abletoolz"]

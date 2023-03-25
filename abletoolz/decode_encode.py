@@ -1,6 +1,5 @@
 """Encoding and decoding ableton set xml tools."""
 
-import binascii
 import textwrap
 from typing import Literal, Tuple, Union, overload
 

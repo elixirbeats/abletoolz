@@ -3,7 +3,7 @@
 import pathlib
 import sys
 from typing import Dict, Literal, Optional, Tuple, Union, overload
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import colorama
 
@@ -64,13 +64,12 @@ YB = Y + colorama.Style.BRIGHT + BOLD
 CB = C + colorama.Style.BRIGHT + BOLD
 MB = M + colorama.Style.BRIGHT + BOLD
 
+DEFAULT_DB_PATH = pathlib.Path.home() / "abletoolz_db.json"
+BACKUP_DIR = "abletoolz_backup"
+
 
 class AbletoolzError(Exception):
     """Error running Abletoolz."""
-
-
-DEFAULT_DB_PATH = pathlib.Path.home() / "abletoolz_db.json"
-BACKUP_DIR = "abletoolz_backup"
 
 
 class ElementNotFound(Exception):
@@ -79,29 +78,29 @@ class ElementNotFound(Exception):
 
 @overload
 def get_element(
-    root: ElementTree.Element,
+    root: ET.Element,
     attribute_path: str,
     *,
     silent_error: Literal[False],
     attribute: Literal[None] = None,
-) -> ElementTree.Element:
+) -> ET.Element:
     ...
 
 
 @overload
 def get_element(
-    root: ElementTree.Element,
+    root: ET.Element,
     attribute_path: str,
     *,
     silent_error: Literal[True],
     attribute: Literal[None] = None,
-) -> Optional[ElementTree.Element]:
+) -> Optional[ET.Element]:
     ...
 
 
 @overload
 def get_element(
-    root: ElementTree.Element,
+    root: ET.Element,
     attribute_path: str,
     *,
     silent_error: Literal[False] = False,
@@ -111,12 +110,12 @@ def get_element(
 
 
 def get_element(
-    root: ElementTree.Element,
+    root: ET.Element,
     attribute_path: str,
     *,
     silent_error: bool = False,
     attribute: Optional[str] = None,
-) -> Union[ElementTree.Element, str, None]:
+) -> Union[ET.Element, str, None]:
     """Get element using Element tree xpath syntax."""
     element = root.findall(f"./{'/'.join(attribute_path.split('.'))}")
     if not element:

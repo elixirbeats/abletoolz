@@ -10,11 +10,10 @@ import shutil
 import subprocess
 import sys
 import threading
-import xml
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, Tuple, TypeVar
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
-from abletoolz import utils
+from abletoolz import color_tools, utils
 from abletoolz.ableton_track import AbletonTrack
 from abletoolz.misc import CB, RB, RST, STEREO_OUTPUTS, B, C, G, M, R, Y, get_element
 
@@ -86,7 +85,7 @@ def set_loaded(f: Callable[..., RT]) -> Callable[..., RT]:
     return wrapped_func
 
 
-def elements_equal(e1: ElementTree.Element, e2: ElementTree.Element) -> bool:
+def elements_equal(e1: ET.Element, e2: ET.Element) -> bool:
     """Check if two xml.Etree roots are equivalent."""
     if e1.tag != e2.tag:
         return False
@@ -109,7 +108,7 @@ class AbletonSet(object):
         self.name = pathlib_obj.name
         self.path = pathlib_obj
         self.tree = None
-        self.root: Optional[ElementTree.Element] = None
+        self.root: Optional[ET.Element] = None
 
         # Parsed set variables.
         self.project_root_folder: Optional[pathlib.Path] = None  # Folder where Ableton Project Info resides.
@@ -119,9 +118,7 @@ class AbletonSet(object):
         self.version: Optional[str] = None  # Official Ableton live version.
         self.version_tuple: Optional[Tuple[int, int, int]] = None
 
-        self.master_output = None
-        self.cue_output = None
-        self.tempo = None
+        self.tempo: Optional[float] = None
         self.furthest_bar: Optional[int] = None
         self.bpm: Optional[float] = None
         self.tracks: List[AbletonTrack] = []
@@ -197,7 +194,7 @@ class AbletonSet(object):
             if not data:
                 logger.error("%sError loading data %s!", R, self.path)
                 return False
-            self.root = ElementTree.fromstring(data)
+            self.root = ET.fromstring(data)
             return True
 
     def find_project_root_folder(self) -> Optional[pathlib.Path]:
@@ -224,7 +221,7 @@ class AbletonSet(object):
             raise SetError("Set is not loaded!")
         header = '<?xml version="1.0" encoding="UTF-8"?>\n'.encode("utf-8")
         footer = "\n".encode("utf-8")
-        xml_output = ElementTree.tostring(self.root, encoding="utf-8")
+        xml_output = ET.tostring(self.root, encoding="utf-8")
         return header + xml_output + footer
 
     def save_xml(self) -> None:
@@ -277,11 +274,15 @@ class AbletonSet(object):
         self.restore_file_times(self.path)
 
     def save_set(self, append_bars_bpm: bool = False, prepend_version: bool = False) -> None:
-        """Save set to disk.
+        """Save set to disk with optional filename modifications.
 
-        Puts original file under backup directory.
-        Uses thread to write file, although this is not dangerous anyways since the backup is always created
-        first.
+        This function saves the current set to disk, first creating a backup of the original file.
+        It optionally appends the number of bars and BPM to the filename, and/or prepends the version number.
+        The actual writing of the set to disk is performed in a separate thread.
+
+        Args:
+            append_bars_bpm: If True, append the number of bars and BPM to the filename.
+            prepend_version: If True, prepend the version number to the filename.
         """
         utils.create_backup(self.path)
         if append_bars_bpm:
@@ -292,10 +293,10 @@ class AbletonSet(object):
 
         if self.version_tuple and prepend_version:
             version_string = f"{self.version_tuple[0]}.{self.version_tuple[1]}.{self.version_tuple[2]}_"
-            cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.\d{1,3}_", "", self.path.stem)
+            cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.[b\d]{1,5}_", "", self.path.stem)
             self.path = self.path.parent / (version_string + cleaned_name + self.path.suffix)
 
-        # Create non daemon thread so that it is not forcibly killed when parent process dies.
+        # Create non daemon thread so that it is not forcibly killed if parent process is killed.
         thread = threading.Thread(target=self.write_set)
         thread.start()
         thread.join()
@@ -322,7 +323,7 @@ class AbletonSet(object):
 
     @above_version(supported_version=(8, 2, 0))
     def get_bpm(self) -> float:
-        """Get bpm."""
+        """Get bpm from Ableton Live set XML."""
         if self.version_tuple is None:
             raise SetError("Set version is not parsed!")
         post_10_bpm = "LiveSet.MasterTrack.DeviceChain.Mixer.Tempo.Manual"
@@ -391,14 +392,14 @@ class AbletonSet(object):
     def set_audio_output(self, output_number: int, element_string: str) -> None:
         """Set audio output."""
         if output_number not in STEREO_OUTPUTS:
-            raise Exception(f"{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}")
+            raise ValueError(f"{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}")
         output_obj = STEREO_OUTPUTS[output_number]
         out_target_element = get_element(
             self.root,
             f"LiveSet.{element_string}.DeviceChain.AudioOutputRouting.Target",
             silent_error=True,
         )
-        if not isinstance(out_target_element, ElementTree.Element):
+        if not isinstance(out_target_element, ET.Element):
             out_target_element = get_element(  # ableton 8 sets use "MasterChain" for master track.
                 self.root,
                 f"LiveSet.{element_string}.MasterChain.AudioOutputRouting.Target",
@@ -432,12 +433,13 @@ class AbletonSet(object):
 
     def path_separator_type(self, path_str: str) -> str:
         """Get OS path string separator."""
+        # TODO: Move this into utils.
         if "\\" in path_str:
             return "\\"
         elif "/" in path_str:
             return "/"
         else:
-            raise Exception(f"Couldn't parse OS path type! {path_str}")
+            raise ValueError(f"Couldn't parse OS path type! {path_str}")
 
     def search_plugins(self, plugin_name: str) -> Optional[pathlib.Path]:
         """Search for plugins and add them to self.found_vst_dirs."""
@@ -460,7 +462,7 @@ class AbletonSet(object):
 
     # Plugin related functions.
     def parse_vst_element(
-        self, vst_element: xml.etree.ElementTree.Element
+        self, vst_element: ET.Element
     ) -> Tuple[Optional[pathlib.Path], Optional[str], Optional[pathlib.Path]]:
         """Parse out VST element from vst xtree."""
         for plugin_path in ["Dir", "Path"]:
@@ -540,7 +542,11 @@ class AbletonSet(object):
             if parsed.absolute_exists or parsed.relative_exists:
                 # Sample will load in ableton, no need to do anything.
                 logger.debug(
-                    "%sSample %s found: Absolute %s, Relative %s", G, parsed.name, parsed.absolute, parsed.relative
+                    "%sSample %s found: Relative %s, Absolute %s",
+                    G,
+                    parsed.name,
+                    parsed.relative,
+                    parsed.absolute,
                 )
                 continue
             missing_samples += 1
@@ -550,6 +556,8 @@ class AbletonSet(object):
 
     def list_samples(self) -> None:
         """Select correct sample parsing function."""
+        if self.project_root_folder is None:
+            self.find_project_root_folder()
         if self.version_tuple is None:
             self.load_version()
         if self.version_tuple is None:
@@ -632,7 +640,6 @@ class AbletonSet(object):
             yield parsed
         return
 
-    # @above_version((11, 0, 0))
     def fix_samples(self, db: Dict[str, Dict[str, str]], collect_and_save: bool = False, force: bool = False) -> bool:
         """Fix broken sample paths.
 
@@ -654,8 +661,8 @@ class AbletonSet(object):
                 continue
             missing_samples += 1
 
-            # Skip builtin pack content for now. Can revisit this later but these samples probably will fix automatically
-            # in ableton on set load.
+            # Skip builtin pack content for now. Can revisit this later but these samples probably will fix
+            # automatically in ableton on set load.
             factory_packs = ["/Resources/Builtin/Samples", "Ableton/Factory Packs"]
             if any([x in str(parsed.absolute.parent) for x in factory_packs]):
                 logger.debug("%sSkipping builtin pack content: %s", Y, parsed.absolute)
@@ -710,8 +717,7 @@ class AbletonSet(object):
         if not size_match and not modified_match:
             return False
 
-        logger.debug("\n\n%sFound potential match %s, \n[%s]\n%s%s", G, smp_path, smp_info,
-                    M, parsed)
+        logger.debug("\n\n%sFound potential match %s, \n[%s]\n%s%s", G, smp_path, smp_info, M, parsed)
         found_samples[smp_path] = smp_info
         replacement_sample = pathlib.Path(smp_path)
 
@@ -747,5 +753,23 @@ class AbletonSet(object):
         else:
             parsed.set_absolute(replacement_sample)
             parsed.set_relative_type(1)
-        # parsed.clear_search_hints()
         return True
+
+    def gradient_tracks(self) -> None:
+        """Make a rough gradient across tracks using built in colors."""
+        if not self.tracks:
+            self.load_tracks()
+        for clr_ind, track in zip(color_tools.create_gradient_ableton(len(self.tracks)), self.tracks):
+            track.color = clr_ind
+
+            clipview_clr_elements = list(track.clip_clipview_colors())
+            clip_view_gradient = color_tools.create_gradient_ableton(len(clipview_clr_elements), starting_index=clr_ind)
+            for sub_ind, clip_clr_ele in zip(clip_view_gradient, clipview_clr_elements):
+                clip_clr_ele.set("Value", str(sub_ind))
+
+            arangement_clr_elements = list(track.clip_arangement_colors())
+            clip_view_gradient = color_tools.create_gradient_ableton(
+                len(arangement_clr_elements), starting_index=clr_ind
+            )
+            for sub_ind, clip_clr_ele in zip(clip_view_gradient, arangement_clr_elements):
+                clip_clr_ele.set("Value", str(sub_ind))
