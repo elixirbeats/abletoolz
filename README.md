@@ -27,7 +27,6 @@ Future plans:
 - Build plugin parsers, that can read in the plugin saved buffer and attempt fixes or other things. For instance, a sampler that has a broken filepath could automatically be fixed.
 - Figure out how ableton calculates CRC's for samples and use it to make perfect sample fixing. The current algorithm has a very low probability of being wrong, but this would guarantee each result is correct.
 - Attempt to detect key based on non drum track midi notes.
-- Put this on PyPi so it's easier to install.
 
 
 ## Installation:
@@ -42,7 +41,7 @@ python -V  # Should give you a version
 Once you verify you have python 3.10+, clone this repository using git clone, or download this repo's zip file and
 extract it to a folder. Navigate to that folder on the command line, then run:
 ```
-python -m pip install .
+pip install abletoolz
 ```
 This will install abletoolz as a command in your command line, you can now call `abletoolz` from anywhere if the
 installation completed successfully. (Create an issue if you run into any errors please!)
