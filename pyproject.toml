@@ -31,7 +31,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/elixirbeats/abletoolz"
+Homepage = "https://elixirbeats.github.io/abletoolz/"
 Repository = "https://github.com/elixirbeats/abletoolz"
 
 [project.scripts]

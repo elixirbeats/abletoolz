@@ -1,11 +1,11 @@
-![Abletoolz](/doc/gradient.png)
+![Abletoolz](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient.png)
 # Abletoolz
 
 Abletoolz is a Python command line tool to edit, fix and analyze Ableton sets. Primarily the purpose is to automate
 things that aren't available and make your life easier.
 It can:
 - Run on one set, or an entire directory of sets. So you can fix/analyze etc everything with one command.
-- Color all your tracks/clips with a random color gradients.
+- Color all your tracks/clips with random color gradients.
 - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
 - Validate all plugins in a set are installed. MacOS VST3s currently do not work for this.
@@ -38,8 +38,7 @@ Open a command line shell and make sure you installed Python 3.10+ correctly:
 ```
 python -V  # Should give you a version
 ```
-Once you verify you have python 3.10+, clone this repository using git clone, or download this repo's zip file and
-extract it to a folder. Navigate to that folder on the command line, then run:
+Once you verify you have python 3.10+, install with pip:
 ```
 pip install abletoolz
 ```
@@ -73,7 +72,7 @@ without quotes, backslashes are fine (but you'll need to use quotes if you have 
 
 
 ### Analysis - checking samples/tracks/plugins
-![Analyze plugins](/doc/plugins_check.png)
+
 `--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the
 sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path
 is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
@@ -82,30 +81,31 @@ is checked. By default only missing samples are displayed to reduce clutter, use
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This
 command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
 Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
+![Analyze plugins](https://github.com/elixirbeats/abletoolz/raw/master/doc/plugins_check.png)
 
 `--list-tracks` List track information.
-![List tracks](/doc/list_tracks.png)
+![List tracks](https://github.com/elixirbeats/abletoolz/raw/master/doc/list_tracks.png)
 
 ### Create sample database(used for automatic sample fixing)
-![Database](/doc/db_example.png)
 `--db folder/with/samples` Build up a database of all samples that is used when
-you run `--fix-samples-collect` or `--fix-samples-absolute`. This file gets stored in your home directory.
+you run `--fix-samples-collect` or `--fix-samples-absolute`. This file gets stored in your home directory. For best 
+results, run this on all folders that could have samples in them, including your set directories.
+![Database](https://github.com/elixirbeats/abletoolz/raw/master/doc/db_example.png)    
 
 ### Edit
 These will only edit sets in memory unless you use `-s/--save` explicitly to commit changes.
 
-![Fixing sample references](/doc/sample_fix.png)
 `--fix-samples-collect` Go through each sample reference in the ableton set, and if any are missing try to match them based on last modification date, file size and name from the database created with `--db`. Sample is copied into the set's
 project folder, the same action as collect and save in ableton.
 
  `--fix-samples-absolute` The same thing as `--fix-samples-collect`, just doesn't
  copy the sample and instead puts the full path. Note: on MacOS 10/9 sets,
  this sometimes acts strange, so use `--fix-samples-collect` for those.
+![Fixing sample references](https://github.com/elixirbeats/abletoolz/raw/master/doc/sample_fix.png)
 
-![Abletoolz](/doc/gradient.png)
 `--gradient-tracks` Generate random gradients for tracks and clips. The results from this are limited, since
 there are only 70 available colors in ableton, but sometimes you get some pretty good results!
-
+![Abletoolz](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient_2.png)
 
 `--unfold` or `--fold` unfolds/folds all tracks in set.
 
@@ -158,18 +158,18 @@ Check all samples in sets
 ```
 abletoolz "D:\all_sets" --check-samples
 ```
-![Check samples](/doc/check_samples.png)
+![Check samples](https://github.com/elixirbeats/abletoolz/raw/master/doc/check_samples.png)
 
 
 ```
 abletoolz "D:\all_sets" --check-plugins
 ```
-![Check plugins](/doc/plugins_check.png)
+![Check plugins](https://github.com/elixirbeats/abletoolz/raw/master/doc/plugins_check.png)
 
 ```
 abletoolz "D:\all_sets\some_set.als" --list-tracks
 ```
-![List tracks](/doc/list_tracks.png)
+![List tracks](https://github.com/elixirbeats/abletoolz/raw/master/doc/list_tracks.png)
 
 Set all master outs to stereo 1/2 and cue outs to 3/4
 ```
@@ -181,9 +181,9 @@ Or a bunch of options
 abletoolz "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --unfold \
 --set-track-heights 68 --set-track-widths 24
 ```
-![Check plugins](/doc/everything.png)
+![Check plugins](https://github.com/elixirbeats/abletoolz/raw/master/doc/everything.png)
 
 ```
 abletoolz "D:\all_sets\myset.als" -s --append-bars-bpm
 ```
-![Append bars bpm](/doc/append_bars_bpm.png)
+![Append bars bpm](https://github.com/elixirbeats/abletoolz/raw/master/doc/append_bars_bpm.png)
