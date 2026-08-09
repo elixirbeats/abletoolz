@@ -3,7 +3,6 @@
 import json
 import logging
 import pathlib
-from typing import Dict, List, Optional
 
 import tqdm
 
@@ -11,8 +10,10 @@ from abletoolz.misc import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
+DatabaseT = dict[str, dict[str, dict[str, str]]]
 
-def get_all_audio_files(path: pathlib.Path) -> List[pathlib.Path]:
+
+def get_all_audio_files(path: pathlib.Path) -> list[pathlib.Path]:
     """Find all supported audio files in directory."""
     file_suffixes = [
         "*.aiff",
@@ -23,20 +24,21 @@ def get_all_audio_files(path: pathlib.Path) -> List[pathlib.Path]:
         "*.WAV",
         "*.mp3",
         "*.MP3",
-        "*.flacc",
-        "*.FLACC",
+        "*.flac",
+        "*.FLAC",
         "*.ogg",
         "*.OGG",
         "*.mp4",
         "*.MP4",
+        "*.rx2",
     ]
-    all_files: List[pathlib.Path] = []
+    all_files: list[pathlib.Path] = []
     for file_type in file_suffixes:
         all_files.extend(list(path.rglob(file_type)))
     return all_files
 
 
-def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None) -> pathlib.Path:
+def create_or_update_db(paths: list[str], db_path: pathlib.Path | None = None) -> pathlib.Path:
     """Search all samples and add to database, create new one if it doesn't exist.
 
     db {
@@ -51,6 +53,9 @@ def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None
     """
     if db_path is None:
         db_path = DEFAULT_DB_PATH
+    # Create the parent dir now, before the (potentially long) scan — a first run
+    # on a fresh machine must not crash at write time after scanning everything.
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     logger.info(
         "Using db path %s. Creating database from scratch can take a while, please be patient. Updating "
         "an existing one is much faster!",
@@ -66,7 +71,7 @@ def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None
         all_files.extend(get_all_audio_files(pathlib.Path(path)))
 
     # Remove any broken paths.
-    to_remove: List[str] = []
+    to_remove: list[str] = []
     for path in tqdm.tqdm(db.keys(), desc="Validating current db..."):
         if not pathlib.Path(path).exists():
             to_remove.append(path)
@@ -89,9 +94,11 @@ def create_or_update_db(paths: List[str], db_path: Optional[pathlib.Path] = None
     return db_path
 
 
-def load_db() -> Dict[str, Dict[str, Dict[str, str]]]:
+def load_db(db_path: pathlib.Path | None = None) -> DatabaseT:
     """Load db from json."""
-    if not DEFAULT_DB_PATH.exists():
-        raise FileNotFoundError(f"Database {DEFAULT_DB_PATH} doesn't exist! Run --db with sample dir(s) first.")
-    with DEFAULT_DB_PATH.open() as f:
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+    if not db_path.exists():
+        raise FileNotFoundError(f"Database {db_path} doesn't exist! Run --db with sample dir(s) first.")
+    with db_path.open() as f:
         return json.load(f)

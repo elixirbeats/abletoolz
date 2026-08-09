@@ -1,13 +1,68 @@
 """Define root level vars and functions."""
 
+import enum
+import os
 import pathlib
 import sys
-from typing import Dict, Literal, Optional, Tuple, Union, overload
+from typing import Literal, overload
 from xml.etree import ElementTree as ET
 
 import colorama
 
 colorama.init(autoreset=True)
+
+
+def _get_user_config_dir() -> pathlib.Path:
+    """Get platform-specific user config directory for abletoolz."""
+    if sys.platform == "win32":
+        base = pathlib.Path(os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming"))
+    elif sys.platform == "darwin":
+        base = pathlib.Path.home() / "Library" / "Application Support"
+    else:
+        xdg_config = os.environ.get("XDG_CONFIG_HOME")
+        base = pathlib.Path(xdg_config) if xdg_config else pathlib.Path.home() / ".config"
+    return base / "abletoolz"
+
+
+def default_ableton_user_library() -> pathlib.Path | None:
+    """Live's default User Library location for this OS, or None when it can't be found.
+
+    Library code never guesses paths; CLI layers call this and fall back to
+    asking the user when it returns None (moved library, Linux, etc.).
+    """
+    if sys.platform == "win32":
+        candidate = pathlib.Path.home() / "Documents" / "Ableton" / "User Library"
+    elif sys.platform == "darwin":
+        candidate = pathlib.Path.home() / "Music" / "Ableton" / "User Library"
+    else:
+        return None
+    return candidate if candidate.is_dir() else None
+
+
+def default_vst_dirs() -> list[pathlib.Path]:
+    """Standard plugin install locations for this OS, existing dirs only."""
+    if sys.platform == "win32":
+        program_files = pathlib.Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        candidates = [
+            program_files / "VstPlugins",
+            program_files / "Steinberg" / "VstPlugins",
+            program_files / "Common Files" / "VST3",
+        ]
+    elif sys.platform == "darwin":
+        candidates = [
+            pathlib.Path("/Library/Audio/Plug-Ins/VST"),
+            pathlib.Path("/Library/Audio/Plug-Ins/VST3"),
+            pathlib.Path.home() / "Library" / "Audio" / "Plug-Ins" / "VST",
+            pathlib.Path.home() / "Library" / "Audio" / "Plug-Ins" / "VST3",
+        ]
+    else:
+        candidates = [
+            pathlib.Path.home() / ".vst",
+            pathlib.Path.home() / ".vst3",
+            pathlib.Path("/usr/lib/vst3"),
+            pathlib.Path("/usr/local/lib/vst3"),
+        ]
+    return [candidate for candidate in candidates if candidate.is_dir()]
 
 # These are the hex values of the drop down color menu, arranged in the same order of rows and columns.
 # yapf: disable
@@ -21,7 +76,7 @@ ableton_colors = [
 ]
 
 
-STEREO_OUTPUTS: Dict[int, Dict[str, str]] = {
+STEREO_OUTPUTS: dict[int, dict[str, str]] = {
     1: {"target": "AudioOut/External/S0",  "lower_display_string": "1/2"},
     2: {"target": "AudioOut/External/S1", "lower_display_string": "3/4"},
     3: {"target": "AudioOut/External/S2", "lower_display_string": "5/6"},
@@ -64,7 +119,8 @@ YB = Y + colorama.Style.BRIGHT + BOLD
 CB = C + colorama.Style.BRIGHT + BOLD
 MB = M + colorama.Style.BRIGHT + BOLD
 
-DEFAULT_DB_PATH = pathlib.Path.home() / "abletoolz_db.json"
+# Database stored alongside config in user config dir
+DEFAULT_DB_PATH = _get_user_config_dir() / "sample_db.json"
 BACKUP_DIR = "abletoolz_backup"
 
 
@@ -76,15 +132,37 @@ class ElementNotFound(Exception):
     """Element doesnt exist within the xml hierarchy where expected."""
 
 
+class SetError(Exception):
+    """Ableton set parse error."""
+
+
+class SetOperatingSystem(enum.Enum):
+    """Pre ableton 11, sets store data differently.
+
+    Sets do not store any OS information, but we can guess based on encoding of data, AU units vs VSTs and some
+    other differences.
+    """
+
+    MAC_OS = enum.auto()
+    WINDOWS_OS = enum.auto()
+    UNSET = enum.auto()
+
+
+@overload
+def get_element(
+    root: ET.Element,
+    attribute_path: str,
+) -> ET.Element: ...
+
+
 @overload
 def get_element(
     root: ET.Element,
     attribute_path: str,
     *,
-    silent_error: Literal[False],
+    silent_error: Literal[False] = False,
     attribute: Literal[None] = None,
-) -> ET.Element:
-    ...
+) -> ET.Element: ...
 
 
 @overload
@@ -94,8 +172,7 @@ def get_element(
     *,
     silent_error: Literal[True],
     attribute: Literal[None] = None,
-) -> Optional[ET.Element]:
-    ...
+) -> ET.Element | None: ...
 
 
 @overload
@@ -105,8 +182,17 @@ def get_element(
     *,
     silent_error: Literal[False] = False,
     attribute: str,
-) -> str:
-    ...
+) -> str: ...
+
+
+@overload
+def get_element(
+    root: ET.Element,
+    attribute_path: str,
+    *,
+    attribute: str,
+    silent_error: Literal[True],
+) -> str | None: ...
 
 
 def get_element(
@@ -114,8 +200,8 @@ def get_element(
     attribute_path: str,
     *,
     silent_error: bool = False,
-    attribute: Optional[str] = None,
-) -> Union[ET.Element, str, None]:
+    attribute: str | None = None,
+) -> ET.Element | str | None:
     """Get element using Element tree xpath syntax."""
     element = root.findall(f"./{'/'.join(attribute_path.split('.'))}")
     if not element:
@@ -131,7 +217,29 @@ def get_element(
     return element[0]
 
 
-def note_translator(midi_note_number: int) -> Tuple[str, int]:
+@overload
+def search_element(
+    root: ET.Element,
+    search_name: str,
+    attribute: Literal[None] = None,
+) -> ET.Element | None: ...
+
+
+@overload
+def search_element(root: ET.Element, search_name: str, attribute: str) -> str | None: ...
+
+
+def search_element(root: ET.Element, search_name: str, attribute: str | None = None) -> ET.Element | str | None:
+    """Similar to get_element but searches entire tree instead of absolute path."""
+    element = root.find(f".//{search_name}")
+    if element is None:
+        return None
+    if attribute:
+        return element.get(attribute)
+    return element
+
+
+def note_translator(midi_note_number: int) -> tuple[str, int]:
     """Return note and octave from midi note number."""
     notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
     octave = midi_note_number // 12 - 1

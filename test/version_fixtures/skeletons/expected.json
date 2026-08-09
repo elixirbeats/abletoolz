@@ -1,0 +1,722 @@
+{
+  "10.0.1": {
+    "beta": false,
+    "bpm": 174.0,
+    "creator": "Ableton Live 10.0.1",
+    "furthest_bar": 436,
+    "group_mixer_isfolded_count": 2,
+    "is_folded_count": 64,
+    "lane_height_count": 12,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 17,
+    "sample_refs_with_abs": 17,
+    "source": "10.0.1_Dreamer_4_524bars_174.00bpm.als",
+    "track_unfolded_count": 10,
+    "tracks": [
+      {
+        "color": null,
+        "color_index": 14,
+        "name": "Drum Bus",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 14,
+        "name": "Kicks",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 14,
+        "name": "3-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 43,
+        "name": "10-Maschine 2",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 43,
+        "name": "12-Group",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 16,
+        "name": "Bass",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 5,
+        "name": "Kick SC",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": null,
+        "color_index": 5,
+        "name": "B-Guitar Rig 5",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      10,
+      0,
+      1
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 10
+  },
+  "10.0.6": {
+    "beta": false,
+    "bpm": 172.0,
+    "creator": "Ableton Live 10.0.6",
+    "furthest_bar": 128,
+    "group_mixer_isfolded_count": 1,
+    "is_folded_count": 60,
+    "lane_height_count": 9,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 20,
+    "sample_refs_with_abs": 20,
+    "source": "10.0.6_bass_pad fm8_350bars_172.00bpm.xml",
+    "track_unfolded_count": 9,
+    "tracks": [
+      {
+        "color": null,
+        "color_index": 154,
+        "name": "1-Group",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 154,
+        "name": "2-Drum Rack",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 154,
+        "name": "3-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 145,
+        "name": "4-MicroTonicVST",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 146,
+        "name": "5-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 187,
+        "name": "A-FabFilter Timeless 2",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": null,
+        "color_index": 280,
+        "name": "B-Return",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      10,
+      0,
+      6
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 9
+  },
+  "10.1.3": {
+    "beta": false,
+    "bpm": 174.0,
+    "creator": "Ableton Live 10.1.3",
+    "furthest_bar": 232,
+    "group_mixer_isfolded_count": 2,
+    "is_folded_count": 44,
+    "lane_height_count": 9,
+    "master_tag": "MasterTrack",
+    "prehear_present": false,
+    "sample_ref_count": 169,
+    "sample_refs_with_abs": 169,
+    "source": "10.1.3_jukeblocks rearranged jukeblocks_downgraded_Back pain_2E (1).als",
+    "track_unfolded_count": 9,
+    "tracks": [
+      {
+        "color": null,
+        "color_index": 13,
+        "name": "chord_info",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 13,
+        "name": "kick sparkle",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 13,
+        "name": "drums",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 13,
+        "name": "kick",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 37,
+        "name": "10-Shaker (9)",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 37,
+        "name": "18-Group",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 64,
+        "name": "A-Delay | Reverb",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": null,
+        "color_index": 64,
+        "name": "B-Ohmicide_vstwin.64 | Wolfram | iZotope Trash 2 | Pro-R | Pro-Q 3",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      10,
+      1,
+      3
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 9
+  },
+  "11.0.0": {
+    "beta": false,
+    "bpm": 171.0,
+    "creator": "Ableton Live 11.0",
+    "furthest_bar": 215,
+    "group_mixer_isfolded_count": 2,
+    "is_folded_count": 62,
+    "lane_height_count": 11,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 6,
+    "sample_refs_with_abs": 6,
+    "source": "11.0.0_Dreadnaught Reference_3_215bars_171.00bpm.als",
+    "track_unfolded_count": 10,
+    "tracks": [
+      {
+        "color": 6,
+        "color_index": null,
+        "name": "1-Group",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": 6,
+        "color_index": null,
+        "name": "2-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 30,
+        "color_index": null,
+        "name": "3-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 17,
+        "color_index": null,
+        "name": "Drums",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": 33,
+        "color_index": null,
+        "name": "6-Maschine 2",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 17,
+        "color_index": null,
+        "name": "Kick",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 23,
+        "color_index": null,
+        "name": "RTSCK",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": 6,
+        "color_index": null,
+        "name": "B-Guitar Rig 5 | EQ Eight",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      11,
+      0,
+      0
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 10
+  },
+  "11.0.12": {
+    "beta": false,
+    "bpm": 172.0,
+    "creator": "Ableton Live 11.0.12",
+    "furthest_bar": 191,
+    "group_mixer_isfolded_count": 2,
+    "is_folded_count": 185,
+    "lane_height_count": 10,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 25,
+    "sample_refs_with_abs": 25,
+    "source": "11.0.12_Hyper_R.als",
+    "track_unfolded_count": 10,
+    "tracks": [
+      {
+        "color": 14,
+        "color_index": null,
+        "name": "Drum bus",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 22,
+        "color_index": null,
+        "name": "Drms",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": 22,
+        "color_index": null,
+        "name": "snr2",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 22,
+        "color_index": null,
+        "name": "kcksnr1",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": 22,
+        "color_index": null,
+        "name": "8-Drums to MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 22,
+        "color_index": null,
+        "name": "9-MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 16,
+        "color_index": null,
+        "name": "A-FabFilter Pro-C (SC).64 | EQ Eight | Reverb | FabFilter Pro-C (SC).64",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": 8,
+        "color_index": null,
+        "name": "B-Bass Send Stack-1",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      11,
+      0,
+      12
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 10
+  },
+  "11.2.10": {
+    "beta": false,
+    "bpm": 125.0,
+    "creator": "Ableton Live 11.2.10",
+    "furthest_bar": 2,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 21,
+    "lane_height_count": 8,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 2,
+    "sample_refs_with_abs": 2,
+    "source": "11.2.10_abs_rel.xml",
+    "track_unfolded_count": 8,
+    "tracks": [
+      {
+        "color": 0,
+        "color_index": null,
+        "name": "1-MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 26,
+        "color_index": null,
+        "name": "2-MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 2,
+        "color_index": null,
+        "name": "3-DJ SAMPLES VOL 2 (2)",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 1,
+        "color_index": null,
+        "name": "4-GB_DrumHit_01",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 11,
+        "color_index": null,
+        "name": "A-Reverb",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": 25,
+        "color_index": null,
+        "name": "B-Delay",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      11,
+      2,
+      10
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 8
+  },
+  "11.2.10b": {
+    "beta": true,
+    "bpm": 172.0,
+    "creator": "Ableton Live 11.2.10b3",
+    "furthest_bar": 0,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 6,
+    "lane_height_count": 3,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 1,
+    "sample_refs_with_abs": 1,
+    "source": "11b Untitled.als",
+    "track_unfolded_count": 3,
+    "tracks": [
+      {
+        "color": 52,
+        "color_index": null,
+        "name": "1-hat_small",
+        "tag": "AudioTrack"
+      }
+    ],
+    "version": [
+      11,
+      2,
+      10
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 3
+  },
+  "11.3.42": {
+    "beta": false,
+    "bpm": 120.0,
+    "creator": "Ableton Live 11.3.42",
+    "furthest_bar": 0,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 17,
+    "lane_height_count": 5,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 0,
+    "sample_refs_with_abs": 0,
+    "source": "very_simple_test_set_11.als",
+    "track_unfolded_count": 5,
+    "tracks": [
+      {
+        "color": 10,
+        "color_index": null,
+        "name": "1-Serum_x64",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 8,
+        "color_index": null,
+        "name": "2-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 12,
+        "color_index": null,
+        "name": "A-Return",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      11,
+      3,
+      42
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 5
+  },
+  "12.2.6": {
+    "beta": false,
+    "bpm": 120.0,
+    "creator": "Ableton Live 12.2.6",
+    "furthest_bar": 27,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 24,
+    "lane_height_count": 8,
+    "master_tag": "MainTrack",
+    "prehear_present": true,
+    "sample_ref_count": 2,
+    "sample_refs_with_abs": 2,
+    "source": "ableton_12_standard.als",
+    "track_unfolded_count": 8,
+    "tracks": [
+      {
+        "color": 2,
+        "color_index": null,
+        "name": "1-MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 15,
+        "color_index": null,
+        "name": "2-100_SoulShufflebreak_01_SP_4",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 0,
+        "color_index": null,
+        "name": "3-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 26,
+        "color_index": null,
+        "name": "4-Oceans of Haze",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 3,
+        "color_index": null,
+        "name": "A-Reverb",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": 16,
+        "color_index": null,
+        "name": "B-Delay",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      12,
+      2,
+      6
+    ],
+    "width_tag_fixed_count": 8,
+    "width_tag_typo_count": 0
+  },
+  "12.4.5b": {
+    "beta": true,
+    "bpm": 172.0,
+    "creator": "Ableton Live 12.4.5b10",
+    "furthest_bar": 168,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 26,
+    "lane_height_count": 7,
+    "master_tag": "MainTrack",
+    "prehear_present": true,
+    "sample_ref_count": 3,
+    "sample_refs_with_abs": 3,
+    "source": "ableton_12_beta.als",
+    "track_unfolded_count": 7,
+    "tracks": [
+      {
+        "color": 24,
+        "color_index": null,
+        "name": "1-LOW",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 11,
+        "color_index": null,
+        "name": "2-Drum fill",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 24,
+        "color_index": null,
+        "name": "3-Skylark - Iced",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 3,
+        "color_index": null,
+        "name": "A-Reverb",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": 0,
+        "color_index": null,
+        "name": "B-Delay",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      12,
+      4,
+      5
+    ],
+    "width_tag_fixed_count": 7,
+    "width_tag_typo_count": 0
+  },
+  "9.0.1": {
+    "beta": false,
+    "bpm": 174.0,
+    "creator": "Ableton Live 9.0.1",
+    "furthest_bar": 64,
+    "group_mixer_isfolded_count": 1,
+    "is_folded_count": 72,
+    "lane_height_count": 8,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 15,
+    "sample_refs_with_abs": 15,
+    "source": "9.0.1_no conviction dnb absynth3_64bars_174.00bpm__1.als",
+    "track_unfolded_count": 8,
+    "tracks": [
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "1-Group",
+        "tag": "GroupTrack"
+      },
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "2-Drum Rack",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "3-Drum Rack",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "4-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "A-Return",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": null,
+        "color_index": 0,
+        "name": "B-Return",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      9,
+      0,
+      1
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 8
+  },
+  "9.6.0": {
+    "beta": false,
+    "bpm": 174.0,
+    "creator": "Ableton Live 9.6",
+    "furthest_bar": 112,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 55,
+    "lane_height_count": 9,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 28,
+    "sample_refs_with_abs": 28,
+    "source": "9.6.0_basssweep4_112bars_174.00bpm.xml",
+    "track_unfolded_count": 8,
+    "tracks": [
+      {
+        "color": null,
+        "color_index": 186,
+        "name": "1-Pro-53",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 159,
+        "name": "2-Pro-53",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": null,
+        "color_index": 149,
+        "name": "7-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 140,
+        "name": "9-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": null,
+        "color_index": 174,
+        "name": "A-iZotope Trash | FabFilter Pro-Q",
+        "tag": "ReturnTrack"
+      },
+      {
+        "color": null,
+        "color_index": 160,
+        "name": "B-Return",
+        "tag": "ReturnTrack"
+      }
+    ],
+    "version": [
+      9,
+      6,
+      0
+    ],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 8
+  }
+}

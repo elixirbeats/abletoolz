@@ -1,17 +1,17 @@
 """Encoding and decoding ableton set xml tools."""
 
 import textwrap
-from typing import Literal, Tuple, Union, overload
+from typing import Literal, overload
 
 
 class ParseError(Exception):
     """Error decoding/encoding."""
 
 
-def xml_to_string(xml_str: str) -> Tuple[str, int]:
+def xml_to_string(xml_str: str) -> tuple[str, int]:
     """Strip xml hex data from ableton xml into single string."""
     if not xml_str:
-        raise DecodeError(f"No text to parse! {xml_str}")
+        raise ParseError(f"No text to parse! {xml_str}")
     levels = xml_str.splitlines()[1].count("\t")
     return xml_str.replace("\t", "").replace(" ", "").replace("\n", ""), levels
 
@@ -26,7 +26,7 @@ def hex_to_string(hex_str: str, return_bytes: Literal[True]) -> bytes:
     ...
 
 
-def hex_to_string(hex_str: str, return_bytes: bool = False) -> Union[str, bytes]:
+def hex_to_string(hex_str: str, return_bytes: bool = False) -> str | bytes:
     """Input is string, but it's actually encoded bytes in hex form.
 
     Decode hex to actual string representation.

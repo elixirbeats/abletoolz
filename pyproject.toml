@@ -1,10 +1,11 @@
 [build-system]
 requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "abletoolz"
-version = "1.1.1"
-requires-python = ">=3.10"
+dynamic = ["version"]
+requires-python = ">=3.12"
 description = "Tools made for editing, fixing and analyzing Ableton Live sets."
 authors = [
     {name = "ElixirBeats"},
@@ -13,22 +14,30 @@ readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
     "colorama",
-    "chardet",
-    "tqdm",
     "colormath",
+    "mutagen",
+    "numpy",
     "pydantic",
+    "pyyaml",
+    "tqdm",
     # For setting file creation date.
-    "win32_setctime; platform_system == 'Windows'"
+    "win32_setctime; platform_system == 'Windows'",
 ]
+
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Development Status :: 4 - Beta",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
 ]
+
+[project.optional-dependencies]
+# BPM/onset detection for synthesized .asd grids
+analysis = ["librosa", "scipy"]
+dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-PyYAML"]
 
 [project.urls]
 Homepage = "https://elixirbeats.github.io/abletoolz/"
@@ -36,6 +45,28 @@ Repository = "https://github.com/elixirbeats/abletoolz"
 
 [project.scripts]
 abletoolz = "abletoolz:main"
+abletoolz-dj-crates = "abletoolz.dj_crates:main"
 
 [tool.setuptools]
-packages = ["abletoolz"]
+packages = ["abletoolz", "abletoolz.asd", "abletoolz.data", "abletoolz.live_set", "abletoolz.plugin_parsers", "abletoolz.sample_databaser"]
+
+[tool.setuptools.dynamic]
+version = {attr = "abletoolz.__version__"}
+
+[tool.setuptools.package-data]
+"abletoolz.data" = ["*.alc"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Color tables mirror Live's 14-wide color-picker layout; long lines are the point.
+"abletoolz/color_tools.py" = ["E501"]
+"abletoolz/misc.py" = ["E501"]
