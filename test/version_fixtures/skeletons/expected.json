@@ -459,6 +459,87 @@
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 3
   },
+  "11.3.41": {
+    "au_plugins": [
+      {
+        "identifier": [
+          1635083896,
+          1651532147,
+          1634758764
+        ],
+        "manufacturer": "Apple",
+        "name": "AUBandpass"
+      },
+      {
+        "identifier": [
+          1635083896,
+          1819304307,
+          1634758764
+        ],
+        "manufacturer": "Apple",
+        "name": "AULowpass"
+      },
+      {
+        "identifier": [
+          1635083896,
+          1953329268,
+          1634758764
+        ],
+        "manufacturer": "Apple",
+        "name": "AUPitch"
+      },
+      {
+        "identifier": [
+          1635085685,
+          1097621878,
+          1098019957
+        ],
+        "manufacturer": "Arturia",
+        "name": "Analog Lab V"
+      }
+    ],
+    "beta": false,
+    "bpm": 120.0,
+    "creator": "Ableton Live 11.3.41",
+    "furthest_bar": 0,
+    "group_mixer_isfolded_count": 0,
+    "is_folded_count": 20,
+    "lane_height_count": 5,
+    "master_tag": "MasterTrack",
+    "prehear_present": true,
+    "sample_ref_count": 0,
+    "sample_refs_with_abs": 0,
+    "source": "au_fx_and_synth_example.als",
+    "track_unfolded_count": 5,
+    "tracks": [
+      {
+        "color": 11,
+        "color_index": null,
+        "name": "1-MIDI",
+        "tag": "MidiTrack"
+      },
+      {
+        "color": 2,
+        "color_index": null,
+        "name": "2-Audio",
+        "tag": "AudioTrack"
+      },
+      {
+        "color": 1,
+        "color_index": null,
+        "name": "3-Analog Lab V",
+        "tag": "MidiTrack"
+      }
+    ],
+    "version": [
+      11,
+      3,
+      41
+    ],
+    "vst3_plugin_names": [],
+    "width_tag_fixed_count": 0,
+    "width_tag_typo_count": 5
+  },
   "11.3.42": {
     "beta": false,
     "bpm": 120.0,

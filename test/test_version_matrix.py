@@ -165,10 +165,19 @@ def test_scan_vst3_refs(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Vst3PluginInfo devices surface as vst3 PluginRefs on every version that carries them."""
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
     monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
+    monkeypatch.setattr(plugins, "default_au_component_dirs", lambda: [])
+    monkeypatch.setattr(plugins, "audio_component_registered", lambda _identifier: False)
     refs = make_set(key).plugins.scan([])
     vst3_names = [ref.name for ref in refs if ref.kind == "vst3"]
     assert vst3_names == EXPECTED[key]["vst3_plugin_names"]
     assert all(not ref.exists for ref in refs if ref.kind == "vst3")  # nothing resolvable hermetically
+
+    au_refs = [ref for ref in refs if ref.kind == "au"]
+    expected_au = EXPECTED[key].get("au_plugins", [])
+    assert [(ref.name, ref.manufacturer) for ref in au_refs] == [
+        (plugin["name"], plugin["manufacturer"]) for plugin in expected_au
+    ]
+    assert all(not ref.exists for ref in au_refs)
 
 
 @pytest.mark.parametrize("key", _params())

@@ -121,10 +121,9 @@ def parse_arguments() -> argparse.Namespace:
         "--check-plugins",
         action="store_true",
         default=False,
-        help="Checks plugin VST paths and verifies they exists. Note: If Ableton finds the "
+        help="Checks installed VST and Audio Unit references. Note: If Ableton finds the "
         "plugin name in a different path it will automatically update these paths the next time "
-        "you save your project, so take it with a grain of salt. AU are not stored as paths in "
-        "sets but abbreviated component names. Might possibly add support for them later.",
+        "you save your project, so take it with a grain of salt.",
     )
 
     editing = parser.add_argument_group("editing (in memory only; add -s/--save to write)")

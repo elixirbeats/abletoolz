@@ -51,6 +51,17 @@ def default_live_database_dir() -> pathlib.Path | None:
     return candidate if candidate.is_dir() else None
 
 
+def default_au_component_dirs() -> list[pathlib.Path]:
+    """Standard Audio Unit component locations on macOS, existing dirs only."""
+    if sys.platform != "darwin":
+        return []
+    candidates = [
+        pathlib.Path("/Library/Audio/Plug-Ins/Components"),
+        pathlib.Path.home() / "Library" / "Audio" / "Plug-Ins" / "Components",
+    ]
+    return [candidate for candidate in candidates if candidate.is_dir()]
+
+
 def default_vst_dirs() -> list[pathlib.Path]:
     """Standard plugin install locations for this OS, existing dirs only."""
     if sys.platform == "win32":

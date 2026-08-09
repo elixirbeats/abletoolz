@@ -97,18 +97,20 @@ without quotes, backslashes are fine (but you'll need to use quotes if you have 
 sample as long as one of the two are valid. If relative path doesn't exist(Not collected and saved) only absolute path
 is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well.
 
-`--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the
+`--check-plugins` Checks installed VST and Audio Unit references. **Note**: When loading a set, if Ableton finds the
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This
 command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
 VST3s stored by display name alone resolve against the installed plugin files — on macOS through each bundle's
 `Info.plist`, since bundle names often differ from display names — and, failing that, against Live's own plugin
-database, the only place shell plugins like Waves can be found. Mac Audio Units/AU are not stored with paths,
-just plugin names, and cannot be verified yet.
+database, the only place shell plugins like Waves can be found. Audio Units resolve by the exact type, subtype, and
+manufacturer identifiers stored in the set. Bundle-backed units include their `.component` path; pathless macOS
+built-ins are verified through the system AudioComponent registry.
 ```
 [MidiTrack: 1-Serum] Plugin: Serum_x64.dll, Path: C:\Program Files\VstPlugins\Xfer\Serum_x64.dll, Exists: True
 [AudioTrack: 2-Audio] Plugin: Effectrix.dll, Path: C:\Program Files\VstPlugins\Effectrix.dll, Exists: True
 [AudioTrack: 3-Audio] Plugin: DrumLeveler.dll, Path: None, Exists: False
-Mac OS Audio Units are not saved with paths. Plugin FabFilter: FF Pro-Q 2 cannot be verified.
+[AudioTrack: 4-Audio] Plugin: Apple: AUBandpass, Path: None, Exists: True
+[MidiTrack: 5-MIDI] Plugin: Arturia: Analog Lab V, Path: /Library/Audio/Plug-Ins/Components/Analog Lab V.component, Exists: True
 ```
 
 `--list-tracks` List track information.
