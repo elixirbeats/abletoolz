@@ -87,6 +87,10 @@ def _get_file_version_strings(path: pathlib.Path) -> dict[str, str]:
                         strings[key] = val.strip("\x00")
         return strings
     except Exception:
+        # Broad on purpose: this walks raw ctypes/Windows version-resource structs off
+        # arbitrary third-party plugin DLLs, which can be truncated or malformed in ways
+        # that surface as almost anything (OSError, struct.error, access violations
+        # ctypes turns into other exceptions). One bad file must not kill the whole scan.
         return strings
 
 

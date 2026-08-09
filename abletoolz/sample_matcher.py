@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from mutagen import File as mutagen_file
+from mutagen import MutagenError
 
 
 def _parts(path: pathlib.Path) -> list[str]:
@@ -25,7 +26,7 @@ def get_audio_length_seconds(path: pathlib.Path) -> float | None:
             length = getattr(info.info, "length", None)
             if isinstance(length, (int, float)):
                 return float(length)
-    except Exception:
+    except (MutagenError, OSError):
         pass
     # Fallback for plain PCM wav; mutagen already covers aiff and the rest.
     if path.suffix.lower() == ".wav":
