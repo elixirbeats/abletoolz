@@ -223,6 +223,16 @@ def harvest(root: ET.Element) -> dict[str, object]:
             refs_with_abs += 1
 
     current_ends = [float(el.get("Value", 0)) for el in root.iter("CurrentEnd")]
+    au_plugins = []
+    for element in root.findall(".//AuPluginInfo"):
+        identifier = [_value(element, tag) for tag in ("ComponentType", "ComponentSubType", "ComponentManufacturer")]
+        au_plugins.append(
+            {
+                "name": _value(element, "Name"),
+                "manufacturer": _value(element, "Manufacturer"),
+                "identifier": [int(value) if value is not None else None for value in identifier],
+            }
+        )
 
     return {
         "creator": creator,
@@ -233,6 +243,7 @@ def harvest(root: ET.Element) -> dict[str, object]:
         "width_tag_typo_count": sum(1 for _ in root.iter("ViewStateSesstionTrackWidth")),
         "width_tag_fixed_count": sum(1 for _ in root.iter("ViewStateSessionTrackWidth")),
         "tracks": tracks,
+        "au_plugins": au_plugins,
         "vst3_plugin_names": [el.get("Value") for el in root.findall(".//Vst3PluginInfo/Name")],
         "sample_ref_count": len(sample_refs),
         "sample_refs_with_abs": refs_with_abs,

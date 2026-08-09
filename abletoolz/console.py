@@ -49,22 +49,17 @@ def render_missing_samples(missing: list[SampleRef]) -> None:
 
 def render_plugins(refs: list[PluginRef]) -> None:
     for ref in refs:
-        if ref.kind == "au":
-            logger.info(
-                "%sMac OS Audio Units are not saved with paths. Plugin %s: %s cannot be verified.",
-                M,
-                ref.manufacturer,
-                ref.name if ref.name is not None else "<unknown>",
-            )
-            continue
         color = G if ref.exists else (Y if ref.alternative else R)
+        name = ref.name if ref.name is not None else "<unknown>"
+        if ref.kind == "au" and ref.manufacturer:
+            name = f"{ref.manufacturer}: {name}"
         logger.info(
             "%s[%s%s%s] Plugin: %s, %sPath: %s, %sExists: %s",
             color,
             C,
             ref.track_location,
             color,
-            ref.name if ref.name is not None else "<unknown>",
+            name,
             M,
             ref.path,
             color,

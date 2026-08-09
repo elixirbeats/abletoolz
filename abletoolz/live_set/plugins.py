@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import ctypes
 import dataclasses
+import functools
 import logging
 import pathlib
 import plistlib
 import sqlite3
 import sys
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
 from abletoolz import utils
@@ -20,6 +22,7 @@ from abletoolz.misc import (
     R,
     SetOperatingSystem,
     Y,
+    default_au_component_dirs,
     default_live_database_dir,
     default_vst_dirs,
     get_element,
@@ -57,6 +60,89 @@ _PLUGIN_QUERY = (
 _VST3_INDEX_CACHE: dict[tuple[pathlib.Path, ...], dict[str, pathlib.Path]] = {}
 _VST3_INDEX_LOCK = threading.Lock()
 
+type AuIdentifier = tuple[int, int, int]
+
+_AU_INDEX_CACHE: dict[tuple[pathlib.Path, ...], dict[AuIdentifier, pathlib.Path]] = {}
+_AU_INDEX_LOCK = threading.Lock()
+_AUDIO_TOOLBOX_PATH = "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox"
+
+
+class _AudioComponentDescription(ctypes.Structure):
+    _fields_ = [
+        ("component_type", ctypes.c_uint32),
+        ("component_subtype", ctypes.c_uint32),
+        ("component_manufacturer", ctypes.c_uint32),
+        ("component_flags", ctypes.c_uint32),
+        ("component_flags_mask", ctypes.c_uint32),
+    ]
+
+
+def _fourcc_int(value: str) -> int:
+    return int.from_bytes(value.encode("latin-1"), "big")
+
+
+def plist_au_identifiers(plist_path: pathlib.Path) -> set[AuIdentifier]:
+    """Exact component identities declared by one Audio Unit bundle."""
+    try:
+        with plist_path.open("rb") as file:
+            plist = plistlib.load(file)
+    except (plistlib.InvalidFileException, ValueError) as error:
+        logger.debug("Skipping malformed Info.plist %s: %s", plist_path, error)
+        return set()
+    identifiers: set[AuIdentifier] = set()
+    components = plist.get("AudioComponents")
+    if not isinstance(components, list):
+        return identifiers
+    for component in cast(list[object], components):
+        if not isinstance(component, dict):
+            continue
+        component_data = cast(dict[str, object], component)
+        values = [component_data.get(key) for key in ("type", "subtype", "manufacturer")]
+        if all(isinstance(value, str) and len(value) == 4 for value in values):
+            component_type, component_subtype, manufacturer = values
+            assert isinstance(component_type, str)
+            assert isinstance(component_subtype, str)
+            assert isinstance(manufacturer, str)
+            identifiers.add(
+                (_fourcc_int(component_type), _fourcc_int(component_subtype), _fourcc_int(manufacturer))
+            )
+    return identifiers
+
+
+def index_au_components(search_dirs: list[pathlib.Path]) -> dict[AuIdentifier, pathlib.Path]:
+    """Index installed component bundles by exact Audio Unit identity."""
+    index: dict[AuIdentifier, pathlib.Path] = {}
+    for base in search_dirs:
+        for bundle in base.rglob("*.component"):
+            plist_path = bundle / "Contents" / "Info.plist"
+            if plist_path.is_file():
+                for identifier in plist_au_identifiers(plist_path):
+                    index.setdefault(identifier, bundle)
+    return index
+
+
+def cached_au_index(search_dirs: tuple[pathlib.Path, ...]) -> dict[AuIdentifier, pathlib.Path]:
+    """Build one component index per directory set and share it across batch workers."""
+    with _AU_INDEX_LOCK:
+        index = _AU_INDEX_CACHE.get(search_dirs)
+        if index is None:
+            index = index_au_components(list(search_dirs))
+            _AU_INDEX_CACHE[search_dirs] = index
+        return index
+
+
+@functools.cache
+def audio_component_registered(identifier: AuIdentifier) -> bool:
+    """Ask macOS whether an exact Audio Unit identity is registered."""
+    if sys.platform != "darwin":
+        return False
+    audio_toolbox = ctypes.CDLL(_AUDIO_TOOLBOX_PATH)
+    find_next = audio_toolbox.AudioComponentFindNext
+    find_next.argtypes = [ctypes.c_void_p, ctypes.POINTER(_AudioComponentDescription)]
+    find_next.restype = ctypes.c_void_p
+    description = _AudioComponentDescription(*identifier, 0, 0)
+    return find_next(None, ctypes.byref(description)) is not None
+
 
 def plist_declared_names(plist_path: pathlib.Path) -> set[str]:
     """Names a bundle's Info.plist declares. Empty for a malformed plist."""
@@ -73,9 +159,11 @@ def plist_declared_names(plist_path: pathlib.Path) -> set[str]:
             names.add(value)
     components = plist.get("AudioComponents")
     if isinstance(components, list):
-        for component in components:
-            if isinstance(component, dict) and isinstance(component.get("name"), str):
-                names.add(component["name"])
+        for component in cast(list[object], components):
+            if isinstance(component, dict):
+                name = cast(dict[str, object], component).get("name")
+                if isinstance(name, str):
+                    names.add(name)
     return names
 
 
@@ -180,6 +268,8 @@ class Plugins:
         self._vst3_index: dict[str, pathlib.Path] | None = None
         self._vst3_index_dirs: tuple[pathlib.Path, ...] = ()
         self._vst3_search_cache: dict[str, pathlib.Path | None] = {}
+        self._au_index: dict[AuIdentifier, pathlib.Path] | None = None
+        self._au_index_dirs: tuple[pathlib.Path, ...] = ()
 
     @property
     def version(self) -> Version:
@@ -237,6 +327,35 @@ class Plugins:
         found = search_live_databases(display_name, database_dir)
         self._vst3_search_cache[display_name] = found
         return found
+
+    def search_au(self, identifier: AuIdentifier) -> pathlib.Path | None:
+        """Find the component bundle that declares an exact Audio Unit identity."""
+        search_dirs = tuple(default_au_component_dirs())
+        if self._au_index is None or search_dirs != self._au_index_dirs:
+            self._au_index = cached_au_index(search_dirs)
+            self._au_index_dirs = search_dirs
+        return self._au_index.get(identifier)
+
+    def parse_au_element(self, au_element: ET.Element) -> tuple[str | None, str | None, AuIdentifier | None]:
+        """Pull display metadata and exact component identity from an AuPluginInfo element."""
+        name_element = au_element.find("Name")
+        manufacturer_element = au_element.find("Manufacturer")
+        type_element = au_element.find("ComponentType")
+        subtype_element = au_element.find("ComponentSubType")
+        component_manufacturer_element = au_element.find("ComponentManufacturer")
+        type_value = type_element.get("Value") if type_element is not None else None
+        subtype_value = subtype_element.get("Value") if subtype_element is not None else None
+        component_manufacturer_value = (
+            component_manufacturer_element.get("Value") if component_manufacturer_element is not None else None
+        )
+        identity = None
+        if type_value is not None and subtype_value is not None and component_manufacturer_value is not None:
+            identity = (int(type_value), int(subtype_value), int(component_manufacturer_value))
+        return (
+            name_element.get("Value") if name_element is not None else None,
+            manufacturer_element.get("Value") if manufacturer_element is not None else None,
+            identity,
+        )
 
     def parse_vst3_element(self, vst3_element: ET.Element) -> tuple[str | None, pathlib.Path | None]:
         """Pull display name and stored path out of a Vst3PluginInfo element.
@@ -352,17 +471,18 @@ class Plugins:
                     )
                 refs.append(ref)
             for au_element in plugin_element.iter("AuPluginInfo"):
-                name_elem = au_element.find("Name")
-                # AU references carry no path; nothing to verify on disk.
+                name, manufacturer, identifier = self.parse_au_element(au_element)
+                registered = identifier is not None and audio_component_registered(identifier)
+                component_path = self.search_au(identifier) if identifier is not None else None
                 refs.append(
                     PluginRef(
                         kind="au",
-                        name=name_elem.get("Value") if name_elem is not None else None,
-                        path=None,
-                        exists=False,
-                        alternative=None,
+                        name=name,
+                        path=component_path if registered else None,
+                        exists=registered,
+                        alternative=component_path if component_path is not None and not registered else None,
                         track_location=track_loc,
-                        manufacturer=get_element(plugin_element, "AuPluginInfo.Manufacturer", attribute="Value"),
+                        manufacturer=manufacturer,
                     )
                 )
         return refs
