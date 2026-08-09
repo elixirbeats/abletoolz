@@ -1,0 +1,246 @@
+"""Plugin reference scanning, analysis, and repair."""
+
+from __future__ import annotations
+
+import dataclasses
+import logging
+import pathlib
+from typing import TYPE_CHECKING
+from xml.etree import ElementTree as ET
+
+from abletoolz import utils
+from abletoolz.misc import RST, C, G, R, SetOperatingSystem, Y, default_vst_dirs, get_element
+from abletoolz.plugin_parsers import AbletoolzConfig, PluginAnalysis, PluginData, analyze_plugin, fix_plugin
+from abletoolz.plugin_parsers.config import load_config
+from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
+from abletoolz.sample_databaser import create_db
+from abletoolz.versioning import Version
+
+if TYPE_CHECKING:
+    from abletoolz.live_set.document import AbletonSet
+
+logger = logging.getLogger(__name__)
+
+_TRACK_TYPES = {"AudioTrack", "MidiTrack", "ReturnTrack", "MasterTrack", "MainTrack", "GroupTrack"}
+
+
+@dataclasses.dataclass(frozen=True)
+class PluginRef:
+    """One plugin reference found in a set."""
+
+    kind: str  # "vst" or "au"
+    name: str | None
+    path: pathlib.Path | None
+    exists: bool
+    alternative: pathlib.Path | None
+    track_location: str
+    manufacturer: str | None = None
+
+
+class Plugins:
+    """Plugin references of one set."""
+
+    def __init__(self, live_set: AbletonSet) -> None:
+        self._set = live_set
+        self.found_vst_dirs: list[pathlib.Path] = []
+        self._parent_map: dict[ET.Element, ET.Element] | None = None
+
+    @property
+    def version(self) -> Version:
+        return self._set.version_tuple
+
+    @property
+    def _root(self) -> ET.Element:
+        return self._set.root
+
+    def _parse_hex_path(self, text: str) -> str | None:
+        """Take raw hex string from XML entry and parses."""
+        if not text:
+            return None
+        # Strip new lines and tabs from raw text to have one long hex string.
+        abs_hash_path = text.replace("\t", "").replace("\n", "")
+        byte_data = bytearray.fromhex(abs_hash_path)
+        if byte_data[0:3] == b"\x00" * 3:  # Header only on mac projects.
+            self._set.set_os = SetOperatingSystem.MAC_OS
+            return utils.parse_mac_data(byte_data, abs_hash_path)
+        else:
+            self._set.set_os = SetOperatingSystem.WINDOWS_OS
+            return utils.parse_windows_data(byte_data, abs_hash_path)
+
+    def search(self, plugin_name: str) -> pathlib.Path | None:
+        """Search this OS's standard plugin dirs and previously seen plugin dirs."""
+        for base in default_vst_dirs():
+            for candidate in list(base.rglob("*.dll")) + list(base.rglob("*.vst3")):
+                if plugin_name == candidate.name:
+                    return candidate
+        for directory in self.found_vst_dirs:
+            for dll in directory.rglob("*.dll"):
+                if plugin_name == dll.name or plugin_name == dll.name.replace(".32", "").replace(".64", ""):
+                    return dll
+        return None
+
+    def parse_vst_element(self, vst_element: ET.Element) -> tuple[pathlib.Path | None, str | None, pathlib.Path | None]:
+        """Parse out VST element from vst xtree."""
+        for plugin_path in ["Dir", "Path"]:
+            path_results = vst_element.findall(f".//{plugin_path}")
+            if len(path_results):
+                if plugin_path == "Path":
+                    if (full_path := path_results[0].get("Value")) is None:
+                        logger.error("Couldn't get Path for %s", path_results[0])
+                        continue
+                    if "/" not in full_path and "\\" not in full_path:
+                        if search_result := self.search(full_path):
+                            return None, search_result.name, search_result
+                        return None, full_path, None
+                    path_separator = utils.path_separator_type(full_path)
+                    name = full_path.split(path_separator)[-1]
+                    return pathlib.Path(full_path), name, None
+                elif plugin_path == "Dir":
+                    if (dir_bin := path_results[0].find("Data")) is None:
+                        logger.error("Couldn't get Path for %s", path_results[0])
+                        continue
+                    if (text := dir_bin.text) is None:
+                        continue
+                    path = self._parse_hex_path(text)
+                    name_ele = vst_element.find("FileName")
+                    name = name_ele.get("Value", "") if name_ele is not None else "<>"
+                    if not path:
+                        logger.error("%sCouldn't parse absolute path for %s", Y, name)
+                        return None, name, None
+                    path_separator = utils.path_separator_type(path)
+                    if path[-1] == path_separator:
+                        full_path = f"{path}{name}"
+                    else:
+                        full_path = f"{path}{path_separator}{name}"
+                    return pathlib.Path(full_path), name, None
+
+        logger.error("%sCouldn't parse plugin!", R)
+        return None, None, None
+
+    def _find_track_for_element(self, element: ET.Element) -> str:
+        """Find which track contains a given element by searching parent map."""
+        if self._parent_map is None:
+            self._parent_map = {c: p for p in self._root.iter() for c in p}
+        current: ET.Element | None = element
+        while current is not None:
+            if current.tag in _TRACK_TYPES:
+                name_elem = current.find(".//EffectiveName")
+                if name_elem is not None:
+                    return f"{current.tag}: {name_elem.get('Value', '?')}"
+                return current.tag
+            current = self._parent_map.get(current)
+        return "?"
+
+    def scan(self, vst_dirs: list[pathlib.Path]) -> list[PluginRef]:
+        """Resolve every plugin reference in the set against disk."""
+        self.found_vst_dirs.extend(vst_dirs)
+        refs: list[PluginRef] = []
+        for plugin_element in self._root.iter("PluginDesc"):
+            track_loc = self._find_track_for_element(plugin_element)
+            for vst_element in plugin_element.iter("VstPluginInfo"):
+                full_path, name, potential = self.parse_vst_element(vst_element)
+                exists = bool(full_path and full_path.exists())
+                if exists and full_path is not None and full_path.parent not in self.found_vst_dirs:
+                    self.found_vst_dirs.append(full_path.parent)
+                elif not exists and isinstance(name, str):
+                    # Did not find plugin in saved path, try to search
+                    potential = self.search(name)
+                refs.append(
+                    PluginRef(
+                        kind="vst",
+                        name=name,
+                        path=full_path,
+                        exists=exists,
+                        alternative=potential,
+                        track_location=track_loc,
+                    )
+                )
+            for au_element in plugin_element.iter("AuPluginInfo"):
+                name_elem = au_element.find("Name")
+                # AU references carry no path; nothing to verify on disk.
+                refs.append(
+                    PluginRef(
+                        kind="au",
+                        name=name_elem.get("Value") if name_elem is not None else None,
+                        path=None,
+                        exists=False,
+                        alternative=None,
+                        track_location=track_loc,
+                        manufacturer=get_element(plugin_element, "AuPluginInfo.Manufacturer", attribute="Value"),
+                    )
+                )
+        return refs
+
+    def analyze(self, config: AbletoolzConfig | None = None) -> list[PluginAnalysis]:
+        """Analyze all plugins in set using registered parsers."""
+        results: list[PluginAnalysis] = []
+        for plugin_element in self._root.iter("PluginDesc"):
+            for vst_element in plugin_element.iter("VstPluginInfo"):
+                plugin = PluginData.from_element(vst_element)
+                analysis = analyze_plugin(plugin, config)
+                if analysis:
+                    results.append(analysis)
+                    if analysis.issues:
+                        for issue in analysis.issues:
+                            logger.warning("%s%s: %s", Y, analysis.plugin_name, issue)
+                    else:
+                        logger.debug("%s%s: OK", G, analysis.plugin_name)
+        return results
+
+    def dump(self, max_hex: int = 256, max_decoded: int = 500) -> list[str]:
+        """Dump all plugin buffer data for reverse engineering new parsers."""
+        dumps: list[str] = []
+        for plugin_element in self._root.iter("PluginDesc"):
+            for vst_element in plugin_element.iter("VstPluginInfo"):
+                plugin = PluginData.from_element(vst_element)
+                dump = plugin.dump_buffer(max_hex_bytes=max_hex, max_decoded_chars=max_decoded)
+                dumps.append(dump)
+                # Print each dump immediately for CLI usage
+                print(dump)
+                print("-" * 80)
+        return dumps
+
+    def fix(self, db: create_db.DatabaseT, config: AbletoolzConfig | None = None) -> bool:
+        """Scan supported plugins and apply in-place fixes using sample DB."""
+        changed = False
+        for plugin_element in self._root.iter("PluginDesc"):
+            for vst_element in plugin_element.iter("VstPluginInfo"):
+                plugin = PluginData.from_element(vst_element)
+                if fix_plugin(plugin, db, config):
+                    logger.info("%sFixed plugin: %s", G, plugin.plugin_name)
+                    changed = True
+        return changed
+
+    def upgrade(self) -> bool:
+        """Upgrade plugin references using rules from config."""
+        rules = load_config().plugin_upgrade_rules
+        if not rules:
+            logger.info("%sNo upgrade rules in config", C)
+            return False
+
+        changed = False
+        for plugin_element in self._root.iter("PluginDesc"):
+            path_el = get_element(plugin_element, "VstPluginInfo.Path", silent_error=True)
+            if not isinstance(path_el, ET.Element):
+                continue
+
+            current_path = path_el.get("Value", "")
+            if not current_path:
+                continue
+
+            current_filename = pathlib.Path(current_path).name
+            result = get_upgrade(current_filename, rules)
+
+            if result:
+                target_name, target_path = result
+                new_path = str(target_path).replace("\\", "/")
+                path_el.set("Value", new_path)
+
+                plugname_el = get_element(plugin_element, "VstPluginInfo.PlugName", silent_error=True)
+                if isinstance(plugname_el, ET.Element):
+                    plugname_el.set("Value", target_path.stem)
+
+                logger.info("%sUpgraded: %s%s%s → %s%s", G, Y, current_filename, RST, G, target_name)
+                changed = True
+
+        return changed

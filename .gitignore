@@ -1,13 +1,27 @@
-# general things to ignore
-build/
-dist/
+# python
 *.py[cod]
 __pycache__/
 *.so
 *~
+
+# build artifacts
+build/
+dist/
 eggs/
 .eggs/
 *.egg-info/
-.installed.cfg
 *.egg
+.installed.cfg
+
+# project venv
+.venv/
+
+# tool caches
+.coverage
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 .idea/
+
+# abletoolz's own backup output when run on test sets
+abletoolz_backup/

@@ -1,7 +1,0 @@
-colorama
-chardet
-tqdm
-colormath
-pydantic
-# For setting file creation date.
-win32_setctime; platform_system == "Windows"

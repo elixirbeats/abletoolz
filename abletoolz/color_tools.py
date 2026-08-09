@@ -1,7 +1,7 @@
 """Tools for dealing with ableton colors, creating gradients etc."""
 import logging
 import random
-from typing import Final, List, Optional, Tuple
+from typing import Final
 
 import numpy as np
 from colormath.color_conversions import convert_color
@@ -28,7 +28,7 @@ known_good_combos = {
 }
 
 
-def hex_to_rgb(hex_value: int) -> Tuple[int, int, int]:
+def hex_to_rgb(hex_value: int) -> tuple[int, int, int]:
     """Convert hex to rgb."""
     return ((hex_value >> 16) & 0xFF, (hex_value >> 8) & 0xFF, hex_value & 0xFF)
 
@@ -48,7 +48,7 @@ def interpolate_color(color1: int, color2: int, t: float) -> int:
     return rgb_to_hex(r, g, b)
 
 
-def create_gradient(color1: int, color2: int, steps: int) -> List[int]:
+def create_gradient(color1: int, color2: int, steps: int) -> list[int]:
     """Generate a color gradient between two colors."""
     return [interpolate_color(color1, color2, t / (steps - 1)) for t in range(steps)]
 
@@ -122,14 +122,14 @@ def custom_delta_e_cie2000(color1: LabColor, color2: LabColor) -> float:
     return delta_e
 
 
-def find_closest_color_ciede2000(color: int, palette: List[Tuple[int, int]]) -> Tuple[int, int]:
+def find_closest_color_ciede2000(color: int, palette: list[tuple[int, int]]) -> tuple[int, int]:
     """Find closest color using ciede2000."""
     lab_color = hex_to_lab_color(color)
     closest_color = min(palette, key=lambda x: custom_delta_e_cie2000(lab_color, hex_to_lab_color(x[1])))
     return closest_color
 
 
-def find_furthest_color_ciede2000(color: int, palette: List[Tuple[int, int]]) -> Tuple[int, int]:
+def find_furthest_color_ciede2000(color: int, palette: list[tuple[int, int]]) -> tuple[int, int]:
     """Find furthest color using ciede2000."""
     lab_color = hex_to_lab_color(color)
     furthest_color = max(palette, key=lambda x: custom_delta_e_cie2000(lab_color, hex_to_lab_color(x[1])))
@@ -137,15 +137,15 @@ def find_furthest_color_ciede2000(color: int, palette: List[Tuple[int, int]]) ->
 
 
 def create_gradient_from_palette_ciede2000(
-    color1: int, color2: int, steps: int, palette: List[int]
-) -> List[Tuple[int, int]]:
+    color1: int, color2: int, steps: int, palette: list[int]
+) -> list[tuple[int, int]]:
     """Generate a gradient between two colors, and use ciede2000 to find the closest available from a palette."""
     gradient = create_gradient(color1, color2, steps)
     indexed_palette = [(index, color) for index, color in enumerate(palette)]
     return [find_closest_color_ciede2000(color, indexed_palette) for color in gradient]
 
 
-def sort_colors_ciede2000(colors: List[int], start_color_index: int) -> List[Tuple[int, int]]:
+def sort_colors_ciede2000(colors: list[int], start_color_index: int) -> list[tuple[int, int]]:
     """Sort colors based on the ciede2000 algorithm which is more accurate to human perception."""
     start_color = colors[start_color_index]
     sorted_colors = [(start_color_index, start_color)]
@@ -161,8 +161,8 @@ def sort_colors_ciede2000(colors: List[int], start_color_index: int) -> List[Tup
 
 
 def create_gradient_ableton(
-    num_items: int, starting_color: Optional[int] = None, starting_index: Optional[int] = None
-) -> List[int]:
+    num_items: int, starting_color: int | None = None, starting_index: int | None = None
+) -> list[int]:
     """Makes gradients for ableton tracks/clips.
 
     Since there are only 70 colors, I try to find the furthest color from the first one, which can be

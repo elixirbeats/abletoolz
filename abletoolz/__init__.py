@@ -1,5 +1,5 @@
 """Version control."""
 
-__version__ = "1.1.1"
+__version__ = "2.0.0"
 
-from abletoolz.cli import main
+from abletoolz.cli import main as main
