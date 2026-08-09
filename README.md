@@ -8,7 +8,7 @@ It can:
 - Color all your tracks/clips with random color gradients.
 - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
-- Validate all plugins in a set are installed. MacOS VST3s currently do not work for this.
+- Validate all plugins in a set are installed.
 - Analyze plugin state with plugin-specific parsers, and fix what they understand (Serato Sample's missing sample paths, for a start).
 - Fold/Unfold all tracks, and/or set track height and widths.
 - Prepend the set version name to the beginning of the file.
@@ -100,7 +100,10 @@ is checked. By default only missing samples are displayed to reduce clutter, use
 `--check-plugins` Checks plugin VST paths and verifies they exist. **Note**: When loading a set, if Ableton finds the
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This
 command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
-Mac Audio Units/AU are not stored with paths, just plugin names. Mac OS is not supported for this yet.
+VST3s stored by display name alone resolve against the installed plugin files — on macOS through each bundle's
+`Info.plist`, since bundle names often differ from display names — and, failing that, against Live's own plugin
+database, the only place shell plugins like Waves can be found. Mac Audio Units/AU are not stored with paths,
+just plugin names, and cannot be verified yet.
 ```
 [MidiTrack: 1-Serum] Plugin: Serum_x64.dll, Path: C:\Program Files\VstPlugins\Xfer\Serum_x64.dll, Exists: True
 [AudioTrack: 2-Audio] Plugin: Effectrix.dll, Path: C:\Program Files\VstPlugins\Effectrix.dll, Exists: True
