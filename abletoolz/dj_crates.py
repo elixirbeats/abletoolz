@@ -72,6 +72,19 @@ class AudioMode(enum.StrEnum):
 # The transcode-cache modes are a strict subset of AudioMode (LINK never gets cached).
 type CacheFormat = Literal[AudioMode.WAV, AudioMode.FLAC]
 
+
+class FfmpegCodec(enum.StrEnum):
+    """ffmpeg encoder names for the transcode-cache formats."""
+
+    PCM_S16LE = "pcm_s16le"
+    FLAC = "flac"
+
+
+_CACHE_CODECS: dict[CacheFormat, FfmpegCodec] = {
+    AudioMode.WAV: FfmpegCodec.PCM_S16LE,
+    AudioMode.FLAC: FfmpegCodec.FLAC,
+}
+
 _LOSSLESS_EXTENSIONS = {".wav", ".aiff", ".aif"}
 _DEFAULT_BAR_TOLERANCE = 0.02
 # Headroom to the right of the last cue in a generated clip's opening view:
@@ -427,7 +440,7 @@ def audio_dest_extension(src: Path, audio_format: CacheFormat) -> str:
 
 def _ffmpeg_transcode(src: Path, dest: Path, audio_format: CacheFormat) -> None:
     """Transcode ``src`` to ``dest`` via ffmpeg. Isolated so tests can mock it out."""
-    codec = "pcm_s16le" if audio_format == AudioMode.WAV else "flac"
+    codec = _CACHE_CODECS[audio_format]
     subprocess.run(
         ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src), "-c:a", codec, str(dest)],
         check=True,
@@ -476,25 +489,18 @@ def read_duration_seconds(path: Path) -> float:
 # ── Library-relative sample paths (RelativePathType 6) ───────────────────────
 
 
-def relative_to_user_library(path: Path) -> Path:
-    """Compute a ``User Library``-relative path, for :meth:`AlcClip.retarget_sample`.
+def library_relative_path(path: Path) -> Path:
+    """RelativePath value (``RelativePathType`` 6: User Library-relative) for ``path``.
 
-    Walks ``path``'s components looking for a "User Library" folder (Ableton's own
-    convention, ``RelativePathType`` 6) and returns everything below it. The path
-    need not actually exist -- link mode uses this to build a deliberately
-    non-resolving reference.
-
-    Raises:
-        ValueError: ``path`` isn't inside a "User Library" folder.
+    Everything below the "User Library" component when there is one. Crates built
+    outside a Library have no honest type-6 value, so return a marker path that can
+    never resolve there -- Live falls through to the absolute ``Path`` field, the
+    same fallback link mode relies on by design. Neither path needs to exist.
     """
     parts = path.parts
-    try:
-        idx = parts.index("User Library")
-    except ValueError as exc:
-        raise ValueError(
-            f"{path} is not inside a 'User Library' folder; cannot build a RelativePathType reference"
-        ) from exc
-    return Path(*parts[idx + 1 :])
+    if "User Library" in parts:
+        return Path(*parts[parts.index("User Library") + 1 :])
+    return Path("abletoolz outside library") / path.name
 
 
 def _set_relative_path_type(clip: AlcClip, value: int) -> None:
@@ -532,7 +538,7 @@ def _fake_relative_path(audio_dir: Path, safe_name: str, ext: str) -> Path:
     in link mode -- the point is for Live's relative-path resolution to fail and fall
     through to the absolute ``Path`` field.
     """
-    return relative_to_user_library(audio_dir / f"{safe_name}{ext}")
+    return library_relative_path(audio_dir / f"{safe_name}{ext}")
 
 
 def mp3_offset_from_row(row: PicksRow) -> float:
@@ -591,7 +597,7 @@ def resolve_cached_placement(
     duration_s = read_duration_seconds(dest)
     return AudioPlacement(
         absolute_path=dest,
-        relative_path=relative_to_user_library(dest),
+        relative_path=library_relative_path(dest),
         duration_s=duration_s,
         time_offset_s=0.0,
         did_work=did_work,
@@ -782,6 +788,8 @@ class RunReport:
     dry_run: bool
     audio_mode: AudioMode
     results: list[TrackResult] = field(default_factory=list)
+    #: (skipped, kept) plans whose rows mapped to the same clip file (e.g. m4a + mp3 rips).
+    duplicate_skips: list[tuple[TrackPlan, TrackPlan]] = field(default_factory=list)
 
     @property
     def generated_count(self) -> int:
@@ -839,6 +847,17 @@ def mirror_subpath(source: Path, marker: str) -> Path:
     return Path()
 
 
+# Same-name duplicate resolution: lossless sources play with no decoder offset at
+# all, the MP3 offset is a measured model (MPEG_DECODER_DELAY_SAMPLES), anything
+# else (m4a/AAC rips) plays with an unverified offset in Live.
+_GRID_RELIABILITY = {".wav": 0, ".aif": 0, ".aiff": 0, ".flac": 0, ".mp3": 1}
+
+
+def _source_preference(path: Path) -> int:
+    """Rank a source file by how trustworthy its grid alignment is (lower wins)."""
+    return _GRID_RELIABILITY.get(path.suffix.lower(), 2)
+
+
 def run_crate_generation(
     rows: Sequence[PicksRow],
     *,
@@ -851,19 +870,35 @@ def run_crate_generation(
     relative_path_type: int | None = None,
     mirror_marker: str | None = None,
 ) -> RunReport:
-    """Build the crate: plan every row, then generate (unless ``dry_run``)."""
+    """Build the crate: plan every row, then generate (unless ``dry_run``).
+
+    Rows that map to the same clip file -- the same tune ripped in two formats, or
+    same-named files from different folders in flat mode -- generate one clip: the
+    most grid-reliable source wins and the losers land in ``duplicate_skips``.
+    """
     crate_root = crates_dir / crate_name
     report = RunReport(dry_run=dry_run, audio_mode=audio_mode)
+    chosen: dict[tuple[Path, str], TrackPlan] = {}
     for row in rows:
         plan = build_plan(row, bar_tolerance=bar_tolerance)
+        crate_dir = crate_root
+        if mirror_marker is not None:
+            crate_dir = crate_root / mirror_subpath(Path(row.path), mirror_marker)
+        key = (crate_dir, plan.safe_name.casefold())
+        existing = chosen.get(key)
+        if existing is None:
+            chosen[key] = plan
+        elif _source_preference(plan.row.path) < _source_preference(existing.row.path):
+            chosen[key] = plan
+            report.duplicate_skips.append((existing, plan))
+        else:
+            report.duplicate_skips.append((plan, existing))
+    for (crate_dir, _), plan in chosen.items():
         if dry_run:
             report.results.append(
                 TrackResult(plan=plan, transcoded=False, generated_full=True, generated_drop=plan.has_drop)
             )
             continue
-        crate_dir = crate_root
-        if mirror_marker is not None:
-            crate_dir = crate_root / mirror_subpath(Path(row.path), mirror_marker)
         report.results.append(
             generate_track(
                 plan,
@@ -884,6 +919,15 @@ def print_report(report: RunReport) -> None:
     )
     if not report.dry_run and report.audio_mode != AudioMode.LINK:
         logger.info("%sSkipped (already cached) transcodes: %s", C, report.cached_skips)
+
+    if report.duplicate_skips:
+        logger.info(
+            "%s%s duplicate source(s) skipped -- same clip name, the most grid-reliable format wins:",
+            Y,
+            len(report.duplicate_skips),
+        )
+        for skipped, kept in report.duplicate_skips:
+            logger.info("%s  - kept %s over %s", Y, kept.row.path, skipped.row.path)
 
     no_drop = report.no_drop_tracks
     if no_drop:

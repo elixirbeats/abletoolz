@@ -23,11 +23,11 @@ from abletoolz.dj_crates import (
     derive_clip_name,
     ensure_audio_cached,
     filter_rows,
+    library_relative_path,
     mp3_decoder_offset_seconds,
     parse_picks_row,
     read_duration_seconds,
     read_picks_tsv,
-    relative_to_user_library,
     resolve_link_placement,
     run_crate_generation,
     sanitize_filename,
@@ -398,19 +398,50 @@ def test_read_duration_seconds_wav_exact(tmp_path: Path) -> None:
     assert read_duration_seconds(wav_path) == pytest.approx(3.5)
 
 
-# ── relative_to_user_library ──────────────────────────────────────────────────
+# ── library_relative_path ─────────────────────────────────────────────────────
 
 
-def test_relative_to_user_library_extracts_suffix() -> None:
+def test_library_relative_path_extracts_suffix() -> None:
     """Everything below the "User Library" path component is returned."""
     path = Path("somewhere/Ableton/User Library/DJ Crates/Audio/tune.wav")
-    assert relative_to_user_library(path) == Path("DJ Crates/Audio/tune.wav")
+    assert library_relative_path(path) == Path("DJ Crates/Audio/tune.wav")
 
 
-def test_relative_to_user_library_requires_the_folder() -> None:
-    """A path outside any "User Library" folder can't be made library-relative."""
-    with pytest.raises(ValueError, match="User Library"):
-        relative_to_user_library(Path("elsewhere/tune.wav"))
+def test_library_relative_path_outside_library_never_resolves() -> None:
+    """Outside any "User Library" a marker path keeps Live on the absolute Path."""
+    result = library_relative_path(Path("elsewhere/tune.wav"))
+    assert result == Path("abletoolz outside library/tune.wav")
+
+
+# ── Duplicate-source dedupe ──────────────────────────────────────────────────
+
+
+def test_run_crate_generation_dedupes_same_clip_name(tmp_path: Path) -> None:
+    """Two rips of the same tune yield ONE clip: the most grid-reliable format wins.
+
+    Lossless beats mp3 (no decoder offset at all), mp3 beats m4a (measured offset
+    model vs unverified) -- and the loser is reported, never silently overwritten.
+    """
+    rows = [
+        _make_row(path=Path("tunes/Tune.m4a"), filename="Tune.m4a"),
+        _make_row(path=Path("tunes/Tune.mp3"), filename="Tune.mp3", **_mp3_row_fields()),
+        _make_row(path=Path("tunes/Other.wav"), filename="Other.wav"),
+        _make_row(path=Path("tunes/Other.mp3"), filename="Other.mp3", **_mp3_row_fields()),
+    ]
+    report = run_crate_generation(
+        rows,
+        crate_name="Crate",
+        audio_dir=tmp_path / "Audio",
+        crates_dir=tmp_path,
+        audio_mode="link",
+        bar_tolerance=0.02,
+        dry_run=True,
+    )
+    assert report.generated_count == 2
+    assert [(s.row.path.suffix, k.row.path.suffix) for s, k in report.duplicate_skips] == [
+        (".m4a", ".mp3"),
+        (".mp3", ".wav"),
+    ]
 
 
 # ── End-to-end: plan + generate against the packaged template ────────────────
