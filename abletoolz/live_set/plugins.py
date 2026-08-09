@@ -7,6 +7,8 @@ import logging
 import pathlib
 import plistlib
 import sqlite3
+import sys
+import threading
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
@@ -52,6 +54,8 @@ _PLUGIN_QUERY = (
     " LEFT JOIN plugin_modules pm ON p.module_id = pm.module_id"
     " WHERE p.name = ? AND p.dev_identifier LIKE 'device:vst3:%' LIMIT 1"
 )
+_VST3_INDEX_CACHE: dict[tuple[pathlib.Path, ...], dict[str, pathlib.Path]] = {}
+_VST3_INDEX_LOCK = threading.Lock()
 
 
 def plist_declared_names(plist_path: pathlib.Path) -> set[str]:
@@ -93,6 +97,30 @@ def resolve_vst3_name(display_name: str, search_dirs: list[pathlib.Path]) -> pat
             elif candidate.stem == display_name:
                 return candidate
     return None
+
+
+def index_vst3_names(search_dirs: list[pathlib.Path]) -> dict[str, pathlib.Path]:
+    """Index every name advertised by installed VST3 files and bundles."""
+    index: dict[str, pathlib.Path] = {}
+    for base in search_dirs:
+        for candidate in base.rglob("*.vst3"):
+            index.setdefault(candidate.stem, candidate)
+            if candidate.is_dir():
+                plist_path = candidate / "Contents" / "Info.plist"
+                if plist_path.is_file():
+                    for name in plist_declared_names(plist_path):
+                        index.setdefault(name, candidate)
+    return index
+
+
+def cached_vst3_index(search_dirs: tuple[pathlib.Path, ...]) -> dict[str, pathlib.Path]:
+    """Build one VST3 index per directory set and share it across batch workers."""
+    with _VST3_INDEX_LOCK:
+        index = _VST3_INDEX_CACHE.get(search_dirs)
+        if index is None:
+            index = index_vst3_names(list(search_dirs))
+            _VST3_INDEX_CACHE[search_dirs] = index
+        return index
 
 
 def live_database_lookup(display_name: str, database: pathlib.Path) -> pathlib.Path | None:
@@ -149,6 +177,9 @@ class Plugins:
         self._set = live_set
         self.found_vst_dirs: list[pathlib.Path] = []
         self._parent_map: dict[ET.Element, ET.Element] | None = None
+        self._vst3_index: dict[str, pathlib.Path] | None = None
+        self._vst3_index_dirs: tuple[pathlib.Path, ...] = ()
+        self._vst3_search_cache: dict[str, pathlib.Path | None] = {}
 
     @property
     def version(self) -> Version:
@@ -174,6 +205,8 @@ class Plugins:
 
     def search(self, plugin_name: str) -> pathlib.Path | None:
         """Search this OS's standard plugin dirs and previously seen plugin dirs."""
+        if pathlib.Path(plugin_name).suffix.casefold() == ".dll" and sys.platform != "win32":
+            return None
         for base in default_vst_dirs():
             for candidate in list(base.rglob("*.dll")) + list(base.rglob("*.vst3")):
                 if plugin_name == candidate.name:
@@ -186,13 +219,24 @@ class Plugins:
 
     def search_vst3(self, display_name: str) -> pathlib.Path | None:
         """Resolve a VST3 display name: plugin dirs first, then Live's own database."""
-        found = resolve_vst3_name(display_name, default_vst_dirs() + self.found_vst_dirs)
+        search_dirs = tuple(dict.fromkeys(default_vst_dirs() + self.found_vst_dirs))
+        if self._vst3_index is None or search_dirs != self._vst3_index_dirs:
+            self._vst3_index = cached_vst3_index(search_dirs)
+            self._vst3_index_dirs = search_dirs
+            self._vst3_search_cache.clear()
+        if display_name in self._vst3_search_cache:
+            return self._vst3_search_cache[display_name]
+        found = self._vst3_index.get(display_name)
         if found is not None:
+            self._vst3_search_cache[display_name] = found
             return found
         database_dir = default_live_database_dir()
         if database_dir is None:
+            self._vst3_search_cache[display_name] = None
             return None
-        return search_live_databases(display_name, database_dir)
+        found = search_live_databases(display_name, database_dir)
+        self._vst3_search_cache[display_name] = found
+        return found
 
     def parse_vst3_element(self, vst3_element: ET.Element) -> tuple[str | None, pathlib.Path | None]:
         """Pull display name and stored path out of a Vst3PluginInfo element.

@@ -11,6 +11,7 @@ import os
 import pathlib
 import plistlib
 import sqlite3
+import sys
 from xml.etree import ElementTree as ET
 
 import pytest
@@ -148,6 +149,15 @@ def hermetic(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.usefixtures("hermetic")
+def test_search_skips_windows_dll_on_macos(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """A Windows DLL cannot be loaded on macOS, so do not recursively search plugin trees for it."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
+    monkeypatch.setattr(pathlib.Path, "rglob", lambda *_args: pytest.fail("unexpected plugin directory scan"))
+    assert make_set("10.1.3").plugins.search("Rift.dll") is None
+
+
+@pytest.mark.usefixtures("hermetic")
 def test_scan_resolves_bundle_via_plist(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """A set's vst3 ref resolves to a bundle whose dir name differs from the display name."""
     bundle = make_bundle(tmp_path, "FabFilter Pro-R Installed", {"CFBundleDisplayName": "Pro-R"})
@@ -157,6 +167,52 @@ def test_scan_resolves_bundle_via_plist(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert refs["Pro-R"].path == bundle
     assert not refs["Pro-Q 3"].exists
     assert refs["Pro-Q 3"].path is None
+
+
+@pytest.mark.usefixtures("hermetic")
+def test_scan_indexes_vst3_dirs_once(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """Many VST3 instances must not recursively rescan the plugin tree for each reference."""
+    make_bundle(tmp_path, "FabFilter Pro-R Installed", {"CFBundleDisplayName": "Pro-R"})
+    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
+    ableton_set = make_set("10.1.3")
+    plugin_desc = ableton_set.root.find(".//PluginDesc")
+    vst3_element = ableton_set.root.find(".//Vst3PluginInfo")
+    assert plugin_desc is not None
+    assert vst3_element is not None
+    monkeypatch.setattr(ableton_set.plugins, "search", lambda _name: None)
+    for _ in range(10):
+        plugin_desc.append(ET.fromstring(ET.tostring(vst3_element)))
+
+    original_rglob = pathlib.Path.rglob
+    traversals = 0
+
+    def counting_rglob(path: pathlib.Path, pattern: str):
+        nonlocal traversals
+        traversals += 1
+        return original_rglob(path, pattern)
+
+    monkeypatch.setattr(pathlib.Path, "rglob", counting_rglob)
+    ableton_set.plugins.scan([])
+    assert traversals == 1
+
+
+@pytest.mark.usefixtures("hermetic")
+def test_vst3_index_is_shared_between_sets(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """Batch workers must reuse one filesystem index instead of traversing once per set."""
+    make_bundle(tmp_path, "FabFilter Pro-R Installed", {"CFBundleDisplayName": "Pro-R"})
+    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
+    original_rglob = pathlib.Path.rglob
+    traversals = 0
+
+    def counting_rglob(path: pathlib.Path, pattern: str):
+        nonlocal traversals
+        traversals += 1
+        return original_rglob(path, pattern)
+
+    monkeypatch.setattr(pathlib.Path, "rglob", counting_rglob)
+    assert make_set("10.1.3").plugins.search_vst3("Pro-R") is not None
+    assert make_set("10.1.3").plugins.search_vst3("Pro-R") is not None
+    assert traversals == 1
 
 
 @pytest.mark.usefixtures("hermetic")
