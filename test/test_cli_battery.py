@@ -34,6 +34,7 @@ def run_cli(monkeypatch: pytest.MonkeyPatch, *argv: str) -> int:
 def hermetic(monkeypatch: pytest.MonkeyPatch) -> None:
     """No real plugin dirs, no real user config."""
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
+    monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
     monkeypatch.setattr(cli, "load_config", lambda: AbletoolzConfig())
 
 

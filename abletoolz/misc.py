@@ -39,6 +39,18 @@ def default_ableton_user_library() -> pathlib.Path | None:
     return candidate if candidate.is_dir() else None
 
 
+def default_live_database_dir() -> pathlib.Path | None:
+    """Live's own plugin/browser database location for this OS, when present."""
+    if sys.platform == "win32":
+        base = pathlib.Path(os.environ.get("LOCALAPPDATA", pathlib.Path.home() / "AppData" / "Local"))
+        candidate = base / "Ableton" / "Live Database"
+    elif sys.platform == "darwin":
+        candidate = pathlib.Path.home() / "Library" / "Application Support" / "Ableton" / "Live Database"
+    else:
+        return None
+    return candidate if candidate.is_dir() else None
+
+
 def default_vst_dirs() -> list[pathlib.Path]:
     """Standard plugin install locations for this OS, existing dirs only."""
     if sys.platform == "win32":

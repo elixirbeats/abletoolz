@@ -68,6 +68,7 @@
       0,
       1
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 10
   },
@@ -134,6 +135,7 @@
       0,
       6
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 9
   },
@@ -205,6 +207,11 @@
       10,
       1,
       3
+    ],
+    "vst3_plugin_names": [
+      "Pro-R",
+      "Pro-Q 3",
+      "Pro-L 2"
     ],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 9
@@ -278,6 +285,7 @@
       0,
       0
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 10
   },
@@ -350,6 +358,12 @@
       0,
       12
     ],
+    "vst3_plugin_names": [
+      "Torque-Live Stereo",
+      "Smack Attack Stereo",
+      "Pro-C 2",
+      "Pro-L 2"
+    ],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 10
   },
@@ -410,6 +424,7 @@
       2,
       10
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 8
   },
@@ -440,6 +455,7 @@
       2,
       10
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 3
   },
@@ -481,6 +497,9 @@
       11,
       3,
       42
+    ],
+    "vst3_plugin_names": [
+      "Decapitator"
     ],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 5
@@ -542,6 +561,7 @@
       2,
       6
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 8,
     "width_tag_typo_count": 0
   },
@@ -595,6 +615,10 @@
       12,
       4,
       5
+    ],
+    "vst3_plugin_names": [
+      "LOW",
+      "Decapitator"
     ],
     "width_tag_fixed_count": 7,
     "width_tag_typo_count": 0
@@ -656,6 +680,7 @@
       0,
       1
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 8
   },
@@ -716,6 +741,7 @@
       6,
       0
     ],
+    "vst3_plugin_names": [],
     "width_tag_fixed_count": 0,
     "width_tag_typo_count": 8
   }
