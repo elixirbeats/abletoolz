@@ -77,7 +77,9 @@ def get_file_times(live_set: AbletonSet) -> None:
     if sys.platform == "win32":
         live_set.creation_time = os.path.getctime(live_set.path)
     else:
-        live_set.creation_time = os.stat(live_set.path).st_birthtime
+        # Linux filesystems expose no birth time; mtime is the best stand-in.
+        stat_result = os.stat(live_set.path)
+        live_set.creation_time = getattr(stat_result, "st_birthtime", stat_result.st_mtime)
     live_set.last_modification_time = os.path.getmtime(live_set.path)
     logger.debug(
         "%sFile creation time %s, Last modification time: %s",
