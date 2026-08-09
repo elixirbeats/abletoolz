@@ -140,10 +140,10 @@ class SeratoSampleParser(SampleContainerParser):
         if not current:
             return False
 
-        # Parse current path
+        # Parse current path. pathlib.Path() only raises on embedded NUL bytes.
         try:
             current_path = pathlib.Path(current.replace("\\", "/"))
-        except Exception:
+        except ValueError:
             return False
 
         # Check if already valid

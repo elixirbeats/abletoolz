@@ -10,6 +10,8 @@ providing functionality like:
 
 from __future__ import annotations
 
+import base64
+import binascii
 import enum
 import json
 import logging
@@ -200,16 +202,15 @@ class PluginData(BaseModel):
         # Check for base64 (mostly alphanumeric with +/=)
         try:
             decoded = raw_bytes.decode("ascii", errors="strict")
-            import base64
             base64.b64decode(decoded)
             # If it decodes, check if result is JSON
             try:
                 inner = base64.b64decode(decoded).decode("utf-8")
                 if inner.strip().startswith("{"):
                     return BufferFormat.BASE64_JSON
-            except Exception:
+            except (binascii.Error, UnicodeDecodeError):
                 pass
-        except Exception:
+        except (UnicodeDecodeError, binascii.Error):
             pass
 
         # Likely binary/proprietary
@@ -245,16 +246,13 @@ class PluginData(BaseModel):
             hex_preview += f" ... ({len(raw_bytes) - max_hex_bytes} more bytes)"
         lines.append(f"Hex preview:\n  {hex_preview}")
 
-        # Try decoded preview
-        try:
-            decoded = raw_bytes.decode("utf-8", errors="replace")[:max_decoded_chars]
-            if len(raw_bytes) > max_decoded_chars:
-                decoded += "..."
-            # Clean up non-printable chars for display
-            cleaned = "".join(c if c.isprintable() or c in "\n\t" else "·" for c in decoded)
-            lines.append(f"UTF-8 preview:\n  {cleaned[:200]}")
-        except Exception:
-            lines.append("UTF-8 preview: <decode failed>")
+        # Decoded preview. errors="replace" means this can't actually raise.
+        decoded = raw_bytes.decode("utf-8", errors="replace")[:max_decoded_chars]
+        if len(raw_bytes) > max_decoded_chars:
+            decoded += "..."
+        # Clean up non-printable chars for display
+        cleaned = "".join(c if c.isprintable() or c in "\n\t" else "·" for c in decoded)
+        lines.append(f"UTF-8 preview:\n  {cleaned[:200]}")
 
         # If JSON, pretty print structure
         if detected == BufferFormat.JSON:
