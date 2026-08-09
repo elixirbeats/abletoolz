@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from abletoolz.live_set.plugins import PluginRef
+from abletoolz.live_set.plugins import PluginKind, PluginRef
 from abletoolz.live_set.sample_ref import SampleRef
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.transport import SetLength
@@ -51,7 +51,7 @@ def render_plugins(refs: list[PluginRef]) -> None:
     for ref in refs:
         color = G if ref.exists else (Y if ref.alternative else R)
         name = ref.name if ref.name is not None else "<unknown>"
-        if ref.kind == "au" and ref.manufacturer:
+        if ref.kind == PluginKind.AU and ref.manufacturer:
             name = f"{ref.manufacturer}: {name}"
         logger.info(
             "%s[%s%s%s] Plugin: %s, %sPath: %s, %sExists: %s",
