@@ -18,6 +18,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypedDict, Unpack
+
+
+class _AnalyseKwargs(TypedDict, total=False):
+    """Optional keyword arguments forwarded from analyse_for_dnb to analyse."""
+
+    bpm_prior: float
+    bpm_prior_sigma: float
+    analysis_duration: float
+    snap_ms: float
+    half_time_range: tuple[float, float]
 
 
 @dataclass
@@ -111,7 +122,7 @@ def analyse(
     )
 
 
-def analyse_for_dnb(audio_path: Path, **kwargs) -> BeatAnalysis:
+def analyse_for_dnb(audio_path: Path, **kwargs: Unpack[_AnalyseKwargs]) -> BeatAnalysis:
     """Shortcut with DnB-appropriate defaults (174 BPM prior)."""
     kwargs.setdefault("bpm_prior", 174.0)
     return analyse(audio_path, **kwargs)

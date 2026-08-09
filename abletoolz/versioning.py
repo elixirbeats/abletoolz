@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from typing import Any, Concatenate, Protocol
+from typing import Any, Concatenate, Protocol, cast
 
 type Version = tuple[int, int, int]
 
@@ -74,5 +74,7 @@ class versioned[**P, R]:  # noqa: N801 - decorator, reads like a keyword at use 
             return self  # type: ignore[return-value]  # class access: the descriptor itself
         for floor, fn in self._impls:
             if obj.version >= floor:
-                return fn.__get__(obj, objtype)
-        return self._impls[-1][1].__get__(obj, objtype)
+                # function.__get__ isn't part of the Callable protocol, so its bound-method
+                # result types as Any; the descriptor contract guarantees it matches R.
+                return cast(Callable[P, R], fn.__get__(obj, objtype))
+        return cast(Callable[P, R], self._impls[-1][1].__get__(obj, objtype))

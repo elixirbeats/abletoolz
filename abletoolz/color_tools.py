@@ -119,7 +119,8 @@ def custom_delta_e_cie2000(color1: LabColor, color2: LabColor) -> float:
         + (delta_h_prime / sh) ** 2
         + rt * (delta_c / sc) * (delta_h_prime / sh)
     )
-    return delta_e
+    # colormath's LabColor attributes are untyped, so the whole expression is Any.
+    return float(delta_e)
 
 
 def find_closest_color_ciede2000(color: int, palette: list[tuple[int, int]]) -> tuple[int, int]:

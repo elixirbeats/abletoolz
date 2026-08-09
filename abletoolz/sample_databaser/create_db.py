@@ -10,7 +10,10 @@ from abletoolz.misc import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
-DatabaseT = dict[str, dict[str, dict[str, str]]]
+# Per-file record: name is always a string; size/last_modified come straight off
+# os.stat() (int and float respectively) and round-trip through JSON as numbers.
+SampleRecord = dict[str, str | int | float]
+DatabaseT = dict[str, SampleRecord]
 
 
 def get_all_audio_files(path: pathlib.Path) -> list[pathlib.Path]:
@@ -61,6 +64,7 @@ def create_or_update_db(paths: list[str], db_path: pathlib.Path | None = None) -
         "an existing one is much faster!",
         db_path.resolve(),
     )
+    db: DatabaseT
     if not db_path.exists():
         db = {}
     else:
@@ -101,4 +105,5 @@ def load_db(db_path: pathlib.Path | None = None) -> DatabaseT:
     if not db_path.exists():
         raise FileNotFoundError(f"Database {db_path} doesn't exist! Run --db with sample dir(s) first.")
     with db_path.open() as f:
-        return json.load(f)
+        data: DatabaseT = json.load(f)
+    return data

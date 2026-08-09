@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from abletoolz import __version__, console
 from abletoolz.live_set import AbletonSet
 from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, G, M, R, SetError, Y
-from abletoolz.plugin_parsers import get_all_parsers, load_config
+from abletoolz.plugin_parsers import AbletoolzConfig, get_all_parsers, load_config
 from abletoolz.sample_databaser import create_db
 
 logger = logging.getLogger(__name__)
@@ -283,7 +283,12 @@ def parse_arguments() -> argparse.Namespace:
     return args
 
 
-def process_set(args: argparse.Namespace, pathlib_obj: pathlib.Path, db: dict | None, config) -> int:
+def process_set(
+    args: argparse.Namespace,
+    pathlib_obj: pathlib.Path,
+    db: create_db.DatabaseT | None,
+    config: AbletoolzConfig,
+) -> int:
     """Process individual set."""
     logger.info("%sParsing: %s", C, pathlib_obj)
     ableton_set = AbletonSet(pathlib_obj)

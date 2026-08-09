@@ -35,7 +35,7 @@ def create_backup(pathlib_obj: pathlib.Path) -> None:
             return
 
 
-def parse_mac_data(byte_data: bytes, abs_hash_path: str, debug: bool = False) -> str | None:
+def parse_mac_data(byte_data: bytes | bytearray, abs_hash_path: str, debug: bool = False) -> str | None:
     """Parse hex data for absolute path of file on MacOS.
 
     This hex byte data seems to be some type of struct with data_length_header:data:NULL sections of data, but other
@@ -76,7 +76,7 @@ def parse_mac_data(byte_data: bytes, abs_hash_path: str, debug: bool = False) ->
     return None
 
 
-def parse_windows_data(byte_data: bytes, abs_hash_path: str) -> str | None:
+def parse_windows_data(byte_data: bytes | bytearray, abs_hash_path: str) -> str | None:
     r"""Parse hex byte data for absolute path of file on Windows.
 
     Windows hex bytes are utf-16 encoded with \x00 bytes in-between each character.

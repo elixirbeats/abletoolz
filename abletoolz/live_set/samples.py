@@ -11,6 +11,7 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.live_set import sample_ref
 from abletoolz.misc import G, M, R, Y
+from abletoolz.sample_databaser.create_db import DatabaseT, SampleRecord
 from abletoolz.sample_matcher import is_factory_pack_path, order_candidates_by_name
 from abletoolz.versioning import Version
 
@@ -68,7 +69,7 @@ class Samples:
 
     def fix(
         self,
-        db: dict[str, dict[str, str]],
+        db: DatabaseT,
         collect_and_save: bool = False,
         force: bool = False,
     ) -> bool:
@@ -82,7 +83,7 @@ class Samples:
                 it if the project's current file is a different file size.
 
         """
-        found_samples: dict[str, dict[str, str]] = {}
+        found_samples: DatabaseT = {}
         missing_samples = 0
         fixed_samples = 0
         skip_search = False
@@ -148,9 +149,9 @@ class Samples:
         self,
         collect_and_save: bool,
         parsed: sample_ref.SampleRef,
-        smp_info: dict[str, str],
+        smp_info: SampleRecord,
         smp_path: str,
-        found_samples: dict[str, dict[str, str]],
+        found_samples: DatabaseT,
         force: bool,
     ) -> bool:
         """Attempt to fix sample if matches DB entry.
@@ -195,7 +196,8 @@ class Samples:
                 rel_path = "Samples/Imported"
             (project_root / rel_path).mkdir(parents=True, exist_ok=True)
 
-            smp_name = smp_info.get("name") or parsed.name
+            name_value = smp_info.get("name")
+            smp_name = name_value if isinstance(name_value, str) and name_value else parsed.name
             copied_sample = project_root / rel_path / smp_name
             if copied_sample.exists() and copied_sample.stat().st_size != parsed.size:
                 logger.error(

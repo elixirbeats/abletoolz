@@ -60,7 +60,8 @@ def to_xml_bytes(live_set: AbletonSet) -> bytes:
     """Serialize the tree with Ableton's xml header and trailing newline."""
     header = b'<?xml version="1.0" encoding="UTF-8"?>\n'
     footer = b"\n"
-    return header + ET.tostring(live_set.root, encoding="utf-8") + footer
+    xml_bytes: bytes = ET.tostring(live_set.root, encoding="utf-8")
+    return header + xml_bytes + footer
 
 
 def save_xml(live_set: AbletonSet) -> None:
