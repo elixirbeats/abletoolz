@@ -233,6 +233,7 @@ def harvest(root: ET.Element) -> dict[str, object]:
         "width_tag_typo_count": sum(1 for _ in root.iter("ViewStateSesstionTrackWidth")),
         "width_tag_fixed_count": sum(1 for _ in root.iter("ViewStateSessionTrackWidth")),
         "tracks": tracks,
+        "vst3_plugin_names": [el.get("Value") for el in root.findall(".//Vst3PluginInfo/Name")],
         "sample_ref_count": len(sample_refs),
         "sample_refs_with_abs": refs_with_abs,
         "track_unfolded_count": sum(1 for _ in root.iter("TrackUnfolded")),

@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from abletoolz.live_set import AbletonSet
+from abletoolz.live_set import AbletonSet, plugins
 from abletoolz.misc import ElementNotFound, SetError
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -158,6 +158,17 @@ def test_set_track_heights(key: str) -> None:
 @pytest.mark.parametrize("key", _params())
 def test_find_furthest_bar(key: str) -> None:
     assert make_set(key).transport.furthest_bar() == EXPECTED[key]["furthest_bar"]
+
+
+@pytest.mark.parametrize("key", _params())
+def test_scan_vst3_refs(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Vst3PluginInfo devices surface as vst3 PluginRefs on every version that carries them."""
+    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
+    monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
+    refs = make_set(key).plugins.scan([])
+    vst3_names = [ref.name for ref in refs if ref.kind == "vst3"]
+    assert vst3_names == EXPECTED[key]["vst3_plugin_names"]
+    assert all(not ref.exists for ref in refs if ref.kind == "vst3")  # nothing resolvable hermetically
 
 
 @pytest.mark.parametrize("key", _params())

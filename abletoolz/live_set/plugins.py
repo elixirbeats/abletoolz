@@ -1,15 +1,27 @@
-"""Plugin reference scanning, analysis, and repair."""
+﻿"""Plugin reference scanning, analysis, and repair."""
 
 from __future__ import annotations
 
 import dataclasses
 import logging
 import pathlib
+import plistlib
+import sqlite3
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz import utils
-from abletoolz.misc import RST, C, G, R, SetOperatingSystem, Y, default_vst_dirs, get_element
+from abletoolz.misc import (
+    RST,
+    C,
+    G,
+    R,
+    SetOperatingSystem,
+    Y,
+    default_live_database_dir,
+    default_vst_dirs,
+    get_element,
+)
 from abletoolz.plugin_parsers import AbletoolzConfig, PluginAnalysis, PluginData, analyze_plugin, fix_plugin
 from abletoolz.plugin_parsers.config import load_config
 from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
@@ -24,11 +36,104 @@ logger = logging.getLogger(__name__)
 _TRACK_TYPES = {"AudioTrack", "MidiTrack", "ReturnTrack", "MasterTrack", "MainTrack", "GroupTrack"}
 
 
+# -- VST3 resolution --------------------------------------------------------
+# Sets store VST3 devices by display name (older sets carry no path at all).
+# On Windows a .vst3 is a single file matched by stem; on macOS it is a bundle
+# dir whose name often differs, so matching goes through Contents/Info.plist
+# (plistlib reads XML and binary plists on any OS - testable away from a Mac).
+# Live's own plugin index (sqlite under the Live Database dir) is the second
+# source - the only way to resolve shell plugins (e.g. Waves).
+
+# Verified against Live 12's Live-plugins-*.db: plugins(name, module_id,
+# dev_identifier, ...) joins plugin_modules(module_id, path, ...), with
+# dev_identifier prefixed "device:vst3:" for VST3 entries.
+_PLUGIN_QUERY = (
+    "SELECT pm.path FROM plugins p"
+    " LEFT JOIN plugin_modules pm ON p.module_id = pm.module_id"
+    " WHERE p.name = ? AND p.dev_identifier LIKE 'device:vst3:%' LIMIT 1"
+)
+
+
+def plist_declared_names(plist_path: pathlib.Path) -> set[str]:
+    """Names a bundle's Info.plist declares. Empty for a malformed plist."""
+    try:
+        with plist_path.open("rb") as file:
+            plist = plistlib.load(file)
+    except (plistlib.InvalidFileException, ValueError) as error:
+        logger.debug("Skipping malformed Info.plist %s: %s", plist_path, error)
+        return set()
+    names: set[str] = set()
+    for key in ("CFBundleDisplayName", "CFBundleName"):
+        value = plist.get(key)
+        if isinstance(value, str):
+            names.add(value)
+    components = plist.get("AudioComponents")
+    if isinstance(components, list):
+        for component in components:
+            if isinstance(component, dict) and isinstance(component.get("name"), str):
+                names.add(component["name"])
+    return names
+
+
+def bundle_matches(bundle: pathlib.Path, display_name: str) -> bool:
+    """True when a .vst3 bundle dir answers to display_name by name or Info.plist."""
+    if bundle.stem == display_name:
+        return True
+    plist_path = bundle / "Contents" / "Info.plist"
+    return plist_path.is_file() and display_name in plist_declared_names(plist_path)
+
+
+def resolve_vst3_name(display_name: str, search_dirs: list[pathlib.Path]) -> pathlib.Path | None:
+    """Find a VST3 by display name: single-file .vst3 (Windows) or bundle dir (macOS)."""
+    for base in search_dirs:
+        for candidate in base.rglob("*.vst3"):
+            if candidate.is_dir():
+                if bundle_matches(candidate, display_name):
+                    return candidate
+            elif candidate.stem == display_name:
+                return candidate
+    return None
+
+
+def live_database_lookup(display_name: str, database: pathlib.Path) -> pathlib.Path | None:
+    """Ask one Live database file where a VST3 lives, read-only.
+
+    Database files without these tables (e.g. Live-files-*.db) or from Live
+    versions with another schema simply answer nothing.
+    """
+    try:
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+    except sqlite3.OperationalError as error:
+        logger.debug("Cannot open Live Database %s: %s", database, error)
+        return None
+    try:
+        row = connection.execute(_PLUGIN_QUERY, (display_name,)).fetchone()
+    except sqlite3.OperationalError as error:
+        logger.debug("Live Database %s has no usable plugin tables: %s", database, error)
+        return None
+    finally:
+        connection.close()
+    if row is None or row[0] is None:
+        return None
+    return pathlib.Path(row[0])
+
+
+def search_live_databases(display_name: str, database_dir: pathlib.Path) -> pathlib.Path | None:
+    """Check every database file newest-first; Live keeps one per installed version."""
+    databases = sorted(database_dir.rglob("*.db"), key=lambda db: db.stat().st_mtime, reverse=True)
+    for database in databases:
+        if (path := live_database_lookup(display_name, database)) is not None:
+            return path
+    return None
+
+
+
+
 @dataclasses.dataclass(frozen=True)
 class PluginRef:
     """One plugin reference found in a set."""
 
-    kind: str  # "vst" or "au"
+    kind: str  # "vst", "vst3" or "au"
     name: str | None
     path: pathlib.Path | None
     exists: bool
@@ -78,6 +183,27 @@ class Plugins:
                 if plugin_name == dll.name or plugin_name == dll.name.replace(".32", "").replace(".64", ""):
                     return dll
         return None
+
+    def search_vst3(self, display_name: str) -> pathlib.Path | None:
+        """Resolve a VST3 display name: plugin dirs first, then Live's own database."""
+        found = resolve_vst3_name(display_name, default_vst_dirs() + self.found_vst_dirs)
+        if found is not None:
+            return found
+        database_dir = default_live_database_dir()
+        if database_dir is None:
+            return None
+        return search_live_databases(display_name, database_dir)
+
+    def parse_vst3_element(self, vst3_element: ET.Element) -> tuple[str | None, pathlib.Path | None]:
+        """Pull display name and stored path out of a Vst3PluginInfo element.
+
+        Every version stores a Name; only newer sets also store a Path.
+        """
+        name_ele = vst3_element.find("Name")
+        name = name_ele.get("Value") if name_ele is not None else None
+        path_ele = vst3_element.find("Path")
+        path_value = path_ele.get("Value") if path_ele is not None else None
+        return name, pathlib.Path(path_value) if path_value else None
 
     def parse_vst_element(self, vst_element: ET.Element) -> tuple[pathlib.Path | None, str | None, pathlib.Path | None]:
         """Parse out VST element from vst xtree."""
@@ -155,6 +281,32 @@ class Plugins:
                         track_location=track_loc,
                     )
                 )
+            for vst3_element in plugin_element.iter("Vst3PluginInfo"):
+                name, stored_path = self.parse_vst3_element(vst3_element)
+                exists = bool(stored_path and stored_path.exists())
+                if exists and stored_path is not None and stored_path.parent not in self.found_vst_dirs:
+                    self.found_vst_dirs.append(stored_path.parent)
+                resolved = None if exists or name is None else self.search_vst3(name)
+                if stored_path is None:
+                    # Most sets store only the display name; a search hit IS the path.
+                    ref = PluginRef(
+                        kind="vst3",
+                        name=name,
+                        path=resolved,
+                        exists=resolved is not None,
+                        alternative=None,
+                        track_location=track_loc,
+                    )
+                else:
+                    ref = PluginRef(
+                        kind="vst3",
+                        name=name,
+                        path=stored_path,
+                        exists=exists,
+                        alternative=resolved,
+                        track_location=track_loc,
+                    )
+                refs.append(ref)
             for au_element in plugin_element.iter("AuPluginInfo"):
                 name_elem = au_element.find("Name")
                 # AU references carry no path; nothing to verify on disk.
@@ -240,7 +392,7 @@ class Plugins:
                 if isinstance(plugname_el, ET.Element):
                     plugname_el.set("Value", target_path.stem)
 
-                logger.info("%sUpgraded: %s%s%s → %s%s", G, Y, current_filename, RST, G, target_name)
+                logger.info("%sUpgraded: %s%s%s â†’ %s%s", G, Y, current_filename, RST, G, target_name)
                 changed = True
 
         return changed
