@@ -56,21 +56,21 @@ def _get_file_version_strings(path: pathlib.Path) -> dict[str, str]:
     """Return version resource strings like ProductName, FileDescription."""
     strings: dict[str, str] = {}
     try:
-        size = ctypes.windll.version.GetFileVersionInfoSizeW(str(path), None)  # type: ignore[attr-defined]
+        size = ctypes.windll.version.GetFileVersionInfoSizeW(str(path), None)
         if size == 0:
             return strings
         buf = ctypes.create_string_buffer(size)
-        ok = ctypes.windll.version.GetFileVersionInfoW(str(path), 0, size, buf)  # type: ignore[attr-defined]
+        ok = ctypes.windll.version.GetFileVersionInfoW(str(path), 0, size, buf)
         if ok == 0:
             return strings
         lptr = ctypes.c_void_p()
         lsize = ctypes.c_uint32()
         # get list of languages/codepages
-        ctypes.windll.version.VerQueryValueW(buf, "\\VarFileInfo\\Translation", ctypes.byref(lptr), ctypes.byref(lsize))  # type: ignore[attr-defined]
+        ctypes.windll.version.VerQueryValueW(buf, "\\VarFileInfo\\Translation", ctypes.byref(lptr), ctypes.byref(lsize))
         translations = []
         if lptr.value and lsize.value >= 4:
             for i in range(0, lsize.value, 4):
-                lang, code = struct.unpack_from("<HH", ctypes.string_at(lptr.value + i, 4))  # type: ignore[arg-type]
+                lang, code = struct.unpack_from("<HH", ctypes.string_at(lptr.value + i, 4))
                 translations.append(f"{lang:04x}{code:04x}")
         if not translations:
             translations = ["040904b0", "040904E4"]  # en-US fallbacks
@@ -80,7 +80,8 @@ def _get_file_version_strings(path: pathlib.Path) -> dict[str, str]:
                 sub_block = f"\\StringFileInfo\\{t}\\{key}"
                 lptr = ctypes.c_void_p()
                 lsize = ctypes.c_uint32()
-                if ctypes.windll.version.VerQueryValueW(buf, sub_block, ctypes.byref(lptr), ctypes.byref(lsize)):  # type: ignore[attr-defined]
+                if ctypes.windll.version.VerQueryValueW(buf, sub_block, ctypes.byref(lptr), ctypes.byref(lsize)):
+                    # VerQueryValueW returning truthy guarantees lptr.value is set.
                     val = ctypes.wstring_at(lptr.value, lsize.value)  # type: ignore[arg-type]
                     if val:
                         strings[key] = val.strip("\x00")

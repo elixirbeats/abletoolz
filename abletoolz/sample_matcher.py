@@ -8,7 +8,7 @@ import wave
 from collections.abc import Mapping
 from typing import Any
 
-from mutagen import File as mutagen_file  # type: ignore
+from mutagen import File as mutagen_file
 
 
 def _parts(path: pathlib.Path) -> list[str]:
@@ -114,7 +114,7 @@ def select_best_candidate_by_name(
     if len(candidates) == 1:
         return candidates[0]
 
-    def score(candidate: pathlib.Path) -> tuple[int, int, int, int, int, int, int]:
+    def score(candidate: pathlib.Path) -> tuple[int, int, int, int, int, int, int, int]:
         meta = db.get(str(candidate), {})
         length = _length_score(target_length, candidate)
         size = _size_score(target_size, meta)
@@ -139,7 +139,7 @@ def order_candidates_by_name(
     if not candidates:
         return []
 
-    def score(candidate: pathlib.Path) -> tuple[int, int, int, int, int, int, int]:
+    def score(candidate: pathlib.Path) -> tuple[int, int, int, int, int, int, int, int]:
         meta = db.get(str(candidate), {})
         length = _length_score(target_length, candidate)
         size = _size_score(target_size, meta)

@@ -40,7 +40,7 @@ def check_relative_path(
     name: str,
     sample_element: ET.Element,
     project_root_folder: pathlib.Path,
-) -> tuple[pathlib.Path | None, pathlib.Path | None]:
+) -> tuple[pathlib.Path | None, str | None]:
     """Constructs absolute path from project root and relative path stored in set."""
     if not project_root_folder:
         return None, None
@@ -50,9 +50,14 @@ def check_relative_path(
     relative_path_type = get_element(sample_element, "FileRef.RelativePathType", attribute="Value")
     if relative_path_type == "3" and relative_path_enabled in ("true", None):
         relative_path_element = get_element(sample_element, "FileRef.RelativePath")
-        sub_directory_path = []
+        sub_directory_path: list[str] = []
         for path in relative_path_element:
-            sub_directory_path.append(path.get("Dir"))
+            dir_value = path.get("Dir")
+            if dir_value is None:
+                raise ElementNotFound(
+                    f"RelativePathElement missing Dir attribute: {ET.tostring(path, encoding='unicode')}"
+                )
+            sub_directory_path.append(dir_value)
         from_project_root = f"{os.path.sep.join(sub_directory_path)}{os.path.sep}{name}"
         full_path = project_root_folder / os.path.sep.join(sub_directory_path) / name
         return full_path, from_project_root
@@ -98,20 +103,28 @@ class SampleRef(pydantic.BaseModel):
         project_root_folder: pathlib.Path,
     ) -> SampleRef:
         """Parse ElementTree into class."""
-        last_modified = sample_ref.find("LastModDate").get("Value")
-        file_ref = sample_ref.find("FileRef")
+        last_modified_str = get_element(sample_ref, "LastModDate", attribute="Value")
+        file_ref = get_element(sample_ref, "FileRef")
         file_size = get_sample_size(file_ref)
-        relative_type_element = file_ref.find("RelativePathType")
+        relative_type_element = get_element(file_ref, "RelativePathType")
         if version_tuple >= (11, 0, 0):
-            absolute_element = file_ref.find("Path")
-            crc = file_ref.find("OriginalCrc").get("Value")
-            absolute = file_ref.find("Path").get("Value")
-            relative_element = file_ref.find("RelativePath")
-            relative = file_ref.find("RelativePath").get("Value")
+            absolute_element = get_element(file_ref, "Path")
+            absolute = absolute_element.get("Value")
+            if not absolute:
+                raise ElementNotFound("FileRef.Path missing Value attribute")
+            crc_element = get_element(file_ref, "OriginalCrc")
+            crc_str = crc_element.get("Value")
+            if crc_str is None:
+                raise ElementNotFound("FileRef.OriginalCrc missing Value attribute")
+            crc = int(crc_str)
+            relative_element = get_element(file_ref, "RelativePath")
+            relative = relative_element.get("Value")
+            if relative is None:
+                raise ElementNotFound("FileRef.RelativePath missing Value attribute")
             name = pathlib.Path(absolute).name
         else:
-            absolute_element = file_ref.find("Data")
-            absolute = parse_hex_path(absolute_element.text)
+            absolute_element = get_element(file_ref, "Data")
+            absolute = parse_hex_path(absolute_element.text or "")
             name_element = file_ref.find("Name")
             if name_element is not None:
                 name = name_element.get("Value", "")
@@ -119,17 +132,23 @@ class SampleRef(pydantic.BaseModel):
                 # Transitional 10.1 shape: 11-style fields (Path, no Name) with legacy Data alongside.
                 name = pathlib.Path(absolute).name if absolute else ""
             try:
-                crc = file_ref.findall(".//Crc")[0].get("Value")
+                crc_element = file_ref.findall(".//Crc")[0]
             except IndexError:
                 crc = 0
                 logger.debug("No Crc in FileRef: %s", ET.tostring(file_ref, encoding="unicode"))
-            relative, _ = check_relative_path(name, sample_ref, project_root_folder)
-            relative_element = file_ref.find("RelativePath")
+            else:
+                # Legitimately absent on plenty of old sets; 0 matches the IndexError fallback above.
+                crc_str = crc_element.get("Value")
+                crc = int(crc_str) if crc_str is not None else 0
+            # check_relative_path returns (full_path, relative_str); this field wants the
+            # relative form (relative_exists joins it back onto project_root itself).
+            _, relative = check_relative_path(name, sample_ref, project_root_folder)
+            relative_element = get_element(file_ref, "RelativePath")
 
         return cls(
             name=name,
             size=file_size,
-            last_modified=last_modified,
+            last_modified=int(last_modified_str),
             relative_type_element=relative_type_element,
             relative_element=relative_element,
             sample_ref=sample_ref,
@@ -143,11 +162,13 @@ class SampleRef(pydantic.BaseModel):
 
     @property
     def absolute_exists(self) -> bool:
-        return self.absolute and self.absolute.exists()
+        return self.absolute is not None and self.absolute.exists()
 
     @property
     def relative_exists(self) -> bool:
-        return self.relative and self.project_root and (self.project_root / self.relative).exists()
+        if self.relative is None or self.project_root is None:
+            return False
+        return (self.project_root / self.relative).exists()
 
     def get_original_file_ref(self) -> ET.Element:
         return get_element(self.sample_ref, "SourceContext.SourceContext.OriginalFileRef.FileRef")
@@ -156,7 +177,7 @@ class SampleRef(pydantic.BaseModel):
     def set_absolute(self, path: pathlib.Path) -> None:
         """Pre-11: rewrite the hex Data blob (and its OriginalFileRef twin)."""
         # Get indentation level from current xml data.
-        _, levels = decode_encode.xml_to_string(self.absolute_element.text)
+        _, levels = decode_encode.xml_to_string(self.absolute_element.text or "")
         hex_string = decode_encode.string_to_hex(str(path))
         formatted_xml = decode_encode.string_to_xml(hex_string, levels=levels)
         self.absolute_element.text = formatted_xml
@@ -164,11 +185,11 @@ class SampleRef(pydantic.BaseModel):
             second_ref = get_element(self.sample_ref, "SourceContext.SourceContext.OriginalFileRef.FileRef.Data")
         except ElementNotFound:
             return
-        _, levels = decode_encode.xml_to_string(second_ref.text)
+        _, levels = decode_encode.xml_to_string(second_ref.text or "")
         formatted_xml = decode_encode.string_to_xml(hex_string, levels=levels)
         second_ref.text = formatted_xml
 
-    @set_absolute.since((11, 0, 0))
+    @set_absolute.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def set_absolute(self, path: pathlib.Path) -> None:
         """11+: plain string value."""
         self.absolute_element.set("Value", str(path))
@@ -186,7 +207,7 @@ class SampleRef(pydantic.BaseModel):
             element.tail = tails[i] if i < len(tails) else tails[-1] if tails else None
             self.relative_element.append(element)
 
-    @set_relative.since((11, 0, 0))
+    @set_relative.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def set_relative(self, path: str) -> None:
         """11+: plain string value."""
         self.relative_element.set("Value", path)
@@ -194,15 +215,23 @@ class SampleRef(pydantic.BaseModel):
     @versioned
     def get_relative_value(self) -> pathlib.Path:
         """Pre-11: join the RelativePathElement Dir segments."""
-        sub_directory_path = []
+        sub_directory_path: list[str] = []
         for path in self.relative_element:
-            sub_directory_path.append(path.get("Dir"))
+            dir_value = path.get("Dir")
+            if dir_value is None:
+                raise ElementNotFound(
+                    f"RelativePathElement missing Dir attribute: {ET.tostring(path, encoding='unicode')}"
+                )
+            sub_directory_path.append(dir_value)
         return pathlib.Path("/".join(sub_directory_path))
 
-    @get_relative_value.since((11, 0, 0))
+    @get_relative_value.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def get_relative_value(self) -> pathlib.Path:
         """11+: the string value's parent directory."""
-        return pathlib.Path(self.relative_element.get("Value")).parent
+        value = self.relative_element.get("Value")
+        if value is None:
+            raise ElementNotFound("RelativePath missing Value attribute")
+        return pathlib.Path(value).parent
 
     @versioned
     def set_relative_type(self, type_int: int) -> None:
@@ -218,13 +247,16 @@ class SampleRef(pydantic.BaseModel):
                 has_rel_ele.set("Value", "false")
         self.relative_type_element.set("Value", str(type_int))
 
-    @set_relative_type.since((11, 0, 0))
+    @set_relative_type.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def set_relative_type(self, type_int: int) -> None:
         self.relative_type_element.set("Value", str(type_int))
 
     def get_relative_type(self) -> int:
         """Get relative path type (integer)."""
-        return int(self.relative_type_element.get("Value"))
+        value = self.relative_type_element.get("Value")
+        if value is None:
+            raise ElementNotFound("RelativePathType missing Value attribute")
+        return int(value)
 
     def clear_search_hints(self) -> None:
         """Remove search hints, which are the sample paths to folders in abletons browser."""

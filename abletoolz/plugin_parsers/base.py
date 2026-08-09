@@ -142,7 +142,7 @@ class PluginData(BaseModel):
         end = decoded.rfind("}")
         return decoded[start : end + 1] if start != -1 and end != -1 else decoded
 
-    def decode_buffer_json(self) -> dict | None:
+    def decode_buffer_json(self) -> dict[str, Any] | None:
         """Parse Buffer as JSON dict if possible."""
         try:
             s = self.decode_buffer()
@@ -275,7 +275,7 @@ class PluginData(BaseModel):
         hex_out = data.encode("utf-8").hex().upper()
         self.buffer_element.text = decode_encode.string_to_xml(hex_out, levels=levels)
 
-    def set_buffer_from_json(self, obj: dict) -> None:
+    def set_buffer_from_json(self, obj: dict[str, Any]) -> None:
         """Dump JSON dict and set Buffer text."""
         data = json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
         self.set_buffer_from_string(data)

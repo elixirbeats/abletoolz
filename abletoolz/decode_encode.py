@@ -34,7 +34,7 @@ def hex_to_string(hex_str: str, return_bytes: bool = False) -> str | bytes:
     """
     byte_data = bytearray.fromhex(hex_str)
     if return_bytes:
-        return byte_data
+        return bytes(byte_data)
     return byte_data.decode("utf-16")
 
 

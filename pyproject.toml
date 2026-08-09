@@ -37,7 +37,7 @@ classifiers = [
 [project.optional-dependencies]
 # BPM/onset detection for synthesized .asd grids
 analysis = ["librosa", "scipy"]
-dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-PyYAML"]
+dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-PyYAML", "types-colorama", "types-tqdm"]
 
 [project.urls]
 Homepage = "https://elixirbeats.github.io/abletoolz/"
@@ -58,6 +58,15 @@ version = {attr = "abletoolz.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["colormath.*", "librosa", "scipy.*"]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120

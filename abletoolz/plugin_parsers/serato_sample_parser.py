@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from abletoolz.plugin_parsers.base import (
     BufferFormat,
@@ -43,14 +43,15 @@ class SeratoSampleParser(SampleContainerParser):
     unique_ids = [1399681132]
     name_patterns = ["Serato Sample"]
 
-    def _get_file_from_json(self, obj: dict) -> str | None:
+    def _get_file_from_json(self, obj: dict[str, Any]) -> str | None:
         """Extract source file path from decoded JSON."""
         try:
-            return obj["project"]["sourceSong"]["File"]  # type: ignore[index]
+            value = obj["project"]["sourceSong"]["File"]
         except (KeyError, TypeError):
             return None
+        return value if isinstance(value, str) else None
 
-    def _set_file_in_json(self, obj: dict, new_path: str) -> bool:
+    def _set_file_in_json(self, obj: dict[str, Any], new_path: str) -> bool:
         """Set source file path in JSON."""
         try:
             obj["project"]["sourceSong"]["File"] = new_path
@@ -58,10 +59,10 @@ class SeratoSampleParser(SampleContainerParser):
         except (KeyError, TypeError):
             return False
 
-    def _get_length_from_json(self, obj: dict) -> float | None:
+    def _get_length_from_json(self, obj: dict[str, Any]) -> float | None:
         """Extract audio length in seconds if present."""
         try:
-            length = obj["project"]["sourceSong"]["Length"]  # type: ignore[index]
+            length = obj["project"]["sourceSong"]["Length"]
             if isinstance(length, (int, float)):
                 return float(length)
         except (KeyError, TypeError):
