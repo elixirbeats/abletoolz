@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import dataclasses
+import enum
 import functools
 import logging
 import pathlib
@@ -245,11 +246,19 @@ def search_live_databases(display_name: str, database_dir: pathlib.Path) -> path
 
 
 
+class PluginKind(enum.StrEnum):
+    """Plugin reference format found in a set."""
+
+    VST = "vst"
+    VST3 = "vst3"
+    AU = "au"
+
+
 @dataclasses.dataclass(frozen=True)
 class PluginRef:
     """One plugin reference found in a set."""
 
-    kind: str  # "vst", "vst3" or "au"
+    kind: PluginKind
     name: str | None
     path: pathlib.Path | None
     exists: bool
@@ -436,7 +445,7 @@ class Plugins:
                     potential = self.search(name)
                 refs.append(
                     PluginRef(
-                        kind="vst",
+                        kind=PluginKind.VST,
                         name=name,
                         path=full_path,
                         exists=exists,
@@ -453,7 +462,7 @@ class Plugins:
                 if stored_path is None:
                     # Most sets store only the display name; a search hit IS the path.
                     ref = PluginRef(
-                        kind="vst3",
+                        kind=PluginKind.VST3,
                         name=name,
                         path=resolved,
                         exists=resolved is not None,
@@ -462,7 +471,7 @@ class Plugins:
                     )
                 else:
                     ref = PluginRef(
-                        kind="vst3",
+                        kind=PluginKind.VST3,
                         name=name,
                         path=stored_path,
                         exists=exists,
@@ -476,7 +485,7 @@ class Plugins:
                 component_path = self.search_au(identifier) if identifier is not None else None
                 refs.append(
                     PluginRef(
-                        kind="au",
+                        kind=PluginKind.AU,
                         name=name,
                         path=component_path if registered else None,
                         exists=registered,

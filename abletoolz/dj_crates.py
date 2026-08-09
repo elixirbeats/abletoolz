@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import enum
 import logging
 import re
 import shutil
@@ -59,8 +60,17 @@ from abletoolz.misc import C, R, Y, default_ableton_user_library
 
 logger = logging.getLogger(__name__)
 
-type AudioMode = Literal["link", "wav", "flac"]
-type CacheFormat = Literal["wav", "flac"]
+
+class AudioMode(enum.StrEnum):
+    """How source audio is placed into a generated crate."""
+
+    LINK = "link"
+    WAV = "wav"
+    FLAC = "flac"
+
+
+# The transcode-cache modes are a strict subset of AudioMode (LINK never gets cached).
+type CacheFormat = Literal[AudioMode.WAV, AudioMode.FLAC]
 
 _LOSSLESS_EXTENSIONS = {".wav", ".aiff", ".aif"}
 _DEFAULT_BAR_TOLERANCE = 0.02
@@ -417,7 +427,7 @@ def audio_dest_extension(src: Path, audio_format: CacheFormat) -> str:
 
 def _ffmpeg_transcode(src: Path, dest: Path, audio_format: CacheFormat) -> None:
     """Transcode ``src`` to ``dest`` via ffmpeg. Isolated so tests can mock it out."""
-    codec = "pcm_s16le" if audio_format == "wav" else "flac"
+    codec = "pcm_s16le" if audio_format == AudioMode.WAV else "flac"
     subprocess.run(
         ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src), "-c:a", codec, str(dest)],
         check=True,
@@ -712,7 +722,7 @@ def generate_track(
     try:
         placement = (
             resolve_link_placement(plan.row, audio_dir=audio_dir, safe_name=plan.safe_name)
-            if audio_mode == "link"
+            if audio_mode == AudioMode.LINK
             else resolve_cached_placement(
                 plan.row, audio_dir=audio_dir, safe_name=plan.safe_name, audio_format=audio_mode
             )
@@ -872,7 +882,7 @@ def print_report(report: RunReport) -> None:
     logger.info(
         "%s%s %s clip(s) (%s with a drop variant)", C, verb, report.generated_count, report.drop_generated_count
     )
-    if not report.dry_run and report.audio_mode != "link":
+    if not report.dry_run and report.audio_mode != AudioMode.LINK:
         logger.info("%sSkipped (already cached) transcodes: %s", C, report.cached_skips)
 
     no_drop = report.no_drop_tracks
