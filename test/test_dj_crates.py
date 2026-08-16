@@ -932,3 +932,10 @@ def test_mirror_requires_a_marker_value() -> None:
     """--mirror without a folder name is an error; there is no default marker."""
     with pytest.raises(SystemExit):
         dj_crates.parse_arguments(["picks.tsv", "--crate", "Test", "--mirror"])
+
+
+def test_sanitize_filename_normalizes_mac_decomposed_accents() -> None:
+    decomposed = "Chant-Me\u0301 Bro"
+    precomposed = "Chant-M\u00e9 Bro"
+    assert sanitize_filename(decomposed) == precomposed
+    assert sanitize_filename(precomposed) == precomposed
