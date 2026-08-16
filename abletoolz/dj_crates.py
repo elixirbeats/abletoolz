@@ -48,6 +48,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 import wave
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -309,8 +310,14 @@ def derive_clip_name(filename: str) -> str:
 
 
 def sanitize_filename(name: str) -> str:
-    """Replace filesystem-unsafe characters in a name meant to become a filename."""
-    return _INVALID_FILENAME_CHARS.sub("_", name).strip()
+    """Replace filesystem-unsafe characters in a name meant to become a filename.
+
+    NFC-normalized first: a source file named on a Mac arrives decomposed
+    ("e" + combining accent), and a clip written under those bytes collides
+    with its precomposed twin in every sync layer that compares normalized
+    names -- one tune, two spellings, permanent conflict.
+    """
+    return _INVALID_FILENAME_CHARS.sub("_", unicodedata.normalize("NFC", name)).strip()
 
 
 # ── MP3 decoder offset (link mode) ───────────────────────────────────────────
