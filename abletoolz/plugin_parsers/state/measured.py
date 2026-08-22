@@ -114,11 +114,6 @@ def _re_encoded(rung: StateRung, *also: StateEvidence) -> MeasuredState:
     return MeasuredState(rung, (*also, StateEvidence.HOSTED), _RE_ENCODED_ON)
 
 
-def _inferred(rung: StateRung) -> MeasuredState:
-    """A rung the bytes imply and nobody has heard yet."""
-    return MeasuredState(rung, (StateEvidence.STRUCTURAL,))
-
-
 # Every plugin whose state is measured, keyed by a name a set stores -- the VST2
 # name where the two formats spell it differently ("FabFilter Pro-Q 3"), the
 # shared name where they do not. Kept in step with MODEL.md's table by

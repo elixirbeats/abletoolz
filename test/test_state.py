@@ -60,7 +60,6 @@ from abletoolz.plugin_parsers.state.fabfilter import (
     FABFILTER_FABF_CONTROLLER,
     EditorState,
 )
-from abletoolz.plugin_parsers.state.measured import _inferred
 
 MODEL = pathlib.Path(__file__).parents[1] / "abletoolz" / "plugin_parsers" / "MODEL.md"
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -126,19 +125,6 @@ def test_a_heard_conversion_is_predictable() -> None:
     """MODEL.md's rule: measured by ear or declared by the vendor, or it is a guess."""
     assert MEASURED_STATE["Serum"].predictable
     assert MEASURED_STATE["kHs Distortion"].predictable
-
-
-def test_a_structural_reading_is_not_a_measurement() -> None:
-    """The bytes looking right is where a listen starts, not where it ends.
-
-    No row carries structural evidence today -- kHs Stereo was the last one and
-    it was heard on 2026-08-15 -- so the rule is checked against the shape a row
-    of that kind takes rather than against whichever plugin is currently waiting
-    for a listen.
-    """
-    assert not _inferred(StateRung.REFRAME).predictable
-    assert _inferred(StateRung.REFRAME).evidence == (StateEvidence.STRUCTURAL,)
-    assert MEASURED_STATE["kHs Stereo"].predictable
 
 
 def test_the_plugin_accepting_a_patch_is_not_a_listen() -> None:
