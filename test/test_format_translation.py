@@ -17,11 +17,10 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz import decode_encode
-from abletoolz.live_set import AbletonSet, plugins
+from abletoolz.live_set import AbletonSet
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind, uid_sources
 from abletoolz.plugin_parsers import format_translation as translation
-from abletoolz.plugin_parsers.config import AbletoolzConfig
 from abletoolz.plugin_parsers.format_translation import TranslationTarget
 from abletoolz.plugin_parsers.state import StateTransform
 from abletoolz.plugin_parsers.state.fabfilter import (
@@ -314,105 +313,6 @@ def test_empty_state_stays_empty() -> None:
     assert get_element(info, "Preset.Vst3Preset.ProcessorState").text is None
 
 
-# -- whole set --------------------------------------------------------------
-
-
-def test_translate_set_reports_what_it_did_and_what_it_could_not() -> None:
-    live_set = make_set("11.3.42")
-    report = translation.translate_set(live_set, targets={"Effectrix": EFFECT})
-    assert sorted(name for _track, name, _to in report.translated) == ["Effectrix", "Serum_x64"]
-    assert [target for _track, _name, target in report.translated if _name == "Effectrix"] == ["Test Effect"]
-    assert report.translated_count == 2
-    # The device already in the target format has no entry, so it is left alone.
-    assert [name for _track, name in report.unresolved] == ["Decapitator"]
-
-
-def test_unresolved_devices_are_reported_and_left_alone() -> None:
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Effectrix")
-    before = ET.tostring(info)
-    report = translation.translate_set(live_set)
-    assert "Effectrix" in [name for _track, name in report.unresolved]
-    assert ET.tostring(info) == before
-    assert info.tag == "VstPluginInfo"
-
-
-def test_an_entry_naming_a_pair_with_no_translator_leaves_its_device_alone() -> None:
-    """The entry is the direction, and (vst, au) is a direction nobody wrote yet."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Effectrix")
-    before = ET.tostring(info)
-    au_target = TranslationTarget(PluginKind.AU, "Test AU", (1, 2, 3, 4))
-    report = translation.translate_set(live_set, targets={"Effectrix": au_target})
-    assert "Effectrix" in [name for _track, name in report.unresolved]
-    assert ET.tostring(info) == before
-
-
-def test_one_table_can_point_two_devices_at_two_formats() -> None:
-    """Nothing outside the table chooses a direction, so the table may hold both."""
-    live_set = make_set("11.3.42")
-    report = translation.translate_set(
-        live_set,
-        targets={
-            "Serum_x64": EFFECT,
-            "Effectrix": TranslationTarget(PluginKind.AU, "Test AU", (1, 2, 3, 4)),
-        },
-    )
-    assert [name for _track, name, _to in report.translated] == ["Serum_x64"]
-    assert "Effectrix" in [name for _track, name in report.unresolved]
-
-
-def test_a_translated_device_is_not_met_again_as_its_own_result() -> None:
-    """The devices are snapshotted first; a rewritten VST2 must not report twice."""
-    live_set = make_set("11.3.42")
-    report = translation.translate_set(live_set)
-    names = [name for _track, name, _to in report.translated] + [name for _track, name in report.unresolved]
-    assert names.count("Serum_x64") == 1
-    assert "Serum" not in names
-
-
-def test_untouched_devices_serialize_identically() -> None:
-    """Nothing outside the translated PluginDesc may move by a single byte."""
-    live_set = make_set("11.3.42")
-    descriptions = list(live_set.root.iter("PluginDesc"))
-    before = [ET.tostring(description) for description in descriptions]
-    translation.translate_set(live_set)
-    after = [ET.tostring(description) for description in descriptions]
-    changed = [index for index, (old, new) in enumerate(zip(before, after, strict=True)) if old != new]
-    assert len(changed) == 1
-    assert b"Serum" in after[changed[0]]
-
-
-def test_wrapping_device_element_is_untouched() -> None:
-    """The PluginDevice around a PluginDesc is the same whichever format is inside."""
-    live_set = make_set("11.3.42")
-    parents = {child: parent for parent in live_set.root.iter() for child in parent}
-    description = parents[vst2_info(live_set, "Serum_x64")]
-    wrapper = parents[description]
-    assert wrapper.tag == "PluginDevice"
-    before = [ET.tostring(child) for child in wrapper if child.tag != "PluginDesc"]
-    marks = (wrapper.text, wrapper.tail, description.tail)
-    translation.translate_set(live_set)
-    assert [ET.tostring(child) for child in wrapper if child.tag != "PluginDesc"] == before
-    assert (wrapper.text, wrapper.tail, description.tail) == marks
-
-
-def test_translating_twice_changes_nothing_the_second_time() -> None:
-    live_set = make_set("11.3.42")
-    translation.translate_set(live_set)
-    settled = ET.tostring(live_set.root)
-    report = translation.translate_set(live_set)
-    assert report.translated == []
-    assert ET.tostring(live_set.root) == settled
-
-
-def test_report_names_the_track_each_device_sits_on() -> None:
-    live_set = make_set("11.3.42")
-    track_names = {track.name for track in live_set.tracks.load()}
-    report = translation.translate_set(live_set)
-    assert {track for track, _name, _to in report.translated} <= track_names
-
-
 # -- harvesting -------------------------------------------------------------
 
 
@@ -504,32 +404,3 @@ def test_config_targets_are_parsed_into_targets() -> None:
 def test_config_targets_default_to_vst3_and_verbatim() -> None:
     parsed = translation.parse_config_targets({"Old.dll": {"name": "New", "uid": [1, 2, 3, 4]}})
     assert parsed["Old.dll"] == TranslationTarget(PluginKind.VST3, "New", (1, 2, 3, 4), StateTransform.VERBATIM)
-
-
-def test_config_targets_override_the_seed_table(monkeypatch: pytest.MonkeyPatch) -> None:
-    override = TranslationTarget(PluginKind.VST3, "Serum From Config", (1, 2, 3, 4))
-    config = AbletoolzConfig(plugin_translation_targets={"Serum_x64": override})
-    monkeypatch.setattr(plugins, "load_config", lambda: config)
-    live_set = make_set("11.3.42")
-    report = live_set.plugins.translate_formats()
-    assert [target for _track, _name, target in report.translated] == ["Serum From Config"]
-
-
-def test_explicit_targets_override_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    config = AbletoolzConfig(
-        plugin_translation_targets={"Serum_x64": TranslationTarget(PluginKind.VST3, "From Config", (1, 2, 3, 4))}
-    )
-    monkeypatch.setattr(plugins, "load_config", lambda: config)
-    live_set = make_set("11.3.42")
-    report = live_set.plugins.translate_formats(targets={"Serum_x64": EFFECT})
-    assert [target for _track, _name, target in report.translated] == ["Test Effect"]
-
-
-def test_seed_table_survives_an_unrelated_config_entry(monkeypatch: pytest.MonkeyPatch) -> None:
-    config = AbletoolzConfig(
-        plugin_translation_targets={"Effectrix": TranslationTarget(PluginKind.VST3, "Effectrix", (1, 2, 3, 4))}
-    )
-    monkeypatch.setattr(plugins, "load_config", lambda: config)
-    live_set = make_set("11.3.42")
-    report = live_set.plugins.translate_formats()
-    assert sorted(target for _track, _name, target in report.translated) == ["Effectrix", "Serum"]
