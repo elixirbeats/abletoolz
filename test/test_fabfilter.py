@@ -447,9 +447,7 @@ def pro_c_2() -> DerivedTable:
 
 
 def test_a_fabf_state_round_trips() -> None:
-    state = FabfState(
-        version=2, preset_name="Bus Glue", leading=0, parameters=(1.0, -18.0), trailing=(1, 1)
-    )
+    state = FabfState(version=2, preset_name="Bus Glue", leading=0, parameters=(1.0, -18.0), trailing=(1, 1))
     assert FabfState.parse(state.encode()) == state
 
 
@@ -742,9 +740,7 @@ def test_a_filter_that_was_doing_something_arrives_switched_on() -> None:
 def test_pro_c_1_s_centres_land_on_the_defaults_pro_c_2_ships() -> None:
     """The one range check the corpus can make, and every one of them passes."""
     values = converted_pro_c_1()
-    defaults = {
-        parameter.name: PRO_C_2_TABLE.defaults[parameter.slot] for parameter in PRO_C_2_TABLE.parameters
-    }
+    defaults = {parameter.name: PRO_C_2_TABLE.defaults[parameter.slot] for parameter in PRO_C_2_TABLE.parameters}
     centred = ("Input Level", "Output Level", "Input Pan", "Output Pan", "Dry Pan", "Side Chain Level")
     for name in centred:
         assert values[name] == pytest.approx(defaults[name]), name

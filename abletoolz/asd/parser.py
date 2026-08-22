@@ -40,7 +40,7 @@ PRIM_ARRAY_ELEM_SIZE: dict[int, int] = {0x31: 1, 0x32: 2, 0x35: 4, 0x40: 4}
 UNSET_INT = -0x80000000  # INT_MIN sentinel Live uses for "analysis not set"
 UNSET_DOUBLE = 1.7976931348623157e308  # DBL_MAX sentinel
 
-PRE_DOC_BYTES = bytes.fromhex("00000000" "64000000" "04000000" "00000000" "00")
+PRE_DOC_BYTES = bytes.fromhex("0000000064000000040000000000000000")
 
 FieldType = str | int  # ascii class name, or primitive type id
 

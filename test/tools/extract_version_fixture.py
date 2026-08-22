@@ -31,11 +31,30 @@ VERSION_RE = re.compile(r"Ableton Live (\d{1,2})\.(\d{1,3})(?:\.?(\d{1,3}))?(b\d
 
 # Path segments that are generic system/Live structure, safe to keep verbatim.
 _KEEP_SEGMENTS = {
-    "program files", "program files (x86)", "programdata", "windows",
-    "users", "documents", "desktop", "downloads",
-    "ableton", "user library", "core library", "resources", "devices",
-    "audio effects", "midi effects", "instruments", "samples", "imported",
-    "presets", "vstplugins", "vst64", "vst3", "common files", "vst",
+    "program files",
+    "program files (x86)",
+    "programdata",
+    "windows",
+    "users",
+    "documents",
+    "desktop",
+    "downloads",
+    "ableton",
+    "user library",
+    "core library",
+    "resources",
+    "devices",
+    "audio effects",
+    "midi effects",
+    "instruments",
+    "samples",
+    "imported",
+    "presets",
+    "vstplugins",
+    "vst64",
+    "vst3",
+    "common files",
+    "vst",
 }
 _SEG_RE = re.compile(r"[/\\]")
 _AUDIO_FILE_RE = re.compile(r"\.(?:wav|aif|aiff|mp3|flac|ogg|m4a|wv|asd)$", re.I)
@@ -265,9 +284,7 @@ def harvest(root: ET.Element) -> dict[str, object]:
             continue
         path_el = file_ref.find("Path")
         data_el = file_ref.find("Dir/Data") if file_ref.find("Dir/Data") is not None else file_ref.find("Data")
-        if (path_el is not None and path_el.get("Value")) or (
-            data_el is not None and (data_el.text or "").strip()
-        ):
+        if (path_el is not None and path_el.get("Value")) or (data_el is not None and (data_el.text or "").strip()):
             refs_with_abs += 1
 
     current_ends = [float(el.get("Value", 0)) for el in root.iter("CurrentEnd")]
@@ -299,9 +316,7 @@ def harvest(root: ET.Element) -> dict[str, object]:
         "is_folded_count": sum(1 for _ in root.iter("IsFolded")),
         "prehear_present": liveset.find("PreHearTrack") is not None,
         "group_mixer_isfolded_count": sum(
-            1
-            for group in liveset.findall("Tracks/GroupTrack")
-            if group.find("DeviceChain/Mixer/IsFolded") is not None
+            1 for group in liveset.findall("Tracks/GroupTrack") if group.find("DeviceChain/Mixer/IsFolded") is not None
         ),
         "lane_height_count": sum(1 for _ in root.iter("LaneHeight")),
         "furthest_bar": int(max(current_ends) / 4) if current_ends else 0,

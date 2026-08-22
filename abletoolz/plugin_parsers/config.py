@@ -29,6 +29,7 @@ def get_config_path() -> pathlib.Path:
 @dataclass
 class AbletoolzConfig:
     """Config container."""
+
     sample_paths: list[pathlib.Path] = field(default_factory=list)
     # Extra folders the plugin database scans, on top of this OS's standard
     # plugin locations. The sample database takes its folders the same way.

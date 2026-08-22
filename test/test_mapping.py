@@ -153,8 +153,11 @@ def test_a_vst3_the_forward_pass_never_covered_is_suggested_back_toward_a_vst2()
     looks like it is the VST2 "Massive". Worth writing down -- and worth saying
     that nothing can perform it yet.
     """
-    report = survey(vst2("Massive", "Native Instruments"), vst3("Massive", "Native Instruments"),
-                    vst3("Massive X", "Native Instruments"))
+    report = survey(
+        vst2("Massive", "Native Instruments"),
+        vst3("Massive", "Native Instruments"),
+        vst3("Massive X", "Native Instruments"),
+    )
     by_source = {suggestion.source_name: suggestion for suggestion in report.suggestions}
     assert by_source["Massive"].target_kind is PluginKind.VST3
 
@@ -236,8 +239,7 @@ def test_one_vendor_spelled_two_ways_is_still_one_vendor(source_vendor: str, tar
     # The comment still quotes what the database said, not the reduced form, and
     # says on the other axis that nobody has heard this conversion.
     assert suggestion.annotation == (
-        f"exact, VST2 -> VST3, vendor {source_vendor},"
-        " state: unknown -- experiment, audition before trusting"
+        f"exact, VST2 -> VST3, vendor {source_vendor}, state: unknown -- experiment, audition before trusting"
     )
 
 
@@ -456,8 +458,8 @@ def test_a_false_friend_is_visible_in_the_file_it_is_written_to() -> None:
             vst3("Transient Master", "Native Instruments"),
         )
     )
-    assert 'vendor MISMATCH: Native Instruments GmbH vs Xfer Records' in document
-    assert 'vendor MISMATCH: Loopmasters vs Native Instruments' in document
+    assert "vendor MISMATCH: Native Instruments GmbH vs Xfer Records" in document
+    assert "vendor MISMATCH: Loopmasters vs Native Instruments" in document
     assert parsed(document) is None
 
 

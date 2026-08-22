@@ -50,6 +50,7 @@ class BufferFormat(enum.Enum):
     This helps developers understand what they're working with when
     creating new plugin parsers.
     """
+
     # Easy formats
     JSON = "json"  # Plain JSON encoded as hex (e.g., Serato Sample)
     XML = "xml"  # XML encoded as hex
@@ -70,6 +71,7 @@ class BufferFormat(enum.Enum):
 @dataclass
 class PluginAnalysis:
     """Result of analyzing a plugin instance."""
+
     plugin_name: str
     plugin_path: pathlib.Path | None
     exists: bool
@@ -92,6 +94,7 @@ class PluginData(BaseModel):
     Handles both old format (Dir/Data hex-encoded path + FileName)
     and new format (Path with full path string).
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Core identifiers
@@ -194,7 +197,7 @@ class PluginData(BaseModel):
             start = decoded.find("{")
             end = decoded.rfind("}")
             if start != -1 and end > start:
-                json.loads(decoded[start:end + 1])
+                json.loads(decoded[start : end + 1])
                 return BufferFormat.JSON
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
@@ -305,6 +308,7 @@ class PluginData(BaseModel):
             self.path = new_path
             return True
         return False
+
 
 class PluginParser(ABC):
     """Abstract base class for plugin-specific parsers.

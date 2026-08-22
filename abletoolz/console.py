@@ -209,8 +209,7 @@ def render_repair(report: RepairReport) -> None:
         )
     for action in report.by_status(RepairStatus.UNSUPPORTED_PAIR):
         logger.warning(
-            "%s%s[%s] %s%s%s is mapped to %s %s, and translating %s to %s is not implemented yet"
-            " -- left as it was.",
+            "%s%s[%s] %s%s%s is mapped to %s %s, and translating %s to %s is not implemented yet -- left as it was.",
             R,
             C,
             action.track,

@@ -127,9 +127,7 @@ def write_pe(path: pathlib.Path, *, sixty_four_bit: bool = True) -> pathlib.Path
 
 
 @pytest.mark.parametrize(("sixty_four_bit", "arch"), [(True, "x64"), (False, "x86")])
-def test_a_scanned_module_records_its_architecture(
-    tmp_path: pathlib.Path, sixty_four_bit: bool, arch: str
-) -> None:
+def test_a_scanned_module_records_its_architecture(tmp_path: pathlib.Path, sixty_four_bit: bool, arch: str) -> None:
     folder = tmp_path / "VstPlugins"
     folder.mkdir()
     write_pe(folder / "Thing.dll", sixty_four_bit=sixty_four_bit)
@@ -252,9 +250,7 @@ def test_building_replaces_rather_than_merges(tmp_path: pathlib.Path, monkeypatc
     monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [])
     monkeypatch.setattr(plugin_db, "default_live_database_dir", lambda: None)
     path = tmp_path / "plugin_db.json"
-    write_plugin_db(
-        make_db(PluginEntry(name="Gone", kind=PluginKind.VST3, source=PluginSource.LIVE_DATABASE)), path
-    )
+    write_plugin_db(make_db(PluginEntry(name="Gone", kind=PluginKind.VST3, source=PluginSource.LIVE_DATABASE)), path)
     rebuilt = create_or_update_db(AbletoolzConfig(), path)
     assert rebuilt.plugins == ()
     assert read_plugin_db(path).plugins == ()
@@ -332,9 +328,7 @@ def test_two_sources_claiming_different_class_ids_are_shouted_about(caplog: pyte
 
 
 def test_a_vst2_record_contributes_no_class_id() -> None:
-    database = make_db(
-        PluginEntry(name="Thing", kind=PluginKind.VST, source=PluginSource.LIVE_DATABASE, unique_id=42)
-    )
+    database = make_db(PluginEntry(name="Thing", kind=PluginKind.VST, source=PluginSource.LIVE_DATABASE, unique_id=42))
     assert database.uid_lookup().names() == frozenset()
 
 

@@ -1,4 +1,5 @@
 """Random util functions."""
+
 import datetime
 import logging
 import pathlib

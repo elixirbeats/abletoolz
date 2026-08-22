@@ -87,6 +87,7 @@ def default_vst_dirs() -> list[pathlib.Path]:
         ]
     return [candidate for candidate in candidates if candidate.is_dir()]
 
+
 # These are the hex values of the drop down color menu, arranged in the same order of rows and columns.
 # yapf: disable
 # fmt: off

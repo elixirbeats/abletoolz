@@ -29,6 +29,7 @@ from abletoolz.plugin_parsers.repair import repair_set
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 EXPECTED: dict[str, dict[str, Any]] = json.loads((SKELETONS / "expected.json").read_text(encoding="utf-8"))
 
+
 def _params(
     xfail_when: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> list[Any]:
@@ -71,9 +72,7 @@ def test_load_tracks_names_and_types(key: str) -> None:
 def test_track_colors(key: str) -> None:
     ableton_set = make_set(key)
     tracks = ableton_set.tracks.load()
-    expected_colors = [
-        t["color"] if t["color"] is not None else t["color_index"] for t in EXPECTED[key]["tracks"]
-    ]
+    expected_colors = [t["color"] if t["color"] is not None else t["color_index"] for t in EXPECTED[key]["tracks"]]
     assert [t.color for t in tracks] == expected_colors
 
 
@@ -195,10 +194,7 @@ def test_a_vst3_target_lands_only_where_the_schema_declares_vst3(key: str) -> No
     """
     ableton_set = make_set(key)
     version = tuple(EXPECTED[key]["version"])
-    names = {
-        get_element(info, "PlugName", attribute="Value")
-        for info in ableton_set.root.iter("VstPluginInfo")
-    }
+    names = {get_element(info, "PlugName", attribute="Value") for info in ableton_set.root.iter("VstPluginInfo")}
     if not names:
         pytest.skip(f"{key} carries no VST2 devices to map")
     before = [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")]

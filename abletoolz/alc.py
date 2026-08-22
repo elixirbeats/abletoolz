@@ -356,9 +356,7 @@ class AlcClip:
         anchor_marker, end_marker = markers[0], markers[-1]
         if end_marker.sec_time == anchor_marker.sec_time:
             raise AlcError("degenerate warp grid: both markers share the same SecTime")
-        slope = (end_marker.beat_time - anchor_marker.beat_time) / (
-            end_marker.sec_time - anchor_marker.sec_time
-        )
+        slope = (end_marker.beat_time - anchor_marker.beat_time) / (end_marker.sec_time - anchor_marker.sec_time)
 
         def to_beats(seconds: float) -> float:
             return anchor_marker.beat_time + (seconds - anchor_marker.sec_time) * slope

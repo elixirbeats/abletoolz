@@ -536,7 +536,7 @@ def render_targets_yaml(report: SuggestionReport, *, generated: str | None = Non
         "# target's class id up by name at run time, from the local plugin database. Add",
         "# one by hand only for a plugin nothing on this machine knows.",
         "#",
-        '# Each comment ends with what is known about that plugin\'s patch. "state:',
+        "# Each comment ends with what is known about that plugin's patch. \"state:",
         '# verbatim (ear <date>)" is a conversion somebody has listened to; "(structural)"',
         '# is one the bytes look right for; "state: unknown" is an experiment -- convert a',
         f"# copy and audition it. {len(report.suggestions) - report.measured_state_count}"

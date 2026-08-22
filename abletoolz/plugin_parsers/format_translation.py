@@ -64,6 +64,7 @@ type TranslatedDevice = tuple[str, str, str]
 # Track name, name in the source format.
 type UnresolvedDevice = tuple[str, str]
 
+
 class IncompleteDevice(ValueError):
     """A device the set describes too thinly to rewrite. See :func:`is_translatable`."""
 

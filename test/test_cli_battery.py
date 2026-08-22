@@ -171,9 +171,7 @@ def test_plugin_db_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathli
     assert [entry.name for entry in database.plugins] == ["Thing"]
 
 
-def test_plugin_db_takes_no_set_and_no_other_command(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_plugin_db_takes_no_set_and_no_other_command(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """A machine command, like --db: mixing it with set work is a usage error."""
     copy = tmp_path / "combo.als"
     copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())

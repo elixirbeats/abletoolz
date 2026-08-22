@@ -138,9 +138,7 @@ class RepairReport:
     def fixed_measured_count(self) -> int:
         """Repaired devices whose patch is known to survive, by ear or declaration."""
         return sum(
-            1
-            for action in self.by_status(RepairStatus.FIXED)
-            if action.state is not None and action.state.predictable
+            1 for action in self.by_status(RepairStatus.FIXED) if action.state is not None and action.state.predictable
         )
 
     @property
@@ -310,9 +308,7 @@ def repair_set(
         if configured is None:
             match = suggest_target_name(name, known_names)
             suggestion = None if match is None else _suggestion_with_state(name, match)
-            actions.append(
-                DeviceRepair(track, source, name, RepairStatus.BROKEN_UNMAPPED, None, None, suggestion)
-            )
+            actions.append(DeviceRepair(track, source, name, RepairStatus.BROKEN_UNMAPPED, None, None, suggestion))
             continue
 
         if not has_translator(source, configured.to_format):
@@ -360,9 +356,7 @@ def repair_set(
         target = resolve_target(configured, uid_lookup)
         if target is None:
             actions.append(
-                DeviceRepair(
-                    track, source, name, RepairStatus.BROKEN_NO_UID, configured.to_format, configured.name
-                )
+                DeviceRepair(track, source, name, RepairStatus.BROKEN_NO_UID, configured.to_format, configured.name)
             )
             continue
 

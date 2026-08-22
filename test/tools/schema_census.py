@@ -84,10 +84,14 @@ def diff(a_name: str, a: dict[str, set[str]], b_name: str, b: dict[str, set[str]
 def main() -> int:
     a_path, b_path = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     a_root, b_root = load_root(a_path), load_root(b_path)
-    print(f"A = {a_path.name}: Creator={a_root.get('Creator')!r} rev={a_root.get('Revision')!r} "
-          f"SchemaChangeCount={a_root.get('SchemaChangeCount')!r}")
-    print(f"B = {b_path.name}: Creator={b_root.get('Creator')!r} rev={b_root.get('Revision')!r} "
-          f"SchemaChangeCount={b_root.get('SchemaChangeCount')!r}")
+    print(
+        f"A = {a_path.name}: Creator={a_root.get('Creator')!r} rev={a_root.get('Revision')!r} "
+        f"SchemaChangeCount={a_root.get('SchemaChangeCount')!r}"
+    )
+    print(
+        f"B = {b_path.name}: Creator={b_root.get('Creator')!r} rev={b_root.get('Revision')!r} "
+        f"SchemaChangeCount={b_root.get('SchemaChangeCount')!r}"
+    )
     diff(a_path.stem, census(a_root), b_path.stem, census(b_root))
     return 0
 
