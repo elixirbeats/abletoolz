@@ -48,8 +48,6 @@ from abletoolz.plugin_parsers.format_translation import (
     TranslationReport,
     TranslationTarget,
     device_infos,
-    harvest_moduleinfo_uids,
-    harvest_set_uids,
     has_translator,
     is_translatable,
     resolve_target,
@@ -126,6 +124,8 @@ from abletoolz.plugin_parsers.state.fxbk import LegacyBank
 from abletoolz.plugin_parsers.uid_sources import (
     UidLookup,
     harvest_live_database_uids,
+    harvest_moduleinfo_uids,
+    harvest_set_uids,
     read_uid_db,
 )
 
@@ -150,8 +150,6 @@ __all__ = [
     "TranslationReport",
     "TranslationTarget",
     "device_infos",
-    "harvest_moduleinfo_uids",
-    "harvest_set_uids",
     "has_translator",
     "is_translatable",
     "resolve_target",
@@ -212,6 +210,8 @@ __all__ = [
     # Class id sources
     "UidLookup",
     "harvest_live_database_uids",
+    "harvest_moduleinfo_uids",
+    "harvest_set_uids",
     "read_uid_db",
     # Registry
     "register_parser",
