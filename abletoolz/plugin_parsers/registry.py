@@ -97,9 +97,12 @@ def upgrade_plugin(
 def _load_builtin_parsers() -> None:
     """Import all builtin parser modules to register them."""
     try:
-        from abletoolz.plugin_parsers import serato_sample_parser  # noqa: F401
+        # The state package does not re-export these, and that is the constraint
+        # rather than an oversight: a parser is reached through this registry, so
+        # re-exporting it would put these modules inside each other's import.
+        from abletoolz.plugin_parsers.state import maschine, serato, xfadelooper  # noqa: F401
     except ImportError as e:
-        logger.debug("Could not import serato_sample_parser: %s", e)
+        logger.debug("Could not import the built-in sample parsers: %s", e)
 
     # Add more parser imports here as they're created
     # from abletoolz.plugin_parsers import kontakt_parser

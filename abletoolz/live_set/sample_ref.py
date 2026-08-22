@@ -78,13 +78,17 @@ class SampleRef(pydantic.BaseModel):
 
     name: str
     size: int
-    last_modified: int
+    last_modified: int | None
     crc: int
     relative_type_element: ET.Element
     sample_ref: ET.Element
-    absolute_element: ET.Element
+    absolute_element: ET.Element | None
     relative_element: ET.Element
     version_tuple: Version
+    # The Pack a reference names, when it names one. Empty on refs that carry
+    # the element with no value -- FL Studio imports do -- so only a non-empty
+    # name, with no absolute path beside it, means Live resolves this by Pack.
+    live_pack: str | None = None
 
     absolute: pathlib.Path | None = None
     relative: pathlib.Path | None = None
@@ -103,10 +107,19 @@ class SampleRef(pydantic.BaseModel):
         project_root_folder: pathlib.Path,
     ) -> SampleRef:
         """Parse ElementTree into class."""
-        last_modified_str = get_element(sample_ref, "LastModDate", attribute="Value")
+        # Not every reference stores a date. Measured over 811 sets: 98 refs in
+        # 14 of them have no LastModDate at all -- Pack references, which
+        # address a sample by Pack id rather than by file, and FL Studio
+        # imports, which kept a path but none of the file's metadata. All 14 are
+        # sets a third-party generator wrote (see MODEL.md); Live wrote a date on
+        # every one of its 76,906 references in the library. Matching already
+        # falls back to size the way it does for a missing Crc.
+        last_modified_str = get_element(sample_ref, "LastModDate", attribute="Value", silent_error=True)
         file_ref = get_element(sample_ref, "FileRef")
         file_size = get_sample_size(file_ref)
         relative_type_element = get_element(file_ref, "RelativePathType")
+        # None only on a pre-11 Pack reference, which stores no path element.
+        absolute_element: ET.Element | None
         if version_tuple >= (11, 0, 0):
             absolute_element = get_element(file_ref, "Path")
             absolute = absolute_element.get("Value")
@@ -123,8 +136,10 @@ class SampleRef(pydantic.BaseModel):
                 raise ElementNotFound("FileRef.RelativePath missing Value attribute")
             name = pathlib.Path(absolute).name
         else:
-            absolute_element = get_element(file_ref, "Data")
-            absolute = parse_hex_path(absolute_element.text or "")
+            # A Pack reference stores no Data: the Pack's id is the whole
+            # address and there is no path on this machine to read or rewrite.
+            absolute_element = get_element(file_ref, "Data", silent_error=True)
+            absolute = parse_hex_path(absolute_element.text or "") if absolute_element is not None else ""
             name_element = file_ref.find("Name")
             if name_element is not None:
                 name = name_element.get("Value", "")
@@ -148,7 +163,8 @@ class SampleRef(pydantic.BaseModel):
         return cls(
             name=name,
             size=file_size,
-            last_modified=int(last_modified_str),
+            last_modified=int(last_modified_str) if last_modified_str is not None else None,
+            live_pack=get_element(file_ref, "LivePackName", attribute="Value", silent_error=True),
             relative_type_element=relative_type_element,
             relative_element=relative_element,
             sample_ref=sample_ref,
@@ -159,6 +175,22 @@ class SampleRef(pydantic.BaseModel):
             project_root=project_root_folder,
             version_tuple=version_tuple,
         )
+
+    @property
+    def pack_resolved(self) -> bool:
+        """Whether Live resolves this reference through an installed Pack.
+
+        A Pack reference names the Pack and the file inside it and stores no
+        absolute path at all, so nothing on this filesystem answers for it: it
+        cannot be checked for existence and must not be rewritten to a path.
+        Measured on generated sets built from Core Library content, where the
+        FileRef carries ``LivePackName``/``LivePackId`` and ``RelativePathType``
+        5 in place of ``Data``. A reference that kept its ``Data`` is an ordinary
+        file reference whatever else it names, which is what keeps FL Studio
+        imports -- they carry an empty ``LivePackName`` beside a real path --
+        out of this.
+        """
+        return self.absolute_element is None and bool(self.live_pack)
 
     @property
     def absolute_exists(self) -> bool:
@@ -176,6 +208,8 @@ class SampleRef(pydantic.BaseModel):
     @versioned
     def set_absolute(self, path: pathlib.Path) -> None:
         """Pre-11: rewrite the hex Data blob (and its OriginalFileRef twin)."""
+        if self.absolute_element is None:
+            raise ElementNotFound("FileRef has no Data element; a Pack reference stores no path to rewrite")
         # Get indentation level from current xml data.
         _, levels = decode_encode.xml_to_string(self.absolute_element.text or "")
         hex_string = decode_encode.string_to_hex(str(path))
@@ -192,6 +226,8 @@ class SampleRef(pydantic.BaseModel):
     @set_absolute.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def set_absolute(self, path: pathlib.Path) -> None:
         """11+: plain string value."""
+        if self.absolute_element is None:
+            raise ElementNotFound("FileRef has no Path element to rewrite")
         self.absolute_element.set("Value", str(path))
 
     @versioned

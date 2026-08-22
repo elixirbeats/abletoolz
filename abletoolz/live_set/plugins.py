@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ctypes
 import dataclasses
-import enum
 import functools
 import logging
 import pathlib
@@ -12,10 +11,12 @@ import plistlib
 import sqlite3
 import sys
 import threading
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
 from abletoolz import utils
+from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import (
     RST,
     C,
@@ -28,8 +29,24 @@ from abletoolz.misc import (
     default_vst_dirs,
     get_element,
 )
-from abletoolz.plugin_parsers import AbletoolzConfig, PluginAnalysis, PluginData, analyze_plugin, fix_plugin
+from abletoolz.plugin_parsers import (
+    AbletoolzConfig,
+    PluginAnalysis,
+    PluginData,
+    PluginKind,
+    analyze_plugin,
+    fix_plugin,
+)
 from abletoolz.plugin_parsers.config import load_config
+from abletoolz.plugin_parsers.format_translation import (
+    ConfiguredTarget,
+    NamedTarget,
+    TranslationReport,
+    translate_set,
+)
+from abletoolz.plugin_parsers.plugin_db import load_plugin_db
+from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair_set
+from abletoolz.plugin_parsers.uid_sources import UidLookup
 from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
 from abletoolz.sample_databaser import create_db
 from abletoolz.versioning import Version
@@ -246,14 +263,6 @@ def search_live_databases(display_name: str, database_dir: pathlib.Path) -> path
 
 
 
-class PluginKind(enum.StrEnum):
-    """Plugin reference format found in a set."""
-
-    VST = "vst"
-    VST3 = "vst3"
-    AU = "au"
-
-
 @dataclasses.dataclass(frozen=True)
 class PluginRef:
     """One plugin reference found in a set."""
@@ -405,6 +414,15 @@ class Plugins:
                     if not path:
                         logger.error("%sCouldn't parse absolute path for %s", Y, name)
                         return None, name, None
+                    if "\\" not in path and "/" not in path:
+                        # A stub device: whatever wrote the set put the plugin's
+                        # file name into Dir with no directory around it, so
+                        # there is no stored path to report. Measured only in
+                        # sets a third-party generator produced (see MODEL.md);
+                        # no Live-written set in the library does this. The name
+                        # is all it has, which is what repair reports it by.
+                        logger.debug("%sNo directory stored for %s; device is a stub", Y, name)
+                        return None, name, None
                     path_separator = utils.path_separator_type(path)
                     if path[-1] == path_separator:
                         full_path = f"{path}{name}"
@@ -415,19 +433,33 @@ class Plugins:
         logger.error("%sCouldn't parse plugin!", R)
         return None, None, None
 
-    def _find_track_for_element(self, element: ET.Element) -> str:
-        """Find which track contains a given element by searching parent map."""
+    def containing_track(self, element: ET.Element) -> ET.Element | None:
+        """The track element holding ``element``, or None when it sits outside every track."""
         if self._parent_map is None:
             self._parent_map = {c: p for p in self._root.iter() for c in p}
         current: ET.Element | None = element
         while current is not None:
             if current.tag in _TRACK_TYPES:
-                name_elem = current.find(".//EffectiveName")
-                if name_elem is not None:
-                    return f"{current.tag}: {name_elem.get('Value', '?')}"
-                return current.tag
+                return current
             current = self._parent_map.get(current)
-        return "?"
+        return None
+
+    def track_name(self, element: ET.Element) -> str:
+        """Name of the track holding ``element``; the track type when unnamed, '?' outside one."""
+        track = self.containing_track(element)
+        if track is None:
+            return "?"
+        return AbletonTrack(track, self.version).name or track.tag
+
+    def _find_track_for_element(self, element: ET.Element) -> str:
+        """Find which track contains a given element by searching parent map."""
+        track = self.containing_track(element)
+        if track is None:
+            return "?"
+        name_elem = track.find(".//EffectiveName")
+        if name_elem is not None:
+            return f"{track.tag}: {name_elem.get('Value', '?')}"
+        return track.tag
 
     def scan(self, vst_dirs: list[pathlib.Path]) -> list[PluginRef]:
         """Resolve every plugin reference in the set against disk."""
@@ -569,3 +601,51 @@ class Plugins:
                 changed = True
 
         return changed
+
+    def _configured_targets(
+        self,
+        config: AbletoolzConfig,
+        targets: Mapping[str, ConfiguredTarget] | None,
+    ) -> dict[str, ConfiguredTarget]:
+        """Config's mapping entries with the caller's on top."""
+        table = dict(config.plugin_translation_targets)
+        table.update(targets or {})
+        return table
+
+    def _uid_lookup(self, config: AbletoolzConfig) -> UidLookup:
+        """Where a target that names a plugin without its class id gets one.
+
+        Out of the local plugin database, which is where every class id this
+        machine knows already lives.
+        """
+        return load_plugin_db(config).uid_lookup()
+
+    def translate_formats(self, *, targets: Mapping[str, ConfiguredTarget] | None = None) -> TranslationReport:
+        """Rewrite every device whose mapping entry says what it becomes.
+
+        Targets come from the seed table plus config.yaml, with ``targets``
+        winning over both, and each entry carries the format it points at. Class
+        ids are only hunted for when some target asks for one, so a table of
+        fully measured targets reads nothing off disk. Caller saves.
+        """
+        config = load_config()
+        table = self._configured_targets(config, targets)
+        needs_lookup = any(isinstance(target, NamedTarget) for target in table.values())
+        lookup = self._uid_lookup(config) if needs_lookup else None
+        return translate_set(self._set, targets=table, uid_lookup=lookup)
+
+    def repair(self, *, targets: Mapping[str, ConfiguredTarget] | None = None) -> RepairReport:
+        """Replace only the devices this machine cannot load, and only mapped ones.
+
+        The narrow counterpart to :meth:`translate_formats`: same mapping table,
+        same translation, but a device Live can still load is left alone and a
+        device with no mapping is reported rather than guessed at. Caller saves.
+        """
+        config = load_config()
+        table = self._configured_targets(config, targets)
+        return repair_set(
+            self._set,
+            targets=table,
+            uid_lookup=self._uid_lookup(config),
+            loadable=default_oracle(self._set),
+        )

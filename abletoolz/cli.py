@@ -18,7 +18,15 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
 from abletoolz.live_set.describe import DescribeLevel, describe_json
 from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, G, M, R, SetError, Y
-from abletoolz.plugin_parsers import AbletoolzConfig, get_all_parsers, load_config
+from abletoolz.plugin_parsers import (
+    AbletoolzConfig,
+    default_suggestions_path,
+    get_all_parsers,
+    load_config,
+    plugin_db,
+    render_targets_yaml,
+    survey_machine,
+)
 from abletoolz.sample_databaser import create_db
 
 logger = logging.getLogger(__name__)
@@ -36,6 +44,7 @@ EDIT_FLAGS = (
     "gradient_tracks",
     "master_out",
     "prepend_version",
+    "repair_plugins",
     "set_track_heights",
     "set_track_widths",
     "unfold",
@@ -254,11 +263,49 @@ def parse_arguments() -> argparse.Namespace:
         help="Upgrade plugin paths when possible (e.g. 32-bit to 64-bit/VST3). Save with -s to write changes.",
     )
     plugin_tools.add_argument(
+        "--repair-plugins",
+        action="store_true",
+        default=False,
+        help="Replace the plugin devices this machine can no longer load with what your mappings say "
+        "they become, keeping their saved patch. Devices that still load are left alone. Mappings come "
+        "from the seed table and plugin_translation.targets in config.yaml, and each mapping says which "
+        "format it points at -- there is nothing to choose here. An entry may give just a name and let "
+        "the class id be looked up in the plugin database. Save with -s to write changes.",
+    )
+    plugin_tools.add_argument(
         "--dump-plugins",
         action="store_true",
         default=False,
         help="Dump plugin buffer data for reverse engineering. Shows raw hex, detected format, and "
         "attempts to decode buffer contents. Useful for developing new plugin parsers.",
+    )
+    plugin_tools.add_argument(
+        "--plugin-db",
+        "--plugin-database",
+        action="store_true",
+        default=False,
+        help="Instead of parsing sets, read every plugin installed on this machine into a local plugin "
+        "database: Live's own plugin database, your plugin folders, the class ids inside installed VST3 "
+        "bundles. Repair looks class ids up in it and --suggest-plugin-mappings reads it. Takes no set "
+        "and no folders; add extra folders under plugin_database.paths in config.yaml.",
+    )
+    plugin_tools.add_argument(
+        "--plugin-db-path",
+        type=pathlib.Path,
+        default=None,
+        help="Plugin database file to create/use. Default: plugin_db.json in the abletoolz config directory.",
+    )
+    plugin_tools.add_argument(
+        "--suggest-plugin-mappings",
+        type=pathlib.Path,
+        default=None,
+        const=default_suggestions_path(),
+        nargs="?",
+        metavar="OUTPUT_YAML",
+        help="Read the local plugin database and write the mappings it suggests to a YAML file for you "
+        "to review and merge into config.yaml yourself. Every suggestion comes out commented; you "
+        "enable one by uncommenting it. Takes no set: it reads the machine, not a project. Defaults to "
+        f"{default_suggestions_path()}.",
     )
     plugin_tools.add_argument(
         "--list-parsers",
@@ -315,17 +362,25 @@ def parse_arguments() -> argparse.Namespace:
         parser.error("Can only use --fix-samples-collect or --fix-samples-absolute, not both!")
     if args.fold and args.unfold:
         parser.error("Only set unfold or fold, not both.")
+    set_commands = any(getattr(args, name) for name in EDIT_FLAGS + ANALYSIS_FLAGS + AUTHORING_FLAGS)
     if args.db and (
-        args.list_parsers or any(getattr(args, name) for name in EDIT_FLAGS + ANALYSIS_FLAGS + AUTHORING_FLAGS)
+        args.list_parsers or args.plugin_db or args.suggest_plugin_mappings is not None or set_commands
     ):
         parser.error("--db/--database cannot be used with other commands!")
+    if args.plugin_db and (args.list_parsers or args.suggest_plugin_mappings is not None or set_commands or args.srcs):
+        parser.error(
+            "--plugin-db/--plugin-database reads this machine's plugins; it takes no set and no other command!"
+        )
     if args.apply_ops and not args.output:
         parser.error("--apply-ops requires --output.")
     if args.output and not args.apply_ops:
         parser.error("--output only makes sense with --apply-ops.")
     if args.apply_ops and len(args.srcs) != 1:
         parser.error("--apply-ops takes exactly one input set (not a directory).")
-    if not args.list_parsers and not args.srcs:
+    # --list-parsers, --plugin-db and --suggest-plugin-mappings all answer
+    # questions about this machine rather than about a set, so none takes one.
+    machine_command = args.list_parsers or args.plugin_db or args.suggest_plugin_mappings is not None
+    if not machine_command and not args.srcs:
         parser.error("No sets or directories given, nothing to do.")
     return args
 
@@ -401,6 +456,9 @@ def process_set(
     if args.upgrade_plugins:
         ableton_set.plugins.upgrade()
 
+    if args.repair_plugins:
+        console.render_repair(ableton_set.plugins.repair())
+
     if args.xml:
         ableton_set.save_xml()
     if args.save:
@@ -423,6 +481,32 @@ def list_parsers() -> None:
             "  %s%s%s: %s (buffer format: %s%s%s)",
             G, p.name, C, p.description, M, p.buffer_format.value, C
         )
+
+
+def run_build_plugin_db(db_path: pathlib.Path | None) -> int:
+    """Read this machine's plugins into the local plugin database.
+
+    A machine command, not a set command, and the plugin half of ``--db``: the
+    scan is slow and every plugin command wants the same answers, so it happens
+    once and lands in a file.
+    """
+    path = db_path if db_path is not None else plugin_db.default_plugin_db_path()
+    console.render_plugin_db(plugin_db.create_or_update_db(load_config(), path), path)
+    return 0
+
+
+def run_suggest_mappings(output: pathlib.Path, db_path: pathlib.Path | None) -> int:
+    """Survey this machine's plugins and write suggested mappings to ``output``.
+
+    A machine command, not a set command: it reads the local plugin database and
+    writes a file the user reviews. It never touches config.yaml, because a
+    mapping nobody checked is a device that loads as something else.
+    """
+    report = survey_machine(load_config(), db_path=db_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(render_targets_yaml(report), encoding="utf-8")
+    console.render_mapping_suggestions(report, output)
+    return 0
 
 
 def run_apply_ops(args: argparse.Namespace) -> int:
@@ -544,6 +628,10 @@ def main() -> None:
     if args.list_parsers:
         list_parsers()
         sys.exit(0)
+    if args.plugin_db:
+        sys.exit(run_build_plugin_db(args.plugin_db_path))
+    if args.suggest_plugin_mappings is not None:
+        sys.exit(run_suggest_mappings(args.suggest_plugin_mappings, args.plugin_db_path))
     sys.exit(process(args))
 
 

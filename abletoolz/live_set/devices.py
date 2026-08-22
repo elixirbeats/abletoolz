@@ -18,10 +18,11 @@ Three id spaces meet in a device chain and must not be confused.
   sparse and unordered (10.0.1's master chain reads Eq8=4, PluginDevice=2, 5,
   3 in document order). Chains nested inside a rack restart at 0, so a rack's
   contents keep their ids when the rack moves.
-* The set-global pointee space (``AutomationTarget``/``ModulationTarget``/
-  ``Pointee``, counted by ``LiveSet/NextPointeeId``) is where the real work
-  is: a device owns one id per automatable parameter -- a single ``Reverb``
-  owns 54 of them -- so every graft renumbers hundreds of ids. Live 9 sets
+* The set-global pointee space (``Pointee``, every ``*AutomationTarget``/
+  ``*ModulationTarget`` and ``ControllerTargets.<N>``, counted by
+  ``LiveSet/NextPointeeId``) is where the real work is: a device owns one id
+  per automatable parameter -- a single ``Reverb`` owns 54 of them -- so
+  every graft renumbers hundreds of ids. Live 9 sets
   own these ids too but carry no ``NextPointeeId`` element, leaving no
   measurable way to tell Live which ids are already taken, so grafting into a
   pre-10 set is refused rather than guessed at.
@@ -40,7 +41,7 @@ from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
 
 from abletoolz import schema
-from abletoolz.live_set.xml_edit import renumber_pointee_ids, shift_indentation, tab_depth
+from abletoolz.live_set.xml_edit import renumber_pointee_ids, shift_indentation, strip_remote_bindings, tab_depth
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginData
 from abletoolz.versioning import Version
@@ -123,9 +124,10 @@ class Devices:
         """Copy a whole chain onto another track, in this set or from another one.
 
         Every device is deep-copied, re-indented to the target's depth, given
-        fresh set-global ids, and given a chain-local ``Id`` past whatever the
-        target chain already uses. ``append`` puts the copies after the
-        existing devices; ``replace`` clears the chain first.
+        fresh set-global ids, stripped of the donor's key/MIDI remote bindings
+        (which crash Live 12 when they travel), and given a chain-local ``Id``
+        past whatever the target chain already uses. ``append`` puts the copies
+        after the existing devices; ``replace`` clears the chain first.
 
         Two things ride along unexamined, because the fixture corpus shows
         them but cannot show what Live does with them after a graft. Sidechain
@@ -161,6 +163,7 @@ class Devices:
             grafted_element = copy.deepcopy(source.device_element)
             shift_indentation(grafted_element, tab_depth(child_indent) - (tab_depth(grafted_element.text) - 1))
             renumber_pointee_ids(grafted_element, self._root)
+            strip_remote_bindings(grafted_element)
             grafted_element.set("Id", str(next_device_id + offset))
             devices.append(grafted_element)
             grafted.append(self._device_ref(grafted_element))

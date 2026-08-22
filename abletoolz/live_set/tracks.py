@@ -28,30 +28,43 @@ class AbletonTrack:
         if not self.name:
             self.name = get_element(track_root, "Name.EffectiveName", attribute="Value")
         self.id = track_root.get("Id")
-        self.group_id = get_element(track_root, "TrackGroupId", attribute="Value")
+        # Some group and return tracks leave out three things Live writes on
+        # every track, and each one used to take the whole set down. Measured
+        # over 811 sets: 44 return tracks have no TrackGroupId (they belong to
+        # no group) and no automation lane, and 44 group tracks have no
+        # automation lane and no session width. All 88 sit in the 22 sets a
+        # third-party generator wrote (see MODEL.md), and no Live-written set in
+        # the library omits any of them -- but absent is unset, not malformed,
+        # whoever wrote the file.
+        self.group_id = get_element(track_root, "TrackGroupId", attribute="Value", silent_error=True)
         self.width = get_element(
             track_root,
             f"DeviceChain.Mixer.{schema.tag('track_width', version)}",
             attribute="Value",
+            silent_error=True,
         )
         # Lane height in arrangement view will be automation lane 0
         self.height = get_element(
             track_root,
             "DeviceChain.AutomationLanes.AutomationLanes.AutomationLane.LaneHeight",
             attribute="Value",
+            silent_error=True,
         )
         self.color_element = schema.tag("color", version)
         self.unfolded = get_element(track_root, "TrackUnfolded", attribute="Value", silent_error=True)  # Ableton 10
         if not self.unfolded:
-            folded = get_element(track_root, "DeviceChain.Mixer.IsFolded", attribute="Value")  # Ableton 9/8
+            # Ableton 9/8. A track with neither element has no fold state to
+            # read -- the same 44 return tracks, which have no automation lanes
+            # to fold in the first place -- and an unfoldable track is unfolded.
+            folded = get_element(track_root, "DeviceChain.Mixer.IsFolded", attribute="Value", silent_error=True)
             self.unfolded = "false" if folded == "true" else "true"
 
     def __str__(self) -> str:
         """Plain track summary; colorized rendering lives in console."""
         return (
             f"Track type {self.type:>12}, Name {self.name:>50}, Id {self.id:>4}, "
-            f"Group id {self.group_id:>4}, Color {self.color:>3}, Width {self.width:>3}, "
-            f"Height {self.height:>3}, Unfolded: {self.unfolded}"
+            f"Group id {self.group_id or '-':>4}, Color {self.color:>3}, Width {self.width or '-':>3}, "
+            f"Height {self.height or '-':>3}, Unfolded: {self.unfolded}"
         )
 
     @property

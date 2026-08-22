@@ -54,6 +54,12 @@ class Samples:
         """Return every sample reference that resolves to no file on disk."""
         missing = []
         for parsed in self.iterate():
+            if parsed.pack_resolved:
+                # Live loads this out of an installed Pack; no path on this
+                # machine can confirm or deny it, so calling it missing would
+                # be a guess dressed as a finding.
+                logger.debug("%sSample %s comes from Pack %s", G, parsed.name, parsed.live_pack)
+                continue
             if parsed.absolute_exists or parsed.relative_exists:
                 # Sample will load in ableton, no need to do anything.
                 logger.debug(
@@ -88,6 +94,11 @@ class Samples:
         fixed_samples = 0
         skip_search = False
         for parsed in self.iterate():
+            if parsed.pack_resolved:
+                # Addressed by Pack id, not by path: there is nothing here to
+                # repair and rewriting it to a path would break what works.
+                logger.debug("%sSkipping Pack reference %s (%s)", Y, parsed.name, parsed.live_pack)
+                continue
             if parsed.absolute_exists or parsed.relative_exists:
                 # Sample will load in ableton, no need to do anything.
                 continue

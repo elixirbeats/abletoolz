@@ -25,6 +25,8 @@ from xml.etree import ElementTree as ET
 
 TRACK_TAGS = ("AudioTrack", "MidiTrack", "GroupTrack", "ReturnTrack")
 KEEP_PER_TYPE = 2
+# Tracks kept on top of the per-type quota because they carry a rare shape.
+KEEP_NOTABLE = 3
 VERSION_RE = re.compile(r"Ableton Live (\d{1,2})\.(\d{1,3})(?:\.?(\d{1,3}))?(b\d*)?")
 
 # Path segments that are generic system/Live structure, safe to keep verbatim.
@@ -56,6 +58,21 @@ def version_key(root: ET.Element) -> str:
     return f"{major}.{minor}.{patch}" + ("b" if beta else "")
 
 
+def is_notable(track: ET.Element) -> bool:
+    """Whether a track carries a shape too rare to lose to the per-type quota.
+
+    Keeping the first couple of tracks of each type is right for ordinary
+    structure and wrong for exactly the shapes a fixture usually gets harvested
+    for, which turn up on one track out of forty. Measured on the 22 generated
+    sets in the library: every stub ``VstPluginInfo`` and every Pack
+    ``SampleRef`` in all of them sat outside the first two tracks of its type,
+    so the quota alone threw away the whole reason to harvest them.
+    """
+    return any(info.find("Category") is None for info in track.iter("VstPluginInfo")) or any(
+        ref.find("LastModDate") is None for ref in track.iter("SampleRef")
+    )
+
+
 def prune(root: ET.Element) -> None:
     """Drop excess tracks and plugin buffer payloads; keep the schema."""
     liveset = root.find("LiveSet")
@@ -64,7 +81,11 @@ def prune(root: ET.Element) -> None:
     tracks_el = liveset.find("Tracks")
     if tracks_el is not None:
         kept: dict[str, int] = {}
+        notable = 0
         for track in list(tracks_el):
+            if notable < KEEP_NOTABLE and is_notable(track):
+                notable += 1
+                continue
             kept[track.tag] = kept.get(track.tag, 0) + 1
             if kept[track.tag] > KEEP_PER_TYPE:
                 tracks_el.remove(track)
