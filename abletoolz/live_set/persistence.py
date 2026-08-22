@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz import utils
-from abletoolz.misc import B, G, M, R
+from abletoolz.misc import B, G, M, R, Y
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -122,12 +122,23 @@ def write_set(live_set: AbletonSet, xml_bytes: bytes) -> None:
     restore_file_times(live_set)
 
 
-def save_set(live_set: AbletonSet, append_bars_bpm: bool = False, prepend_version: bool = False) -> None:
-    """Back up the original, optionally rename, and write the set on a non-daemon thread."""
+def save_set(
+    live_set: AbletonSet,
+    append_bars_bpm: bool = False,
+    prepend_version: bool = False,
+    output_dir: pathlib.Path | None = None,
+) -> None:
+    """Back up the original, optionally rename, and write the set on a non-daemon thread.
+
+    With ``output_dir`` the set is written into that directory under its own name and
+    the original file is never touched -- writing elsewhere is the protection an
+    in-place save gets from its backup, so no backup is made either.
+    """
     # Serialize before touching anything on disk: a tree that cannot serialize
     # must fail loudly here, while the original file is still in place.
     xml_bytes = to_xml_bytes(live_set)
-    utils.create_backup(live_set.path)
+    if output_dir is None:
+        utils.create_backup(live_set.path)
     if append_bars_bpm:
         if live_set.bpm is None or live_set.furthest_bar is None:
             live_set.transport.bpm()
@@ -141,6 +152,14 @@ def save_set(live_set: AbletonSet, append_bars_bpm: bool = False, prepend_versio
         version_string = f"{live_set.version_tuple[0]}.{live_set.version_tuple[1]}.{live_set.version_tuple[2]}_"
         cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.[b\d]{1,5}_", "", live_set.path.stem)
         live_set.path = live_set.path.parent / (version_string + cleaned_name + live_set.path.suffix)
+
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        target = output_dir / live_set.path.name
+        if target.exists():
+            target = utils.unclaimed_path(target)
+            logger.info("%s%s already exists, saving as %s", Y, output_dir / live_set.path.name, target.name)
+        live_set.path = target
 
     # Non daemon thread so the write is not forcibly killed if the parent process is.
     thread = threading.Thread(target=write_set, args=(live_set, xml_bytes))
