@@ -28,8 +28,8 @@ id, module_id, relpath, enabled)``, ``version(version, platform)``.
 * 1300 plugin rows: 390 ``device:vst3:``, 910 ``device:vst:``.
 * A VST3 ``dev_identifier`` ends in the class id as a dashed uuid --
   ``Serum`` is ``device:vst3:instr:56535458-6673-5873-6572-756d00000000``.
-  Drop the dashes and :func:`~.format_translation.cid_to_uid_fields` gives the
-  four Uid fields Live writes into a set. All 390 rows parse, no two VST3 rows
+  Drop the dashes and :func:`cid_to_uid_fields` gives the four Uid fields Live
+  writes into a set. All 390 rows parse, no two VST3 rows
   share a name with different ids, and all eight entries of
   :data:`~.format_translation.KNOWN_TRANSLATIONS` -- measured independently, by
   ear -- match the database exactly.
@@ -95,14 +95,48 @@ import pathlib
 import re
 import sqlite3
 from collections.abc import Iterable, Mapping
-from typing import cast
+from typing import TYPE_CHECKING, cast
+from xml.etree import ElementTree as ET
 
 import pydantic
 
 from abletoolz.plugin_parsers.base import PluginKind
-from abletoolz.plugin_parsers.format_translation import UidFields, cid_to_uid_fields
+from abletoolz.plugin_parsers.format_translation import INFO_TAGS, UidFields, read_identity
+
+if TYPE_CHECKING:
+    from abletoolz.live_set.document import AbletonSet
 
 logger = logging.getLogger(__name__)
+
+
+# -- the four fields a class id becomes -------------------------------------
+
+
+def cid_to_uid_fields(cid: str) -> UidFields:
+    """Split a 32 hex char VST3 class id into Live's four Uid fields.
+
+    Measured: Live stores the class id as four big-endian signed int32. Verified
+    by decoding an in-set VST3 device's fields back to the class id its own
+    moduleinfo.json declares.
+    """
+    raw = bytes.fromhex(cid)
+    values = [int.from_bytes(raw[start : start + 4], "big", signed=True) for start in range(0, 16, 4)]
+    return (values[0], values[1], values[2], values[3])
+
+
+def uid_fields_to_cid(fields: UidFields) -> str:
+    """Inverse of :func:`cid_to_uid_fields`."""
+    return b"".join(value.to_bytes(4, "big", signed=True) for value in fields).hex().upper()
+
+
+def read_uid_fields(uid: ET.Element) -> UidFields:
+    """Read a Uid block, whose only children are Fields.0 through Fields.3 in order.
+
+    ``get_element`` is no help here: it reads the dot in ``Fields.0`` as a path
+    separator.
+    """
+    values = [int(field.get("Value", "")) for field in uid]
+    return (values[0], values[1], values[2], values[3])
 
 
 # -- Live's plugin database -------------------------------------------------
@@ -277,6 +311,67 @@ def read_uid_db(path: pathlib.Path) -> dict[str, UidFields]:
     raw = cast(object, json.loads(path.read_text(encoding="utf-8")))
     entries = pydantic.TypeAdapter(dict[str, UidDbEntry]).validate_python(raw)
     return {name: entry.fields for name, entry in entries.items()}
+
+
+# -- installed VST3 bundles -------------------------------------------------
+
+# Some vendors ship moduleinfo.json with trailing commas, which json rejects
+# (measured on Serum 2). Cheaper than taking on a json5 dependency.
+_TRAILING_COMMA = re.compile(r",(\s*[}\]])")
+
+
+def read_moduleinfo(path: pathlib.Path) -> dict[str, UidFields]:
+    """Class ids of the audio modules one moduleinfo.json declares, by display name."""
+    document = cast(dict[str, object], json.loads(_TRAILING_COMMA.sub(r"\1", path.read_text(encoding="utf-8"))))
+    classes = document.get("Classes")
+    if not isinstance(classes, list):
+        return {}
+    found: dict[str, UidFields] = {}
+    for entry in cast(list[object], classes):
+        if not isinstance(entry, dict):
+            continue
+        declared = cast(dict[str, object], entry)
+        # Every VST3 bundle also declares controller and factory classes; only
+        # the audio module is the thing a set names.
+        if declared.get("Category") != "Audio Module Class":
+            continue
+        name, cid = declared.get("Name"), declared.get("CID")
+        if isinstance(name, str) and isinstance(cid, str) and len(cid) == 32:
+            found[name] = cid_to_uid_fields(cid)
+    return found
+
+
+def harvest_moduleinfo_uids(vst3_dirs: Iterable[pathlib.Path]) -> dict[str, UidFields]:
+    """Class ids of every installed VST3 bundle under ``vst3_dirs``, by display name.
+
+    Single-file .vst3 plugins carry no moduleinfo.json and simply contribute
+    nothing; their class ids have to come from a set that already uses them.
+    """
+    found: dict[str, UidFields] = {}
+    for base in vst3_dirs:
+        for bundle in base.rglob("*.vst3"):
+            if bundle.is_dir():
+                for moduleinfo in bundle.rglob("moduleinfo.json"):
+                    found.update(read_moduleinfo(moduleinfo))
+    return found
+
+
+# -- a set that already uses it ---------------------------------------------
+
+
+def harvest_set_uids(live_set: AbletonSet) -> dict[str, UidFields]:
+    """Class ids of every VST3 device a parsed set already carries, by display name.
+
+    The way to learn a plugin's class id without the plugin installed: load a
+    set that uses its VST3 and read it back out.
+    """
+    found: dict[str, UidFields] = {}
+    for info in live_set.root.iter(INFO_TAGS[PluginKind.VST3]):
+        uid = info.find("Uid")
+        if uid is None:
+            continue
+        found[read_identity(info).name] = read_uid_fields(uid)
+    return found
 
 
 # -- resolution order -------------------------------------------------------

@@ -30,7 +30,6 @@ from abletoolz.plugin_parsers.format_translation import (
     is_translatable,
     parse_config_targets,
     read_identity,
-    read_uid_fields,
     resolve_target,
     translate_device,
     translate_set,
@@ -44,6 +43,7 @@ from abletoolz.plugin_parsers.uid_sources import (
     harvest_live_database_uids,
     read_live_database,
     read_uid_db,
+    read_uid_fields,
 )
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"

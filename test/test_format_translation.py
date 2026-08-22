@@ -19,7 +19,7 @@ import pytest
 from abletoolz import decode_encode
 from abletoolz.live_set import AbletonSet, plugins
 from abletoolz.misc import get_element
-from abletoolz.plugin_parsers import PluginKind
+from abletoolz.plugin_parsers import PluginKind, uid_sources
 from abletoolz.plugin_parsers import format_translation as translation
 from abletoolz.plugin_parsers.config import AbletoolzConfig
 from abletoolz.plugin_parsers.format_translation import TranslationTarget
@@ -155,7 +155,7 @@ def test_uid_fields_are_written_at_both_levels() -> None:
     assert len(uids) == 2
     for uid in uids:
         assert tags(uid) == ("Fields.0", "Fields.1", "Fields.2", "Fields.3")
-        assert translation.read_uid_fields(uid) == INSTRUMENT.uid_fields
+        assert uid_sources.read_uid_fields(uid) == INSTRUMENT.uid_fields
 
 
 def test_name_comes_from_the_target_not_the_vst2() -> None:
@@ -417,23 +417,23 @@ def test_report_names_the_track_each_device_sits_on() -> None:
 
 
 def test_harvest_set_uids_reads_every_vst3_in_a_set() -> None:
-    harvested = translation.harvest_set_uids(make_set("10.1.3"))
+    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
     assert set(harvested) == {"Pro-R", "Pro-Q 3", "Pro-L 2"}
     assert all(len(fields) == 4 for fields in harvested.values())
 
 
 def test_seeded_uid_matches_a_set_that_already_uses_the_vst3() -> None:
     """Cross-check of the seed table against an independent measurement."""
-    harvested = translation.harvest_set_uids(make_set("10.1.3"))
+    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
     assert translation.KNOWN_TRANSLATIONS["FabFilter Pro-Q 3"].uid_fields == harvested["Pro-Q 3"]
 
 
 def test_class_id_round_trips_through_uid_fields() -> None:
     """Live's four Uid fields are the class id read as big-endian signed int32."""
     cid = "56535458667358736572756D00000000"
-    assert translation.cid_to_uid_fields(cid) == (1448301656, 1718835315, 1701999981, 0)
-    assert translation.uid_fields_to_cid(translation.cid_to_uid_fields(cid)) == cid
-    assert translation.KNOWN_TRANSLATIONS["Serum_x64"].uid_fields == translation.cid_to_uid_fields(cid)
+    assert uid_sources.cid_to_uid_fields(cid) == (1448301656, 1718835315, 1701999981, 0)
+    assert uid_sources.uid_fields_to_cid(uid_sources.cid_to_uid_fields(cid)) == cid
+    assert translation.KNOWN_TRANSLATIONS["Serum_x64"].uid_fields == uid_sources.cid_to_uid_fields(cid)
 
 
 def write_moduleinfo(root: pathlib.Path, name: str, body: str) -> pathlib.Path:
@@ -459,7 +459,7 @@ def test_harvest_moduleinfo_takes_audio_modules_only(tmp_path: pathlib.Path) -> 
         }
         """,
     )
-    assert translation.harvest_moduleinfo_uids([tmp_path]) == {"Thing": (1448301656, 1718835315, 1701999981, 0)}
+    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {"Thing": (1448301656, 1718835315, 1701999981, 0)}
 
 
 def test_harvest_moduleinfo_tolerates_trailing_commas(tmp_path: pathlib.Path) -> None:
@@ -480,13 +480,13 @@ def test_harvest_moduleinfo_tolerates_trailing_commas(tmp_path: pathlib.Path) ->
         }
         """,
     )
-    assert translation.harvest_moduleinfo_uids([tmp_path]) == {"Loose": (1448301656, 1718835315, 1701999981, 0)}
+    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {"Loose": (1448301656, 1718835315, 1701999981, 0)}
 
 
 def test_harvest_moduleinfo_ignores_single_file_plugins(tmp_path: pathlib.Path) -> None:
     """Windows-style single-file .vst3 carries no moduleinfo.json to read."""
     (tmp_path / "Old.vst3").write_bytes(b"")
-    assert translation.harvest_moduleinfo_uids([tmp_path]) == {}
+    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {}
 
 
 # -- config -----------------------------------------------------------------
