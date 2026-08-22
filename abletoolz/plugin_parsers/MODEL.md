@@ -543,14 +543,16 @@ because padding would shift every value after the insertion into the wrong knob.
 | `uid_sources.py` | 2 | name → id resolution through the source ranking |
 | `mapping.py` | 2 | name matching + suggestion formatting (shared by repair and the suggester) |
 | `upgrade_rules.py` | 2 | same-container file-name swaps |
-| `state/__init__.py` | 3 | the seam: which policy an entry may name, what it does to the bytes, what goes in the `ControllerState`, and what is measured about each plugin |
+| `state/__init__.py` | 3 | the seam: which policy an entry may name, what goes in the `ControllerState`, and the two registries a vendor module fills |
+| `state/measured.py` | 3 | what is measured about each plugin's state, and how it was learned |
 | `state/families.py` | 3 | what a buffer is, read off its own bytes, and the reframes those families share |
 | `state/fxbk.py` | 3 | the standard VST2 bank a host writes for a plugin that exposes no chunk |
 | `state/derived.py` | 3 | a transfer table the derivation rig measured, and the `FabF` container it writes |
-| `state/fabfilter.py` | 3 | what really is FabFilter's own: its `FFBS` chunk, its editor state, and the re-encodes the seam dispatches to |
-| `state/serato.py` | 3 | Serato Sample's JSON -- the one per-plugin parser written before this model |
-| `state/xfadelooper.py` | 3 | a fixed-width struct: one sample path in a 256 byte field, read and rewritten in place |
-| `state/maschine.py` | 3 | Maschine 2's nested NI chunks: kit and sample references found by their length prefix, reported rather than rewritten |
+| `state/fabfilter.py` | 3 | what really is FabFilter's own: its `FFBS` chunk, its editor state, its trailers, and the re-encodes the seam dispatches to |
+| `state/izotope.py` | 3 | what really is iZotope's own: the refusal that stops a VST2 wrapper crossing as a patch |
+| `parsers/serato.py` | 3 | Serato Sample's JSON -- the one per-plugin parser written before this model |
+| `parsers/xfadelooper.py` | 3 | a fixed-width struct: one sample path in a 256 byte field, read and rewritten in place |
+| `parsers/maschine.py` | 3 | Maschine 2's nested NI chunks: kit and sample references found by their length prefix, reported rather than rewritten |
 | `base.py` / parsers | 3 | per-plugin buffer analysis |
 | `data/fabfilter/` | 3 | derived tables: what the rig measured off a product's two binaries |
 | `repair.py` | policy | broken (Live's database says so) ∩ mapped (config says so) → translate |

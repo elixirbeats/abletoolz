@@ -13,8 +13,8 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.decode_encode import string_to_xml
 from abletoolz.plugin_parsers.base import PluginData
+from abletoolz.plugin_parsers.parsers.maschine import CONTAINER_MAGIC, Maschine2Parser
 from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
-from abletoolz.plugin_parsers.state.maschine import CONTAINER_MAGIC, Maschine2Parser
 
 MASCHINE_UNIQUE_ID = 1315523890
 
