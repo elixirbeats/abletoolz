@@ -16,11 +16,15 @@ import json
 import pathlib
 from collections.abc import Callable
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import pytest
 
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.misc import ElementNotFound, SetError
+from abletoolz.misc import ElementNotFound, SetError, get_element
+from abletoolz.plugin_parsers.base import PluginKind
+from abletoolz.plugin_parsers.format_translation import TranslationTarget, set_supports
+from abletoolz.plugin_parsers.repair import repair_set
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 EXPECTED: dict[str, dict[str, Any]] = json.loads((SKELETONS / "expected.json").read_text(encoding="utf-8"))
@@ -178,6 +182,40 @@ def test_scan_vst3_refs(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
         (plugin["name"], plugin["manufacturer"]) for plugin in expected_au
     ]
     assert all(not ref.exists for ref in au_refs)
+
+
+@pytest.mark.parametrize("key", _params())
+def test_a_vst3_target_lands_only_where_the_schema_declares_vst3(key: str) -> None:
+    """Every VST2 device in every fixture, mapped to VST3, on that version's terms.
+
+    Below the measured floor the answer must be a refusal and an untouched file:
+    a set whose schema never declared ``Vst3PluginInfo`` is rejected by Live
+    outright once one is written into it, so the whole document is at stake, not
+    the one device. At or above the floor the same mapping has to still work.
+    """
+    ableton_set = make_set(key)
+    version = tuple(EXPECTED[key]["version"])
+    names = {
+        get_element(info, "PlugName", attribute="Value")
+        for info in ableton_set.root.iter("VstPluginInfo")
+    }
+    if not names:
+        pytest.skip(f"{key} carries no VST2 devices to map")
+    before = [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")]
+
+    report = repair_set(
+        ableton_set,
+        targets={name: TranslationTarget(PluginKind.VST3, name, (1, 2, 3, 4)) for name in names},
+        loadable=lambda _info: False,
+    )
+    if set_supports(PluginKind.VST3, version):
+        assert report.fixed_count == len(before)
+        assert report.set_too_old_count == 0
+    else:
+        assert report.set_too_old_count == len(before)
+        assert report.fixed_count == 0
+        assert [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")] == before
+        assert not list(ableton_set.root.iter("Vst3PluginInfo"))
 
 
 @pytest.mark.parametrize("key", _params())

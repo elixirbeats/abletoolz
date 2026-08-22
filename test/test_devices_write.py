@@ -180,6 +180,30 @@ def test_grafting_into_an_unknown_track_is_refused(tmp_path: pathlib.Path) -> No
         ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "nope")
 
 
+# --- remote bindings --------------------------------------------------------
+
+
+def test_a_graft_leaves_the_donors_key_midi_bindings_behind(tmp_path: pathlib.Path) -> None:
+    """Live 12 dies loading a document whose device arrived carrying these; the donor keeps its own."""
+    ableton_set = make_set("11.0.12", tmp_path)
+    donor = chain_of(ableton_set, "8-Drums to MIDI")
+    before = sum(len(list(device.device_element.iter("KeyMidi"))) for device in donor.devices)
+    assert before == 224
+
+    grafted = ableton_set.devices.graft_chain(donor, "9-MIDI")
+
+    assert [device.tag for device in grafted] == ["DrumGroupDevice", "Erosion", "PluginDevice"]
+    assert [list(device.device_element.iter("KeyMidi")) for device in grafted] == [[], [], []]
+    assert sum(len(list(device.device_element.iter("KeyMidi"))) for device in donor.devices) == before
+
+    # The parameters the bindings hung off travel intact.
+    donor_simplers = [element.get("Id") for element in donor.devices[0].device_element.iter("OriginalSimpler")]
+    assert [element.get("Id") for element in grafted[0].device_element.iter("OriginalSimpler")] == donor_simplers
+    transpose = grafted[0].device_element.findall(".//OriginalSimpler/Pitch/TransposeKey/Manual")
+    assert len(transpose) == 16
+    assert {element.get("Value") for element in transpose} == {"0"}
+
+
 # --- the set-global id space ------------------------------------------------
 
 

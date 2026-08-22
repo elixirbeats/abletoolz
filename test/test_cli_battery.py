@@ -16,6 +16,7 @@ import pytest
 
 from abletoolz import cli
 from abletoolz.live_set import AbletonSet, plugins
+from abletoolz.plugin_parsers import plugin_db, repair
 from abletoolz.plugin_parsers.config import AbletoolzConfig
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -31,11 +32,16 @@ def run_cli(monkeypatch: pytest.MonkeyPatch, *argv: str) -> int:
 
 
 @pytest.fixture(autouse=True)
-def hermetic(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No real plugin dirs, no real user config."""
+def hermetic(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """No real plugin dirs, no real Live database, no real user config or plugin db."""
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
     monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
+    monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [])
+    monkeypatch.setattr(plugin_db, "default_live_database_dir", lambda: None)
+    monkeypatch.setattr(plugin_db, "DEFAULT_PLUGIN_DB_PATH", tmp_path / "config" / "plugin_db.json")
+    monkeypatch.setattr(repair, "default_live_database_dir", lambda: None)
     monkeypatch.setattr(cli, "load_config", lambda: AbletoolzConfig())
+    monkeypatch.setattr(plugins, "load_config", lambda: AbletoolzConfig())
 
 
 @pytest.mark.parametrize("key", ["9.0.1", "11.3.42", "12.2.6", "12.4.5b"])
@@ -150,6 +156,56 @@ def test_upgrade_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     copy = tmp_path / "upgrade.als"
     copy.write_bytes((SKELETONS / "10.1.3.als").read_bytes())
     assert run_cli(monkeypatch, str(copy), "--upgrade-plugins") == 0
+
+
+def test_plugin_db_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """--plugin-db reads this machine's plugins into a database at --plugin-db-path."""
+    folder = tmp_path / "VstPlugins"
+    folder.mkdir()
+    (folder / "Thing.dll").write_bytes(b"")
+    monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [folder])
+    db_path = tmp_path / "plugin_db.json"
+
+    assert run_cli(monkeypatch, "--plugin-db", "--plugin-db-path", str(db_path)) == 0
+    database = plugin_db.read_plugin_db(db_path)
+    assert [entry.name for entry in database.plugins] == ["Thing"]
+
+
+def test_plugin_db_takes_no_set_and_no_other_command(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """A machine command, like --db: mixing it with set work is a usage error."""
+    copy = tmp_path / "combo.als"
+    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+    assert run_cli(monkeypatch, "--plugin-db", str(copy)) == 2
+    assert run_cli(monkeypatch, "--plugin-db", "--db") == 2
+
+
+def test_repair_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """--repair-plugins converts the broken devices it has a mapping for and saves with -s.
+
+    With no plugin dirs and no Live database, nothing in the fixture is loadable,
+    so every mapped device is a repair.
+    """
+    copy = tmp_path / "repair.als"
+    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s") == 0
+    saved = AbletonSet(copy)
+    assert saved.parse()
+    names = {element.get("Value") for info in saved.root.iter("Vst3PluginInfo") for element in info.findall("Name")}
+    assert "Serum" in names
+    left = [info.find("PlugName") for info in saved.root.iter("VstPluginInfo")]
+    assert [element.get("Value") for element in left if element is not None] == ["Effectrix"]
+
+
+def test_repair_plugins_is_an_edit_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """Without -s the run still reminds the user nothing was written."""
+    copy = tmp_path / "repair_unsaved.als"
+    original = (SKELETONS / "11.3.42.als").read_bytes()
+    copy.write_bytes(original)
+    assert "repair_plugins" in cli.EDIT_FLAGS
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins") == 0
+    assert copy.read_bytes() == original
 
 
 def test_unfold_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:

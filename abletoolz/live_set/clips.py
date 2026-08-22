@@ -20,9 +20,10 @@ here, matching the track-scoped nature of this domain.
 Two id spaces meet in a clip and must not be confused. ``KeyTrack/@Id`` and
 ``MidiNoteEvent/@NoteId`` are clip-local: every clip in a set restarts them
 at 0 and 1 respectively, and ``Notes/NoteIdGenerator/NextId`` is the
-clip's own counter. The set-global space -- owned by ``AutomationTarget``,
-``ModulationTarget`` and ``Pointee`` elements, counted by
-``LiveSet/NextPointeeId`` -- is what a duplicated clip has to renumber.
+clip's own counter. The set-global space -- owned by ``Pointee``, every
+``*AutomationTarget``/``*ModulationTarget`` and ``ControllerTargets.<N>``,
+counted by ``LiveSet/NextPointeeId`` -- is what a duplicated clip has to
+renumber.
 A clip envelope only *references* that space (``EnvelopeTarget/PointeeId``
 points at a device parameter living outside the clip), so those references
 are left alone unless the id they name was itself renumbered.

@@ -142,8 +142,9 @@ YB = Y + colorama.Style.BRIGHT + BOLD
 CB = C + colorama.Style.BRIGHT + BOLD
 MB = M + colorama.Style.BRIGHT + BOLD
 
-# Database stored alongside config in user config dir
+# Databases stored alongside config in user config dir
 DEFAULT_DB_PATH = _get_user_config_dir() / "sample_db.json"
+DEFAULT_PLUGIN_DB_PATH = _get_user_config_dir() / "plugin_db.json"
 BACKUP_DIR = "abletoolz_backup"
 
 

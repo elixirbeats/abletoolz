@@ -1,0 +1,594 @@
+{
+ "product": "Pro-C 2",
+ "derived": "2026-08-13",
+ "state_version": 2,
+ "leading": 0,
+ "trailing": [
+  1,
+  1
+ ],
+ "defaults": [
+  0.0,
+  -18.0,
+  0.6000000238418579,
+  18.0,
+  60.0,
+  0.10000000149011612,
+  0.4112374186515808,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  -1.0,
+  0.0,
+  1.0,
+  0.0,
+  0.0,
+  0.0,
+  0.5,
+  0.0,
+  0.0,
+  6.643856048583984,
+  3.0,
+  1.0,
+  1.0,
+  9.965784072875977,
+  0.0,
+  0.5,
+  0.0,
+  0.0,
+  12.287712097167969,
+  3.0,
+  0.0,
+  0.0,
+  1.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  3.0,
+  1.0,
+  1.0
+ ],
+ "parameters": [
+  {
+   "name": "Style",
+   "bank_index": 0,
+   "slot": 0,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     7.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Threshold",
+   "bank_index": 1,
+   "slot": 1,
+   "transfer": {
+    "intercept": -60.0,
+    "slope": 60.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Ratio",
+   "bank_index": 2,
+   "slot": 2,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Knee",
+   "bank_index": 3,
+   "slot": 3,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 72.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Range",
+   "bank_index": 4,
+   "slot": 4,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 60.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Attack",
+   "bank_index": 5,
+   "slot": 5,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Release",
+   "bank_index": 6,
+   "slot": 6,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Auto Release",
+   "bank_index": 7,
+   "slot": 7,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Lookahead",
+   "bank_index": 8,
+   "slot": 8,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 20.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Hold",
+   "bank_index": 9,
+   "slot": 9,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Wet Gain",
+   "bank_index": 10,
+   "slot": 10,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Wet Pan",
+   "bank_index": 11,
+   "slot": 11,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Dry Gain",
+   "bank_index": 12,
+   "slot": 12,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Dry Pan",
+   "bank_index": 13,
+   "slot": 13,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Auto Gain",
+   "bank_index": 14,
+   "slot": 14,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Expert Mode",
+   "bank_index": 15,
+   "slot": 15,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Input",
+   "bank_index": 16,
+   "slot": 16,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Level",
+   "bank_index": 17,
+   "slot": 17,
+   "transfer": {
+    "intercept": -36.0,
+    "slope": 72.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Stereo Link",
+   "bank_index": 18,
+   "slot": 18,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Stereo Link Mode",
+   "bank_index": 19,
+   "slot": 19,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Low Enabled",
+   "bank_index": 20,
+   "slot": 20,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Low Frequency",
+   "bank_index": 21,
+   "slot": 21,
+   "transfer": {
+    "intercept": 4.321928024291992,
+    "slope": 9.965784072875977,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Side Chain Low Slope",
+   "bank_index": 22,
+   "slot": 22,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     7.0,
+     8.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Mid Auto",
+   "bank_index": 23,
+   "slot": 23,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Mid Enabled",
+   "bank_index": 24,
+   "slot": 24,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain Mid Frequency",
+   "bank_index": 25,
+   "slot": 25,
+   "transfer": {
+    "intercept": 4.321928024291992,
+    "slope": 9.965784072875977,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Side Chain Mid Gain",
+   "bank_index": 26,
+   "slot": 26,
+   "transfer": {
+    "intercept": -30.0,
+    "slope": 60.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Side Chain Mid Q",
+   "bank_index": 27,
+   "slot": 27,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 1.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Side Chain Mid Shape",
+   "bank_index": 28,
+   "slot": 28,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain High Enabled",
+   "bank_index": 29,
+   "slot": 29,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Side Chain High Frequency",
+   "bank_index": 30,
+   "slot": 30,
+   "transfer": {
+    "intercept": 4.321928024291992,
+    "slope": 9.965784072875977,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Side Chain High Slope",
+   "bank_index": 31,
+   "slot": 31,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     7.0,
+     8.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Audition Side Chain",
+   "bank_index": 32,
+   "slot": 32,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Audition Triggering",
+   "bank_index": 33,
+   "slot": 33,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Mix",
+   "bank_index": 34,
+   "slot": 34,
+   "transfer": {
+    "intercept": 0.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Input Level",
+   "bank_index": 35,
+   "slot": 35,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Input Pan",
+   "bank_index": 36,
+   "slot": 36,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Output Level",
+   "bank_index": 37,
+   "slot": 37,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Output Pan",
+   "bank_index": 38,
+   "slot": 38,
+   "transfer": {
+    "intercept": -1.0,
+    "slope": 2.0,
+    "kind": "linear"
+   }
+  },
+  {
+   "name": "Bypass",
+   "bank_index": 39,
+   "slot": 39,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Oversampling",
+   "bank_index": 40,
+   "slot": 40,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Lookahead Enabled",
+   "bank_index": 41,
+   "slot": 41,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Midi State",
+   "bank_index": 42,
+   "slot": 42,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Meter Scale",
+   "bank_index": 43,
+   "slot": 43,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Display Enabled",
+   "bank_index": 44,
+   "slot": 44,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  },
+  {
+   "name": "Knee Display Enabled",
+   "bank_index": 45,
+   "slot": 45,
+   "transfer": {
+    "values": [
+     0.0,
+     1.0
+    ],
+    "kind": "step"
+   }
+  }
+ ]
+}

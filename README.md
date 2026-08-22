@@ -9,7 +9,7 @@ It can:
 - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
 - Validate all plugins in a set are installed.
-- Analyze plugin state with plugin-specific parsers, and fix what they understand (Serato Sample's missing sample paths, for a start).
+- Analyze plugin state with plugin-specific parsers, and fix what they understand — the samples Serato Sample and xfadelooper point at, and the kits Maschine 2 can no longer find.
 - Fold/Unfold all tracks, and/or set track height and widths.
 - Prepend the set version name to the beginning of the file.
 - Append the number of bars of the track, and the bpm to the end of the file.
@@ -31,11 +31,13 @@ It also:
   `tracks`, `samples` and `plugins` objects, so scripts can do what the CLI does programmatically.
 - **Plugin parser framework** (experimental). A registry of plugin-specific parsers that can analyze, fix and
   upgrade plugin state inside sets: `--analyze-plugins`, `--fix-plugins`, `--upgrade-plugins`,
-  `--dump-plugins` (for reverse engineering new formats), `--list-parsers`. The endgame is rescuing old
+  `--repair-plugins` (dead VST2 devices rewritten as the VST3 you have, patch and all), `--dump-plugins` (for
+  reverse engineering new formats), `--list-parsers`. The endgame is rescuing old
   projects: a set full of dead 32-bit plugins can be retargeted at the modern versions you actually have
   installed, and where a translator exists for the plugin's state format, your old settings come along instead
   of being lost. It can even translate one plugin into a different one once someone decodes both formats.
-  Serato Sample is the first supported parser (finds and fixes its broken sample paths).
+  Three plugins have parsers today: Serato Sample and xfadelooper find and fix their broken sample paths, and
+  Maschine 2 reports the kits and samples it can no longer find (its state is too tangled to rewrite safely).
 - **Safer saves.** Sets are serialized before anything on disk is touched — a failure can no longer leave you
   without your original file (which was always backed up, but still).
 - **Honest batch results.** Directory runs process sets concurrently (`--jobs`), report `N ok, M failed`, and
@@ -128,14 +130,68 @@ Plugin state inside a set is an opaque buffer per plugin; parsers teach abletool
 
 `--list-parsers` List registered plugin parsers and their buffer formats.
 
-`--analyze-plugins` Deep analysis using the registered parsers — reports issues like missing samples inside
-Serato Sample instances.
+`--analyze-plugins` Deep analysis using the registered parsers — reports issues like the samples a Serato
+Sample or xfadelooper device points at, or the kits a Maschine 2 device wants, that are no longer on disk.
 
-`--fix-plugins` Fix what a parser knows how to fix (e.g. broken sample paths inside Serato Sample), using the
-sample database. Use with `-s` to write changes.
+`--fix-plugins` Fix what a parser knows how to fix (broken sample paths inside Serato Sample and xfadelooper),
+using the sample database. Use with `-s` to write changes.
 
 `--upgrade-plugins` Upgrade plugin paths when a rule and an installed target exist. Rules live in a config file
 so nothing is guessed.
+
+`--repair-plugins` Replace the plugin devices Live can no longer load with what your mappings say they
+become, keeping the patch they were saved with. A device that still loads is left alone, and a broken device
+with no mapping is reported by name rather than guessed at. Use with `-s` to write changes.
+
+There is no format to choose on the command line, because the mapping says which way each plugin goes:
+
+```yaml
+plugin_translation:
+  targets:
+    "Some Plugin.64":       # the name the VST2 device stores
+      to: vst3              # the format it becomes (this is the default)
+      name: "Some Plugin"   # the name the VST3 goes by
+      state: verbatim       # or kilohearts, for kHs plugins
+```
+
+A VST3 identifies itself by a class id that appears nowhere in a VST2 device, so a plugin can only be
+translated once that id is known — and a wrong class id doesn't fail, it makes Live load a different plugin
+entirely. Leave `uid` out and the class id is looked up by name in your local plugin database at repair time,
+which is the normal case on a machine that has the plugin installed. Add `uid: [1448301656, 1718835315,
+1701999981, 0]` by hand only for a plugin nothing on this machine knows. A mapping pointing somewhere nobody
+has written a translator for yet (VST2 to AU, say) is reported as exactly that and the device is left as it
+was.
+
+`--plugin-db` Read every plugin installed on this machine into a local plugin database — the plugin half of
+`--db`. It reads Live's own plugin database, your plugin folders, and the class ids inside installed VST3
+bundles, and writes one JSON file to your config directory: name, format, vendor, class id or UniqueId,
+module and architecture, plus where each record came from. Repair looks class ids up in it and
+`--suggest-plugin-mappings` reads it. Takes no set and no folders; add folders under `plugin_database.paths`
+in your config, the way `sample_database.paths` works.
+
+```yaml
+plugin_database:
+  paths:
+    - "D:/VstPlugins"
+```
+
+Whether Live can *load* a plugin is deliberately not in there. That flips the moment you toggle a plug-in
+folder in Live's preferences, and a stale "yes" would make repair skip a device that is really broken, so
+repair asks Live's own database every run. The plugin database holds identity, which doesn't change.
+
+`--suggest-plugin-mappings [file.yaml]` Write that mapping table for you, or most of it. It takes no set: it
+reads the local plugin database, pairs the names that look like the same plugin in two formats, and writes a
+YAML file for you to read. Every suggestion aims at something you actually have installed, preferring VST3
+targets; where the only installed counterpart is in the other direction, it says so and notes that nothing can
+perform that translation yet.
+
+**Everything it writes comes out commented, including the suggestions that look certain.** Uncommenting a
+line is how you enable it, and that is meant to be a decision you make one plugin at a time. Each line carries
+what it rests on: which tier it matched (identical names, identical once a bitness marker or the vendor's
+first word comes off, or merely similar), the vendors, a version change that won't load the old patch, and the
+one that matters most — two plugins whose names agree and whose vendors do not, which is a different plugin
+wearing a familiar name. Nothing is in force until you move a line into your own config file, which this never
+touches.
 
 `--dump-plugins` Dump plugin buffer hex + decoded preview — the starting point for writing a new parser.
 Contributions welcome.

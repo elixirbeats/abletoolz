@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 from abletoolz.decode_encode import string_to_xml
 from abletoolz.plugin_parsers.base import PluginData
 from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
-from abletoolz.plugin_parsers.serato_sample_parser import SeratoSampleParser
+from abletoolz.plugin_parsers.state.serato import SeratoSampleParser
 
 SERATO_UNIQUE_ID = 1399681132
 

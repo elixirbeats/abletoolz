@@ -32,6 +32,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class PluginKind(enum.StrEnum):
+    """A plugin format, as a set stores it.
+
+    Lives here rather than beside the set-scanning code because format is what
+    every parser and every format translation is keyed on.
+    """
+
+    VST = "vst"
+    VST3 = "vst3"
+    AU = "au"
+
+
 class BufferFormat(enum.Enum):
     """Describes the format of plugin state data in the Buffer element.
 
@@ -264,14 +276,22 @@ class PluginData(BaseModel):
 
         return "\n".join(lines)
 
-    def set_buffer_from_string(self, data: str) -> None:
-        """Encode string back into Buffer as hex with original indentation."""
+    def set_buffer_from_bytes(self, data: bytes) -> None:
+        """Encode raw bytes back into Buffer as hex with original indentation.
+
+        Binary plugin states go through here rather than through
+        :meth:`set_buffer_from_string`, which would mangle any byte that is not
+        valid UTF-8 on the way out.
+        """
         if self.buffer_element is None:
             return
         existing_text = self.buffer_element.text or ""
         _hex_existing, levels = decode_encode.xml_to_string(existing_text) if existing_text.strip() else ("", 14)
-        hex_out = data.encode("utf-8").hex().upper()
-        self.buffer_element.text = decode_encode.string_to_xml(hex_out, levels=levels)
+        self.buffer_element.text = decode_encode.string_to_xml(data.hex().upper(), levels=levels)
+
+    def set_buffer_from_string(self, data: str) -> None:
+        """Encode string back into Buffer as hex with original indentation."""
+        self.set_buffer_from_bytes(data.encode("utf-8"))
 
     def set_buffer_from_json(self, obj: dict[str, Any]) -> None:
         """Dump JSON dict and set Buffer text."""
