@@ -96,18 +96,19 @@ def restore_file_times(live_set: AbletonSet) -> None:
         logger.warning("No modification time! Can't restore original time...")
         return
     os.utime(live_set.path, (live_set.last_modification_time, live_set.last_modification_time))
-    if sys.platform == "win32" and live_set.creation_time is not None:
+    if live_set.creation_time is None:
+        return
+    if sys.platform == "win32":
         win32_setctime.setctime(live_set.path, live_set.creation_time)
     elif sys.platform == "darwin":
         date = utils.format_date(live_set.creation_time)
         subprocess.run(["SetFile", "-d", date, str(live_set.path)], capture_output=True, check=False)
-    if live_set.creation_time is not None and live_set.last_modification_time is not None:
-        logger.debug(
-            "%sRestored set creation and modification times: %s, %s",
-            G,
-            utils.format_date(live_set.creation_time),
-            utils.format_date(live_set.last_modification_time),
-        )
+    logger.debug(
+        "%sRestored set creation and modification times: %s, %s",
+        G,
+        utils.format_date(live_set.creation_time),
+        utils.format_date(live_set.last_modification_time),
+    )
 
 
 def write_set(live_set: AbletonSet, xml_bytes: bytes) -> None:
