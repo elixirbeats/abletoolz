@@ -48,7 +48,7 @@ abletoolz = "abletoolz:main"
 abletoolz-dj-crates = "abletoolz.dj_crates:main"
 
 [tool.setuptools]
-packages = ["abletoolz", "abletoolz.asd", "abletoolz.data", "abletoolz.live_set", "abletoolz.plugin_parsers", "abletoolz.plugin_parsers.state", "abletoolz.sample_databaser"]
+packages = ["abletoolz", "abletoolz.asd", "abletoolz.data", "abletoolz.live_set", "abletoolz.plugin_parsers", "abletoolz.plugin_parsers.parsers", "abletoolz.plugin_parsers.state", "abletoolz.sample_databaser"]
 
 [tool.setuptools.dynamic]
 version = {attr = "abletoolz.__version__"}
