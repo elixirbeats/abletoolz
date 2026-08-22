@@ -6,6 +6,7 @@ import ctypes
 import os
 import pathlib
 import struct
+import sys
 from collections.abc import Iterable
 from functools import lru_cache
 
@@ -33,28 +34,17 @@ def _read_pe_arch(path: pathlib.Path) -> str | None:
         return None
 
 
-class _VS_FIXEDFILEINFO(ctypes.Structure):
-    _fields_ = [
-        ("dwSignature", ctypes.c_uint32),
-        ("dwStrucVersion", ctypes.c_uint32),
-        ("dwFileVersionMS", ctypes.c_uint32),
-        ("dwFileVersionLS", ctypes.c_uint32),
-        ("dwProductVersionMS", ctypes.c_uint32),
-        ("dwProductVersionLS", ctypes.c_uint32),
-        ("dwFileFlagsMask", ctypes.c_uint32),
-        ("dwFileFlags", ctypes.c_uint32),
-        ("dwFileOS", ctypes.c_uint32),
-        ("dwFileType", ctypes.c_uint32),
-        ("dwFileSubtype", ctypes.c_uint32),
-        ("dwFileDateMS", ctypes.c_uint32),
-        ("dwFileDateLS", ctypes.c_uint32),
-    ]
-
-
 @lru_cache(maxsize=8192)
 def _get_file_version_strings(path: pathlib.Path) -> dict[str, str]:
-    """Return version resource strings like ProductName, FileDescription."""
+    """Return version resource strings like ProductName, FileDescription.
+
+    A version resource is a Windows file format read through a Windows API, so
+    every other OS gets an empty answer rather than a guess -- and ``windll``
+    only exists to a type checker on Windows, so the guard has to be here.
+    """
     strings: dict[str, str] = {}
+    if sys.platform != "win32":
+        return strings
     try:
         size = ctypes.windll.version.GetFileVersionInfoSizeW(str(path), None)
         if size == 0:
