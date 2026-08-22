@@ -111,7 +111,7 @@ class SampleRef(pydantic.BaseModel):
         # 14 of them have no LastModDate at all -- Pack references, which
         # address a sample by Pack id rather than by file, and FL Studio
         # imports, which kept a path but none of the file's metadata. All 14 are
-        # sets a third-party generator wrote (see MODEL.md); Live wrote a date on
+        # sets a third-party generator wrote; Live wrote a date on
         # every one of its 76,906 references in the library. Matching already
         # falls back to size the way it does for a missing Crc.
         last_modified_str = get_element(sample_ref, "LastModDate", attribute="Value", silent_error=True)

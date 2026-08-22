@@ -5,11 +5,11 @@ next door decides what to do with a patch's bytes; this decides how much anyone
 should trust the answer.
 
 :data:`MEASURED_STATE` is the table: for each plugin measured so far, which rung
-it sits on and how that was learned. It is the same rows as the table in
-``MODEL.md``, and ``test_state`` cross-checks the two so the document and the
-code cannot drift.
+it sits on and how that was learned. A row goes in when somebody measures it and
+not before -- roughly a hundred more plugins have structurally valid conversions
+waiting on a listen, and none of them are here.
 
-Evidence is what the predictability rule in MODEL.md turns on. A rung learned by
+Evidence is what the predictability rule turns on. A rung learned by
 ear or from a vendor declaration is predictable; a rung inferred from the shape
 of the bytes is a good guess awaiting a listen, and a plugin nobody has measured
 is an experiment. Every suggestion and every repaired device is labelled with
@@ -28,7 +28,7 @@ import enum
 
 
 class StateRung(enum.StrEnum):
-    """Where a plugin's state sits on MODEL.md's ladder, cheapest first."""
+    """Where a plugin's state sits on the state ladder, cheapest first."""
 
     VERBATIM = "verbatim"
     REFRAME = "reframe"
@@ -42,7 +42,7 @@ class StateEvidence(enum.StrEnum):
 
     ``EAR`` is a human who loaded the converted device in Live and listened.
     ``DECLARED`` is the vendor saying so in ``moduleinfo.json``. Those two are
-    what MODEL.md's predictability rule accepts.
+    the only two the predictability rule accepts.
 
     ``HOSTED`` is the plugin itself answering, outside Live: the host rig loads
     the target VST3, pushes a real patch of the source version into it and reads
@@ -63,7 +63,8 @@ class StateEvidence(enum.StrEnum):
     UNKNOWN = "unknown"
 
 
-# Evidence that settles the question, per MODEL.md's predictability rule.
+# Evidence that settles the question. Anything else leaves a conversion an
+# experiment, however convincing the bytes look.
 _PREDICTIVE = frozenset({StateEvidence.EAR, StateEvidence.DECLARED})
 
 
@@ -116,11 +117,12 @@ def _re_encoded(rung: StateRung, *also: StateEvidence) -> MeasuredState:
 
 # Every plugin whose state is measured, keyed by a name a set stores -- the VST2
 # name where the two formats spell it differently ("FabFilter Pro-Q 3"), the
-# shared name where they do not. Kept in step with MODEL.md's table by
-# test_state, because a table only in prose is a table that goes stale.
+# shared name where they do not.
 #
-# A row carries one date, which is the day its rung was last measured; where two
-# kinds of evidence disagree in age, MODEL.md's prose says which came when.
+# A row carries one date, which is the day its rung was last measured. Where two
+# kinds of evidence disagree in age it is the later one: Timeless 3 was heard on
+# 2026-08-10 and re-measured in the host rig on 2026-08-13, and the rig is what
+# changed its rung.
 MEASURED_STATE: dict[str, MeasuredState] = {
     "Serum": _heard(StateRung.VERBATIM, StateEvidence.DECLARED),
     "Ghz Tupe 3": _heard(StateRung.VERBATIM),

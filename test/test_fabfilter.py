@@ -548,7 +548,7 @@ def test_the_derived_transform_is_registered_too() -> None:
 def test_pro_c_2_stays_an_experiment_until_somebody_listens() -> None:
     """The rig proved the plugin reads it back; nothing has heard it.
 
-    That is the whole point of MODEL.md's split between hosted and ear.
+    That is the whole point of the split between hosted and ear evidence.
     """
     record = measured_state("FabFilter Pro-C 2")
     assert record.rung is StateRung.RE_ENCODE

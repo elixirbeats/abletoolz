@@ -3,10 +3,10 @@
 Two things the library had no way to do, and they are the same thing twice.
 
 **Name a buffer.** :func:`detect` classifies a blob into the container families
-MODEL.md's "What a buffer is" table measured over 23,786 device instances in 811
-sets. It asks the bytes and never the plugin name, which is the rule a vendor
-forced: the corpus holds Kilohearts states from before that vendor moved to a
-zip container, as flat binary, under the same name as the zip ones.
+the survey measured over 23,786 device instances in 811 sets. It asks the bytes
+and never the plugin name, which is the rule a vendor forced: the corpus holds
+Kilohearts states from before that vendor moved to a zip container, as flat
+binary, under the same name as the zip ones.
 
 **Reframe a buffer.** The 2026-08-15 readback survey found the same handful of
 shapes across unrelated vendors -- wrap in a header, strip a trailer, prefix a
@@ -43,9 +43,9 @@ class Family(enum.StrEnum):
     """The container families measured across the corpus, cheapest to read first.
 
     A family says how far a buffer can be read without the plugin, which is what
-    decides whether a conversion is a header job or a re-encode. The shares each
-    one holds are in MODEL.md's table; the largest is :data:`OPAQUE` at 37%, and
-    the text-like ones plus FabFilter's decoded formats are about half.
+    decides whether a conversion is a header job or a re-encode. The largest is
+    :data:`OPAQUE` at 37% of devices measured, and the text-like ones plus
+    FabFilter's decoded formats are about half.
     """
 
     EMPTY = "empty"
@@ -81,8 +81,8 @@ FXB_MAGIC = b"CcnK"
 # uint32 length, then the XML. Measured on soothe2, Rift and ValhallaShimmer.
 JUCE_MAGIC = b"VC2!"
 
-# The tags a FabFilter state opens with, both generations. MODEL.md's table also
-# counts a leading "Default " -- that is a Live bank's preset name rather than a
+# The tags a FabFilter state opens with, both generations. The survey also counted
+# a leading "Default " -- that is a Live bank's preset name rather than a
 # vendor tag, so it is left to fxbk.LegacyBank, which reads the whole name field
 # instead of guessing from eight bytes of it.
 FABFILTER_TAGS = (b"FFBS", b"FFed", b"FabF")
@@ -99,8 +99,8 @@ _LEADING_WINDOW = 64
 # What the survey rig counted as printable, tabs and newlines included.
 _PRINTABLE = bytes(byte for byte in range(256) if 0x20 <= byte < 0x7F or byte in (0x09, 0x0A, 0x0D))
 
-# Where a framed text format stops looking like a binary one. MODEL.md's
-# mostly-text family is a short binary header in front of the vendor's own
+# Where a framed text format stops looking like a binary one. The mostly-text
+# family is a short binary header in front of the vendor's own
 # preset text, and three quarters printable is where the corpus separates.
 MOSTLY_TEXT_FRACTION = 0.75
 

@@ -1,6 +1,6 @@
 """FabFilter's own chunk, its editor state, and the re-encodes between them.
 
-MODEL.md's fourth rung: nobody migrates the patch for you, so someone has to
+The fourth state rung: nobody migrates the patch for you, so someone has to
 parse the source format and write the target's. This is that parser and that
 serializer, for Pro-Q 1 to Pro-Q 3 and for Pro-C 1 to Pro-C 2.
 
@@ -62,7 +62,8 @@ of records with a plugin parameter index and a name, and 566 Pro-C 1 devices
 across 847 of the user's sets agree on all 31 of them with nothing contested.
 So the join below is by name, the same join the derivation rig makes when both
 binaries are available -- with the source names read out of Live's record
-instead of out of the plugin. What that costs is in MODEL.md, "The re-encode".
+instead of out of the plugin. What that costs is written down below, parameter
+by parameter: :data:`PRO_C_1_DROPPED` and :data:`PRO_C_1_ENUM_WIDENING`.
 """
 
 from __future__ import annotations
@@ -629,7 +630,7 @@ register_custom_state(PRO_C_2, PRO_C_2_TABLE.convert)
 # not load and no 64-bit host can open. What Live recorded instead is a
 # ``ParameterList`` beside every device -- an index, a name and the value it
 # last saw -- and 566 Pro-C 1 devices across 847 sets agree on all 31 names
-# with nothing contested. See MODEL.md, "The re-encode".
+# with nothing contested.
 
 PRO_C_1_PARAMETERS: tuple[str, ...] = (
     "Characteristic",

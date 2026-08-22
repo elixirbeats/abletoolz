@@ -1,6 +1,7 @@
 """What happens to a plugin's saved patch when its container changes.
 
-The third axis of MODEL.md, and the only hard one. Container and identity are
+The third axis of the plugin transform model -- container, identity, state --
+and the only hard one. Container and identity are
 finite knowledge -- a format pair either has a rewrite or it does not, a class id
 either comes from an authoritative source or it does not. State is per plugin and
 per vendor, and getting it wrong does not fail: the device loads and sounds
@@ -42,7 +43,7 @@ rather than a formality. :class:`ControllerState` and its three shapes --
 :class:`NoControllerState`, :class:`ConstantControllerState`, and the
 FFBS-generation form in :mod:`abletoolz.plugin_parsers.state.fabfilter` -- are what a
 :class:`~abletoolz.plugin_parsers.format_translation.TranslationTarget` declares
-about it. See MODEL.md, "The ControllerState beside it".
+about it.
 
 Where the rest of the axis lives
 --------------------------------
@@ -119,7 +120,7 @@ class StateTransform(enum.StrEnum):
 class CustomState:
     """A per-plugin re-encode, named in a config entry as ``custom:<name>``.
 
-    The fourth rung of MODEL.md: nobody migrates the patch for you, so someone
+    The fourth state rung: nobody migrates the patch for you, so someone
     has to parse the source format and write the target's. That parser is
     registered with :func:`register_custom_state` and reached by name.
     """

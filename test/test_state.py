@@ -1,18 +1,17 @@
 """The state axis: what a mapping entry may say, and what is known about it.
 
-Two halves, and the second one is why this file exists. MODEL.md carries a table
-of every plugin whose state rung has been measured, and
-:data:`~abletoolz.plugin_parsers.state.MEASURED_STATE` carries the same table in
-code. A document and a table that drift apart are worse than either alone -- the
-code would label a conversion with evidence the document no longer claims -- so
-the two are read against each other here, row by row, in both directions.
+Two halves. The first is the seam -- the policies a config entry may name, the
+two registries a vendor module fills, and the refusals that keep an unregistered
+name from being quietly treated as verbatim. The second is the evidence:
+:data:`~abletoolz.plugin_parsers.state.MEASURED_STATE` and what each row's
+evidence is worth, since a rung the bytes merely imply must never print as a
+measurement.
 """
 
 from __future__ import annotations
 
 import datetime
 import pathlib
-import re
 import struct
 from collections.abc import Iterator
 
@@ -61,68 +60,13 @@ from abletoolz.plugin_parsers.state.fabfilter import (
     EditorState,
 )
 
-MODEL = pathlib.Path(__file__).parents[1] / "abletoolz" / "plugin_parsers" / "MODEL.md"
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-# How each evidence value is spelled in the document's prose. "declar" catches
-# both "declares" and "declared"; \bear\b keeps "audition" and friends out.
-_EVIDENCE_IN_PROSE: dict[StateEvidence, re.Pattern[str]] = {
-    StateEvidence.EAR: re.compile(r"\bear\b"),
-    StateEvidence.DECLARED: re.compile(r"declar"),
-    StateEvidence.HOSTED: re.compile(r"\bhosted\b"),
-    StateEvidence.STRUCTURAL: re.compile(r"structural"),
-}
-
-_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def documented_rungs() -> dict[str, tuple[str, str]]:
-    """The "Measured state rungs" table of MODEL.md, as {plugin: (rung, evidence)}."""
-    rows: dict[str, tuple[str, str]] = {}
-    in_table = False
-    for line in MODEL.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            in_table = line.strip() == "## Measured state rungs"
-            continue
-        if not in_table or not line.startswith("|"):
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) != 3 or cells[0] in {"Plugin", "---"}:
-            continue
-        rows[cells[0]] = (cells[1], cells[2])
-    return rows
-
-
-# -- the document and the table say the same thing --------------------------
-
-
-def test_the_document_and_the_code_list_the_same_plugins() -> None:
-    assert set(documented_rungs()) == set(MEASURED_STATE)
-
-
-@pytest.mark.parametrize("plugin", sorted(MEASURED_STATE))
-def test_every_documented_row_matches_its_record(plugin: str) -> None:
-    """Rung, evidence and date, read off the document and off the code."""
-    rung, prose = documented_rungs()[plugin]
-    record = MEASURED_STATE[plugin]
-    assert record.rung == rung
-    written = {evidence for evidence, pattern in _EVIDENCE_IN_PROSE.items() if pattern.search(prose.casefold())}
-    assert written == set(record.evidence)
-    dates = _ISO_DATE.findall(prose)
-    assert dates == ([record.date.isoformat()] if record.date is not None else [])
-
-
-def test_the_documented_rungs_are_rungs_the_code_knows() -> None:
-    """A row naming a rung no enum member covers would be a silent typo."""
-    for rung, _prose in documented_rungs().values():
-        assert StateRung(rung) is not StateRung.UNKNOWN
-
 
 # -- what a measurement is worth --------------------------------------------
 
 
 def test_a_heard_conversion_is_predictable() -> None:
-    """MODEL.md's rule: measured by ear or declared by the vendor, or it is a guess."""
+    """The rule: measured by ear or declared by the vendor, or it is a guess."""
     assert MEASURED_STATE["Serum"].predictable
     assert MEASURED_STATE["kHs Distortion"].predictable
 
