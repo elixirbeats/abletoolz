@@ -23,12 +23,13 @@ from abletoolz.plugin_parsers import PluginKind
 from abletoolz.plugin_parsers import format_translation as translation
 from abletoolz.plugin_parsers.config import AbletoolzConfig
 from abletoolz.plugin_parsers.format_translation import TranslationTarget
-from abletoolz.plugin_parsers.state import (
+from abletoolz.plugin_parsers.state import StateTransform
+from abletoolz.plugin_parsers.state.fabfilter import (
     FABFILTER_CONSTANT_CONTROLLER,
     FABFILTER_CONTROLLER_TRAILER,
-    StateTransform,
+    EditorState,
+    FfbsControllerState,
 )
-from abletoolz.plugin_parsers.state.fabfilter import EditorState, FfbsControllerState
 from abletoolz.plugin_parsers.state.fxbk import LegacyBank
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
