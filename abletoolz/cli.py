@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import json
 import logging
 import pathlib
 import shutil
@@ -10,8 +11,12 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import pydantic
+
 from abletoolz import __version__, console
 from abletoolz.live_set import AbletonSet
+from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
+from abletoolz.live_set.describe import DescribeLevel, describe_json
 from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, G, M, R, SetError, Y
 from abletoolz.plugin_parsers import AbletoolzConfig, get_all_parsers, load_config
 from abletoolz.sample_databaser import create_db
@@ -45,7 +50,12 @@ ANALYSIS_FLAGS = (
     "list_tracks",
     "save",
     "xml",
+    "describe",
 )
+
+# --apply-ops writes through its own explicit --output contract, bypassing
+# process_set/-s entirely; still exclusive with --db like every other command.
+AUTHORING_FLAGS = ("apply_ops",)
 
 
 def get_pathlib_objects(srcs: list[str]) -> list[pathlib.Path]:
@@ -256,6 +266,35 @@ def parse_arguments() -> argparse.Namespace:
         default=False,
         help="List all registered plugin parsers and their buffer formats.",
     )
+
+    authoring = parser.add_argument_group("authoring (LLM-facing describe/apply surface)")
+    authoring.add_argument(
+        "--describe",
+        choices=[level.value for level in DescribeLevel],
+        default=None,
+        const=DescribeLevel.STRUCTURE.value,
+        nargs="?",
+        help="Print a tiered JSON description of the set to stdout: structure (tracks only), "
+        "patterns (deduplicated clip content and placement), or full (patterns plus per-note nuance). "
+        "Defaults to structure when given with no value.",
+    )
+    authoring.add_argument(
+        "--apply-ops",
+        type=pathlib.Path,
+        default=None,
+        metavar="OPS_JSON",
+        help="Apply a batch of write operations (see doc/ or apply_ops.py for the ops document shape) "
+        "from a JSON file to the single input set given as srcs. Requires --output.",
+    )
+    authoring.add_argument(
+        "--output",
+        type=pathlib.Path,
+        default=None,
+        metavar="NEW_ALS",
+        help="Destination for --apply-ops: the input set is copied here first, then edited in place. "
+        "Refused if the path is missing or already exists.",
+    )
+
     processing = parser.add_argument_group("processing")
     processing.add_argument(
         "-v",
@@ -276,8 +315,16 @@ def parse_arguments() -> argparse.Namespace:
         parser.error("Can only use --fix-samples-collect or --fix-samples-absolute, not both!")
     if args.fold and args.unfold:
         parser.error("Only set unfold or fold, not both.")
-    if args.db and (args.list_parsers or any(getattr(args, name) for name in EDIT_FLAGS + ANALYSIS_FLAGS)):
+    if args.db and (
+        args.list_parsers or any(getattr(args, name) for name in EDIT_FLAGS + ANALYSIS_FLAGS + AUTHORING_FLAGS)
+    ):
         parser.error("--db/--database cannot be used with other commands!")
+    if args.apply_ops and not args.output:
+        parser.error("--apply-ops requires --output.")
+    if args.output and not args.apply_ops:
+        parser.error("--output only makes sense with --apply-ops.")
+    if args.apply_ops and len(args.srcs) != 1:
+        parser.error("--apply-ops takes exactly one input set (not a directory).")
     if not args.list_parsers and not args.srcs:
         parser.error("No sets or directories given, nothing to do.")
     return args
@@ -316,6 +363,9 @@ def process_set(
 
     if args.list_tracks:
         console.render_tracks(ableton_set.tracks.load())
+
+    if args.describe:
+        print(describe_json(ableton_set, DescribeLevel(args.describe)))
 
     if args.check_samples:
         console.render_missing_samples(ableton_set.samples.check())
@@ -375,6 +425,34 @@ def list_parsers() -> None:
         )
 
 
+def run_apply_ops(args: argparse.Namespace) -> int:
+    """Copy the input set to --output, apply an ops document to the copy, and save it.
+
+    Refuses an existing --output rather than overwriting it: the copy step is
+    the only backup an apply-ops run gets, so it has to land somewhere new.
+    """
+    output_path: pathlib.Path = args.output
+    if output_path.exists():
+        logger.error("%sOutput %s already exists, refusing to overwrite.", R, output_path)
+        return 1
+    input_path = pathlib.Path(args.srcs[0])
+    shutil.copy2(input_path, output_path)
+
+    ableton_set = AbletonSet(output_path)
+    if not ableton_set.parse():
+        return -2
+    try:
+        ops_document = OpsDocument.model_validate(json.loads(args.apply_ops.read_text(encoding="utf-8")))
+        results = apply_ops(ableton_set, ops_document.ops)
+    except (pydantic.ValidationError, ValueError, OSError) as exc:
+        logger.error("%sCould not apply ops: %s", R, exc)
+        return 1
+    ableton_set.save_set()
+    print(json.dumps({"applied": len(results), "output": str(output_path), "results": results}, separators=(",", ":")))
+    logger.info("%sApplied %s op(s) and saved to %s", G, len(results), output_path)
+    return 0
+
+
 def process(args: argparse.Namespace) -> int:
     """Process arguments.
 
@@ -385,6 +463,9 @@ def process(args: argparse.Namespace) -> int:
         integer with exit code, zero indicating success, non-zero indicating error.
 
     """
+    if args.apply_ops:
+        return run_apply_ops(args)
+
     # Load config
     config = load_config()
 
@@ -450,8 +531,12 @@ def main() -> None:
     args = parse_arguments()
 
     logging.getLogger("colormath").setLevel(logging.WARNING)
+    # --describe and --apply-ops write a machine-readable document to stdout, so
+    # everything a human reads -- banners, progress, warnings -- moves to stderr
+    # and a consumer can pipe stdout straight into a JSON parser.
+    machine_readable = bool(args.describe or args.apply_ops)
     logging.basicConfig(
-        stream=sys.stdout,
+        stream=sys.stderr if machine_readable else sys.stdout,
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(message)s",
         datefmt="%H:%M:%S",

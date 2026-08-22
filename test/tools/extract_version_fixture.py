@@ -164,6 +164,33 @@ def _value(parent: ET.Element | None, tag: str) -> str | None:
     return el.get("Value") if el is not None else None
 
 
+def _midi_track_clips(liveset: ET.Element) -> list[ET.Element]:
+    """Every real (track-owned) MidiClip: session ClipSlot + arrangement ClipTimeable.
+
+    Mirrors the session/arrangement split ``AbletonTrack.clips_clipview``/
+    ``clips_arrangement`` already establish, written directly against the XML
+    so harvest() stays independent of the abletoolz code under test.
+    Deliberately excludes ``GroovePool/Grooves/Groove/Clip/Value/MidiClip``: a
+    groove-extraction template copy that belongs to no track and never plays
+    back, not a session or arrangement clip.
+    """
+    clips: list[ET.Element] = []
+    tracks_el = liveset.find("Tracks")
+    if tracks_el is None:
+        return clips
+    for track in tracks_el:
+        if track.tag != "MidiTrack":
+            continue
+        for clip_slot in track.iter("ClipSlot"):
+            midi_clip = clip_slot.find("ClipSlot/Value/MidiClip")
+            if midi_clip is not None:
+                clips.append(midi_clip)
+        clip_timeable = track.find(".//ClipTimeable")
+        if clip_timeable is not None:
+            clips.extend(clip_timeable.iter("MidiClip"))
+    return clips
+
+
 def harvest(root: ET.Element) -> dict[str, object]:
     """Ground truth by direct XPath, independent of abletoolz code."""
     creator = root.get("Creator", "")
@@ -257,6 +284,7 @@ def harvest(root: ET.Element) -> dict[str, object]:
         ),
         "lane_height_count": sum(1 for _ in root.iter("LaneHeight")),
         "furthest_bar": int(max(current_ends) / 4) if current_ends else 0,
+        "midi_note_counts": sum(len(clip.findall(".//MidiNoteEvent")) for clip in _midi_track_clips(liveset)),
     }
 
 
