@@ -75,9 +75,11 @@ def _get_file_version_strings(path: pathlib.Path) -> dict[str, str]:
                 sub_block = f"\\StringFileInfo\\{t}\\{key}"
                 lptr = ctypes.c_void_p()
                 lsize = ctypes.c_uint32()
-                if ctypes.windll.version.VerQueryValueW(buf, sub_block, ctypes.byref(lptr), ctypes.byref(lsize)):
-                    # VerQueryValueW returning truthy guarantees lptr.value is set.
-                    val = ctypes.wstring_at(lptr.value, lsize.value)  # type: ignore[arg-type]
+                found = ctypes.windll.version.VerQueryValueW(buf, sub_block, ctypes.byref(lptr), ctypes.byref(lsize))
+                # A truthy answer means the pointer was written; asking for the
+                # address as well is what says so in a way a type checker reads.
+                if found and lptr.value:
+                    val = ctypes.wstring_at(lptr.value, lsize.value)
                     if val:
                         strings[key] = val.strip("\x00")
         return strings
