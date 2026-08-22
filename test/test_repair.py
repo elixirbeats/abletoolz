@@ -32,7 +32,6 @@ from abletoolz.plugin_parsers.format_translation import (
     read_identity,
     resolve_target,
     translate_device,
-    translate_set,
 )
 from abletoolz.plugin_parsers.mapping import name_variants, strip_bitness, suggest_target_name
 from abletoolz.plugin_parsers.repair import DeviceRepair, RepairStatus, repair_set
@@ -768,16 +767,6 @@ def test_a_stub_device_does_not_stop_the_devices_around_it() -> None:
     )
     assert only(report, "Wolfram").status is RepairStatus.INCOMPLETE_DEVICE
     assert only(report, "Texture").status is RepairStatus.FIXED
-
-
-def test_translating_a_whole_set_leaves_a_stub_alone_too() -> None:
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    make_stub(info)
-    before = ET.tostring(info)
-    report = translate_set(live_set, uid_lookup=UidLookup())
-    assert ("Serum_x64" in [name for _track, name in report.unresolved]) is True
-    assert ET.tostring(info) == before
 
 
 def test_translating_a_stub_on_purpose_refuses_loudly() -> None:

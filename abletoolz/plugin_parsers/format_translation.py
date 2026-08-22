@@ -27,8 +27,7 @@ nowhere in a VST2 device, so it has to come from somewhere else. The
 from __future__ import annotations
 
 import dataclasses
-import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 from xml.etree import ElementTree as ET
 
@@ -51,15 +50,7 @@ from abletoolz.versioning import MIN_SUPPORTED, Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
-
-logger = logging.getLogger(__name__)
-
 type UidFields = tuple[int, int, int, int]
-
-# Track name, name in the source format, name in the target format.
-type TranslatedDevice = tuple[str, str, str]
-# Track name, name in the source format.
-type UnresolvedDevice = tuple[str, str]
 
 
 class IncompleteDevice(ValueError):
@@ -149,33 +140,6 @@ class PluginIdentity:
     format: PluginKind
     name: str
     is_instrument: bool | None
-
-
-@dataclasses.dataclass(frozen=True)
-class TranslationReport:
-    """What one :func:`translate_set` pass did.
-
-    ``too_old`` is kept apart from ``unresolved`` because the two ask different
-    things of the user. An unresolved device wants a mapping entry or a class
-    id; a device in ``too_old`` has both, and wants the set opened in Live and
-    re-saved first -- the target format is not a thing this document can hold.
-    """
-
-    translated: list[TranslatedDevice]
-    unresolved: list[UnresolvedDevice]
-    too_old: list[UnresolvedDevice] = dataclasses.field(default_factory=list)
-
-    @property
-    def translated_count(self) -> int:
-        return len(self.translated)
-
-    @property
-    def unresolved_count(self) -> int:
-        return len(self.unresolved)
-
-    @property
-    def too_old_count(self) -> int:
-        return len(self.too_old)
 
 
 def _vst3(
@@ -570,66 +534,3 @@ def device_infos(live_set: AbletonSet) -> list[tuple[ET.Element, PluginKind]]:
         for kind in _READERS:
             found.extend((info, kind) for info in plugin_desc.iter(INFO_TAGS[kind]))
     return found
-
-
-# -- whole set --------------------------------------------------------------
-
-
-def translate_set(
-    live_set: AbletonSet,
-    *,
-    targets: Mapping[str, ConfiguredTarget] | None = None,
-    uid_lookup: UidResolver | None = None,
-) -> TranslationReport:
-    """Translate every device in a parsed set whose mapping entry says where to.
-
-    Nothing here picks a direction. Each entry carries its own ``to`` format and
-    that is the only thing consulted, so one table can hold entries pointing
-    different ways. Caller-supplied ``targets`` win over
-    :data:`KNOWN_TRANSLATIONS`, and a target that names a plugin without giving
-    its class id gets one from ``uid_lookup``.
-
-    Devices with no entry, an entry naming a pair nothing can translate, an
-    entry whose class id nothing knows, or a stub written for a plugin the host
-    never loaded are left exactly as they were and reported, since a wrong class
-    id gives Live a device that loads as something else. So is a device whose
-    target format is too new for the set's own schema -- see
-    :func:`set_supports`, which is the one refusal that would otherwise cost the
-    whole file rather than the one device. The caller saves.
-    """
-    table: dict[str, ConfiguredTarget] = dict(KNOWN_TRANSLATIONS)
-    table.update(targets or {})
-    version = live_set.version_tuple
-    translated: list[TranslatedDevice] = []
-    unresolved: list[UnresolvedDevice] = []
-    too_old: list[UnresolvedDevice] = []
-
-    for info, source in device_infos(live_set):
-        name = read_identity(info).name
-        configured = table.get(name)
-        track = live_set.plugins.track_name(info)
-        if configured is None or not has_translator(source, configured.to_format) or not is_translatable(info):
-            unresolved.append((track, name))
-            continue
-        # After the device questions, because this one is about the file: the
-        # answer is the same for every device in it.
-        if not set_supports(configured.to_format, version):
-            logger.warning(
-                "A set saved by Live %s cannot hold a %s device, so %s stays as it is."
-                " Open the set in Live and save it first.",
-                ".".join(str(part) for part in version),
-                configured.to_format,
-                name,
-            )
-            too_old.append((track, name))
-            continue
-        target = resolve_target(configured, uid_lookup)
-        if target is None:
-            logger.warning("No class id known for %s, so %s stays as it is", configured.name, name)
-            unresolved.append((track, name))
-            continue
-        translate_device(info, target)
-        translated.append((track, name, target.name))
-        logger.debug("Translated %s to %s %s on %s", name, target.to_format, target.name, track)
-
-    return TranslationReport(translated=translated, unresolved=unresolved, too_old=too_old)

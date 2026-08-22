@@ -38,12 +38,7 @@ from abletoolz.plugin_parsers import (
     fix_plugin,
 )
 from abletoolz.plugin_parsers.config import load_config
-from abletoolz.plugin_parsers.format_translation import (
-    ConfiguredTarget,
-    NamedTarget,
-    TranslationReport,
-    translate_set,
-)
+from abletoolz.plugin_parsers.format_translation import ConfiguredTarget
 from abletoolz.plugin_parsers.plugin_db import load_plugin_db
 from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair_set
 from abletoolz.plugin_parsers.uid_sources import UidLookup
@@ -641,26 +636,11 @@ class Plugins:
         """
         return load_plugin_db(config).uid_lookup()
 
-    def translate_formats(self, *, targets: Mapping[str, ConfiguredTarget] | None = None) -> TranslationReport:
-        """Rewrite every device whose mapping entry says what it becomes.
-
-        Targets come from the seed table plus config.yaml, with ``targets``
-        winning over both, and each entry carries the format it points at. Class
-        ids are only hunted for when some target asks for one, so a table of
-        fully measured targets reads nothing off disk. Caller saves.
-        """
-        config = load_config()
-        table = self._configured_targets(config, targets)
-        needs_lookup = any(isinstance(target, NamedTarget) for target in table.values())
-        lookup = self._uid_lookup(config) if needs_lookup else None
-        return translate_set(self._set, targets=table, uid_lookup=lookup)
-
     def repair(self, *, targets: Mapping[str, ConfiguredTarget] | None = None) -> RepairReport:
         """Replace only the devices this machine cannot load, and only mapped ones.
 
-        The narrow counterpart to :meth:`translate_formats`: same mapping table,
-        same translation, but a device Live can still load is left alone and a
-        device with no mapping is reported rather than guessed at. Caller saves.
+        A device Live can still load is left alone, and a device with no mapping
+        entry is reported rather than guessed at. Caller saves.
         """
         config = load_config()
         table = self._configured_targets(config, targets)
