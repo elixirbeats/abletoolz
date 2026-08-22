@@ -63,6 +63,11 @@ testpaths = ["test"]
 strict = true
 python_version = "3.12"
 pretty = true
+# The project root is the only place a module name is counted from. Without
+# this, an editable install lets mypy reach the same file twice -- once through
+# the checkout and once through site-packages -- and it stops rather than guess.
+explicit_package_bases = true
+mypy_path = "."
 
 [[tool.mypy.overrides]]
 module = ["colormath.*", "librosa", "scipy.*"]
