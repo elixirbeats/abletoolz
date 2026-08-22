@@ -6,8 +6,11 @@ console script takes — and asserts on the ``SystemExit`` code.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -75,3 +78,48 @@ def test_db_excludes_edit_flags(monkeypatch: pytest.MonkeyPatch, tmp_path: pathl
 
 def test_list_parsers_exits_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     assert run_cli(monkeypatch, "--list-parsers") == 0
+
+
+# --- machine-readable stdout ------------------------------------------------
+#
+# Run out of process on purpose: ``logging.basicConfig`` configures the root
+# logger once per interpreter, so an in-process second call would keep the
+# first call's stream and prove nothing.
+
+
+def run_module(tmp_path: pathlib.Path, *argv: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "abletoolz", *argv],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=tmp_path,
+    )
+
+
+def test_describe_stdout_is_json_and_nothing_else(tmp_path: pathlib.Path) -> None:
+    """A consumer pipes stdout into a JSON parser; the banners go to stderr."""
+    set_path = tmp_path / "described.als"
+    shutil.copy(SKELETONS / "12.4.5b.als", set_path)
+    result = run_module(tmp_path, "--describe", "patterns", str(set_path))
+
+    document = json.loads(result.stdout)
+    assert set(document) == {"set", "tracks", "patterns", "session", "arrangement"}
+    assert "Parsing:" in result.stderr
+
+
+def test_apply_ops_stdout_is_a_json_report(tmp_path: pathlib.Path) -> None:
+    set_path = tmp_path / "input.als"
+    shutil.copy(SKELETONS / "12.4.5b.als", set_path)
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(
+        json.dumps({"ops": [{"op": "set_notes", "track": {"name": "1-LOW"}, "clip": {"slot": 1}, "notes": []}]}),
+        encoding="utf-8",
+    )
+    output = tmp_path / "output.als"
+    result = run_module(tmp_path, "--apply-ops", str(ops_path), "--output", str(output), str(set_path))
+
+    report = json.loads(result.stdout)
+    assert report["applied"] == 1
+    assert report["output"] == str(output)
+    assert output.exists()

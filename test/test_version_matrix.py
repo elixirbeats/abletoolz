@@ -181,6 +181,14 @@ def test_scan_vst3_refs(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("key", _params())
+def test_midi_note_counts(key: str) -> None:
+    """Every MidiNoteEvent under a track's session/arrangement clips is surfaced."""
+    ableton_set = make_set(key)
+    total_notes = sum(len(clip.notes) for clip in ableton_set.clips.midi())
+    assert total_notes == EXPECTED[key]["midi_note_counts"]
+
+
+@pytest.mark.parametrize("key", _params())
 def test_save_and_reload_roundtrip(key: str, tmp_path: pathlib.Path) -> None:
     """A set survives save: the written file reparses with the same version and bpm."""
     copy = tmp_path / f"{key}.als"

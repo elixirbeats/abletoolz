@@ -9,6 +9,9 @@ from xml.etree import ElementTree as ET
 
 from abletoolz import versioning
 from abletoolz.live_set import persistence
+from abletoolz.live_set.clips import Clips
+from abletoolz.live_set.describe import Describe
+from abletoolz.live_set.devices import Devices
 from abletoolz.live_set.plugins import Plugins
 from abletoolz.live_set.samples import Samples
 from abletoolz.live_set.tracks import Tracks
@@ -64,12 +67,25 @@ class AbletonSet:
         return Tracks(self)
 
     @functools.cached_property
+    def clips(self) -> Clips:
+        return Clips(self)
+
+    @functools.cached_property
+    def devices(self) -> Devices:
+        return Devices(self)
+
+    @functools.cached_property
     def samples(self) -> Samples:
         return Samples(self)
 
     @functools.cached_property
     def plugins(self) -> Plugins:
         return Plugins(self)
+
+    @functools.cached_property
+    def describe(self) -> Describe:
+        """Callable accessor: ``set.describe(level)`` -- see ``describe.Describe``."""
+        return Describe(self)
 
     def __eq__(self, o: object) -> bool:
         """Compare two sets."""
