@@ -7,7 +7,6 @@ import dataclasses
 import functools
 import logging
 import pathlib
-import plistlib
 import sqlite3
 import sys
 import threading
@@ -28,6 +27,7 @@ from abletoolz.misc import (
     default_live_database_dir,
     default_vst_dirs,
     get_element,
+    read_plist,
 )
 from abletoolz.plugin_parsers import (
     AbletoolzConfig,
@@ -96,12 +96,7 @@ def _fourcc_int(value: str) -> int:
 
 def plist_au_identifiers(plist_path: pathlib.Path) -> set[AuIdentifier]:
     """Exact component identities declared by one Audio Unit bundle."""
-    try:
-        with plist_path.open("rb") as file:
-            plist = plistlib.load(file)
-    except (plistlib.InvalidFileException, ValueError) as error:
-        logger.debug("Skipping malformed Info.plist %s: %s", plist_path, error)
-        return set()
+    plist = read_plist(plist_path)
     identifiers: set[AuIdentifier] = set()
     components = plist.get("AudioComponents")
     if not isinstance(components, list):
@@ -157,12 +152,7 @@ def audio_component_registered(identifier: AuIdentifier) -> bool:
 
 def plist_declared_names(plist_path: pathlib.Path) -> set[str]:
     """Names a bundle's Info.plist declares. Empty for a malformed plist."""
-    try:
-        with plist_path.open("rb") as file:
-            plist = plistlib.load(file)
-    except (plistlib.InvalidFileException, ValueError) as error:
-        logger.debug("Skipping malformed Info.plist %s: %s", plist_path, error)
-        return set()
+    plist = read_plist(plist_path)
     names: set[str] = set()
     for key in ("CFBundleDisplayName", "CFBundleName"):
         value = plist.get(key)

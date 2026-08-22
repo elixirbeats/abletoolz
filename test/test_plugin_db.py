@@ -9,10 +9,12 @@ product name -- nothing reads the machine running the tests.
 from __future__ import annotations
 
 import datetime
+import functools
 import json
 import pathlib
 
 import pytest
+from test_read_plugin_files import ARM64, X86_64, fat, make_bundle
 from test_repair import OTHER_CID, OTHER_FIELDS, SERUM_CID, SERUM_FIELDS, installed, write_database, write_uid_db
 
 from abletoolz.plugin_parsers import plugin_db
@@ -28,6 +30,7 @@ from abletoolz.plugin_parsers.plugin_db import (
     read_plugin_db,
     write_plugin_db,
 )
+from abletoolz.plugin_parsers.read_plugin_files import scan_plugin_dirs
 
 BUILT = datetime.datetime(2026, 8, 12, 9, 30, tzinfo=datetime.UTC)
 
@@ -113,6 +116,35 @@ def test_a_file_live_already_scanned_is_not_recorded_under_its_file_name(tmp_pat
 
     database = build_plugin_db(database_dir=database_dir, vst_dirs=[folder], built=BUILT)
     assert [entry.name for entry in database.plugins] == ["Ozone 9"]
+
+
+def test_a_scanned_mac_bundle_becomes_a_record_of_its_own_format(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A mac plugin reaches the database the same way a Windows one does, minus a vendor.
+
+    Nothing in an Info.plist names who made the plugin, so the company Windows
+    reads off a version resource is simply absent rather than guessed at.
+    """
+    monkeypatch.setattr(plugin_db, "scan_plugin_dirs", functools.partial(scan_plugin_dirs, platform="darwin"))
+    folder = tmp_path / "VST3"
+    folder.mkdir()
+    bundle = make_bundle(
+        folder,
+        "Pro-Q 3.vst3",
+        plist={"CFBundleName": "Pro-Q 3", "CFBundleExecutable": "Pro-Q 3", "CFBundleShortVersionString": "3.24"},
+        binary=fat(X86_64, ARM64),
+        executable="Pro-Q 3",
+    )
+    database = build_plugin_db(database_dir=None, vst_dirs=[folder], built=BUILT)
+
+    (entry,) = database.plugins
+    assert entry.name == "Pro-Q 3"
+    assert entry.kind is PluginKind.VST3
+    assert entry.source is PluginSource.FOLDER_SCAN
+    assert entry.module_path == bundle
+    assert entry.arch == "universal"
+    assert entry.vendor is None
 
 
 def write_pe(path: pathlib.Path, *, sixty_four_bit: bool = True) -> pathlib.Path:
