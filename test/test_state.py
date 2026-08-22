@@ -34,9 +34,6 @@ from abletoolz.plugin_parsers.state import (
 )
 from abletoolz.plugin_parsers.state import (
     CUSTOM_PREFIX,
-    FABFILTER_CONSTANT_CONTROLLER,
-    FABFILTER_CONTROLLER_TRAILER,
-    FABFILTER_FABF_CONTROLLER,
     MEASURED_STATE,
     NO_CONTROLLER_STATE,
     UNMEASURED,
@@ -48,7 +45,6 @@ from abletoolz.plugin_parsers.state import (
     StateRung,
     StateTransform,
     StateTransformError,
-    _inferred,
     custom_state,
     measured_state,
     parse_controller_state,
@@ -58,7 +54,13 @@ from abletoolz.plugin_parsers.state import (
     registered_custom_states,
     state_bytes,
 )
-from abletoolz.plugin_parsers.state.fabfilter import EditorState
+from abletoolz.plugin_parsers.state.fabfilter import (
+    FABFILTER_CONSTANT_CONTROLLER,
+    FABFILTER_CONTROLLER_TRAILER,
+    FABFILTER_FABF_CONTROLLER,
+    EditorState,
+)
+from abletoolz.plugin_parsers.state.measured import _inferred
 
 MODEL = pathlib.Path(__file__).parents[1] / "abletoolz" / "plugin_parsers" / "MODEL.md"
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"

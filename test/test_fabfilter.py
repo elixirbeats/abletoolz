@@ -23,9 +23,6 @@ from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind
 from abletoolz.plugin_parsers.format_translation import TranslationTarget, translate_device
 from abletoolz.plugin_parsers.state import (
-    _FABFILTER_EDITOR_MAGIC,
-    FABFILTER_CONTROLLER_TRAILER,
-    FABFILTER_PROCESSOR_TRAILER,
     CustomState,
     StateEvidence,
     StateRung,
@@ -47,9 +44,12 @@ from abletoolz.plugin_parsers.state.derived import (
     read_derived_table,
 )
 from abletoolz.plugin_parsers.state.fabfilter import (
+    _FABFILTER_EDITOR_MAGIC,
     _Q1_TO_Q3_SHAPE,
     _Q1_TO_Q3_SLOPE,
     EDITOR_STATE_VERSION,
+    FABFILTER_CONTROLLER_TRAILER,
+    FABFILTER_PROCESSOR_TRAILER,
     FFBS_MAGIC,
     NO_INSTANCE,
     PRO_C_1_DROPPED,

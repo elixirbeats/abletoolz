@@ -74,9 +74,10 @@ import struct
 from collections.abc import Sequence
 
 from abletoolz.plugin_parsers.state import (
-    FABFILTER_CONTROLLER_TRAILER,
-    FABFILTER_PROCESSOR_TRAILER,
+    ConstantControllerState,
+    StateTransform,
     StateTransformError,
+    register_built_in_state,
     register_controller_state,
     register_custom_state,
 )
@@ -87,6 +88,53 @@ from abletoolz.plugin_parsers.state.fxbk import LegacyBank
 # word, then that many bytes.
 _U32 = struct.Struct("<I")
 _I32 = struct.Struct("<i")
+
+
+# -- cutting a VST2 chunk in half -------------------------------------------
+
+# The 4CC each FFBS-generation FabFilter product's editor state begins with, read
+# off the plugins themselves on 2026-08-13. Inside a VST2 chunk the same magic is
+# where the processor's half ends.
+_FABFILTER_EDITOR_MAGIC = (b"FV3l", b"FQ3p", b"FQ4p", b"F3Ts", b"FS2a")
+
+# What a FabFilter VST3 puts after its processor state and a VST2 chunk does not.
+# Written rather than moved by a re-encode, which has no chunk to cut it off.
+FABFILTER_PROCESSOR_TRAILER = b"FFpr\x01\x00\x00\x00\x00\x00\x00\x00"
+
+# The same idea on the controller side: "FFed", a zero word and a float32 1.0.
+# Measured across 200 sets -- every Pro-C 2, Pro-L 2, Pro-MB and Pro-R device
+# (357 of them) writes exactly these twelve bytes as its whole ControllerState,
+# with no variation at all, and every Pro-Q 3, Saturn 2 and Timeless 3 device
+# ends its longer one with them. The two fields are carried, not understood.
+FABFILTER_CONTROLLER_TRAILER = b"FFed\x00\x00\x00\x00\x00\x00\x80\x3f"
+
+
+def _fabfilter_state(payload: bytes) -> bytes:
+    """Cut an FFBS-generation FabFilter VST2 chunk down to its VST3 processor state.
+
+    A VST2 chunk is the processor's state, then the editor's, and Ableton's
+    ``ProcessorState`` is the first half plus a twelve byte trailer. Measured
+    2026-08-13: a Volcano 3 VST2 buffer cut here and given the trailer is byte
+    for byte a corpus Volcano 3 ``ProcessorState`` of the same patch, and the
+    plugin hands those bytes straight back when asked.
+
+    Copying the chunk whole is the trap this replaces. The processor half still
+    reaches the DSP, so the device sounds right and passes a listen -- while the
+    edit controller never sees the patch and every parameter reads as default.
+    """
+    for magic in _FABFILTER_EDITOR_MAGIC:
+        found = payload.find(magic)
+        if found > 0:
+            return payload[:found] + FABFILTER_PROCESSOR_TRAILER
+    known = ", ".join(magic.decode("ascii") for magic in _FABFILTER_EDITOR_MAGIC)
+    raise StateTransformError(
+        f"No FabFilter editor section in a {len(payload)} byte chunk (looked for {known}). "
+        "The older FabF-generation products -- Pro-C 2, Pro-L 2, Pro-R, Pro-MB, Pro-DS, Pro-G, "
+        "Micro and their 1.x predecessors -- write a different chunk that nothing here can convert yet."
+    )
+
+
+register_built_in_state(StateTransform.FABFILTER, _fabfilter_state)
 
 
 # -- the FFBS chunk ---------------------------------------------------------
@@ -108,7 +156,7 @@ class FfbsState:
     ``tail`` is what follows the floats, and which it is says which side of the
     format boundary the state came from: a VST2 chunk carries the editor's own
     state there, and a VST3 ``ProcessorState`` carries
-    :data:`~abletoolz.plugin_parsers.state.FABFILTER_PROCESSOR_TRAILER`.
+    :data:`FABFILTER_PROCESSOR_TRAILER`.
     """
 
     version: int
@@ -141,8 +189,8 @@ class FfbsState:
 # -- the editor state on the other side of the chunk ------------------------
 
 # The 4CC each FFBS-generation product's editor state opens with. The same
-# magics :mod:`abletoolz.plugin_parsers.state` looks for when it cuts a VST2
-# chunk in half, which is the point: the half it cuts off is this.
+# magics :func:`_fabfilter_state` looks for when it cuts a VST2 chunk in half,
+# which is the point: the half it cuts off is this.
 PRO_Q3_EDITOR_MAGIC = b"FQ3p"
 SATURN_2_EDITOR_MAGIC = b"FS2a"
 TIMELESS_3_EDITOR_MAGIC = b"F3Ts"
@@ -211,7 +259,7 @@ class EditorState:
         of length-prefixed strings.
 
     The VST3 form is that followed by
-    :data:`~abletoolz.plugin_parsers.state.FABFILTER_CONTROLLER_TRAILER`, which
+    :data:`FABFILTER_CONTROLLER_TRAILER`, which
     is also the whole of what a FabF-generation product writes -- it has no
     editor state to put in front of it.
 
@@ -334,9 +382,18 @@ PRO_Q3_CONTROLLER = FfbsControllerState(PRO_Q3_EDITOR_MAGIC)
 SATURN_2_CONTROLLER = FfbsControllerState(SATURN_2_EDITOR_MAGIC)
 TIMELESS_3_CONTROLLER = FfbsControllerState(TIMELESS_3_EDITOR_MAGIC)
 
-# Reachable from a config entry as ``controller: <name>``. One per product
-# because the magic is the product's, and the magic is what tells a carried
-# editor state from a bank that never had one.
+# What the FabF-generation products -- Pro-C 2, Pro-L 2, Pro-MB, Pro-R and their
+# siblings -- write. Their VST2 exposes no chunk, so there is no editor half to
+# carry and the trailer is the whole of it.
+FABFILTER_CONSTANT_CONTROLLER = ConstantControllerState(FABFILTER_CONTROLLER_TRAILER)
+
+# Reachable from a config entry as ``controller: <name>``. One per product for
+# the FFBS generation, because the magic is the product's and the magic is what
+# tells a carried editor state from a bank that never had one; one shared name
+# for the FabF generation, which has nothing to tell apart.
+FABFILTER_FABF_CONTROLLER = "fabfilter-fabf"
+
+register_controller_state(FABFILTER_FABF_CONTROLLER, FABFILTER_CONSTANT_CONTROLLER)
 register_controller_state("fabfilter-pro-q-3", PRO_Q3_CONTROLLER)
 register_controller_state("fabfilter-saturn-2", SATURN_2_CONTROLLER)
 register_controller_state("fabfilter-timeless-3", TIMELESS_3_CONTROLLER)
