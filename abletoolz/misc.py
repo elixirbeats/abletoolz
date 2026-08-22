@@ -1,15 +1,19 @@
 """Define root level vars and functions."""
 
 import enum
+import logging
 import os
 import pathlib
+import plistlib
 import sys
-from typing import Literal, overload
+from typing import Literal, cast, overload
 from xml.etree import ElementTree as ET
 
 import colorama
 
 colorama.init(autoreset=True)
+
+logger = logging.getLogger(__name__)
 
 
 def _get_user_config_dir() -> pathlib.Path:
@@ -86,6 +90,24 @@ def default_vst_dirs() -> list[pathlib.Path]:
             pathlib.Path("/usr/local/lib/vst3"),
         ]
     return [candidate for candidate in candidates if candidate.is_dir()]
+
+
+def read_plist(plist_path: pathlib.Path) -> dict[str, object]:
+    """What one bundle's Info.plist declares, empty when it can't be read.
+
+    A macOS plugin is a directory whose Info.plist is the only place its name,
+    version and Audio Unit identity are written down. plistlib reads both the
+    XML and the binary form on any OS, so bundles stay readable -- and testable
+    -- away from a Mac. One unreadable plist skips its bundle rather than
+    killing the scan around it.
+    """
+    try:
+        with plist_path.open("rb") as file:
+            plist = plistlib.load(file)
+    except (plistlib.InvalidFileException, ValueError, OSError) as error:
+        logger.debug("Skipping malformed Info.plist %s: %s", plist_path, error)
+        return {}
+    return cast("dict[str, object]", plist) if isinstance(plist, dict) else {}
 
 
 # These are the hex values of the drop down color menu, arranged in the same order of rows and columns.
