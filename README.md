@@ -11,8 +11,6 @@ It can:
 - Validate all plugins in a set are installed.
 - Analyze plugin state with plugin-specific parsers, and fix what they understand — like sample paths inside a plugin's saved state that no longer exist on disk. `--list-parsers` shows what's registered.
 - Fold/Unfold all tracks, and/or set track height and widths.
-- Prepend the set version name to the beginning of the file.
-- Append the number of bars of the track, and the bpm to the end of the file.
 - Dump the XML of the set, in case you want to dissect how they are structured or contribute to this project : )
 
 It also:
@@ -265,13 +263,6 @@ development. You can edit this xml file, rename it from `.xml` to  `.als` and Ab
 option multiple times, the previous xml file will be moved into the `abletoolz_backup`
 folder with the same renaming behavior as `-s/--save`.
 
-`--append-bars-bpm` Used with `-s/--save`, appends the longest clip or furthest arrangement bar length and bpm to the
-set name. For example,
-`myset.als` --> `myset_32bars_90bpm.als`. Running this multiple times overwrites this section only (so your filename
-wont keep growing).
-
-`--prepend-version` Puts the ableton version used to create set at beginning of file name.
-
 ### Records - what a run writes down
 
 Console output is for reading; these two files are for programs, and for you next week.
@@ -346,15 +337,6 @@ Moving original file to backup directory:
 D:\all_sets\myset.als --> D:\all_sets\abletoolz_backup\myset__1.als
 Saved set to D:\all_sets\myset.als
 Took 0:00:00.371096 to process 1 set(s): 1 ok, 0 failed
-```
-
-```
-abletoolz "D:\all_sets\myset.als" -s --append-bars-bpm
-```
-```
-Appending bars and bpm, new set name: myset_400bars_124.00bpm.als
-Saved set to D:\all_sets\myset_400bars_124.00bpm.als
-Restored creation and modification times: 05/17/2020 05:13:08, 05/17/2020 05:13:12
 ```
 
 ## Library use

@@ -183,6 +183,9 @@ class AbletonSet:
 
         In place (backup first) by default; into ``output_dir`` (original untouched,
         no backup) when given.
+
+        ``append_bars_bpm`` and ``prepend_version`` are deprecated: the ``.meta.yaml``
+        sidecar beside each set records bars, bpm and the Live version on every scan.
         """
         persistence.save_set(
             self, append_bars_bpm=append_bars_bpm, prepend_version=prepend_version, output_dir=output_dir
