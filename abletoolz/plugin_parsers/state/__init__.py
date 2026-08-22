@@ -71,18 +71,7 @@ import enum
 from collections.abc import Callable
 from typing import Protocol
 
-from abletoolz.plugin_parsers.state.families import (
-    Family,
-    detect,
-    izotope_unwrap,
-    izotope_wrap,
-    juce_private_data_strip,
-    kilohearts_unwrap,
-    kilohearts_wrap,
-    length_prefix_add,
-    length_prefix_strip,
-    vstw_chunk,
-)
+from abletoolz.plugin_parsers.state.families import kilohearts_wrap
 from abletoolz.plugin_parsers.state.measured import (
     MEASURED_STATE,
     UNMEASURED,
@@ -331,19 +320,20 @@ def _load_vendor_states() -> None:
 
 _load_vendor_states()
 
+# What the rest of abletoolz reaches for. Everything else this module defines is
+# still importable and still tested -- it is just not advertised, because a name
+# nothing outside calls reads as a promise that was never asked for. The family
+# toolbox in :mod:`~abletoolz.plugin_parsers.state.families` is the same: a
+# measured knowledge base, imported from where it lives.
 __all__ = [
     # What a mapping entry may say about the bytes
-    "CUSTOM_PREFIX",
     "CustomState",
-    "StateBytes",
     "StatePolicy",
     "StateTransform",
     "StateTransformError",
-    "custom_state",
     "parse_state",
     "register_built_in_state",
     "register_custom_state",
-    "registered_custom_states",
     "state_bytes",
     # What goes in the ControllerState beside it
     "NO_CONTROLLER_STATE",
@@ -352,7 +342,6 @@ __all__ = [
     "NoControllerState",
     "parse_controller_state",
     "register_controller_state",
-    "registered_controller_states",
     # What is known about a plugin's state
     "MEASURED_STATE",
     "UNMEASURED",
@@ -360,15 +349,4 @@ __all__ = [
     "StateEvidence",
     "StateRung",
     "measured_state",
-    # What a buffer is, and the reframes families share
-    "Family",
-    "detect",
-    "izotope_unwrap",
-    "izotope_wrap",
-    "juce_private_data_strip",
-    "kilohearts_unwrap",
-    "kilohearts_wrap",
-    "length_prefix_add",
-    "length_prefix_strip",
-    "vstw_chunk",
 ]
