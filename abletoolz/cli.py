@@ -7,13 +7,12 @@ import logging
 import pathlib
 import shutil
 import sys
-import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pydantic
 
-from abletoolz import __version__, console
+from abletoolz import __version__, console, meta, report
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
 from abletoolz.live_set.describe import DescribeLevel, describe_json
@@ -65,6 +64,24 @@ ANALYSIS_FLAGS = (
 # --apply-ops writes through its own explicit --output contract, bypassing
 # process_set/-s entirely; still exclusive with --db like every other command.
 AUTHORING_FLAGS = ("apply_ops",)
+
+# Flags whose work is what a sidecar records. A run using any of them leaves a
+# <set stem>.meta.yaml beside every set it looked at, unless --no-meta says not
+# to, and reads that file back on the next pass to skip work it already did.
+SCAN_FLAGS = (
+    "analyze_plugins",
+    "check_plugins",
+    "check_samples",
+    "fix_plugins",
+    "fix_samples_absolute",
+    "fix_samples_collect",
+    "repair_plugins",
+    "upgrade_plugins",
+)
+
+# Flags that rewrite devices, which is what lets a sidecar say "fixed nothing"
+# rather than "never tried".
+FIX_FLAGS = ("fix_plugins", "repair_plugins", "upgrade_plugins")
 
 
 def get_pathlib_objects(srcs: list[str]) -> list[pathlib.Path]:
@@ -225,6 +242,17 @@ def parse_arguments() -> argparse.Namespace:
         default=False,
         help="Appends set version to set filename",
     )
+    saving.add_argument(
+        "--output",
+        type=pathlib.Path,
+        default=None,
+        metavar="PATH",
+        help="Write somewhere else instead of in place. With -s/--save: a directory; every set the "
+        "run changes is saved there under its own name (name collisions get __1/__2 suffixes like "
+        "backups do), the original is never touched and no backup is made, and unchanged sets are "
+        "not written at all. With --apply-ops: the output set path; the input set is copied there "
+        "first, then edited in place. Refused if that path already exists.",
+    )
 
     database = parser.add_argument_group("sample database (used by the fix-samples commands)")
     database.add_argument(
@@ -333,13 +361,17 @@ def parse_arguments() -> argparse.Namespace:
         help="Apply a batch of write operations (see doc/ or apply_ops.py for the ops document shape) "
         "from a JSON file to the single input set given as srcs. Requires --output.",
     )
-    authoring.add_argument(
-        "--output",
-        type=pathlib.Path,
-        default=None,
-        metavar="NEW_ALS",
-        help="Destination for --apply-ops: the input set is copied here first, then edited in place. "
-        "Refused if the path is missing or already exists.",
+
+    records = parser.add_argument_group("records (machine-readable results)")
+    records.add_argument(
+        "--no-meta",
+        dest="meta",
+        action="store_false",
+        default=True,
+        help="Don't write the per-set sidecars. A run that checks or fixes plugins or samples "
+        "normally leaves a <set stem>.meta.yaml beside every set it looked at, holding what it "
+        "found next to your own status/notes, and reads it back next time: a set whose bytes have "
+        "not changed since is not scanned again. The run report is written either way.",
     )
 
     processing = parser.add_argument_group("processing")
@@ -373,8 +405,8 @@ def parse_arguments() -> argparse.Namespace:
         )
     if args.apply_ops and not args.output:
         parser.error("--apply-ops requires --output.")
-    if args.output and not args.apply_ops:
-        parser.error("--output only makes sense with --apply-ops.")
+    if args.output and not args.apply_ops and not args.save:
+        parser.error("--output only makes sense with -s/--save or --apply-ops.")
     if args.apply_ops and len(args.srcs) != 1:
         parser.error("--apply-ops takes exactly one input set (not a directory).")
     # --list-parsers, --plugin-db and --suggest-plugin-mappings all answer
@@ -390,16 +422,36 @@ def process_set(
     pathlib_obj: pathlib.Path,
     db: create_db.DatabaseT | None,
     config: AbletoolzConfig,
-) -> int:
-    """Process individual set."""
+) -> report.SetRecord:
+    """Process individual set, answering what the run did to it.
+
+    Every finding the run makes is recorded on the way past rather than
+    recomputed at the end: the record and the console are two readings of the
+    same scan, the same repair report, the same sample check.
+    """
     logger.info("%sParsing: %s", C, pathlib_obj)
     ableton_set = AbletonSet(pathlib_obj)
     if not ableton_set.parse():
-        return -2
+        return report.SetRecord(path=str(pathlib_obj), error="could not read the set")
+    # An --output sweep only writes sets the run actually changed and the report
+    # says which those were, so remember how the tree serialized before any edit
+    # flag touched it.
+    editing = any(getattr(args, name) for name in EDIT_FLAGS)
+    pristine_xml = ableton_set.generate_xml() if editing else None
     ableton_set.load_version()
     logger.info("%sSet name: %s, %sBPM: %s", C, pathlib_obj.stem, B, ableton_set.transport.bpm())
     ableton_set.find_project_root_folder()
-    console.render_length(ableton_set.transport.length())
+    length = ableton_set.transport.length()
+    console.render_length(length)
+
+    # The sidecar answers for these exact bytes or not at all, so the hash comes
+    # off the file as it was read, before any edit below.
+    digest = meta.file_hash(pathlib_obj) if args.meta else None
+    cached = meta.cached_scan(pathlib_obj, digest) if digest is not None else None
+    fixes: list[report.DeviceFix] = []
+    refusals: list[report.Refusal] = []
+    plugins_missing: dict[str, int] | None = None
+    samples_missing: dict[str, int] | None = None
 
     if args.master_out:
         ableton_set.tracks.set_audio_output(args.master_out, element_string="MasterTrack")
@@ -423,14 +475,26 @@ def process_set(
         print(describe_json(ableton_set, DescribeLevel(args.describe)))
 
     if args.check_samples:
-        console.render_missing_samples(ableton_set.samples.check())
+        if cached is not None and cached.samples_missing_by_name is not None:
+            samples_missing = cached.samples_missing_by_name
+            console.render_cached_samples(samples_missing)
+        else:
+            missing_samples = ableton_set.samples.check()
+            console.render_missing_samples(missing_samples)
+            samples_missing = report.count_names(ref.name for ref in missing_samples)
 
     if args.fix_samples_absolute or args.fix_samples_collect:
         assert db is not None
         ableton_set.samples.fix(db, collect_and_save=args.fix_samples_collect)
 
     if args.check_plugins:
-        console.render_plugins(ableton_set.plugins.scan([]))
+        if cached is not None and cached.plugins_missing is not None:
+            plugins_missing = cached.plugins_missing
+            console.render_cached_plugins(plugins_missing)
+        else:
+            refs = ableton_set.plugins.scan([])
+            console.render_plugins(refs)
+            plugins_missing = report.scan_missing(refs)
 
     if args.analyze_plugins:
         analyses = ableton_set.plugins.analyze(config)
@@ -451,24 +515,68 @@ def process_set(
         if db is None:
             logger.info("%sNo database loaded; run with --db first to build sample DB.", Y)
         else:
-            ableton_set.plugins.fix(db, config)
+            fixes.extend(report.parser_fixes(ableton_set.plugins.fix(db, config)))
 
     if args.upgrade_plugins:
-        ableton_set.plugins.upgrade()
+        fixes.extend(report.upgrade_fixes(ableton_set.plugins.upgrade()))
 
     if args.repair_plugins:
-        console.render_repair(ableton_set.plugins.repair())
+        repaired = ableton_set.plugins.repair()
+        console.render_repair(repaired)
+        fixes.extend(report.repair_fixes(repaired))
+        refusals.extend(report.repair_refusals(repaired))
+        if plugins_missing is None:
+            # Only when --check-plugins did not already answer it: a repair pass
+            # asks the same question of every device it can act on.
+            plugins_missing = report.repair_missing(repaired)
 
     if args.xml:
         ableton_set.save_xml()
+    changed = pristine_xml is not None and ableton_set.generate_xml() != pristine_xml
+    saved = False
     if args.save:
-        # if backup == ableton_set:
-        #     logger.info("%sSet has no changes from originally, not saving...", MB)
-        #     return 0
-        ableton_set.save_set(append_bars_bpm=args.append_bars_bpm, prepend_version=args.prepend_version)
-    elif any(getattr(args, name) for name in EDIT_FLAGS):
+        if args.output is not None and not changed:
+            logger.info("%sSet is unchanged, nothing written to %s", Y, args.output)
+        else:
+            ableton_set.save_set(
+                append_bars_bpm=args.append_bars_bpm,
+                prepend_version=args.prepend_version,
+                output_dir=args.output,
+            )
+            saved = True
+    elif editing:
         logger.info("%sNo changes saved, use -s/--save option to write changes to file.", Y)
-    return 0
+
+    if digest is not None and any(getattr(args, name) for name in SCAN_FLAGS):
+        scan = meta.SetScan(
+            scanned=meta.now(),
+            scanned_with=meta.SCANNER,
+            set_hash=digest,
+            live_version=ableton_set.version,
+            bars=length.bars,
+            bpm=length.bpm,
+            plugins_missing=plugins_missing,
+            plugins_fixed=report.fix_counts(fixes) if any(getattr(args, name) for name in FIX_FLAGS) else None,
+            samples_missing=None if samples_missing is None else sum(samples_missing.values()),
+            samples_missing_by_name=samples_missing,
+        )
+        if cached is not None:
+            scan = meta.carry_forward(cached, scan)
+        # With --output nothing may be written next to the original, so the
+        # sidecar goes with the copy or nowhere. ableton_set.path is where the
+        # set actually landed, suffixes, renames and all.
+        if args.output is None or saved:
+            meta.write(ableton_set.path, scan, human_source=pathlib_obj)
+
+    return report.SetRecord(
+        path=str(pathlib_obj),
+        written=str(ableton_set.path) if saved else None,
+        changed=changed,
+        fixes=fixes,
+        refusals=refusals,
+        plugins_missing=plugins_missing,
+        samples_missing=None if samples_missing is None else sum(samples_missing.values()),
+    )
 
 
 def list_parsers() -> None:
@@ -537,6 +645,18 @@ def run_apply_ops(args: argparse.Namespace) -> int:
     return 0
 
 
+def report_directory(args: argparse.Namespace) -> pathlib.Path:
+    """Where the run report lands: beside what was processed, or in --output.
+
+    With --output nothing at all may be written next to the originals, and a
+    report is a write like any other.
+    """
+    if args.output is not None:
+        return pathlib.Path(args.output)
+    first = pathlib.Path(args.srcs[0])
+    return first if first.is_dir() else first.parent
+
+
 def process(args: argparse.Namespace) -> int:
     """Process arguments.
 
@@ -561,7 +681,7 @@ def process(args: argparse.Namespace) -> int:
         logger.info("%sLoading db...", M)
         db = create_db.load_db(args.db_path)
 
-    start_time = time.time()
+    started = datetime.datetime.now().astimezone()
     pathlib_objects = get_pathlib_objects(srcs=args.srcs)
     if not pathlib_objects:
         logger.info("%sError, no sets to process!", R)
@@ -571,12 +691,12 @@ def process(args: argparse.Namespace) -> int:
     jobs = args.jobs if isinstance(args.jobs, int) and args.jobs > 0 else min(8, max(1, len(pathlib_objects)))
     logger.info("%sUsing %s worker(s)", C, jobs)
 
-    def _worker(path_obj: pathlib.Path) -> int:
+    def _worker(path_obj: pathlib.Path) -> report.SetRecord:
         try:
             return process_set(args, path_obj, db, config)
-        except (ElementNotFound, SetError):
+        except (ElementNotFound, SetError) as error:
             logger.info(traceback.format_exc())
-            return -1
+            return report.SetRecord(path=str(path_obj), error=f"{type(error).__name__}: {error}")
         finally:
             columns = shutil.get_terminal_size(fallback=(120, 20)).columns
             logger.info("%s\n\n%s\n\n", M, "^" * columns)
@@ -584,7 +704,7 @@ def process(args: argparse.Namespace) -> int:
     executor = ThreadPoolExecutor(max_workers=jobs)
     try:
         futures = {executor.submit(_worker, p): p for p in pathlib_objects}
-        failed = [futures[future] for future in as_completed(futures) if future.result() != 0]
+        records = [future.result() for future in as_completed(futures)]
     except KeyboardInterrupt:
         # Cancel everything still queued; sets already being processed finish
         # so no write is killed halfway.
@@ -592,10 +712,12 @@ def process(args: argparse.Namespace) -> int:
         executor.shutdown(wait=True, cancel_futures=True)
         return 130
     executor.shutdown()
+    run = report.build(records, command=sys.argv[1:], started=started)
+    failed = [record.path for record in records if record.error is not None]
     logger.info(
         "%sTook %s to process %s set(s): %s%s ok%s, %s%s failed",
         CB,
-        datetime.timedelta(seconds=time.time() - start_time),
+        run.finished - started,
         len(pathlib_objects),
         G,
         len(pathlib_objects) - len(failed),
@@ -603,6 +725,7 @@ def process(args: argparse.Namespace) -> int:
         R if failed else G,
         len(failed),
     )
+    logger.info("%sWrote the run report to %s%s", M, B, report.write(run, report_directory(args)))
     if failed:
         for path in failed:
             logger.info("%sFailed to process: %s", R, path)

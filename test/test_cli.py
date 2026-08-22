@@ -80,6 +80,11 @@ def test_list_parsers_exits_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     assert run_cli(monkeypatch, "--list-parsers") == 0
 
 
+def test_output_requires_save_or_apply_ops(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """--output redirects writes, so a run that writes nothing rejects it."""
+    assert run_cli(monkeypatch, "--repair-plugins", "--output", str(tmp_path / "out"), str(tmp_path)) == 2
+
+
 # --- machine-readable stdout ------------------------------------------------
 #
 # Run out of process on purpose: ``logging.basicConfig`` configures the root

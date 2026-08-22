@@ -276,6 +276,41 @@ wont keep growing).
 
 `--prepend-version` Puts the ableton version used to create set at beginning of file name.
 
+### Records - what a run writes down
+
+Console output is for reading; these two files are for programs, and for you next week.
+
+**Per-set sidecars.** Any run that checks or fixes plugins or samples leaves a `<set name>.meta.yaml` beside
+each set it looked at: the Live version, bars and bpm, the missing plugins by device count, what was fixed,
+the missing samples, and the hash of the set as it was read. Underneath there are two fields that are yours —
+`status` and `notes` — plus anything else you care to add. abletoolz reads them, carries them across every
+rescan and never writes them itself.
+```yaml
+status: needs work
+notes: reverb tail runs long in the breakdown
+scan:
+  scanned: '2026-08-17T10:16:07.959317-07:00'
+  scanned_with: abletoolz 2.0.0
+  set_hash: 499af899b43a5ad850688c93ddbdeaae30602101fc005f7d2a7adec1e329eea9
+  live_version: Ableton Live 11.3.42
+  bars: 128
+  bpm: 174.0
+  plugins_missing:
+    Serum_x64: 2
+  samples_missing: 3
+```
+The sidecar is also a cache. A set whose bytes still hash the same, scanned by the same abletoolz, is not
+scanned again — the stored answers are reused and the run says `Cached`, which is what makes a second pass
+over a big library quick. Change the set and it is scanned from scratch, your notes intact. `--no-meta`
+turns the whole thing off.
+
+**Run reports.** Every run over a set writes `abletoolz_report_<timestamp>.json` into the folder it processed:
+one record per set (what changed, what was fixed and by which machinery, what was missing, what was refused
+and why, what failed to parse), then the same run added up — the missing plugins across your whole library,
+fix counts, totals. Nothing has to be scraped off the console.
+
+With `--output`, both land in the output folder instead. Nothing is written next to the originals.
+
 ## Examples
 Check all samples in sets
 ```

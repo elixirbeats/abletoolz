@@ -13,26 +13,30 @@ def format_date(timestamp: float) -> str:
     return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %H:%M:%S")
 
 
+def unclaimed_path(pathlib_obj: pathlib.Path) -> pathlib.Path:
+    """First name__N.suffix path beside ``pathlib_obj`` that doesn't exist yet."""
+    ending_int = 1
+    while True:
+        candidate = pathlib_obj.parent / (pathlib_obj.stem + "__" + str(ending_int) + pathlib_obj.suffix)
+        if not candidate.exists():
+            return candidate
+        ending_int += 1
+
+
 def create_backup(pathlib_obj: pathlib.Path) -> None:
     """Move file to backup directory, does not replace previous files moved there."""
     backup_dir = pathlib_obj.parent / BACKUP_DIR
     backup_dir.mkdir(parents=True, exist_ok=True)
-    ending_int = 1
-    while True:
-        backup_path = backup_dir / (pathlib_obj.stem + "__" + str(ending_int) + pathlib_obj.suffix)
-        if pathlib.Path(backup_path).exists():
-            ending_int += 1
-        else:
-            logger.info(
-                "%sMoving original file to backup directory:\n%s --> %s",
-                B,
-                pathlib_obj,
-                backup_path,
-            )
-            # Rename creates a new pathlib object with the new path,
-            # so pathlib_obj will still point to the original path when the file is saved.
-            pathlib_obj.rename(backup_path)
-            return
+    backup_path = unclaimed_path(backup_dir / pathlib_obj.name)
+    logger.info(
+        "%sMoving original file to backup directory:\n%s --> %s",
+        B,
+        pathlib_obj,
+        backup_path,
+    )
+    # Rename creates a new pathlib object with the new path,
+    # so pathlib_obj will still point to the original path when the file is saved.
+    pathlib_obj.rename(backup_path)
 
 
 def parse_mac_data(byte_data: bytes | bytearray, abs_hash_path: str, debug: bool = False) -> str | None:

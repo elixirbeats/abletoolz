@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
+from collections.abc import Mapping
 
 from abletoolz.live_set.plugins import PluginRef
 from abletoolz.live_set.sample_ref import SampleRef
@@ -51,6 +52,22 @@ def render_missing_samples(missing: list[SampleRef]) -> None:
         )
     color = G if not missing else Y
     logger.info("%sMissing sample references: %s%s", color, M, len(missing))
+
+
+def render_cached_samples(missing: Mapping[str, int]) -> None:
+    """What a previous scan of these exact bytes found. Nothing was checked again."""
+    for name, count in missing.items():
+        logger.warning("%sSample %s missing, on %s reference(s)", R, name, count)
+    color = G if not missing else Y
+    logger.info("%sCached: %s%s missing sample reference(s)", color, M, sum(missing.values()))
+
+
+def render_cached_plugins(missing: Mapping[str, int]) -> None:
+    """As above, for plugins: the sidecar already answered for this set."""
+    for name, count in missing.items():
+        logger.info("%sPlugin: %s, %sMissing on %s device(s)", R, name, M, count)
+    color = G if not missing else Y
+    logger.info("%sCached: %s%s missing plugin reference(s)", color, M, sum(missing.values()))
 
 
 def render_plugins(refs: list[PluginRef]) -> None:

@@ -208,6 +208,54 @@ def test_repair_plugins_is_an_edit_flag(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert copy.read_bytes() == original
 
 
+def test_output_dir_quarantines_repaired_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """-s --output DIR writes the repaired set to DIR; the original stays byte-identical, no backup made."""
+    copy = tmp_path / "repair.als"
+    original = (SKELETONS / "11.3.42.als").read_bytes()
+    copy.write_bytes(original)
+    quarantine = tmp_path / "quarantine"  # created by the run
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    assert copy.read_bytes() == original
+    assert not (tmp_path / "abletoolz_backup").exists()
+    saved = AbletonSet(quarantine / "repair.als")
+    assert saved.parse()
+    names = {element.get("Value") for info in saved.root.iter("Vst3PluginInfo") for element in info.findall("Name")}
+    assert "Serum" in names
+
+
+def test_output_dir_suffixes_on_collision(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """An already-taken DIR/<name> is kept; new saves land beside it with the backup __N suffixes."""
+    copy = tmp_path / "repair.als"
+    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+    quarantine = tmp_path / "quarantine"
+    quarantine.mkdir()
+    stranger = b"not a set, must survive"
+    (quarantine / "repair.als").write_bytes(stranger)
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    assert (quarantine / "repair.als").read_bytes() == stranger
+    for suffixed in ("repair__1.als", "repair__2.als"):
+        saved = AbletonSet(quarantine / suffixed)
+        assert saved.parse()
+
+
+def test_output_dir_skips_unchanged_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """A set the run doesn't change is not written to the output dir at all.
+
+    The run report lands there regardless -- it is the record of the run, not of
+    a set -- so the output dir exists; nothing of the set is in it.
+    """
+    copy = tmp_path / "steady.als"
+    original = (SKELETONS / "11.3.42.als").read_bytes()
+    copy.write_bytes(original)
+    quarantine = tmp_path / "quarantine"
+    # No upgrade rules configured, so --upgrade-plugins edits nothing.
+    assert run_cli(monkeypatch, str(copy), "--upgrade-plugins", "-s", "--output", str(quarantine)) == 0
+    assert copy.read_bytes() == original
+    assert not list(quarantine.glob("*.als"))
+    assert not list(quarantine.glob("*.meta.yaml"))
+
+
 def test_unfold_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     copy = tmp_path / "unfold.als"
     copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())

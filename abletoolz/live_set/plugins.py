@@ -276,6 +276,23 @@ class PluginRef:
     manufacturer: str | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class DeviceUpgrade:
+    """One device :meth:`Plugins.upgrade` pointed at a different file."""
+
+    track: str
+    source: str
+    target: str
+
+
+@dataclasses.dataclass(frozen=True)
+class DeviceStateFix:
+    """One device a registered parser repaired inside its own saved state."""
+
+    track: str
+    name: str
+
+
 class Plugins:
     """Plugin references of one set."""
 
@@ -557,25 +574,33 @@ class Plugins:
                 print("-" * 80)
         return dumps
 
-    def fix(self, db: create_db.DatabaseT, config: AbletoolzConfig | None = None) -> bool:
-        """Scan supported plugins and apply in-place fixes using sample DB."""
-        changed = False
+    def fix(self, db: create_db.DatabaseT, config: AbletoolzConfig | None = None) -> list[DeviceStateFix]:
+        """Scan supported plugins and apply in-place fixes using sample DB.
+
+        Answers the devices it repaired, so a caller can record what happened
+        rather than only that something did.
+        """
+        fixed: list[DeviceStateFix] = []
         for plugin_element in self._root.iter("PluginDesc"):
             for vst_element in plugin_element.iter("VstPluginInfo"):
                 plugin = PluginData.from_element(vst_element)
                 if fix_plugin(plugin, db, config):
                     logger.info("%sFixed plugin: %s", G, plugin.plugin_name)
-                    changed = True
-        return changed
+                    fixed.append(DeviceStateFix(self.track_name(vst_element), plugin.plugin_name))
+        return fixed
 
-    def upgrade(self) -> bool:
-        """Upgrade plugin references using rules from config."""
+    def upgrade(self) -> list[DeviceUpgrade]:
+        """Upgrade plugin references using rules from config.
+
+        Answers the devices it moved, source and target, the same way
+        :meth:`fix` answers the ones it repaired.
+        """
         rules = load_config().plugin_upgrade_rules
         if not rules:
             logger.info("%sNo upgrade rules in config", C)
-            return False
+            return []
 
-        changed = False
+        upgraded: list[DeviceUpgrade] = []
         for plugin_element in self._root.iter("PluginDesc"):
             path_el = get_element(plugin_element, "VstPluginInfo.Path", silent_error=True)
             if not isinstance(path_el, ET.Element):
@@ -598,9 +623,9 @@ class Plugins:
                     plugname_el.set("Value", target_path.stem)
 
                 logger.info("%sUpgraded: %s%s%s â†’ %s%s", G, Y, current_filename, RST, G, target_name)
-                changed = True
+                upgraded.append(DeviceUpgrade(self.track_name(plugin_element), current_filename, target_name))
 
-        return changed
+        return upgraded
 
     def _configured_targets(
         self,

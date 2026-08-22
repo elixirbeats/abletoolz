@@ -173,6 +173,17 @@ class AbletonSet:
         """Find set creation/modification times."""
         persistence.get_file_times(self)
 
-    def save_set(self, append_bars_bpm: bool = False, prepend_version: bool = False) -> None:
-        """Save set to disk (backup first), with optional filename modifications."""
-        persistence.save_set(self, append_bars_bpm=append_bars_bpm, prepend_version=prepend_version)
+    def save_set(
+        self,
+        append_bars_bpm: bool = False,
+        prepend_version: bool = False,
+        output_dir: pathlib.Path | None = None,
+    ) -> None:
+        """Save set to disk, with optional filename modifications.
+
+        In place (backup first) by default; into ``output_dir`` (original untouched,
+        no backup) when given.
+        """
+        persistence.save_set(
+            self, append_bars_bpm=append_bars_bpm, prepend_version=prepend_version, output_dir=output_dir
+        )
