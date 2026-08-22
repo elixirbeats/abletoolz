@@ -33,7 +33,7 @@ class AbletonTrack:
         # over 811 sets: 44 return tracks have no TrackGroupId (they belong to
         # no group) and no automation lane, and 44 group tracks have no
         # automation lane and no session width. All 88 sit in the 22 sets a
-        # third-party generator wrote (see MODEL.md), and no Live-written set in
+        # third-party generator wrote, and no Live-written set in
         # the library omits any of them -- but absent is unset, not malformed,
         # whoever wrote the file.
         self.group_id = get_element(track_root, "TrackGroupId", attribute="Value", silent_error=True)

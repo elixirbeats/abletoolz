@@ -426,8 +426,8 @@ class Plugins:
                         # A stub device: whatever wrote the set put the plugin's
                         # file name into Dir with no directory around it, so
                         # there is no stored path to report. Measured only in
-                        # sets a third-party generator produced (see MODEL.md);
-                        # no Live-written set in the library does this. The name
+                        # sets a third-party generator produced; no Live-written
+                        # set in the library does this. The name
                         # is all it has, which is what repair reports it by.
                         logger.debug("%sNo directory stored for %s; device is a stub", Y, name)
                         return None, name, None

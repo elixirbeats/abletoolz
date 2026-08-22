@@ -14,8 +14,9 @@ fresh ones, or two things answer to the same id and Live refuses the set.
 
 A copied subtree gives up one more thing it owned in the source document: its
 ``KeyMidi`` remote bindings, the key/MIDI mappings a parameter carries. A
-device transplanted with them crashes Live 12 outright on load (see
-``plugin_parsers/MODEL.md``), and they mean nothing in a document that never
+device transplanted with them crashes Live 12 outright on load -- measured by
+bisecting an authored set down to one device, whose subtree was otherwise
+byte-identical to the donor's -- and they mean nothing in a document that never
 had the mapping.
 
 None of the three jobs depends on what the subtree is, so all of them live

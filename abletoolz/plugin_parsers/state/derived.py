@@ -1,6 +1,6 @@
 """A transfer table the derivation rig measured, and the state it writes.
 
-MODEL.md's "The derivation rig". A product whose VST2 exposes no chunk is saved
+A product whose VST2 exposes no chunk is saved
 as a :class:`~abletoolz.plugin_parsers.state.fxbk.LegacyBank` of normalized
 floats and its VST3 as a block of floats in the plugin's own units, and nobody
 outside the vendor has written down the curve between the two. Rather than
@@ -215,7 +215,7 @@ class DerivedTable:
     VST2 in one host and its VST3 in another, proved the bank's float order is
     the VST2 parameter order, moved each VST3 parameter to find which state slot
     it owns, swept it to fit its curve, and joined the two sides by parameter
-    name. See MODEL.md, "The derivation rig".
+    name.
     """
 
     product: str

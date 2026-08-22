@@ -183,7 +183,7 @@ class TargetConfig(pydantic.BaseModel):
 
     ``uid`` is optional: leaving it out asks for the class id to be looked up by
     ``name`` at translation time, which is the normal case on a machine that has
-    the VST3 installed. ``state`` names a rung of MODEL.md's ladder --
+    the VST3 installed. ``state`` names a rung of the state ladder --
     ``verbatim``, ``kilohearts``, or ``custom:<name>`` for a registered
     per-plugin re-encode. Left out it means verbatim, except for Kilohearts
     plugins -- see :data:`KILOHEARTS_PREFIX`.
@@ -291,7 +291,7 @@ def read_identity(info: ET.Element) -> PluginIdentity:
 # Vst3Preset. Measured over 811 sets: 54 devices in 11 of them carry a stub
 # instead -- Dir, FileName, PlugName, UniqueId and sometimes Preset, nothing
 # more. Every one of those 11 sets is the output of a third-party set generator
-# (see MODEL.md); no set Live wrote carries the shape. Nothing in that stub says
+# and no set Live wrote carries the shape. Nothing in that stub says
 # what the device is, so nothing here will invent it.
 _REQUIRED_FIELDS: dict[PluginKind, tuple[str, ...]] = {
     PluginKind.VST: ("Category", "Preset/VstPreset"),

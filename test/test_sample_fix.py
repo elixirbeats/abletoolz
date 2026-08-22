@@ -103,7 +103,7 @@ def test_save_set_keeps_original_when_serialization_fails(tmp_path: pathlib.Path
 # Measured over 811 sets: 98 SampleRefs in 14 of them have no LastModDate at
 # all, and every one of the 14 used to fail to parse outright -- one such ref
 # took the whole set down, including the refs that were fine. Every one of the
-# 14 is the output of a third-party set generator (see MODEL.md); no set Live
+# 14 is the output of a third-party set generator; no set Live
 # wrote is missing a date on any of its 76,906 references. Two shapes make up
 # the 98, and they must not be handled alike.
 #
