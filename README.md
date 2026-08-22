@@ -26,7 +26,8 @@ It also:
   version-aware schema layer, and the test suite runs every feature against real-set fixtures from Live 9
   through the latest 12 beta.
 - **Usable as a library.** The old monolith is now a small domain API: `AbletonSet` exposes `transport`,
-  `tracks`, `samples` and `plugins` objects, so scripts can do what the CLI does programmatically.
+  `tracks`, `clips`, `devices`, `samples` and `plugins` objects, so scripts can do what the CLI does
+  programmatically. See [Using as a library](#using-as-a-library).
 - **Plugin parser framework** (experimental). A registry of plugin-specific parsers that can analyze, fix and
   upgrade plugin state inside sets: `--analyze-plugins`, `--fix-plugins`, `--upgrade-plugins`,
   `--repair-plugins` (dead VST2 devices rewritten as the VST3 you have, patch and all), `--dump-plugins` (for
@@ -67,7 +68,136 @@ pip install abletoolz
 This will install abletoolz as a command in your command line, you can now call `abletoolz` from anywhere if the
 installation completed successfully. (Create an issue if you run into any errors please!)
 
+## Using as a library
+
+abletoolz is a Python package before it is a command, and a set is an object: open one, read what is in it,
+change it, save it. `AbletonSet` is the document, and what a set holds hangs off it as `transport`, `tracks`,
+`clips`, `devices`, `samples` and `plugins`. Nothing reaches disk until you call `save_set()`, which moves the
+original into the backup folder first, exactly as `-s/--save` does.
+
+**Read a set's tempo, length and tracks.**
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+length = live_set.transport.length()
+print(f"{live_set.version}: {length.bpm} bpm, {length.bars} bars, {length}")
+for track in live_set.tracks.load():
+    print(track.type, track.name, "height", track.height, "color", track.color)
+```
+
+**Find missing samples and fix them.** Build the sample database once — this is what `--db` does — and hand it to
+any set.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+from abletoolz.sample_databaser import create_db
+
+create_db.create_or_update_db(["D:/samples"], db_path=pathlib.Path("sample_db.json"))
+db = create_db.load_db(pathlib.Path("sample_db.json"))
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+live_set.find_project_root_folder()  # where collect-and-save copies to
+for ref in live_set.samples.check():
+    print("missing:", ref.name, ref.absolute)
+if live_set.samples.fix(db, collect_and_save=True):
+    live_set.save_set()
+```
+
+**Check that every plugin a set uses is still installed.** Each reference comes back with where it points, whether
+that file is there, and the closest thing found on this machine when it is not.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+for ref in live_set.plugins.scan([pathlib.Path("D:/VstPlugins")]):
+    where = ref.path if ref.exists else ref.alternative or "nowhere on this machine"
+    print(f"{ref.track_location}: {ref.name} ({ref.kind}) -> {where}")
+```
+
+**Write MIDI notes into a clip.** A note is pitch, start and duration in beats; everything else defaults to what
+Live gives a freshly drawn note.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+from abletoolz.live_set.clips import MidiNote
+
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+clip = live_set.clips.midi()[0]
+bar = [MidiNote(pitch, start=float(beat), duration=0.5) for beat, pitch in enumerate((36, 42, 38, 42))]
+live_set.clips.set_notes(clip, bar)
+live_set.save_set()
+```
+
+**Copy a section of the arrangement somewhere else.** Clips and track automation inside the window travel
+together, and a clip crossing either edge is reported rather than trimmed.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+from abletoolz.live_set.sections import SectionMode
+
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+report = live_set.clips.copy_section(64.0, 128.0, 448.0, mode=SectionMode.REFUSE)  # beats
+for line in report.lines():
+    print(line)
+live_set.save_set()
+```
+
+**Graft a device chain from one set onto a track in another.** Both sets have to be the same major Live version,
+and the chain arrives as a copy Live will open rather than a paste that takes the set down with it.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+
+donor = AbletonSet(pathlib.Path("donor_set.als"))
+donor.parse()
+chain = next(track for track in donor.devices.inventory() if track.track_name == "Kick")
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+for device in live_set.devices.graft_chain(chain, "2-Audio", mode="append"):
+    print("grafted", device.display_name)
+live_set.save_set()
+```
+
+**Read back the sidecar a scan left.** It comes out as an object rather than a blob of YAML, your own `status` and
+`notes` included — enough to triage a whole library without opening a set.
+
+```python
+import pathlib
+
+from abletoolz import meta
+
+sidecar = meta.read(pathlib.Path("my_set.als"))
+if sidecar is not None and sidecar.scan is not None:
+    print(sidecar.scan.live_version, sidecar.scan.bars, sidecar.scan.bpm)
+    print("missing plugins:", sidecar.scan.plugins_missing)
+    print("missing samples:", sidecar.scan.samples_missing)
+    print("yours:", sidecar.status, "--", sidecar.notes)
+```
+
 ## Usage:
+
+The command line is that same library pointed at a whole collection: every flag below is one of those calls, run
+over one set or a thousand.
+
 `-h` Print argument usage.
 `-v` Verbosity. For some commands, displays more information.
 
@@ -337,21 +467,6 @@ Moving original file to backup directory:
 D:\all_sets\myset.als --> D:\all_sets\abletoolz_backup\myset__1.als
 Saved set to D:\all_sets\myset.als
 Took 0:00:00.371096 to process 1 set(s): 1 ok, 0 failed
-```
-
-## Library use
-
-Everything the CLI does is available programmatically:
-
-```python
-from abletoolz.live_set import AbletonSet
-
-live_set = AbletonSet(pathlib.Path("myset.als"))
-live_set.parse()
-print(live_set.version_tuple, live_set.transport.bpm())
-for track in live_set.tracks.load():
-    print(track.type, track.name, track.color)
-missing = live_set.samples.check()
 ```
 
 ## Future plans:
