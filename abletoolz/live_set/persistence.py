@@ -134,6 +134,9 @@ def save_set(
     With ``output_dir`` the set is written into that directory under its own name and
     the original file is never touched -- writing elsewhere is the protection an
     in-place save gets from its backup, so no backup is made either.
+
+    ``append_bars_bpm`` and ``prepend_version`` are deprecated: the ``.meta.yaml``
+    sidecar beside each set records bars, bpm and the Live version on every scan.
     """
     # Serialize before touching anything on disk: a tree that cannot serialize
     # must fail loudly here, while the original file is still in place.
@@ -141,6 +144,11 @@ def save_set(
     if output_dir is None:
         utils.create_backup(live_set.path)
     if append_bars_bpm:
+        logger.warning(
+            "%s--append-bars-bpm is deprecated and will be removed in a future release. "
+            "Bars and bpm are recorded in the set's .meta.yaml sidecar on every scan.",
+            Y,
+        )
         if live_set.bpm is None or live_set.furthest_bar is None:
             live_set.transport.bpm()
             live_set.transport.furthest_bar()
@@ -149,10 +157,16 @@ def save_set(
         live_set.path = pathlib.Path(live_set.path.parent / new_filename)
         logger.debug("%sAppending bars and bpm, new set name: %s.als", M, live_set.path.stem)
 
-    if live_set.version_tuple and prepend_version:
-        version_string = f"{live_set.version_tuple[0]}.{live_set.version_tuple[1]}.{live_set.version_tuple[2]}_"
-        cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.[b\d]{1,5}_", "", live_set.path.stem)
-        live_set.path = live_set.path.parent / (version_string + cleaned_name + live_set.path.suffix)
+    if prepend_version:
+        logger.warning(
+            "%s--prepend-version is deprecated and will be removed in a future release. "
+            "The Live version is recorded in the set's .meta.yaml sidecar on every scan.",
+            Y,
+        )
+        if live_set.version_tuple:
+            version_string = f"{live_set.version_tuple[0]}.{live_set.version_tuple[1]}.{live_set.version_tuple[2]}_"
+            cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.[b\d]{1,5}_", "", live_set.path.stem)
+            live_set.path = live_set.path.parent / (version_string + cleaned_name + live_set.path.suffix)
 
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)

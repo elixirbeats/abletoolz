@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import logging
 import pathlib
 
 import pytest
@@ -85,6 +86,39 @@ def test_edit_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathl
     heights = [el.get("Value") for el in reloaded.root.iter("LaneHeight")]
     assert heights and all(value == "68" for value in heights)
     assert all(el.get("Value") == "false" for el in reloaded.root.iter("TrackUnfolded"))
+
+
+# -- the deprecated filename tags -------------------------------------------
+# Both still rename the file; both now say the sidecar records what they used to
+# encode into the name. Removing them is a separate job.
+
+
+def test_append_bars_bpm_still_tags_the_name_and_says_it_is_deprecated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    copy = tmp_path / "tagged.als"
+    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+
+    with caplog.at_level(logging.WARNING):
+        assert run_cli(monkeypatch, str(copy), "-s", "--append-bars-bpm") == 0
+
+    assert list(tmp_path.glob("tagged_*bars_*bpm.als"))
+    assert "--append-bars-bpm is deprecated" in caplog.text
+    assert ".meta.yaml" in caplog.text
+
+
+def test_prepend_version_still_tags_the_name_and_says_it_is_deprecated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    copy = tmp_path / "tagged.als"
+    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+
+    with caplog.at_level(logging.WARNING):
+        assert run_cli(monkeypatch, str(copy), "-s", "--prepend-version") == 0
+
+    assert (tmp_path / "11.3.42_tagged.als").exists()
+    assert "--prepend-version is deprecated" in caplog.text
+    assert ".meta.yaml" in caplog.text
 
 
 def test_analysis_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:

@@ -233,14 +233,16 @@ def parse_arguments() -> argparse.Namespace:
         "--append-bars-bpm",
         action="store_true",
         default=False,
-        help="Append furthest bar length and bpm to filename to help organize your set collection. "
-        "For example, my_set.als --> my_set_32bars_90.00bpm.als Option only works with -s/--save",
+        help="(deprecated) Append furthest bar length and bpm to filename to help organize your set collection. "
+        "For example, my_set.als --> my_set_32bars_90.00bpm.als Option only works with -s/--save. "
+        "Bars and bpm are recorded in the set's .meta.yaml sidecar on every scan.",
     )
     saving.add_argument(
         "--prepend-version",
         action="store_true",
         default=False,
-        help="Appends set version to set filename",
+        help="(deprecated) Appends set version to set filename. The Live version is recorded in the set's "
+        ".meta.yaml sidecar on every scan.",
     )
     saving.add_argument(
         "--output",
