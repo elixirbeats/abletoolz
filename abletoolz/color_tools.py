@@ -10,7 +10,7 @@ from colormath.color_objects import LabColor, sRGBColor
 
 logger = logging.getLogger(__name__)
 # These are the hex values of the drop down color menu, matching the exact layout, hence the lines being too long.
-# yapf: disable
+# fmt: off
 ableton_colors_strs: Final = [
     "#FF94A6", "#FFA428", "#CD9827", "#F6F57C", "#BEFA00", "#21FF41", "#25FEA9", "#5DFFE9", "#8AC5FE", "#5480E4", "#93A6FF", "#D86CE4", "#E552A1", "#FFFEFE",
     "#FE3637", "#F66D02", "#99734A", "#FEF134", "#87FF67", "#3DC201", "#01BEAF", "#18E9FE", "#10A4EE", "#007DC0", "#886CE4", "#B776C6", "#FE38D4", "#D1D0D1",
@@ -18,7 +18,7 @@ ableton_colors_strs: Final = [
     "#C6938A", "#B68257", "#98826A", "#BEBB69", "#A6BE00", "#7CB04C", "#89C3BA", "#9BB3C4", "#84A5C3", "#8392CD", "#A494B5", "#BF9FBE", "#BD7096", "#7B7A7A",
     "#AF3232", "#A95131", "#734E41", "#DAC200", "#84971F", "#529E31", "#0A9C8E", "#236285", "#1A2F96", "#2E52A3", "#624BAD", "#A24AAD", "#CD2E6F", "#FFFEFE",
 ]
-# yapf: enable
+# fmt: on
 ableton_colors = [int(x.strip("#"), 16) for x in ableton_colors_strs]
 colors_indexed = [(i, x) for i, x in enumerate(ableton_colors)]
 # TODO: Build up this list with good results to re-use.
