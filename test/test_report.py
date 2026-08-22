@@ -184,9 +184,7 @@ def test_a_set_too_old_for_its_target_is_a_refusal_record(
     use_config(
         monkeypatch,
         AbletoolzConfig(
-            plugin_translation_targets={
-                "FabFilter Pro-Q": TranslationTarget(PluginKind.VST3, "Pro-Q 3", SOME_FIELDS)
-            }
+            plugin_translation_targets={"FabFilter Pro-Q": TranslationTarget(PluginKind.VST3, "Pro-Q 3", SOME_FIELDS)}
         ),
     )
     copy = copy_set(tmp_path, "9.0.1", "old.als")
@@ -203,9 +201,7 @@ def test_a_set_too_old_for_its_target_is_a_refusal_record(
     assert document["totals"]["fixes"] == 0
 
 
-def test_an_unmapped_broken_device_is_a_refusal_too(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_an_unmapped_broken_device_is_a_refusal_too(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Repair looked at it and left it alone, which is an answer worth counting."""
     copy = copy_set(tmp_path, "11.3.42", "repair.als")
     assert run_cli(monkeypatch, str(copy), "--repair-plugins") == 0

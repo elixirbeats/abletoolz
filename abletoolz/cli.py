@@ -395,9 +395,7 @@ def parse_arguments() -> argparse.Namespace:
     if args.fold and args.unfold:
         parser.error("Only set unfold or fold, not both.")
     set_commands = any(getattr(args, name) for name in EDIT_FLAGS + ANALYSIS_FLAGS + AUTHORING_FLAGS)
-    if args.db and (
-        args.list_parsers or args.plugin_db or args.suggest_plugin_mappings is not None or set_commands
-    ):
+    if args.db and (args.list_parsers or args.plugin_db or args.suggest_plugin_mappings is not None or set_commands):
         parser.error("--db/--database cannot be used with other commands!")
     if args.plugin_db and (args.list_parsers or args.suggest_plugin_mappings is not None or set_commands or args.srcs):
         parser.error(
@@ -502,9 +500,14 @@ def process_set(
         fixable = sum(1 for a in analyses if a.can_fix)
         logger.info(
             "%sPlugin analysis complete: %s plugins analyzed, %s%s with issues%s, %s%s fixable%s",
-            C, len(analyses),
-            Y if issues_found else G, issues_found, C,
-            G if fixable else Y, fixable, C,
+            C,
+            len(analyses),
+            Y if issues_found else G,
+            issues_found,
+            C,
+            G if fixable else Y,
+            fixable,
+            C,
         )
 
     if args.dump_plugins:
@@ -585,10 +588,7 @@ def list_parsers() -> None:
     logger.info("%sRegistered plugin parsers:%s", C, "")
     for _name, parser_cls in parsers.items():
         p = parser_cls()
-        logger.info(
-            "  %s%s%s: %s (buffer format: %s%s%s)",
-            G, p.name, C, p.description, M, p.buffer_format.value, C
-        )
+        logger.info("  %s%s%s: %s (buffer format: %s%s%s)", G, p.name, C, p.description, M, p.buffer_format.value, C)
 
 
 def run_build_plugin_db(db_path: pathlib.Path | None) -> int:

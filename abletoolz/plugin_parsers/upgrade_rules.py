@@ -14,7 +14,7 @@ from abletoolz.misc import default_vst_dirs
 def find_plugin(filename: str, scan_paths: list[pathlib.Path] | None = None) -> pathlib.Path | None:
     """Find a plugin file on the system by filename."""
     target = filename.lower()
-    for base in (scan_paths or default_vst_dirs()):
+    for base in scan_paths or default_vst_dirs():
         if not base.exists():
             continue
         for ext in ("*.dll", "*.vst3"):
@@ -24,8 +24,9 @@ def find_plugin(filename: str, scan_paths: list[pathlib.Path] | None = None) -> 
     return None
 
 
-def get_upgrade(source: str, rules: dict[str, list[str]],
-                scan_paths: list[pathlib.Path] | None = None) -> tuple[str, pathlib.Path] | None:
+def get_upgrade(
+    source: str, rules: dict[str, list[str]], scan_paths: list[pathlib.Path] | None = None
+) -> tuple[str, pathlib.Path] | None:
     """Get upgrade for a plugin if one exists and is installed.
 
     Args:

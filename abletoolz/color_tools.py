@@ -1,4 +1,5 @@
 """Tools for dealing with ableton colors, creating gradients etc."""
+
 import logging
 import random
 from typing import Final
@@ -107,11 +108,7 @@ def custom_delta_e_cie2000(color1: LabColor, color2: LabColor) -> float:
     sl = 1 + (0.015 * (color1.lab_l - 50) ** 2) / np.sqrt(20 + (color1.lab_l - 50) ** 2)
     sc = 1 + 0.045 * c_mean
     sh = 1 + 0.015 * c_mean * t
-    rt = (
-        -2
-        * np.sqrt(c_mean**7 / (c_mean**7 + 25**7))
-        * np.sin(np.deg2rad(60 * np.exp(-(((h_bar - 275) / 25) ** 2))))
-    )
+    rt = -2 * np.sqrt(c_mean**7 / (c_mean**7 + 25**7)) * np.sin(np.deg2rad(60 * np.exp(-(((h_bar - 275) / 25) ** 2))))
 
     delta_e = np.sqrt(
         (delta_l / sl) ** 2

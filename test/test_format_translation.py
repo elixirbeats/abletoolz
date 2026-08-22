@@ -108,12 +108,32 @@ def test_vst2_only_elements_are_gone() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     translation.translate_device(info, EFFECT)
-    dropped = {"Path", "PlugName", "UniqueId", "Inputs", "Outputs", "NumberOfParameters", "NumberOfPrograms",
-               "Flags", "Version", "VstVersion", "IsShellClient", "Category"}
+    dropped = {
+        "Path",
+        "PlugName",
+        "UniqueId",
+        "Inputs",
+        "Outputs",
+        "NumberOfParameters",
+        "NumberOfPrograms",
+        "Flags",
+        "Version",
+        "VstVersion",
+        "IsShellClient",
+        "Category",
+    }
     assert dropped.isdisjoint(tags(info))
     preset = get_element(info, "Preset.Vst3Preset")
-    assert {"Type", "ProgramCount", "ParameterCount", "ProgramNumber", "PluginVersion", "UniqueId",
-            "ByteOrder", "Buffer"}.isdisjoint(tags(preset))
+    assert {
+        "Type",
+        "ProgramCount",
+        "ParameterCount",
+        "ProgramNumber",
+        "PluginVersion",
+        "UniqueId",
+        "ByteOrder",
+        "Buffer",
+    }.isdisjoint(tags(preset))
 
 
 def test_shared_preset_head_is_untouched() -> None:

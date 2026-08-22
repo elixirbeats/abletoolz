@@ -360,9 +360,7 @@ def parse_controller_state(name: str) -> ControllerState:
     controller = _CONTROLLER_STATES.get(name)
     if controller is None:
         known = ", ".join(sorted(_CONTROLLER_STATES)) or "nothing"
-        raise StateTransformError(
-            f"No controller state named {name!r} is registered; registered: {known}."
-        )
+        raise StateTransformError(f"No controller state named {name!r} is registered; registered: {known}.")
     return controller
 
 
@@ -522,9 +520,7 @@ MEASURED_STATE: dict[str, MeasuredState] = {
     "kHs Filter": _heard(StateRung.REFRAME),
     # Probed from the binary on 2026-08-13; the user heard both devices carry
     # their old settings on 2026-08-15, which is what closed the recovery set.
-    "kHs Stereo": MeasuredState(
-        StateRung.REFRAME, (StateEvidence.EAR,), datetime.date(2026, 8, 15)
-    ),
+    "kHs Stereo": MeasuredState(StateRung.REFRAME, (StateEvidence.EAR,), datetime.date(2026, 8, 15)),
 }
 
 

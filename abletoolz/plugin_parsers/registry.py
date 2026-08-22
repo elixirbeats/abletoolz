@@ -46,10 +46,7 @@ def get_all_parsers() -> dict[str, type[PluginParser]]:
     return _PARSER_REGISTRY.copy()
 
 
-def analyze_plugin(
-    plugin: PluginData,
-    config: AbletoolzConfig | None = None
-) -> PluginAnalysis | None:
+def analyze_plugin(plugin: PluginData, config: AbletoolzConfig | None = None) -> PluginAnalysis | None:
     """Analyze a plugin using appropriate parser.
 
     Returns:

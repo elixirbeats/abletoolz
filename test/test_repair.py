@@ -676,9 +676,7 @@ def test_a_pair_with_no_translator_is_reported_rather_than_refused() -> None:
     info = vst2_info(live_set, "Effectrix")
     before = ET.tostring(info)
     au_target = TranslationTarget(PluginKind.AU, "Test AU", (1, 2, 3, 4))
-    report = repair_set(
-        live_set, targets={"Effectrix": au_target}, uid_lookup=UidLookup(), loadable=nothing_loads
-    )
+    report = repair_set(live_set, targets={"Effectrix": au_target}, uid_lookup=UidLookup(), loadable=nothing_loads)
     action = only(report, "Effectrix")
     assert action.status is RepairStatus.UNSUPPORTED_PAIR
     assert action.target_format is PluginKind.AU
@@ -853,9 +851,7 @@ def hermetic(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     monkeypatch.setattr(plugins, "load_config", lambda: AbletoolzConfig())
 
 
-def test_plugins_repair_merges_config_and_caller_targets(
-    hermetic: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_plugins_repair_merges_config_and_caller_targets(hermetic: None, monkeypatch: pytest.MonkeyPatch) -> None:
     config = AbletoolzConfig(
         plugin_translation_targets={"Effectrix": TranslationTarget(PluginKind.VST3, "From Config", OTHER_FIELDS)}
     )

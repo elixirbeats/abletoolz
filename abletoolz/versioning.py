@@ -59,9 +59,7 @@ class versioned[**P, R]:  # noqa: N801 - decorator, reads like a keyword at use 
         self._impls: list[tuple[Version, Callable[Concatenate[Any, P], R]]] = [((0, 0, 0), base)]
         self.__doc__ = base.__doc__
 
-    def since(
-        self, floor: Version
-    ) -> Callable[[Callable[Concatenate[Any, P], R]], versioned[P, R]]:
+    def since(self, floor: Version) -> Callable[[Callable[Concatenate[Any, P], R]], versioned[P, R]]:
         def register(fn: Callable[Concatenate[Any, P], R]) -> versioned[P, R]:
             self._impls.append((floor, fn))
             self._impls.sort(key=lambda entry: entry[0], reverse=True)

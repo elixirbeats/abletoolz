@@ -105,9 +105,7 @@ def test_every_documented_row_matches_its_record(plugin: str) -> None:
     rung, prose = documented_rungs()[plugin]
     record = MEASURED_STATE[plugin]
     assert record.rung == rung
-    written = {
-        evidence for evidence, pattern in _EVIDENCE_IN_PROSE.items() if pattern.search(prose.casefold())
-    }
+    written = {evidence for evidence, pattern in _EVIDENCE_IN_PROSE.items() if pattern.search(prose.casefold())}
     assert written == set(record.evidence)
     dates = _ISO_DATE.findall(prose)
     assert dates == ([record.date.isoformat()] if record.date is not None else [])
@@ -386,9 +384,7 @@ def test_a_controller_state_nothing_registered_is_refused_loudly() -> None:
 
 
 def test_a_config_entry_may_name_one() -> None:
-    parsed = parse_config_targets(
-        {"FabFilter Pro-C.64": {"name": "Pro-C 2", "controller": FABFILTER_FABF_CONTROLLER}}
-    )
+    parsed = parse_config_targets({"FabFilter Pro-C.64": {"name": "Pro-C 2", "controller": FABFILTER_FABF_CONTROLLER}})
     (target,) = parsed.values()
     assert target.controller_state is FABFILTER_CONSTANT_CONTROLLER
 

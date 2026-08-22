@@ -200,8 +200,7 @@ def test_read_picks_tsv(tmp_path: Path) -> None:
         TSV_HEADER + "\n"
         "a.mp3" + "\ta.mp3\ta\t100.0\t174.0\t0.1\t0.1\t0.0\t0.0\t\t\t\t\t1.0\tFalse\t\tFalse"
         "\tInfo\tTrue\t576\t44100\n"
-        "b.mp3"
-        + "\tb.mp3\tb\t200.0\t170.0\t0.2\t0.2\t0.0\t0.0\t50.0\t144.0\t36.0\t35.9\t0.9\tTrue\tcorrected\tTrue"
+        "b.mp3" + "\tb.mp3\tb\t200.0\t170.0\t0.2\t0.2\t0.0\t0.0\t50.0\t144.0\t36.0\t35.9\t0.9\tTrue\tcorrected\tTrue"
         "\tXing\tFalse\t\t44100\n",
         encoding="utf-8",
     )
@@ -218,8 +217,7 @@ def test_read_picks_tsv_rejects_v1_schema(tmp_path: Path) -> None:
     """A pre-v2 export (no header-class columns) must fail loudly, not run with guesses."""
     tsv_path = tmp_path / "old.tsv"
     tsv_path.write_text(
-        TSV_HEADER_V1 + "\n"
-        "a.mp3" + "\ta.mp3\ta\t100.0\t174.0\t0.1\t0.1\t0.0\t0.0\t\t\t\t\t1.0\tFalse\t\tFalse\n",
+        TSV_HEADER_V1 + "\na.mp3" + "\ta.mp3\ta\t100.0\t174.0\t0.1\t0.1\t0.0\t0.0\t\t\t\t\t1.0\tFalse\t\tFalse\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="pre-v2"):
@@ -675,7 +673,7 @@ def test_mp3_offset_measured_cases(tmp_path: Path) -> None:
 
 def test_mp3_offset_seeks_past_large_id3(tmp_path: Path) -> None:
     """Multi-MB ID3 blocks (album art) must be seeked past by declared size (R.E.M bug)."""
-    art = b"\xAA" * 500_000  # bigger than any sane read window
+    art = b"\xaa" * 500_000  # bigger than any sane read window
     size = len(art)
     id3 = bytearray(b"ID3\x04\x00\x00")
     id3 += bytes(((size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F))
@@ -799,9 +797,7 @@ def test_resolve_link_placement_mp3_missing_samplerate_is_loud(tmp_path: Path) -
     """An MP3 row without a samplerate column value is a hard error, not a guess."""
     row = _make_row(path=tmp_path / "no_tag.mp3", filename="no_tag.mp3")
     with pytest.raises(ValueError, match="samplerate"):
-        resolve_link_placement(
-            row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="no_tag"
-        )
+        resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="no_tag")
 
 
 def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(
@@ -903,8 +899,6 @@ def test_run_crate_generation_link_mode_default_audio_flag() -> None:
     """--audio defaults to "link" (no copy, no transcode)."""
     args = dj_crates.parse_arguments(["picks.tsv", "--crate", "Test"])
     assert args.audio == "link"
-
-
 
 
 def test_resolve_output_dirs_explicit_paths_win() -> None:

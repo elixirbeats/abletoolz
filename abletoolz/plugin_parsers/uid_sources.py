@@ -301,10 +301,7 @@ class UidDisagreement:
     losing_fields: UidFields
 
     def __str__(self) -> str:
-        return (
-            f"{self.name}: {self.winner} says {self.winning_fields}, "
-            f"{self.loser} says {self.losing_fields}"
-        )
+        return f"{self.name}: {self.winner} says {self.winning_fields}, {self.loser} says {self.losing_fields}"
 
 
 @dataclasses.dataclass(frozen=True)

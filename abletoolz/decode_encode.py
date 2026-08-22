@@ -17,13 +17,11 @@ def xml_to_string(xml_str: str) -> tuple[str, int]:
 
 
 @overload
-def hex_to_string(hex_str: str, return_bytes: Literal[False] = False) -> str:
-    ...
+def hex_to_string(hex_str: str, return_bytes: Literal[False] = False) -> str: ...
 
 
 @overload
-def hex_to_string(hex_str: str, return_bytes: Literal[True]) -> bytes:
-    ...
+def hex_to_string(hex_str: str, return_bytes: Literal[True]) -> bytes: ...
 
 
 def hex_to_string(hex_str: str, return_bytes: bool = False) -> str | bytes:
@@ -55,5 +53,5 @@ def string_to_xml(in_str: str, levels: int = 14) -> str:
     parsed = textwrap.wrap(
         in_str, initial_indent=indent, subsequent_indent=indent, break_long_words=True, tabsize=4, width=width
     )
-    ending_indent = '\t' * (levels - 1)
+    ending_indent = "\t" * (levels - 1)
     return "\n" + "\n".join(parsed) + f"\n{ending_indent}"

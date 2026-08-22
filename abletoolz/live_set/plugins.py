@@ -1,4 +1,4 @@
-﻿"""Plugin reference scanning, analysis, and repair."""
+"""Plugin reference scanning, analysis, and repair."""
 
 from __future__ import annotations
 
@@ -121,9 +121,7 @@ def plist_au_identifiers(plist_path: pathlib.Path) -> set[AuIdentifier]:
             assert isinstance(component_type, str)
             assert isinstance(component_subtype, str)
             assert isinstance(manufacturer, str)
-            identifiers.add(
-                (_fourcc_int(component_type), _fourcc_int(component_subtype), _fourcc_int(manufacturer))
-            )
+            identifiers.add((_fourcc_int(component_type), _fourcc_int(component_subtype), _fourcc_int(manufacturer)))
     return identifiers
 
 
@@ -259,8 +257,6 @@ def search_live_databases(display_name: str, database_dir: pathlib.Path) -> path
         if (path := live_database_lookup(display_name, database)) is not None:
             return path
     return None
-
-
 
 
 @dataclasses.dataclass(frozen=True)

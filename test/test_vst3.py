@@ -1,4 +1,4 @@
-﻿"""VST3 resolution: bundle/Info.plist matching, single-file paths, Live Database lookup.
+"""VST3 resolution: bundle/Info.plist matching, single-file paths, Live Database lookup.
 
 Hermetic on any OS: mac-shaped ``.vst3`` bundles are synthesized in tmp_path via
 plistlib, Live Database fixtures via sqlite3, and the platform default dirs are

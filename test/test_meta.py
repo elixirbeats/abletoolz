@@ -91,9 +91,7 @@ def test_a_scan_leaves_what_it_found_beside_the_set(monkeypatch: pytest.MonkeyPa
     assert document["status"] is None and document["notes"] is None
 
 
-def test_a_run_that_scans_nothing_writes_no_sidecar(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_a_run_that_scans_nothing_writes_no_sidecar(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Listing tracks is not a scan; there is nothing to write down."""
     copy = copy_set(tmp_path, "11.3.42")
     assert run_cli(monkeypatch, str(copy), "--list-tracks") == 0
@@ -146,9 +144,7 @@ def test_a_rescan_carries_the_human_zone_through_verbatim(
     assert rescanned["scan"]["live_version"] == "Ableton Live 12.2.6"
 
 
-def test_an_unreadable_sidecar_is_ignored_and_replaced(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_an_unreadable_sidecar_is_ignored_and_replaced(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """A sidecar nothing can parse is no sidecar: the run says so and writes its own."""
     copy = copy_set(tmp_path, "11.3.42")
     meta.sidecar_path(copy).write_text("scan: [this is not a scan block", encoding="utf-8")
@@ -260,9 +256,7 @@ def test_an_unchanged_set_leaves_nothing_in_the_output_dir(
     assert not meta.sidecar_path(copy).exists()
 
 
-def test_a_renamed_save_takes_its_sidecar_with_it(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_a_renamed_save_takes_its_sidecar_with_it(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """--append-bars-bpm renames the set, and the sidecar is named for the file that exists."""
     copy = copy_set(tmp_path, "11.3.42")
     assert run_cli(monkeypatch, str(copy), "--check-plugins", "-s", "--append-bars-bpm") == 0

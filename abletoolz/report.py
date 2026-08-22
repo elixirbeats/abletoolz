@@ -217,9 +217,7 @@ def upgrade_fixes(upgrades: Sequence[DeviceUpgrade]) -> list[DeviceFix]:
 
 def parser_fixes(fixes: Sequence[DeviceStateFix]) -> list[DeviceFix]:
     """Every device a registered parser mended from the inside."""
-    return [
-        DeviceFix(device=fix.name, mechanism=FixMechanism.DEEP_PARSER, track=fix.track) for fix in fixes
-    ]
+    return [DeviceFix(device=fix.name, mechanism=FixMechanism.DEEP_PARSER, track=fix.track) for fix in fixes]
 
 
 def fix_counts(fixes: Sequence[DeviceFix]) -> dict[str, int]:

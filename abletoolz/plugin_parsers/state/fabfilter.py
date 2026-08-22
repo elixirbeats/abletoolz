@@ -656,19 +656,31 @@ PRO_C_1_TO_PRO_C_2: tuple[tuple[str, str], ...] = (
 # out, because a reader's first question about a version migration is what it
 # lost.
 PRO_C_1_DROPPED: tuple[tuple[str, str], ...] = (
-    ("Knee Shape", "reads 0 or 1 and nothing else in 188 patches, so it is a switch; Pro-C 2's Knee is a "
-                   "continuous 0 to 72 dB width, and passing a 1 through would put the widest knee it has "
-                   "on a patch that asked for a soft one"),
-    ("Left Side Chain Mix", "Pro-C 2 has no per-channel side-chain blend. The two mixes mirror each other "
-                            "around 0.5 in the two corpus patches that move them, which is a stereo-link "
-                            "control of some kind, but nothing measurable says it is Pro-C 2's Stereo Link"),
+    (
+        "Knee Shape",
+        "reads 0 or 1 and nothing else in 188 patches, so it is a switch; Pro-C 2's Knee is a "
+        "continuous 0 to 72 dB width, and passing a 1 through would put the widest knee it has "
+        "on a patch that asked for a soft one",
+    ),
+    (
+        "Left Side Chain Mix",
+        "Pro-C 2 has no per-channel side-chain blend. The two mixes mirror each other "
+        "around 0.5 in the two corpus patches that move them, which is a stereo-link "
+        "control of some kind, but nothing measurable says it is Pro-C 2's Stereo Link",
+    ),
     ("Right Side Chain Mix", "as above"),
     ("Right Side Chain Level", "Pro-C 2 has one side-chain level; the left one crosses"),
-    ("Auto Release Speed", "Pro-C 2 has no separate speed -- its Release knob is the auto-release speed "
-                           "when Auto Release is on, and writing one knob from two would silently "
-                           "overwrite the release time of every patch that is not in auto"),
-    ("Channel Processing", "0 in all 188 corpus patches, so nothing says how many settings it has or "
-                           "whether Pro-C 2's Stereo Link Mode is the same control"),
+    (
+        "Auto Release Speed",
+        "Pro-C 2 has no separate speed -- its Release knob is the auto-release speed "
+        "when Auto Release is on, and writing one knob from two would silently "
+        "overwrite the release time of every patch that is not in auto",
+    ),
+    (
+        "Channel Processing",
+        "0 in all 188 corpus patches, so nothing says how many settings it has or "
+        "whether Pro-C 2's Stereo Link Mode is the same control",
+    ),
     ("Interface: Opacity Input", "an editor opacity with no counterpart"),
     ("Interface: Opacity Output", "an editor opacity with no counterpart"),
     ("Interface: Opacity Gain Change", "an editor opacity with no counterpart"),
