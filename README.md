@@ -1,8 +1,8 @@
 ![Abletoolz](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient.png)
 # Abletoolz
 
-Abletoolz is a Python command line tool to edit, fix and analyze Ableton Live sets. Primarily the purpose is to
-automate things that aren't available in Live and make your life easier.
+Abletoolz is a Python library and command line tool to edit, fix and analyze Ableton Live sets. Primarily the purpose is
+to automate things that aren't available in Live and make your life easier.
 It can:
 - Run on one set, or an entire directory of sets. So you can fix/analyze everything with one command.
 - Color all your tracks/clips with random color gradients.
@@ -70,10 +70,11 @@ installation completed successfully. (Create an issue if you run into any errors
 
 ## Using as a library
 
-abletoolz is a Python package before it is a command, and a set is an object: open one, read what is in it,
-change it, save it. `AbletonSet` is the document, and what a set holds hangs off it as `transport`, `tracks`,
-`clips`, `devices`, `samples` and `plugins`. Nothing reaches disk until you call `save_set()`, which moves the
-original into the backup folder first, exactly as `-s/--save` does.
+abletoolz started life as a command line tool, but the more powerful way to use it now is as a Python
+library: a set is an object — open one, read what is in it, change it, save it. `AbletonSet` is the
+document, and what a set holds hangs off it as `transport`, `tracks`, `clips`, `devices`, `samples` and
+`plugins`. Nothing reaches disk until you call `save_set()`, which moves the original into the backup
+folder first, exactly as `-s/--save` does.
 
 **Read a set's tempo, length and tracks.**
 
