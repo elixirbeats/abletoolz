@@ -103,11 +103,6 @@ is checked. By default only missing samples are displayed to reduce clutter, use
 `--check-plugins` Checks installed VST and Audio Unit references. **Note**: When loading a set, if Ableton finds the
 same plugin name in a different path it will automatically fix any broken paths the next time you save your project. This
 command attempts to find missing VSTs and show an updated path if it finds one that Ableton will most likely load.
-VST3s stored by display name alone resolve against the installed plugin files — on macOS through each bundle's
-`Info.plist`, since bundle names often differ from display names — and, failing that, against Live's own plugin
-database, the only place shell plugins like Waves can be found. Audio Units resolve by the exact type, subtype, and
-manufacturer identifiers stored in the set. Bundle-backed units include their `.component` path; pathless macOS
-built-ins are verified through the system AudioComponent registry.
 ```
 [MidiTrack: 1-Serum] Plugin: Serum_x64.dll, Path: C:\Program Files\VstPlugins\Xfer\Serum_x64.dll, Exists: True
 [AudioTrack: 2-Audio] Plugin: Effectrix.dll, Path: C:\Program Files\VstPlugins\Effectrix.dll, Exists: True
