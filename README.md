@@ -9,7 +9,7 @@ It can:
 - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
 - Validate all plugins in a set are installed.
-- Analyze plugin state with plugin-specific parsers, and fix what they understand — the samples Serato Sample and xfadelooper point at, and the kits Maschine 2 can no longer find.
+- Analyze plugin state with plugin-specific parsers, and fix what they understand — like sample paths inside a plugin's saved state that no longer exist on disk. `--list-parsers` shows what's registered.
 - Fold/Unfold all tracks, and/or set track height and widths.
 - Prepend the set version name to the beginning of the file.
 - Append the number of bars of the track, and the bpm to the end of the file.
@@ -36,8 +36,9 @@ It also:
   projects: a set full of dead 32-bit plugins can be retargeted at the modern versions you actually have
   installed, and where a translator exists for the plugin's state format, your old settings come along instead
   of being lost. It can even translate one plugin into a different one once someone decodes both formats.
-  Three plugins have parsers today: Serato Sample and xfadelooper find and fix their broken sample paths, and
-  Maschine 2 reports the kits and samples it can no longer find (its state is too tangled to rewrite safely).
+  Parsers are registered per plugin: one that has proven its plugin's format can rewrite what it finds
+  (relinking sample paths through the sample database), and one that hasn't reports precisely what is
+  missing instead of risking a rewrite. `--list-parsers` shows the current roster.
 - **Safer saves.** Sets are serialized before anything on disk is touched — a failure can no longer leave you
   without your original file (which was always backed up, but still).
 - **Honest batch results.** Directory runs process sets concurrently (`--jobs`), report `N ok, M failed`, and
@@ -130,11 +131,11 @@ Plugin state inside a set is an opaque buffer per plugin; parsers teach abletool
 
 `--list-parsers` List registered plugin parsers and their buffer formats.
 
-`--analyze-plugins` Deep analysis using the registered parsers — reports issues like the samples a Serato
-Sample or xfadelooper device points at, or the kits a Maschine 2 device wants, that are no longer on disk.
+`--analyze-plugins` Deep analysis using the registered parsers — reports issues like sample or kit
+references inside a plugin's state that are no longer on disk.
 
-`--fix-plugins` Fix what a parser knows how to fix (broken sample paths inside Serato Sample and xfadelooper),
-using the sample database. Use with `-s` to write changes.
+`--fix-plugins` Fix what a parser knows how to fix — typically broken sample paths inside a plugin's
+state — using the sample database. Use with `-s` to write changes.
 
 `--upgrade-plugins` Upgrade plugin paths when a rule and an installed target exist. Rules live in a config file
 so nothing is guessed.
@@ -151,7 +152,7 @@ plugin_translation:
     "Some Plugin.64":       # the name the VST2 device stores
       to: vst3              # the format it becomes (this is the default)
       name: "Some Plugin"   # the name the VST3 goes by
-      state: verbatim       # or kilohearts, for kHs plugins
+      state: verbatim       # or a named state policy a parser provides
 ```
 
 A VST3 identifies itself by a class id that appears nowhere in a VST2 device, so a plugin can only be
