@@ -25,3 +25,6 @@ eggs/
 
 # abletoolz's own backup output when run on test sets
 abletoolz_backup/
+
+# a library pins nothing; the lock is whatever the local dev env resolved
+uv.lock
