@@ -85,7 +85,7 @@ def test_live_database_rows_become_records_of_both_formats(tmp_path: pathlib.Pat
     assert by_name["Serum_x64"].module_path == tmp_path / "Serum_x64.dll"
 
 
-def test_a_folder_scan_finds_what_live_never_scanned(tmp_path: pathlib.Path) -> None:
+def test_a_folder_scan_finds_what_live_never_scanned(tmp_path: pathlib.Path, scans_windows_plugins: None) -> None:
     folder = tmp_path / "VstPlugins"
     folder.mkdir()
     (folder / "Neverscanned.dll").write_bytes(b"")
@@ -159,7 +159,9 @@ def write_pe(path: pathlib.Path, *, sixty_four_bit: bool = True) -> pathlib.Path
 
 
 @pytest.mark.parametrize(("sixty_four_bit", "arch"), [(True, "x64"), (False, "x86")])
-def test_a_scanned_module_records_its_architecture(tmp_path: pathlib.Path, sixty_four_bit: bool, arch: str) -> None:
+def test_a_scanned_module_records_its_architecture(
+    tmp_path: pathlib.Path, sixty_four_bit: bool, arch: str, scans_windows_plugins: None
+) -> None:
     folder = tmp_path / "VstPlugins"
     folder.mkdir()
     write_pe(folder / "Thing.dll", sixty_four_bit=sixty_four_bit)
@@ -167,7 +169,9 @@ def test_a_scanned_module_records_its_architecture(tmp_path: pathlib.Path, sixty
     assert [entry.arch for entry in database.plugins] == [arch]
 
 
-def test_a_live_database_record_borrows_the_architecture_of_its_own_module(tmp_path: pathlib.Path) -> None:
+def test_a_live_database_record_borrows_the_architecture_of_its_own_module(
+    tmp_path: pathlib.Path, scans_windows_plugins: None
+) -> None:
     """Architecture is a fact about the file, so the record naming that file may have it.
 
     Live's database says nothing usable about bitness; the PE header of the very
@@ -216,7 +220,7 @@ def test_one_plugin_in_two_places_is_two_records(tmp_path: pathlib.Path) -> None
     assert [entry.source for entry in database.installed(PluginKind.VST3)] == [PluginSource.LIVE_DATABASE]
 
 
-def test_records_are_counted_per_format_and_source(tmp_path: pathlib.Path) -> None:
+def test_records_are_counted_per_format_and_source(tmp_path: pathlib.Path, scans_windows_plugins: None) -> None:
     folder = tmp_path / "VstPlugins"
     folder.mkdir()
     (folder / "Neverscanned.dll").write_bytes(b"")
@@ -289,7 +293,10 @@ def test_building_replaces_rather_than_merges(tmp_path: pathlib.Path, monkeypatc
 
 
 def test_a_command_builds_in_memory_when_no_file_exists_yet(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    scans_windows_plugins: None,
 ) -> None:
     """Nothing refuses to run because nobody has built the database yet."""
     folder = tmp_path / "VstPlugins"
@@ -307,7 +314,7 @@ def test_a_command_builds_in_memory_when_no_file_exists_yet(
 
 
 def test_config_paths_are_scanned_alongside_the_standard_locations(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, scans_windows_plugins: None
 ) -> None:
     """plugin_database.paths does for plugins what sample_database.paths does for samples."""
     standard = tmp_path / "VstPlugins"

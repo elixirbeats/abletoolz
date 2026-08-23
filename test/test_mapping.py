@@ -506,7 +506,7 @@ def test_a_survey_reads_the_written_plugin_database(tmp_path: pathlib.Path) -> N
 
 
 def test_a_survey_builds_a_database_in_memory_when_none_was_written(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, scans_windows_plugins: None
 ) -> None:
     """Never a refusal to run because nobody built the database yet."""
     folder = tmp_path / "VstPlugins"

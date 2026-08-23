@@ -192,7 +192,9 @@ def test_upgrade_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert run_cli(monkeypatch, str(copy), "--upgrade-plugins") == 0
 
 
-def test_plugin_db_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_plugin_db_through_cli(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, scans_windows_plugins: None
+) -> None:
     """--plugin-db reads this machine's plugins into a database at --plugin-db-path."""
     folder = tmp_path / "VstPlugins"
     folder.mkdir()
