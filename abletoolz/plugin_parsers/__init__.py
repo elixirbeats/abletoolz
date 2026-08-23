@@ -1,17 +1,39 @@
 """What a set says about its plugins, and what can be done about it.
 
-Three questions about a plugin device, answered by three groups of modules:
+A plugin device in a set can be broken in three independent ways, and the
+package is split along those three questions:
 
 * **identity** -- which plugin is this, and what is its id in another format?
-  ``base``, ``plugin_db``, ``uid_sources``, ``mapping``.
+  ``plugin_db`` writes down what this machine has, ``read_plugin_files`` reads
+  a dll or a bundle without loading it, ``uid_sources`` finds the VST3 class id
+  a translation needs, and ``mapping`` drafts the user's what-becomes-what
+  table.
 * **container** -- how is a device of one format rewritten as another?
-  ``format_translation`` and ``upgrade_rules``, with ``repair`` as the policy
-  that decides when to.
-* **state** -- what happens to the saved patch when the container changes? the
-  ``state`` package.
+  ``format_translation`` rewrites the format-specific info element in place;
+  ``upgrade_rules`` is the older path, swapping the plugin file a device points
+  at by explicit filename rule.
+* **state** -- what happens to the saved patch when the container changes? The
+  hard axis, and the ``state`` package. Answers sit on a ladder, cheapest
+  first -- verbatim, reframe, vendor-compat, re-encode -- and
+  ``state.measured`` records which rung each plugin was measured to sit on and
+  on what evidence: a listen or a vendor declaration settles a conversion,
+  anything less leaves it labelled an experiment.
 
-Beside them sit the per-plugin parsers in ``parsers``, which read a device's own
-buffer to find the samples it points at; ``registry`` dispatches to those.
+Everything above is knowledge. ``repair`` is the one module that decides
+anything: it converts only devices Live cannot load today, only where the
+user's mapping says what the replacement is, and reports everything else
+untouched.
+
+Beside the axes sit the per-plugin parsers in ``parsers``, which read a
+device's own buffer to find and fix the samples it points at; ``registry``
+dispatches to them, ``base`` is their contract, and ``config`` is the YAML
+file all of it reads.
+
+Tables here key plugins by the name a set stores -- the VST2 spelling where the
+two formats differ ("FabFilter Pro-Q 3"), the shared name where they do not --
+because every lookup starts from a device found in a set. The format axis is
+implied: one translation direction exists today (VST2 to VST3), so naming the
+plugin names the conversion.
 
 Only the names below are re-exported, and they are the ones the CLI and the
 live_set domains reach for. Everything else is imported from the module that
