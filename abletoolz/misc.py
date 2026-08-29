@@ -284,11 +284,3 @@ def search_element(root: ET.Element, search_name: str, attribute: str | None = N
     if attribute:
         return element.get(attribute)
     return element
-
-
-def note_translator(midi_note_number: int) -> tuple[str, int]:
-    """Return note and octave from midi note number."""
-    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    octave = midi_note_number // 12 - 1
-    note_index = midi_note_number % 12
-    return notes[note_index], octave

@@ -46,9 +46,8 @@ import copy
 import dataclasses
 import enum
 import pathlib
-import re
-from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz.live_set import sample_ref, sections
@@ -61,29 +60,6 @@ from abletoolz.versioning import Version, versioned
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
-
-_NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-_PITCH_NAME_RE = re.compile(r"([A-Ga-g])([#b]?)(-?\d{1,2})")
-_ACCIDENTALS = {"": 0, "#": 1, "b": -1}
-
-
-def pitch_name(pitch: int) -> str:
-    """MIDI number to Ableton-convention pitch name (middle C = 60 = "C3")."""
-    octave = pitch // 12 - 2
-    return f"{_NOTE_NAMES[pitch % 12]}{octave}"
-
-
-def parse_pitch_name(name: str) -> int:
-    """Ableton-convention pitch name to MIDI number ("C3" -> 60). Flats accepted."""
-    match = _PITCH_NAME_RE.fullmatch(name.strip())
-    if match is None:
-        raise ValueError(f"Not a pitch name: {name!r}")
-    step, accidental, octave = match.groups()
-    pitch = _NOTE_NAMES.index(step.upper()) + _ACCIDENTALS[accidental] + (int(octave) + 2) * 12
-    if not 0 <= pitch <= 127:
-        raise ValueError(f"Pitch name {name!r} is outside MIDI range 0-127")
-    return pitch
-
 
 def _boolean(value: bool) -> str:
     return "true" if value else "false"
@@ -113,34 +89,6 @@ class MidiNote:
     probability: float = 1.0
     velocity_deviation: float = 0.0
     note_id: int | None = None
-
-    @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> MidiNote:
-        """Build a note from the ``MidiClipRef.to_dict`` note shape.
-
-        ``note`` takes an Ableton-convention name ("E3") in place of
-        ``pitch``; when a dict carries both -- as ``to_dict`` output does --
-        they must agree.
-        """
-        pitch = data.get("pitch")
-        name = data.get("note")
-        if pitch is None and name is None:
-            raise ValueError("Note needs either 'pitch' or 'note'")
-        resolved = int(pitch) if pitch is not None else parse_pitch_name(str(name))
-        if pitch is not None and name is not None and parse_pitch_name(str(name)) != resolved:
-            raise ValueError(f"pitch {resolved} and note {name!r} name different pitches")
-        note_id = data.get("note_id")
-        return cls(
-            pitch=resolved,
-            start=float(data["start"]),
-            duration=float(data["duration"]),
-            velocity=float(data.get("velocity", 100.0)),
-            off_velocity=float(data.get("off_velocity", 64.0)),
-            enabled=bool(data.get("enabled", True)),
-            probability=float(data.get("probability", 1.0)),
-            velocity_deviation=float(data.get("velocity_deviation", 0.0)),
-            note_id=int(note_id) if note_id is not None else None,
-        )
 
 
 type NoteArray = list[int | float | bool | dict[str, float | bool]]
@@ -233,10 +181,9 @@ class MidiClipRef:
     """One MIDI clip found in the set, with its notes and placement.
 
     ``clip_element`` is the live handle the write path needs, the same way
-    ``SampleRef`` holds the elements it rewrites. It stays out of ``repr``,
-    out of equality (so refs still compare on parsed content) and out of
-    ``to_dict``, which is a serialization of the clip, not of the tree.
-    ``version`` rides along the same way, and for the same reason
+    ``SampleRef`` holds the elements it rewrites. It stays out of ``repr``
+    and out of equality, so refs still compare on parsed content rather than
+    on tree identity. ``version`` rides along the same way, and for the same reason
     ``TrackDevices`` carries one: a clip can be placed into a different set
     than the one it was read from, and the placement has to compare the two.
     """
@@ -250,39 +197,14 @@ class MidiClipRef:
     version: Version = dataclasses.field(repr=False, compare=False)
     clip_element: ET.Element = dataclasses.field(repr=False, compare=False)
 
-    def to_dict(self) -> dict[str, object]:
-        """JSON-ready shape for LLM consumption: flat, both pitch number and name."""
-        return {
-            "name": self.name,
-            "track_name": self.track_name,
-            "location": self.location.value,
-            "start_time": self.start_time,
-            "length": self.length,
-            "notes": [
-                {
-                    "pitch": note.pitch,
-                    "note": pitch_name(note.pitch),
-                    "start": note.start,
-                    "duration": note.duration,
-                    "velocity": note.velocity,
-                    "off_velocity": note.off_velocity,
-                    "enabled": note.enabled,
-                    "probability": note.probability,
-                    "velocity_deviation": note.velocity_deviation,
-                    "note_id": note.note_id,
-                }
-                for note in self.notes
-            ],
-        }
-
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class AudioClipRef:
     """One audio clip found in the set: placement and its sample, no note content.
 
     Mirrors ``MidiClipRef``'s shape. Audio clips carry no notes, so there is
-    no ``to_dict``/``from_dict`` pair -- ``describe()`` reads ``sample_name``
-    directly. ``clip_element`` follows the same repr/equality exclusion as
+    no note array to encode -- ``describe()`` reads ``sample_name`` directly.
+    ``clip_element`` follows the same repr/equality exclusion as
     ``MidiClipRef.clip_element``.
     """
 

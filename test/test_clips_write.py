@@ -28,7 +28,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.clips import ClipLocation, MidiClipRef, MidiNote, parse_pitch_name
+from abletoolz.live_set.clips import ClipLocation, MidiClipRef, MidiNote
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 
@@ -486,37 +486,3 @@ def test_midi_note_defaults_match_a_freshly_drawn_live_note() -> None:
     assert (note.probability, note.velocity_deviation, note.note_id) == (1.0, 0.0, None)
 
 
-def test_from_dict_accepts_a_to_dict_note(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    payload = first_session_clip(ableton_set).to_dict()
-    notes = payload["notes"]
-    assert isinstance(notes, list)
-    assert [MidiNote.from_dict(note) for note in notes] == list(first_session_clip(ableton_set).notes)
-
-
-def test_from_dict_accepts_a_note_name_instead_of_a_pitch() -> None:
-    assert MidiNote.from_dict({"note": "E3", "start": 1.0, "duration": 0.5}) == MidiNote(64, 1.0, 0.5)
-
-
-def test_from_dict_rejects_a_pitch_and_name_that_disagree() -> None:
-    with pytest.raises(ValueError, match="different pitches"):
-        MidiNote.from_dict({"pitch": 60, "note": "E3", "start": 0.0, "duration": 1.0})
-
-
-def test_from_dict_needs_a_pitch_or_a_name() -> None:
-    with pytest.raises(ValueError, match="'pitch' or 'note'"):
-        MidiNote.from_dict({"start": 0.0, "duration": 1.0})
-
-
-@pytest.mark.parametrize(
-    ("name", "pitch"),
-    [("C3", 60), ("c3", 60), ("C-2", 0), ("G8", 127), ("C#3", 61), ("Db3", 61), ("A3", 69)],
-)
-def test_parse_pitch_name(name: str, pitch: int) -> None:
-    assert parse_pitch_name(name) == pitch
-
-
-@pytest.mark.parametrize("name", ["H3", "C", "C99", "", "C3x"])
-def test_parse_pitch_name_rejects_nonsense(name: str) -> None:
-    with pytest.raises(ValueError):
-        parse_pitch_name(name)

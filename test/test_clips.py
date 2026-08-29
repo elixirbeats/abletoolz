@@ -16,13 +16,12 @@ exactly one real MidiClipRef.
 
 from __future__ import annotations
 
-import json
 import pathlib
 
 import pytest
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.clips import ClipLocation, MidiNote, pitch_name
+from abletoolz.live_set.clips import ClipLocation, MidiNote
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 
@@ -149,31 +148,3 @@ def test_12_4_5b_excludes_groove_pool_clip() -> None:
     )
 
 
-def test_to_dict_is_json_ready_and_flat() -> None:
-    """to_dict() gives both pitch number and note name, and round-trips through json."""
-    clip = make_set("12.4.5b").clips.midi()[0]
-    data = clip.to_dict()
-    encoded = json.dumps(data)
-    decoded = json.loads(encoded)
-    assert decoded["track_name"] == "1-LOW"
-    assert decoded["location"] == "session"
-    assert decoded["start_time"] == 0.0
-    assert decoded["length"] == 4.0
-    assert [note["pitch"] for note in decoded["notes"]] == [70, 64, 70]
-    assert [note["note"] for note in decoded["notes"]] == ["A#3", "E3", "A#3"]
-    assert decoded["notes"][1]["note_id"] == 2
-    assert decoded["notes"][0]["enabled"] is True
-
-
-@pytest.mark.parametrize(
-    ("pitch", "name"),
-    [
-        (60, "C3"),  # Ableton's middle C.
-        (0, "C-2"),
-        (127, "G8"),
-        (61, "C#3"),
-        (69, "A3"),
-    ],
-)
-def test_pitch_name(pitch: int, name: str) -> None:
-    assert pitch_name(pitch) == name
