@@ -371,29 +371,6 @@ def _indent_key_tracks(clip_element: ET.Element, key_tracks: ET.Element) -> None
         midi_key.tail = base + "\t"
 
 
-def _set_clip_length(clip_element: ET.Element, length: float) -> None:
-    """Make a session clip exactly ``length`` beats long, start to loop end.
-
-    Live shows a clip's length from ``CurrentStart``/``CurrentEnd`` and loops
-    it between the ``Loop`` markers; every session clip in the fixture corpus
-    has all of them agreeing on 0..length, so all of them are written.
-    """
-    if length <= 0:
-        raise ValueError(f"Clip length must be positive, got {length}")
-    end = number_value(length)
-    get_element(clip_element, Tag.CURRENT_START).set(Attr.VALUE, "0")
-    get_element(clip_element, Tag.CURRENT_END).set(Attr.VALUE, end)
-    loop = get_element(clip_element, Tag.LOOP)
-    for tag, value in (
-        (Tag.LOOP_START, "0"),
-        (Tag.LOOP_END, end),
-        (Tag.OUT_MARKER, end),
-        (Tag.HIDDEN_LOOP_START, "0"),
-        (Tag.HIDDEN_LOOP_END, end),
-    ):
-        get_element(loop, tag).set(Attr.VALUE, value)
-
-
 class Clips:
     """MIDI clips and notes of one set: reading them, and authoring new ones."""
 
@@ -611,7 +588,7 @@ class Clips:
         clone_length = donor.length if length is None else length
         if clone_length is None:
             raise ValueError("Donor clip carries no loop markers; pass length explicitly")
-        _set_clip_length(clone, clone_length)
+        sections.set_clip_length(clone, clone_length)
         self._write_notes(clone, notes)
 
         value.text = (slot.holder.text or "") + "\t"
@@ -653,7 +630,7 @@ class Clips:
         deletes those clips outright instead; nothing is ever trimmed.
         """
         target = self._resolve_track(track)
-        events = self._require_events(target)
+        events = sections.require_events(target)
         expected = Tag.MIDI_TRACK if isinstance(donor, MidiClipRef) else Tag.AUDIO_TRACK
         if target.type != expected:
             raise ValueError(
@@ -668,7 +645,7 @@ class Clips:
         clone = copy.deepcopy(donor.clip_element)
         sections.move_clip(clone, at, length)
         span = sections.event_span(clone)
-        self._clear_span(target, events, span, replace=replace)
+        sections.clear_span(target, events, span, replace=replace)
 
         shift_indentation(clone, (tab_depth(events.indent) + 1) - (tab_depth(clone.text) - 1))
         renumber_pointee_ids(clone, self._root)
@@ -756,7 +733,7 @@ class Clips:
         for target, events, inside in planned:
             if not inside:
                 continue
-            for clip in self._span_occupants(events, dest_start, dest_end):
+            for clip in sections.span_occupants(events, dest_start, dest_end):
                 collisions.append(
                     f"{sections.clip_name(clip)!r} on track {target.name!r} at beat {clip.get(Attr.TIME)}"
                 )
@@ -774,7 +751,7 @@ class Clips:
         copied: list[CopiedPlacement] = []
         for target, events, cloned in clones:
             if cloned:
-                doomed = self._span_occupants(events, dest_start, dest_end)
+                doomed = sections.span_occupants(events, dest_start, dest_end)
                 sections.remove_children(events.element, doomed)
                 replaced += len(doomed)
             for clone in cloned:
@@ -863,47 +840,6 @@ class Clips:
         if track_names is None:
             return self._set.tracks.load()
         return [self._resolve_track(name) for name in track_names]
-
-    def _require_events(self, track: AbletonTrack) -> sections.ArrangementEvents:
-        events = sections.arrangement_events(track.track_root, track.type)
-        if events is None:
-            raise ValueError(f"Track {track.name!r} is a {track.type} and holds no arrangement clips")
-        return events
-
-    def _span_occupants(self, events: sections.ArrangementEvents, start: float, end: float) -> list[ET.Element]:
-        """Clips inside ``[start, end)``, raising on any that straddle an edge."""
-        occupants: list[ET.Element] = []
-        for clip in events.clips():
-            span = sections.event_span(clip)
-            boundary = sections.straddled_boundary(span, start, end)
-            if boundary is not None:
-                raise ValueError(
-                    f"Clip {sections.clip_name(clip)!r} spans {number_value(span[0])}-{number_value(span[1])} and "
-                    f"crosses the {boundary} of {number_value(start)}-{number_value(end)}; "
-                    "sections are never trimmed, so move or delete it first"
-                )
-            if start <= span[0] and span[1] <= end:
-                occupants.append(clip)
-        return occupants
-
-    def _clear_span(
-        self,
-        track: AbletonTrack,
-        events: sections.ArrangementEvents,
-        span: tuple[float, float],
-        *,
-        replace: bool,
-    ) -> None:
-        occupants = self._span_occupants(events, *span)
-        if not occupants:
-            return
-        if not replace:
-            names = ", ".join(f"{sections.clip_name(clip)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
-            raise ValueError(
-                f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track.name!r} already hold "
-                f"{len(occupants)} clip(s): {names}"
-            )
-        sections.remove_children(events.element, occupants)
 
     def track_of(self, clip_element: ET.Element) -> AbletonTrack:
         """The track owning a clip element, MIDI or audio, found by identity.

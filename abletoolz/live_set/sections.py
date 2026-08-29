@@ -57,7 +57,9 @@ import enum
 from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
+from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value
+from abletoolz.misc import get_element
 from abletoolz.schema import Attr, Tag, path
 
 # Where each track type keeps its arrangement clips, and what the clips are called.
@@ -426,3 +428,71 @@ def _child(element: ET.Element, path: str) -> ET.Element:
     if found is None:
         raise ValueError(f"Clip element {element.tag} has no {path}")
     return found
+
+
+def set_clip_length(clip_element: ET.Element, length: float) -> None:
+    """Make a session clip exactly ``length`` beats long, start to loop end.
+
+    Live shows a clip's length from ``CurrentStart``/``CurrentEnd`` and loops
+    it between the ``Loop`` markers; every session clip in the fixture corpus
+    has all of them agreeing on 0..length, so all of them are written.
+    """
+    if length <= 0:
+        raise ValueError(f"Clip length must be positive, got {length}")
+    end = number_value(length)
+    get_element(clip_element, Tag.CURRENT_START).set(Attr.VALUE, "0")
+    get_element(clip_element, Tag.CURRENT_END).set(Attr.VALUE, end)
+    loop = get_element(clip_element, Tag.LOOP)
+    for tag, value in (
+        (Tag.LOOP_START, "0"),
+        (Tag.LOOP_END, end),
+        (Tag.OUT_MARKER, end),
+        (Tag.HIDDEN_LOOP_START, "0"),
+        (Tag.HIDDEN_LOOP_END, end),
+    ):
+        get_element(loop, tag).set(Attr.VALUE, value)
+
+
+def require_events(track: AbletonTrack) -> ArrangementEvents:
+    """A track's arrangement clip list, or a refusal naming why it has none."""
+    events = arrangement_events(track.track_root, track.type)
+    if events is None:
+        raise ValueError(f"Track {track.name!r} is a {track.type} and holds no arrangement clips")
+    return events
+
+
+def span_occupants(events: ArrangementEvents, start: float, end: float) -> list[ET.Element]:
+    """Clips inside ``[start, end)``, raising on any that straddle an edge."""
+    occupants: list[ET.Element] = []
+    for clip in events.clips():
+        span = event_span(clip)
+        boundary = straddled_boundary(span, start, end)
+        if boundary is not None:
+            raise ValueError(
+                f"Clip {clip_name(clip)!r} spans {number_value(span[0])}-{number_value(span[1])} and "
+                f"crosses the {boundary} of {number_value(start)}-{number_value(end)}; "
+                "sections are never trimmed, so move or delete it first"
+            )
+        if start <= span[0] and span[1] <= end:
+            occupants.append(clip)
+    return occupants
+
+
+def clear_span(
+    track: AbletonTrack,
+    events: ArrangementEvents,
+    span: tuple[float, float],
+    *,
+    replace: bool,
+) -> None:
+    """Empty a destination span, or refuse to land on top of what is already there."""
+    occupants = span_occupants(events, *span)
+    if not occupants:
+        return
+    if not replace:
+        names = ", ".join(f"{clip_name(clip)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
+        raise ValueError(
+            f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track.name!r} already hold "
+            f"{len(occupants)} clip(s): {names}"
+        )
+    remove_children(events.element, occupants)
