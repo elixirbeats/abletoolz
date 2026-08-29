@@ -146,5 +146,3 @@ def test_12_4_5b_excludes_groove_pool_clip() -> None:
             note_id=3,
         ),
     )
-
-

@@ -484,5 +484,3 @@ def test_midi_note_defaults_match_a_freshly_drawn_live_note() -> None:
     note = MidiNote(pitch=60, start=0.0, duration=1.0)
     assert (note.velocity, note.off_velocity, note.enabled) == (100.0, 64.0, True)
     assert (note.probability, note.velocity_deviation, note.note_id) == (1.0, 0.0, None)
-
-

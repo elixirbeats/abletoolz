@@ -135,6 +135,44 @@ class SectionCopyReport:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class RemovedClip:
+    """One clip that was deleted from the arrangement."""
+
+    track_name: str
+    clip_name: str
+    start: float
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SectionRemoveReport:
+    """What ``Clips.remove_section_clips`` deleted, and what it left standing.
+
+    ``kept`` is the half that matters to a caller: a clip crossing either edge
+    of the section is never truncated, so a section that looked empty
+    afterwards may still hold the tails of clips that started before it.
+    """
+
+    removed: tuple[RemovedClip, ...]
+    kept: tuple[SkippedStraddler, ...]
+
+    def lines(self) -> list[str]:
+        """Human summary, one line per fact worth reading."""
+        if not self.removed and not self.kept:
+            return ["nothing to delete"]
+        report = [
+            f"deleted {clip.clip_name!r} on {clip.track_name!r} at beat {number_value(clip.start)}"
+            for clip in self.removed
+        ]
+        report.extend(
+            f"kept {straddler.clip_name!r} on {straddler.track_name!r} "
+            f"({number_value(straddler.start)}-{number_value(straddler.end)}): "
+            f"crosses the section {straddler.boundary}"
+            for straddler in self.kept
+        )
+        return report
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class ArrangementEvents:
     """One track's arrangement clip list, with the indentation its own tag sits on."""
 

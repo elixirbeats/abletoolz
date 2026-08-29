@@ -4,12 +4,24 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
+from abletoolz.live_set.apply_ops import (
+    CloneClipResult,
+    CopySectionResult,
+    GraftChainResult,
+    OpResult,
+    PlaceClipResult,
+    RemoveSectionClipsResult,
+    SetDeviceSettingResult,
+    SetNotesResult,
+    StraddlerModel,
+)
 from abletoolz.live_set.plugins import PluginRef
 from abletoolz.live_set.sample_ref import SampleRef
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.transport import SetLength
+from abletoolz.live_set.xml_edit import number_value
 from abletoolz.misc import CB, B, C, G, M, R, Y
 from abletoolz.plugin_parsers import PluginKind
 from abletoolz.plugin_parsers.mapping import MatchTier, SuggestionReport, VendorAgreement
@@ -285,3 +297,56 @@ def render_repair(report: RepairReport) -> None:
             report.fixed_measured_count,
             report.fixed_experimental_count,
         )
+
+
+def render_applied_ops(results: Sequence[OpResult]) -> None:
+    """One human line per op, from the same facts the JSON document carries.
+
+    The JSON on stdout is what a program reads; this is what the person
+    watching the run reads. Straddlers get their own line because a section
+    that reports as emptied can still have clips sounding through it.
+    """
+    for result in results:
+        logger.info("%s%s%s", G, _applied_op_line(result), "")
+        for straddler in _straddlers(result):
+            logger.info(
+                "%s  kept %r on %r (%s-%s): crosses the section %s",
+                Y,
+                straddler.clip,
+                straddler.track,
+                number_value(straddler.start),
+                number_value(straddler.end),
+                straddler.crosses,
+            )
+
+
+def _straddlers(result: OpResult) -> Sequence[StraddlerModel]:
+    if isinstance(result, CopySectionResult):
+        return result.skipped
+    if isinstance(result, RemoveSectionClipsResult):
+        return result.kept
+    return ()
+
+
+def _applied_op_line(result: OpResult) -> str:
+    """One line naming what an op did, in the terms the op was asked in."""
+    if isinstance(result, SetNotesResult):
+        return f"set_notes: wrote {result.notes} note(s) to {result.clip!r} on track {result.track!r}"
+    if isinstance(result, CloneClipResult):
+        return f"clone_clip: cloned into slot {result.slot} of track {result.track!r} as {result.name!r}"
+    if isinstance(result, GraftChainResult):
+        return f"graft_chain: grafted {result.devices} device(s) onto track {result.target_track!r} ({result.mode})"
+    if isinstance(result, PlaceClipResult):
+        return f"place_clip: placed {result.clip!r} on track {result.track!r} at beat {number_value(result.at)}"
+    if isinstance(result, CopySectionResult):
+        line = f"copy_section: copied {len(result.copied)} clip(s) to beat {number_value(result.dest_start)}"
+        if result.replaced:
+            line += f", deleted {result.replaced} at the destination"
+        if result.envelope_events:
+            line += f", copied {result.envelope_events} automation event(s)"
+        return line
+    if isinstance(result, SetDeviceSettingResult):
+        return f"set_device_setting: {result.device}.{result.setting} = {result.value} on {result.devices} device(s)"
+    if not result.removed and not result.kept:
+        return "remove_section_clips: nothing to delete"
+    return f"remove_section_clips: deleted {len(result.removed)} clip(s)"

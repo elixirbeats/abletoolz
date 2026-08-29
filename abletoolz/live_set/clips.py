@@ -61,6 +61,7 @@ from abletoolz.versioning import Version, versioned
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
+
 def _boolean(value: bool) -> str:
     return "true" if value else "false"
 
@@ -806,18 +807,21 @@ class Clips:
             envelope_events=envelope_events,
         )
 
-    def remove_section_clips(self, start: float, end: float, *, track_names: Sequence[str]) -> list[str]:
+    def remove_section_clips(
+        self, start: float, end: float, *, track_names: Sequence[str]
+    ) -> sections.SectionRemoveReport:
         """Delete the arrangement clips fully inside ``[start, end)`` on named tracks.
 
         The track list is required rather than defaulted: this is the one
         destructive operation here, and "every track" is not something to
         arrive at by leaving an argument out. Clips crossing either edge are
-        left alone and reported in the returned lines.
+        left alone and named in the report's ``kept``, never truncated.
         """
         if end <= start:
             raise ValueError(f"Section end {end} must be after its start {start}")
 
-        lines: list[str] = []
+        removed: list[sections.RemovedClip] = []
+        kept: list[SkippedStraddler] = []
         for target in self._section_tracks(track_names):
             events = sections.arrangement_events(target.track_root, target.type)
             if events is None:
@@ -827,19 +831,27 @@ class Clips:
                 span = sections.event_span(clip)
                 boundary = sections.straddled_boundary(span, start, end)
                 if boundary is not None:
-                    lines.append(
-                        f"kept {sections.clip_name(clip)!r} on {target.name!r} "
-                        f"({number_value(span[0])}-{number_value(span[1])}): crosses the section {boundary}"
+                    kept.append(
+                        SkippedStraddler(
+                            track_name=target.name,
+                            clip_name=sections.clip_name(clip),
+                            start=span[0],
+                            end=span[1],
+                            boundary=boundary,
+                        )
                     )
                 elif start <= span[0] and span[1] <= end:
                     doomed.append(clip)
-            for clip in doomed:
-                lines.append(
-                    f"deleted {sections.clip_name(clip)!r} on {target.name!r} "
-                    f"at beat {number_value(sections.event_time(clip))}"
+            removed.extend(
+                sections.RemovedClip(
+                    track_name=target.name,
+                    clip_name=sections.clip_name(clip),
+                    start=sections.event_time(clip),
                 )
+                for clip in doomed
+            )
             sections.remove_children(events.element, doomed)
-        return lines
+        return sections.SectionRemoveReport(removed=tuple(removed), kept=tuple(kept))
 
     def _resolve_track(self, track: AbletonTrack | str) -> AbletonTrack:
         """A track handle or name to one track, raising on a name two tracks share."""

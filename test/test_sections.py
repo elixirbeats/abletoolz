@@ -496,8 +496,9 @@ def test_a_track_with_no_envelope_container_is_left_alone(tmp_path: pathlib.Path
 
 def test_remove_section_clips_deletes_only_what_is_inside(tmp_path: pathlib.Path) -> None:
     ableton_set = make_set("11.0.12", tmp_path)
-    lines = ableton_set.clips.remove_section_clips(128.0, 192.0, track_names=["8-Drums to MIDI"])
-    assert len([line for line in lines if line.startswith("deleted")]) == 4
+    report = ableton_set.clips.remove_section_clips(128.0, 192.0, track_names=["8-Drums to MIDI"])
+    assert len(report.removed) == 4
+    assert {clip.track_name for clip in report.removed} == {"8-Drums to MIDI"}
 
     starts = [clip.start_time for clip in arrangement_midi(ableton_set, "8-Drums to MIDI")]
     assert starts == [96.0, 192.0, 208.0, 256.0, 272.0]
@@ -505,9 +506,32 @@ def test_remove_section_clips_deletes_only_what_is_inside(tmp_path: pathlib.Path
 
 def test_remove_section_clips_reports_and_keeps_straddlers(tmp_path: pathlib.Path) -> None:
     ableton_set = make_set("11.0.12", tmp_path)
-    lines = ableton_set.clips.remove_section_clips(136.0, 160.0, track_names=["8-Drums to MIDI"])
-    assert any("kept" in line and "crosses the section start" in line for line in lines)
+    report = ableton_set.clips.remove_section_clips(136.0, 160.0, track_names=["8-Drums to MIDI"])
+    # Both edges: one clip starts before the section, one runs past its end.
+    assert [(clip.track_name, clip.start, clip.boundary) for clip in report.kept] == [
+        ("8-Drums to MIDI", 128.0, SectionBoundary.START),
+        ("8-Drums to MIDI", 152.0, SectionBoundary.END),
+    ]
+    # The one clip that sits wholly inside the section still goes.
+    assert [clip.start for clip in report.removed] == [144.0]
     assert 128.0 in [clip.start_time for clip in arrangement_midi(ableton_set, "8-Drums to MIDI")]
+
+
+def test_remove_section_clips_still_renders_the_old_lines(tmp_path: pathlib.Path) -> None:
+    """The prose moved to a method on the report; nothing reads it to find facts."""
+    ableton_set = make_set("11.0.12", tmp_path)
+    report = ableton_set.clips.remove_section_clips(136.0, 160.0, track_names=["8-Drums to MIDI"])
+    lines = report.lines()
+    assert any(line.startswith("deleted ") for line in lines)
+    assert any("crosses the section start" in line for line in lines)
+
+
+def test_remove_section_clips_says_when_it_deleted_nothing(tmp_path: pathlib.Path) -> None:
+    ableton_set = make_set("11.0.12", tmp_path)
+    report = ableton_set.clips.remove_section_clips(9000.0, 9100.0, track_names=["8-Drums to MIDI"])
+    assert report.removed == ()
+    assert report.kept == ()
+    assert report.lines() == ["nothing to delete"]
 
 
 def test_remove_section_clips_touches_no_other_track(tmp_path: pathlib.Path) -> None:
@@ -579,6 +603,7 @@ def test_every_arrangement_clip_a_reader_reports_can_be_removed(tmp_path: pathli
     ableton_set = make_set("11.0.12", tmp_path)
     name = "8-Drums to MIDI"
     reported = len(arrangement_midi(ableton_set, name))
-    lines = ableton_set.clips.remove_section_clips(0.0, 10000.0, track_names=[name])
-    assert len(lines) == reported
+    report = ableton_set.clips.remove_section_clips(0.0, 10000.0, track_names=[name])
+    assert len(report.removed) == reported
+    assert report.kept == ()
     assert arrangement_midi(ableton_set, name) == []

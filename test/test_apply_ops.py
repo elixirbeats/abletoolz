@@ -23,7 +23,17 @@ import pydantic
 import pytest
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.apply_ops import OpsDocument, TrackByName, _resolve_track, apply_ops
+from abletoolz.live_set.apply_ops import (
+    CopySectionResult,
+    GraftChainResult,
+    OpsDocument,
+    PlaceClipResult,
+    RemoveSectionClipsResult,
+    SetNotesResult,
+    TrackByName,
+    _resolve_track,
+    apply_ops,
+)
 from abletoolz.live_set.clips import ClipLocation, MidiClipRef, encode_note
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -66,8 +76,7 @@ def test_set_notes_op_writes_through_to_the_clip(tmp_path: pathlib.Path) -> None
         }
     )
     results = apply_ops(ableton_set, doc.ops)
-    assert len(results) == 1
-    assert "set_notes" in results[0]
+    assert results == [SetNotesResult(track="1-LOW", clip="", notes=2)]
 
     rewritten = first_session_clip(ableton_set)
     assert [(n.pitch, n.start, n.duration) for n in rewritten.notes] == [(60, 0.0, 1.0), (64, 1.0, 1.0)]
@@ -177,7 +186,7 @@ def test_graft_chain_op_within_one_set(tmp_path: pathlib.Path) -> None:
         }
     )
     results = apply_ops(ableton_set, doc.ops)
-    assert "graft_chain" in results[0]
+    assert results == [GraftChainResult(target_track="3-Skylark - Iced", mode="append", devices=1)]
     target = next(chain for chain in ableton_set.devices.inventory() if chain.track_name == "3-Skylark - Iced")
     assert [d.tag for d in target.devices] == ["Reverb"]
 
@@ -369,7 +378,7 @@ def test_place_clip_op_round_trips(tmp_path: pathlib.Path) -> None:
         }
     )
     results = apply_ops(ableton_set, doc.ops)
-    assert results == ["place_clip: placed 'p01587' on track '8-Drums to MIDI' at beat 800.0"]
+    assert results == [PlaceClipResult(track="8-Drums to MIDI", clip="p01587", at=800.0)]
     starts = [clip.start_time for clip in ableton_set.clips.midi() if clip.location is ClipLocation.ARRANGEMENT]
     assert 800.0 in starts
 
@@ -449,7 +458,10 @@ def test_copy_section_op_round_trips(tmp_path: pathlib.Path) -> None:
         }
     )
     results = apply_ops(ableton_set, doc.ops)
-    assert results == ["copy_section: copied 4 clip(s) to beat 384"]
+    copied = results[0]
+    assert isinstance(copied, CopySectionResult)
+    assert (copied.dest_start, len(copied.copied), copied.skipped) == (384.0, 4, [])
+    assert [place.start for place in copied.copied] == [384.0, 400.0, 408.0, 424.0]
     starts = [clip.start_time for clip in ableton_set.clips.midi()]
     assert [start for start in starts if start >= 384.0] == [384.0, 400.0, 408.0, 424.0]
 
@@ -478,7 +490,11 @@ def test_remove_section_clips_op_round_trips(tmp_path: pathlib.Path) -> None:
         {"ops": [{"op": "remove_section_clips", "start": 128.0, "end": 192.0, "tracks": ["8-Drums to MIDI"]}]}
     )
     results = apply_ops(ableton_set, doc.ops)
-    assert results[0].count("deleted") == 4
+    removal = results[0]
+    assert isinstance(removal, RemoveSectionClipsResult)
+    assert len(removal.removed) == 4
+    assert removal.kept == []
+    assert {place.track for place in removal.removed} == {"8-Drums to MIDI"}
     starts = [clip.start_time for clip in ableton_set.clips.midi() if clip.location is ClipLocation.ARRANGEMENT]
     assert starts == [96.0, 192.0, 208.0, 256.0, 272.0]
 

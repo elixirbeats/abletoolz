@@ -636,7 +636,13 @@ def run_apply_ops(args: argparse.Namespace) -> int:
         logger.error("%sCould not apply ops: %s", R, exc)
         return 1
     ableton_set.save_set()
-    print(json.dumps({"applied": len(results), "output": str(output_path), "results": results}, separators=(",", ":")))
+    document = {
+        "applied": len(results),
+        "output": str(output_path),
+        "results": [result.model_dump(mode="json") for result in results],
+    }
+    print(json.dumps(document, separators=(",", ":")))
+    console.render_applied_ops(results)
     logger.info("%sApplied %s op(s) and saved to %s", G, len(results), output_path)
     return 0
 

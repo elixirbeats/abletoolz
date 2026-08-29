@@ -15,7 +15,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
+from abletoolz.live_set.apply_ops import OpsDocument, SetDeviceSettingResult, apply_ops
 from abletoolz.misc import ElementNotFound
 from abletoolz.schema import Tag
 from abletoolz.schema.devices import Device, EqEight, Sampler, Simpler
@@ -117,8 +117,8 @@ def test_the_ops_document_sets_every_simpler() -> None:
     document = OpsDocument.model_validate(
         {"ops": [{"op": "set_device_setting", "device": "SIMPLER", "setting": "VOLUME", "value": -3}]}
     )
-    (line,) = apply_ops(live_set, document.ops)
-    assert line == "set_device_setting: Simpler.VOLUME = -3 on 9 device(s)"
+    (result,) = apply_ops(live_set, document.ops)
+    assert result == SetDeviceSettingResult(device="SIMPLER", setting="VOLUME", value="-3", devices=9)
     assert {ref.setting(Simpler.VOLUME).raw for ref in live_set.devices.walk(Device.SIMPLER)} == {"-3"}
 
 

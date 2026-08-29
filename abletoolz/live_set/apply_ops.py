@@ -36,7 +36,7 @@ import pydantic
 
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, decode_note_array
 from abletoolz.live_set.document import AbletonSet
-from abletoolz.live_set.sections import SectionMode
+from abletoolz.live_set.sections import SectionMode, SkippedStraddler
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import get_element
 from abletoolz.schema import Tag, path
@@ -159,6 +159,113 @@ class OpsDocument(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid")
     ops: list[Op]
+
+
+# --- results ----------------------------------------------------------------
+#
+# One result model per op, tagged with the same ``op`` string the request
+# carried. The caller of an ops document is a program -- the whole point of
+# this surface -- and a program should not have to read English to find out
+# what happened. The prose lives in ``console``; these say the same things as
+# fields.
+
+
+class SetNotesResult(pydantic.BaseModel):
+    op: Literal["set_notes"] = "set_notes"
+    track: str
+    clip: str
+    notes: int
+
+
+class CloneClipResult(pydantic.BaseModel):
+    op: Literal["clone_clip"] = "clone_clip"
+    track: str
+    slot: int
+    name: str
+
+
+class GraftChainResult(pydantic.BaseModel):
+    op: Literal["graft_chain"] = "graft_chain"
+    target_track: str
+    mode: str
+    devices: int
+
+
+class PlaceClipResult(pydantic.BaseModel):
+    op: Literal["place_clip"] = "place_clip"
+    track: str
+    clip: str
+    at: float
+
+
+class PlacementModel(pydantic.BaseModel):
+    """A clip that landed somewhere, named by the track it landed on."""
+
+    track: str
+    clip: str
+    start: float
+
+
+class StraddlerModel(pydantic.BaseModel):
+    """A clip left alone because it crosses a section edge.
+
+    Never silently truncated, which is why it is reported rather than counted:
+    a section can read as emptied while these still sound through it.
+    """
+
+    track: str
+    clip: str
+    start: float
+    end: float
+    crosses: str
+
+
+class CopySectionResult(pydantic.BaseModel):
+    op: Literal["copy_section"] = "copy_section"
+    dest_start: float
+    copied: list[PlacementModel]
+    skipped: list[StraddlerModel]
+    replaced: int
+    envelope_events: int
+
+
+class RemoveSectionClipsResult(pydantic.BaseModel):
+    op: Literal["remove_section_clips"] = "remove_section_clips"
+    removed: list[PlacementModel]
+    kept: list[StraddlerModel]
+
+
+class SetDeviceSettingResult(pydantic.BaseModel):
+    op: Literal["set_device_setting"] = "set_device_setting"
+    device: str
+    setting: str
+    value: str
+    devices: int
+
+
+type OpResult = (
+    SetNotesResult
+    | CloneClipResult
+    | GraftChainResult
+    | PlaceClipResult
+    | CopySectionResult
+    | RemoveSectionClipsResult
+    | SetDeviceSettingResult
+)
+
+
+def _placement(track: str, clip: str, start: float) -> PlacementModel:
+    return PlacementModel(track=track, clip=clip, start=start)
+
+
+def _straddler(straddler: SkippedStraddler) -> StraddlerModel:
+    return StraddlerModel(
+        track=straddler.track_name,
+        clip=straddler.clip_name,
+        start=straddler.start,
+        end=straddler.end,
+        crosses=str(straddler.boundary),
+    )
 
 
 # --- track/clip selector resolution -----------------------------------------
@@ -295,19 +402,19 @@ def _open_donor_set(path: str, cache: dict[str, AbletonSet]) -> AbletonSet:
 # --- op preparation: resolve everything, mutate nothing ---------------------
 
 
-def _prepare_set_notes(live_set: AbletonSet, op: SetNotesOp) -> Callable[[], str]:
+def _prepare_set_notes(live_set: AbletonSet, op: SetNotesOp) -> Callable[[], OpResult]:
     track = _resolve_track(live_set, op.track)
     clip = _resolve_clip(live_set, track, op.clip)
     notes = [decode_note_array(row) for row in op.notes]
 
-    def run() -> str:
+    def run() -> OpResult:
         live_set.clips.set_notes(clip, notes)
-        return f"set_notes: wrote {len(notes)} note(s) to {clip.name!r} on track {track.name!r}"
+        return SetNotesResult(track=track.name, clip=clip.name, notes=len(notes))
 
     return run
 
 
-def _prepare_clone_clip(live_set: AbletonSet, op: CloneClipOp) -> Callable[[], str]:
+def _prepare_clone_clip(live_set: AbletonSet, op: CloneClipOp) -> Callable[[], OpResult]:
     track = _resolve_track(live_set, op.track)
     donor = _resolve_clip(live_set, track, op.donor)
     notes = [decode_note_array(row) for row in op.notes]
@@ -315,17 +422,17 @@ def _prepare_clone_clip(live_set: AbletonSet, op: CloneClipOp) -> Callable[[], s
     if op.slot is not None and not 0 <= op.slot < slot_count:
         raise ValueError(f"Track {track.name!r} has {slot_count} session slots; no slot {op.slot}")
 
-    def run() -> str:
+    def run() -> OpResult:
         slot = _first_empty_slot(track) if op.slot is None else op.slot
         live_set.clips.clone_clip(donor, slot_index=slot, name=op.name, notes=notes, length=op.length)
-        return f"clone_clip: cloned into slot {slot} of track {track.name!r} as {op.name!r}"
+        return CloneClipResult(track=track.name, slot=slot, name=op.name)
 
     return run
 
 
 def _prepare_graft_chain(
     live_set: AbletonSet, op: GraftChainOp, donor_sets: dict[str, AbletonSet]
-) -> Callable[[], str]:
+) -> Callable[[], OpResult]:
     donor_set = live_set if op.donor_set is None else _open_donor_set(op.donor_set, donor_sets)
     donor_name = _resolve_track_name(donor_set, op.donor_track)
     donor_chain = next((chain for chain in donor_set.devices.inventory() if chain.track_name == donor_name), None)
@@ -333,14 +440,16 @@ def _prepare_graft_chain(
         raise ValueError(f"No device chain for track {donor_name!r}")
     target_name = _resolve_track_name(live_set, op.target_track)
 
-    def run() -> str:
+    def run() -> OpResult:
         grafted = live_set.devices.graft_chain(donor_chain, target_name, mode=op.mode)
-        return f"graft_chain: grafted {len(grafted)} device(s) onto track {target_name!r} ({op.mode})"
+        return GraftChainResult(target_track=target_name, mode=op.mode, devices=len(grafted))
 
     return run
 
 
-def _prepare_place_clip(live_set: AbletonSet, op: PlaceClipOp, donor_sets: dict[str, AbletonSet]) -> Callable[[], str]:
+def _prepare_place_clip(
+    live_set: AbletonSet, op: PlaceClipOp, donor_sets: dict[str, AbletonSet]
+) -> Callable[[], OpResult]:
     donor_set = live_set if op.donor_set is None else _open_donor_set(op.donor_set, donor_sets)
     donor_track = _resolve_track(donor_set, op.donor_track)
     donor = _resolve_any_clip(donor_set, donor_track, op.donor)
@@ -353,21 +462,21 @@ def _prepare_place_clip(live_set: AbletonSet, op: PlaceClipOp, donor_sets: dict[
             f"place_clip donor is from Live {donor.version[0]}.x but the set is Live {live_set.version_tuple[0]}.x"
         )
 
-    def run() -> str:
+    def run() -> OpResult:
         placed = live_set.clips.place_clip(donor, track=target, at=op.at, length=op.length, replace=op.replace)
-        return f"place_clip: placed {placed.name!r} on track {target.name!r} at beat {op.at}"
+        return PlaceClipResult(track=target.name, clip=placed.name, at=op.at)
 
     return run
 
 
-def _prepare_copy_section(live_set: AbletonSet, op: CopySectionOp) -> Callable[[], str]:
+def _prepare_copy_section(live_set: AbletonSet, op: CopySectionOp) -> Callable[[], OpResult]:
     _resolve_track_names(live_set, op.tracks)
     if op.src_end <= op.src_start:
         raise ValueError(f"copy_section end {op.src_end} must be after its start {op.src_start}")
     if op.src_start < 0 or op.dest_start < 0:
         raise ValueError("copy_section positions must not be negative")
 
-    def run() -> str:
+    def run() -> OpResult:
         report = live_set.clips.copy_section(
             op.src_start,
             op.src_end,
@@ -375,24 +484,33 @@ def _prepare_copy_section(live_set: AbletonSet, op: CopySectionOp) -> Callable[[
             track_names=op.tracks,
             mode=SectionMode(op.mode),
         )
-        return f"copy_section: {'; '.join(report.lines())}"
+        return CopySectionResult(
+            dest_start=report.dest_start,
+            copied=[_placement(place.track_name, place.clip_name, place.start) for place in report.copied],
+            skipped=[_straddler(straddler) for straddler in report.skipped],
+            replaced=report.replaced,
+            envelope_events=report.envelope_events,
+        )
 
     return run
 
 
-def _prepare_remove_section_clips(live_set: AbletonSet, op: RemoveSectionClipsOp) -> Callable[[], str]:
+def _prepare_remove_section_clips(live_set: AbletonSet, op: RemoveSectionClipsOp) -> Callable[[], OpResult]:
     _resolve_track_names(live_set, op.tracks)
     if op.end <= op.start:
         raise ValueError(f"remove_section_clips end {op.end} must be after its start {op.start}")
 
-    def run() -> str:
-        lines = live_set.clips.remove_section_clips(op.start, op.end, track_names=op.tracks)
-        return f"remove_section_clips: {'; '.join(lines) if lines else 'nothing to delete'}"
+    def run() -> OpResult:
+        report = live_set.clips.remove_section_clips(op.start, op.end, track_names=op.tracks)
+        return RemoveSectionClipsResult(
+            removed=[_placement(clip.track_name, clip.clip_name, clip.start) for clip in report.removed],
+            kept=[_straddler(straddler) for straddler in report.kept],
+        )
 
     return run
 
 
-def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) -> Callable[[], str]:
+def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) -> Callable[[], OpResult]:
     if op.device not in Device.__members__:
         raise ValueError(f"set_device_setting: no device {op.device!r}; see abletoolz.schema.devices.Device")
     device = Device[op.device]
@@ -411,15 +529,15 @@ def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) ->
         raise ValueError(f"set_device_setting: no {op.device} in {where}")
     text = targets[0].encode(op.value)
 
-    def run() -> str:
+    def run() -> OpResult:
         for target in targets:
             target.set(op.value)
-        return f"set_device_setting: {settings.__name__}.{op.setting} = {text} on {len(targets)} device(s)"
+        return SetDeviceSettingResult(device=op.device, setting=op.setting, value=text, devices=len(targets))
 
     return run
 
 
-def _prepare(live_set: AbletonSet, op: AnyOp, donor_sets: dict[str, AbletonSet]) -> Callable[[], str]:
+def _prepare(live_set: AbletonSet, op: AnyOp, donor_sets: dict[str, AbletonSet]) -> Callable[[], OpResult]:
     if isinstance(op, SetDeviceSettingOp):
         return _prepare_set_device_setting(live_set, op)
     if isinstance(op, SetNotesOp):
@@ -435,12 +553,15 @@ def _prepare(live_set: AbletonSet, op: AnyOp, donor_sets: dict[str, AbletonSet])
     return _prepare_graft_chain(live_set, op, donor_sets)
 
 
-def apply_ops(live_set: AbletonSet, ops: Sequence[AnyOp]) -> list[str]:
+def apply_ops(live_set: AbletonSet, ops: Sequence[AnyOp]) -> list[OpResult]:
     """Validate every op, then execute them in order. Raises before any mutation.
 
     Validation resolves every selector, checks every slot exists, and parses
     every donor set -- the whole document, before the first XML edit. The
     caller saves; this only mutates the in-memory tree.
+
+    One result per op, in request order, each tagged with the op that produced
+    it. Nothing here returns prose: the caller is a program.
     """
     donor_sets: dict[str, AbletonSet] = {}
     prepared = [_prepare(live_set, op, donor_sets) for op in ops]
