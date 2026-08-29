@@ -72,6 +72,50 @@ ARRANGEMENT_EVENTS_PATH: dict[str, tuple[str, str]] = {
 # The only automation event tags observed in any Automation/Events list.
 AUTOMATION_EVENT_TAGS = frozenset({Tag.FLOAT_EVENT, Tag.BOOL_EVENT, Tag.ENUM_EVENT})
 
+# Where a track keeps its session clips. Every track type carries a second
+# ClipSlotList under FreezeSequencer, so this is anchored at MainSequencer
+# rather than searched for.
+SESSION_SLOTS_PATH = path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SessionSlot:
+    """One session clip slot, filled or not.
+
+    ``holder`` is the inner ``ClipSlot``; its indentation is what a clip cloned
+    into the slot has to be shifted to match. ``value`` is what actually holds
+    the clip element.
+    """
+
+    holder: ET.Element
+    value: ET.Element
+
+    @property
+    def filled(self) -> bool:
+        return len(self.value) > 0
+
+
+def session_slots(track_root: ET.Element) -> list[ET.Element]:
+    """A track's session clip slots, in slot order."""
+    return list(track_root.iterfind(SESSION_SLOTS_PATH))
+
+
+def session_slot(track_root: ET.Element, slot_index: int, track_name: str) -> SessionSlot:
+    """Slot ``slot_index`` on a track, whether or not it holds a clip.
+
+    Callers disagree about what they want to find there -- a clip to read, an
+    empty slot to write into -- so this answers only where the slot is, and
+    each says for itself what it needs.
+    """
+    slots = session_slots(track_root)
+    if not 0 <= slot_index < len(slots):
+        raise ValueError(f"Track {track_name!r} has {len(slots)} session slots; no slot {slot_index}")
+    holder = slots[slot_index].find(Tag.CLIP_SLOT)
+    value = None if holder is None else holder.find(Tag.VALUE)
+    if holder is None or value is None:
+        raise ValueError(f"Session slot {slot_index} of track {track_name!r} has no ClipSlot/Value")
+    return SessionSlot(holder=holder, value=value)
+
 
 class SectionMode(enum.StrEnum):
     """What a section operation does when the destination is already occupied."""

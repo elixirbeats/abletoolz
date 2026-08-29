@@ -34,6 +34,7 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
+from abletoolz.live_set import sections
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, decode_note_array
 from abletoolz.live_set.document import AbletonSet
 from abletoolz.live_set.sections import SectionMode, SkippedStraddler
@@ -315,19 +316,15 @@ def _resolve_track_name(live_set: AbletonSet, selector: TrackSelector) -> str:
 
 
 def _session_slots(track: AbletonTrack) -> list[ET.Element]:
-    return list(
-        track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
-    )
+    return sections.session_slots(track.track_root)
 
 
 def _clip_element_at_slot(track: AbletonTrack, slot_index: int) -> ET.Element:
-    slots = _session_slots(track)
-    if not 0 <= slot_index < len(slots):
-        raise ValueError(f"Track {track.name!r} has {len(slots)} session slots; no slot {slot_index}")
-    value = get_element(slots[slot_index], path(Tag.CLIP_SLOT, Tag.VALUE))
-    if not len(value):
+    """The clip in a slot. This caller needs the slot filled."""
+    slot = sections.session_slot(track.track_root, slot_index, track.name)
+    if not slot.filled:
         raise ValueError(f"Session slot {slot_index} of track {track.name!r} holds no clip")
-    return value[0]
+    return slot.value[0]
 
 
 def _first_empty_slot(track: AbletonTrack) -> int:
@@ -342,22 +339,32 @@ def _track_midi_clips(live_set: AbletonSet, track: AbletonTrack) -> list[MidiCli
     return [clip for clip in live_set.clips.midi() if live_set.clips.track_of(clip.clip_element) is track]
 
 
-def _resolve_clip(live_set: AbletonSet, track: AbletonTrack, selector: ClipSelector) -> MidiClipRef:
-    clips = _track_midi_clips(live_set, track)
+def _pick_clip[T: MidiClipRef | AudioClipRef](
+    clips: Sequence[T], track: AbletonTrack, selector: ClipSelector, *, kind: str
+) -> T:
+    """One selector to exactly one clip, out of whatever the caller allows.
+
+    ``kind`` only names the clips in the error text; the selector rules are
+    the same either way, which is the point of having one implementation.
+    """
     if isinstance(selector, ClipBySlot):
         clip_element = _clip_element_at_slot(track, selector.slot)
         ref = next((clip for clip in clips if clip.clip_element is clip_element), None)
         if ref is None:
-            raise ValueError(f"Slot {selector.slot} of track {track.name!r} does not hold a MIDI clip")
+            raise ValueError(f"Slot {selector.slot} of track {track.name!r} does not hold a {kind} clip")
         return ref
     matches = [
         clip for clip in clips if clip.location is ClipLocation.ARRANGEMENT and clip.start_time == selector.start
     ]
     if not matches:
-        raise ValueError(f"No arrangement MIDI clip starts at {selector.start} on track {track.name!r}")
+        raise ValueError(f"No arrangement {kind} clip starts at {selector.start} on track {track.name!r}")
     if len(matches) > 1:
         raise ValueError(f"Multiple arrangement clips start at {selector.start} on track {track.name!r}")
     return matches[0]
+
+
+def _resolve_clip(live_set: AbletonSet, track: AbletonTrack, selector: ClipSelector) -> MidiClipRef:
+    return _pick_clip(_track_midi_clips(live_set, track), track, selector, kind="MIDI")
 
 
 def _resolve_any_clip(live_set: AbletonSet, track: AbletonTrack, selector: ClipSelector) -> MidiClipRef | AudioClipRef:
@@ -368,20 +375,7 @@ def _resolve_any_clip(live_set: AbletonSet, track: AbletonTrack, selector: ClipS
     """
     every: list[MidiClipRef | AudioClipRef] = [*live_set.clips.midi(), *live_set.clips.audio()]
     clips = [clip for clip in every if live_set.clips.track_of(clip.clip_element) is track]
-    if isinstance(selector, ClipBySlot):
-        clip_element = _clip_element_at_slot(track, selector.slot)
-        ref = next((clip for clip in clips if clip.clip_element is clip_element), None)
-        if ref is None:
-            raise ValueError(f"Slot {selector.slot} of track {track.name!r} does not hold a readable clip")
-        return ref
-    matches = [
-        clip for clip in clips if clip.location is ClipLocation.ARRANGEMENT and clip.start_time == selector.start
-    ]
-    if not matches:
-        raise ValueError(f"No arrangement clip starts at {selector.start} on track {track.name!r}")
-    if len(matches) > 1:
-        raise ValueError(f"Multiple arrangement clips start at {selector.start} on track {track.name!r}")
-    return matches[0]
+    return _pick_clip(clips, track, selector, kind="readable")
 
 
 def _resolve_track_names(live_set: AbletonSet, names: Sequence[str] | None) -> None:

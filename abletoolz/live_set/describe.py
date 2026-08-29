@@ -36,6 +36,7 @@ import json
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
+from abletoolz.live_set import sections
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, encode_note
 from abletoolz.live_set.devices import TrackDevices
 from abletoolz.live_set.tracks import AbletonTrack
@@ -158,9 +159,7 @@ def _group_id(track: AbletonTrack) -> int | None:
 
 def _session_slot_index(track: AbletonTrack, clip_element: ET.Element) -> int:
     """Which session slot on ``track`` holds ``clip_element``, by identity."""
-    for index, slot in enumerate(
-        track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
-    ):
+    for index, slot in enumerate(sections.session_slots(track.track_root)):
         value = get_element(slot, path(Tag.CLIP_SLOT, Tag.VALUE))
         if any(child is clip_element for child in value):
             return index

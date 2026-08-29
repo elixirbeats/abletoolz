@@ -592,18 +592,13 @@ class Clips:
         into a session clip that plays once and stops.
         """
         track = self.track_of(donor.clip_element)
-        slots = list(
-            track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
-        )
-        if not 0 <= slot_index < len(slots):
-            raise ValueError(f"Track {track.name!r} has {len(slots)} session slots; no slot {slot_index}")
-        inner_slot = get_element(slots[slot_index], Tag.CLIP_SLOT)
-        value = get_element(inner_slot, Tag.VALUE)
-        if len(value):
+        slot = sections.session_slot(track.track_root, slot_index, track.name)
+        if slot.filled:
             raise ValueError(f"Session slot {slot_index} of track {track.name!r} already holds a clip")
+        value = slot.value
 
         clone = copy.deepcopy(donor.clip_element)
-        shift_indentation(clone, (tab_depth(inner_slot.text) + 1) - (tab_depth(clone.text) - 1))
+        shift_indentation(clone, (tab_depth(slot.holder.text) + 1) - (tab_depth(clone.text) - 1))
         renumber_pointee_ids(clone, self._root)
 
         # A session clip always starts at 0 and is the only clip in its slot.
@@ -619,8 +614,8 @@ class Clips:
         _set_clip_length(clone, clone_length)
         self._write_notes(clone, notes)
 
-        value.text = (inner_slot.text or "") + "\t"
-        clone.tail = inner_slot.text
+        value.text = (slot.holder.text or "") + "\t"
+        clone.tail = slot.holder.text
         value.append(clone)
         return _parse_clip(clone, track.name or None, ClipLocation.SESSION, self.version)
 
