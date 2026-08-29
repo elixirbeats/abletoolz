@@ -545,3 +545,40 @@ def test_remove_section_clips_rejects_a_backwards_range(tmp_path: pathlib.Path) 
     ableton_set = make_set("11.0.12", tmp_path)
     with pytest.raises(ValueError, match="must be after"):
         ableton_set.clips.remove_section_clips(192.0, 128.0, track_names=["8-Drums to MIDI"])
+
+
+# --- readers and writers see the same clips ---------------------------------
+
+
+def test_readers_ignore_a_clip_outside_the_arrangement_list(tmp_path: pathlib.Path) -> None:
+    """A MidiClip nested inside ClipTimeable but outside Events is not an arrangement clip.
+
+    The reader used to take the first ``ClipTimeable`` in the track and recurse
+    through all of it, so anything holding a clip under there -- a take lane,
+    a nested timeable -- counted. The writers only ever edit
+    ``ArrangerAutomation/Events``, so a reader that saw more reported clips no
+    op could place, move or delete. Checked against a decoy placed exactly
+    where the old walk reached and the writers do not: it lifted the count on
+    this fixture from 9 to 10.
+    """
+    ableton_set = make_set("11.0.12", tmp_path)
+    track = next(t for t in ableton_set.tracks.load() if t.name == "8-Drums to MIDI")
+    before = len(arrangement_midi(ableton_set, "8-Drums to MIDI"))
+    assert before > 0
+
+    timeable = track.track_root.find("DeviceChain/MainSequencer/ClipTimeable")
+    assert timeable is not None
+    ET.SubElement(ET.SubElement(timeable, "TakeLanes"), "MidiClip").set("Id", "9999")
+
+    assert len(arrangement_midi(ableton_set, "8-Drums to MIDI")) == before
+    assert [clip.get("Id") for clip in track.clips_arrangement()].count("9999") == 0
+
+
+def test_every_arrangement_clip_a_reader_reports_can_be_removed(tmp_path: pathlib.Path) -> None:
+    """The reader's list and the writer's list are the same list."""
+    ableton_set = make_set("11.0.12", tmp_path)
+    name = "8-Drums to MIDI"
+    reported = len(arrangement_midi(ableton_set, name))
+    lines = ableton_set.clips.remove_section_clips(0.0, 10000.0, track_names=[name])
+    assert len(lines) == reported
+    assert arrangement_midi(ableton_set, name) == []

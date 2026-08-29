@@ -425,14 +425,17 @@ class Clips:
     def audio(self) -> list[AudioClipRef]:
         """Every audio clip in the set, session and arrangement, with its sample name.
 
-        Scoped to ``DeviceChain/MainSequencer`` on each ``AudioTrack``, not
-        the generic ``clips_clipview``/``clips_arrangement`` walk MIDI uses:
-        every track type also carries a ``FreezeSequencer`` with its own
+        Session slots are scoped to ``DeviceChain/MainSequencer`` on each
+        ``AudioTrack`` rather than the generic ``clips_clipview`` walk MIDI
+        uses: every track type also carries a ``FreezeSequencer`` with its own
         ``ClipSlotList``, and freezing an audio track would leave an
         ``AudioClip`` there too. No fixture in the corpus freezes one, but
         unlike a frozen MIDI track (which renders to audio, never MidiClip),
         the tag alone can't tell a frozen render apart from a real clip, so
         this stays scoped to MainSequencer rather than guessing.
+
+        Arrangement clips come from ``sections.arrangement_events``, the same
+        list the writers edit, which scopes them for the same reason.
         """
         refs: list[AudioClipRef] = []
         project_root = self._set.project_root_folder or pathlib.Path(".")
@@ -449,9 +452,9 @@ class Clips:
                     refs.append(
                         _parse_audio_clip(audio_clip, track_name, ClipLocation.SESSION, self.version, project_root)
                     )
-            sample = main_sequencer.find(Tag.SAMPLE)
-            if sample is not None:
-                for audio_clip in sample.iter(Tag.AUDIO_CLIP):
+            events = sections.arrangement_events(track.track_root, track.type)
+            if events is not None:
+                for audio_clip in events.clips():
                     refs.append(
                         _parse_audio_clip(audio_clip, track_name, ClipLocation.ARRANGEMENT, self.version, project_root)
                     )

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz import color_tools, schema
+from abletoolz.live_set import sections
 from abletoolz.misc import RST, STEREO_OUTPUTS, G, R, get_element
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
@@ -92,19 +93,17 @@ class AbletonTrack:
         yield from self.track_root.iter(Tag.CLIP_SLOT)
 
     def clips_arrangement(self) -> Iterator[ET.Element]:
-        """Iterate through all the clips in the arangement view."""
-        if self.type == Tag.MIDI_TRACK:
-            tree_element = Tag.CLIP_TIMEABLE
-            clip_element = Tag.MIDI_CLIP
-        elif self.type == Tag.AUDIO_TRACK:
-            tree_element = Tag.SAMPLE
-            clip_element = Tag.AUDIO_CLIP
-        else:
+        """Iterate through all the clips in the arrangement view.
+
+        The same list the section writers edit. This used to search the track
+        for a ``ClipTimeable``/``Sample`` tag anywhere and then recurse into
+        it, which also reached clips inside racks and take lanes -- clips the
+        writers refuse to touch, reported to callers as if they were placeable.
+        """
+        events = sections.arrangement_events(self.track_root, self.type)
+        if events is None:
             return
-        clip_timeample = self.track_root.find(f".//{tree_element}")
-        if clip_timeample is None:
-            return
-        yield from clip_timeample.iter(clip_element)
+        yield from events.clips()
 
     def clip_clipview_colors(self) -> Iterator[ET.Element]:
         """Yield clipview color elements from current track."""
