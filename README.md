@@ -269,6 +269,38 @@ development. You can edit this xml file, rename it from `.xml` to  `.als` and Ab
 option multiple times, the previous xml file will be moved into the `abletoolz_backup`
 folder with the same renaming behavior as `-s/--save`.
 
+### Authoring - reading a set out, writing changes back
+
+Two commands exist for programs rather than people, and both speak JSON on stdout.
+
+`--describe structure|patterns|full` prints the set as a document: its tempo and version, every track
+with its device chain, and — above `structure` — the clip content, deduplicated into a table of
+patterns that placements refer to by id. A tune that re-places one 32-note pattern across a track
+describes it once instead of sixteen times.
+
+```
+abletoolz "tune.als" --describe patterns
+```
+
+`--apply-ops` takes a document of changes and writes the result to `--output`. The input set is never
+touched; the output must not already exist.
+
+```
+abletoolz "tune.als" --apply-ops edits.json --output "tune variation.als"
+```
+
+```json
+{"ops": [
+  {"op": "copy_section", "src_start": 128.0, "src_end": 192.0, "dest_start": 384.0, "tracks": ["Drums"]},
+  {"op": "set_notes", "track": {"name": "Bass"}, "clip": {"start": 384.0}, "notes": [[36, 0.0, 1.0]]}
+]}
+```
+
+Every selector resolves before the first edit, so a document with one bad op changes nothing. The
+answer names what each op did — including the clips a section op deliberately left alone, because a
+clip crossing a section edge is never trimmed. The op shapes are in
+[doc/AUTHORING.md](doc/AUTHORING.md).
+
 ### Records - what a run writes down
 
 Runs also save their results to files, so you can look back later or process them with other tools.
@@ -352,6 +384,10 @@ one, read what is in it, change it, save it or create one from scratch. `Ableton
 document, and what a set holds hangs off it as `transport`, `tracks`, `clips`, `devices`, `samples` and
 `plugins`. Nothing reaches disk until you call `save_set()`, which moves the original into the backup
 folder first, exactly as `-s/--save` does.
+
+[doc/AUTHORING.md](doc/AUTHORING.md) is the map of that library: which module owns what, how the
+layers depend on each other, and the rules they are built on — worth reading before changing any of
+it, or before assuming a fact about a set is available to read.
 
 **Read a set's tempo, length and tracks.**
 
