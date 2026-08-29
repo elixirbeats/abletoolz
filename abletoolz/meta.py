@@ -34,7 +34,7 @@ import pydantic
 import yaml
 
 from abletoolz import __version__
-from abletoolz.misc import BACKUP_DIR
+from abletoolz.misc import is_backup_set
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +105,10 @@ def describes_a_real_set(set_path: pathlib.Path) -> bool:
 
     A backup is a copy of a set the user already has and a ``._`` file is macOS
     resource-fork litter that only looks like one; neither gets a file written
-    next to it.
+    next to it. Same predicate the set collector uses, so the two cannot drift
+    into writing sidecars the collector would never have visited.
     """
-    if set_path.name.startswith("._"):
-        return False
-    return BACKUP_DIR not in set_path.parts[:-1]
+    return not is_backup_set(set_path)
 
 
 def read(set_path: pathlib.Path) -> SetMeta | None:

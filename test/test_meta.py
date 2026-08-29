@@ -115,6 +115,46 @@ def test_backups_and_resource_forks_get_no_sidecar(tmp_path: pathlib.Path) -> No
     assert not list(tmp_path.rglob("*.meta.yaml"))
 
 
+def test_lives_own_backup_folder_gets_no_sidecar(tmp_path: pathlib.Path) -> None:
+    """Ableton's Backup/ counts too, not just the folder abletoolz writes.
+
+    A set in there reached the sidecar writer only when named directly on the
+    command line -- directory walks already skipped it -- and the writer used
+    to accept it, leaving files inside Live's own backup folder.
+    """
+    scan = meta.SetScan(scanned=meta.now(), scanned_with=meta.SCANNER, set_hash="abc")
+    # Each spelling gets its own root: Windows would fold "Backup" and "backup"
+    # into one directory, so a shared parent would only ever test one of them.
+    for index, folder in enumerate(("Backup", "backup")):
+        live_backup = tmp_path / str(index) / folder / "MyTune [2024-01-02 143000].als"
+        live_backup.parent.mkdir(parents=True)
+        assert meta.write(live_backup, scan) is None
+    assert not list(tmp_path.rglob("*.meta.yaml"))
+
+
+def test_a_directly_named_backup_is_not_collected(tmp_path: pathlib.Path) -> None:
+    """The collector and the sidecar writer answer the same question the same way."""
+    for index, folder in enumerate(("Backup", "backup", "abletoolz_backup")):
+        inside = tmp_path / str(index) / folder / "old.als"
+        inside.parent.mkdir(parents=True)
+        inside.write_bytes(b"")
+        assert cli.get_pathlib_objects([str(inside)]) == []
+        assert not meta.describes_a_real_set(inside)
+
+    real = tmp_path / "real.als"
+    real.write_bytes(b"")
+    assert cli.get_pathlib_objects([str(real)]) == [real]
+    assert meta.describes_a_real_set(real)
+
+
+def test_a_set_named_backup_is_still_a_set(tmp_path: pathlib.Path) -> None:
+    """Only parent directories are checked -- "Backup.als" is a filename, not a folder."""
+    named = tmp_path / "Backup.als"
+    named.write_bytes(b"")
+    assert cli.get_pathlib_objects([str(named)]) == [named]
+    assert meta.describes_a_real_set(named)
+
+
 # -- the user's half ---------------------------------------------------------
 
 

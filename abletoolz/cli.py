@@ -16,7 +16,7 @@ from abletoolz import __version__, console, meta, report
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
 from abletoolz.live_set.describe import DescribeLevel, describe_json
-from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, G, M, R, SetError, Y
+from abletoolz.misc import BACKUP_DIR, CB, B, C, ElementNotFound, G, M, R, SetError, Y, is_backup_set
 from abletoolz.plugin_parsers import (
     AbletoolzConfig,
     default_suggestions_path,
@@ -98,16 +98,10 @@ def get_pathlib_objects(srcs: list[str]) -> list[pathlib.Path]:
     for src in srcs:
         path = pathlib.Path(src)
         if path.is_dir():
-            files = list(path.rglob("*.als")) + list(path.rglob("*.alc"))
             # Hacky but Path.rglob doesn't have options for filtering.
-            files_to_process = []
-            for file in files:
-                if all(x not in file.parts[:-1] for x in ["Backup", "backup", BACKUP_DIR]) and not file.stem.startswith(
-                    "._"
-                ):
-                    files_to_process.append(file)
-            paths.extend(files_to_process)
-        elif path.is_file():
+            files = list(path.rglob("*.als")) + list(path.rglob("*.alc"))
+            paths.extend(file for file in files if not is_backup_set(file))
+        elif path.is_file() and not is_backup_set(path):
             paths.append(path)
     return paths
 
