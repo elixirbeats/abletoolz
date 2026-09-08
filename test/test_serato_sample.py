@@ -7,8 +7,9 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.decode_encode import string_to_xml
 from abletoolz.plugin_parsers.base import PluginData
-from abletoolz.plugin_parsers.parsers.serato import SeratoSampleParser
+from abletoolz.plugin_parsers.parsers.serato import NO_SAMPLE_ISSUE, SeratoSampleParser
 from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
+from abletoolz.sample_databaser.create_db import DatabaseT
 
 SERATO_UNIQUE_ID = 1399681132
 
@@ -40,6 +41,13 @@ def make_plugin(source_file: pathlib.Path, *, unique_id: int | None = SERATO_UNI
     return PluginData.from_element(root)
 
 
+def make_empty_plugin() -> PluginData:
+    """The project Serato Sample writes once the sample it pointed at is gone: no sourceSong at all."""
+    payload = '{"project":{"Version":35,"VaporwaveWaveformsActive":false,"VelocitySensitive":false,"Quantize":false}}'
+    root = ET.fromstring(make_serato_xml(payload))
+    return PluginData.from_element(root)
+
+
 def test_registry_dispatches_by_unique_id(tmp_path: pathlib.Path) -> None:
     plugin = make_plugin(tmp_path / "a.wav")
     parser = get_parser_for_plugin(plugin)
@@ -66,7 +74,7 @@ def test_fix_relinks_missing_sample_to_best_candidate(tmp_path: pathlib.Path) ->
     # Two candidates share the filename; the one whose folder matches wins.
     right = tmp_path / "backup" / "from" / "old.wav"
     wrong = tmp_path / "other" / "old.wav"
-    db: dict[str, dict[str, int | str]] = {
+    db: DatabaseT = {
         wrong.as_posix(): {"name": "old.wav", "size": 0, "last_modified": 0},
         right.as_posix(): {"name": "old.wav", "size": 0, "last_modified": 0},
     }
@@ -79,7 +87,7 @@ def test_fix_relinks_missing_sample_to_best_candidate(tmp_path: pathlib.Path) ->
 def test_fix_returns_false_without_candidates(tmp_path: pathlib.Path) -> None:
     missing = tmp_path / "from" / "old.wav"
     plugin = make_plugin(missing)
-    db: dict[str, dict[str, int | str]] = {
+    db: DatabaseT = {
         (tmp_path / "unrelated.wav").as_posix(): {"name": "unrelated.wav", "size": 0, "last_modified": 0},
     }
 
@@ -93,10 +101,35 @@ def test_fix_skips_sample_that_exists(tmp_path: pathlib.Path) -> None:
     present.parent.mkdir()
     present.write_bytes(b"")
     plugin = make_plugin(present)
-    db: dict[str, dict[str, int | str]] = {
+    db: DatabaseT = {
         (tmp_path / "elsewhere" / "ok.wav").as_posix(): {"name": "ok.wav", "size": 0, "last_modified": 0},
     }
 
     assert fix_plugin(plugin, db) is False
     parser = SeratoSampleParser()
     assert parser.get_sample_paths(plugin) == [present]
+
+
+def test_analyze_flags_missing_sample_as_fixable(tmp_path: pathlib.Path) -> None:
+    missing = tmp_path / "gone" / "old.wav"
+    analysis = SeratoSampleParser().analyze(make_plugin(missing))
+    assert analysis.issues == [f"Missing sample: {missing}"]
+    assert analysis.can_fix is True
+
+
+def test_analyze_reports_project_with_no_sample() -> None:
+    analysis = SeratoSampleParser().analyze(make_empty_plugin())
+    assert analysis.issues == [NO_SAMPLE_ISSUE]
+    assert analysis.can_fix is False
+    assert analysis.metadata["sample_path"] is None
+
+
+def test_fix_refuses_project_with_no_sample(tmp_path: pathlib.Path) -> None:
+    plugin = make_empty_plugin()
+    assert plugin.buffer_element is not None
+    before = plugin.buffer_element.text
+    db: DatabaseT = {
+        (tmp_path / "any.wav").as_posix(): {"name": "any.wav", "size": 0, "last_modified": 0},
+    }
+    assert fix_plugin(plugin, db) is False
+    assert plugin.buffer_element.text == before

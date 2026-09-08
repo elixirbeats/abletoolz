@@ -25,6 +25,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+NO_SAMPLE_ISSUE = (
+    "project holds no sample -- the reference is not in this save, so there is nothing to relink; "
+    "an older save of the set may still carry it"
+)
+
 
 @register_parser
 class SeratoSampleParser(SampleContainerParser):
@@ -114,8 +119,12 @@ class SeratoSampleParser(SampleContainerParser):
             else:
                 analysis.metadata["sample_exists"] = True
         else:
-            # No sample loaded - not an issue, just empty
+            # A project with no sample is what the plugin writes after the file
+            # it pointed at went missing at save time, and the path is gone
+            # with it. Nothing here can relink it; an older save of the set
+            # can. Reporting OK here hid exactly that case.
             analysis.metadata["sample_path"] = None
+            analysis.issues.append(NO_SAMPLE_ISSUE)
 
         # Get length if available
         obj = plugin.decode_buffer_json()
@@ -138,6 +147,7 @@ class SeratoSampleParser(SampleContainerParser):
 
         current = self._get_file_from_json(obj)
         if not current:
+            logger.warning("Serato Sample: %s", NO_SAMPLE_ISSUE)
             return False
 
         # Parse current path. pathlib.Path() only raises on embedded NUL bytes.
