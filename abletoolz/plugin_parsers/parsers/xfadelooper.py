@@ -184,5 +184,5 @@ class XfadeLooperParser(SampleContainerParser):
         if not self.set_sample_path(plugin, current_path, replacement):
             return False
 
-        logger.info("Fixed xfadelooper: %s → %s", current_path.name, replacement)
+        logger.info("Fixed xfadelooper: %s -> %s", current_path.name, replacement)
         return True

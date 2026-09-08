@@ -172,5 +172,5 @@ class SeratoSampleParser(SampleContainerParser):
             return False
 
         plugin.set_buffer_from_json(obj)
-        logger.info("Fixed Serato Sample: %s → %s", file_name, replacement)
+        logger.info("Fixed Serato Sample: %s -> %s", file_name, replacement)
         return True
