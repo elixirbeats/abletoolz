@@ -1,4 +1,4 @@
-"""abletoolz.asd  —  Ableton .asd binary file utilities.
+"""abletoolz.formats.asd  —  Ableton .asd binary file utilities.
 
 Submodules:
   parser   — schema-driven .asd parser/serializer, warp-grid authoring (no heavy deps)
@@ -6,7 +6,7 @@ Submodules:
   analysis — BPM detection and onset finding via librosa (optional dep)
 """
 
-from abletoolz.asd.parser import AsdFile, WarpMarker
-from abletoolz.asd.writer import synthesize_asd, write_grid
+from abletoolz.formats.asd.parser import AsdFile, WarpMarker
+from abletoolz.formats.asd.writer import synthesize_asd, write_grid
 
 __all__ = ["AsdFile", "WarpMarker", "synthesize_asd", "write_grid"]

@@ -1,7 +1,7 @@
 """Tests for the .asd parser/writer against Live-generated ground-truth fixtures.
 
 Fixture facts asserted here were established by the byte-exact structural analysis in
-abletoolz/asd/FORMAT.md (offsets refer to that document).
+abletoolz/formats/asd/FORMAT.md (offsets refer to that document).
 """
 
 import struct
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from abletoolz.asd.parser import AsdFile, ListValue, Obj, PrimArray, WarpMarker
-from abletoolz.asd.writer import write_grid
+from abletoolz.formats.asd.parser import AsdFile, ListValue, Obj, PrimArray, WarpMarker
+from abletoolz.formats.asd.writer import write_grid
 
 FIXTURES = Path(__file__).parent / "asd_fixtures"
 NO_WARP = FIXTURES / "no_warp_markers.asd"

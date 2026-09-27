@@ -12,24 +12,22 @@ not the drop. A track's drop then lands at
 ``(drop_seconds - grid_start_seconds) * bpm / 60``, which should sit on a 4/4 bar boundary —
 :meth:`AlcClip.drop_alignment` is a per-track consistency check on that.
 
-Serialization mirrors the idioms in :mod:`abletoolz.live_set` (gzip open/save,
-``ElementTree``, header + body + trailing newline) without inheriting any of its
-set-specific parsing logic.
+The container -- gzip with Live's header, the XML prolog -- is
+:mod:`abletoolz.formats.live_document`, shared with ``.als``; this module is only what a
+clip means.
 """
 
 from __future__ import annotations
 
-import gzip
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-_XML_HEADER = b'<?xml version="1.0" encoding="UTF-8"?>\n'
-_XML_FOOTER = b"\n"
+from abletoolz.formats import FormatError, live_document
+from abletoolz.schema import Attr, Tag
 
 
-class AlcError(Exception):
+class AlcError(FormatError):
     """Raised for malformed, missing, or unsupported ``.alc`` content."""
 
 
@@ -97,17 +95,17 @@ def _get(element: ET.Element, tag: str) -> ET.Element:
 
 def _get_value(element: ET.Element, tag: str) -> str:
     """Return a required child's ``Value`` attribute."""
-    return _req_attr(_get(element, tag), "Value")
+    return _req_attr(_get(element, tag), Attr.VALUE)
 
 
 def _set_value(element: ET.Element, tag: str, value: str) -> None:
     """Set a required child's ``Value`` attribute."""
-    _get(element, tag).set("Value", value)
+    _get(element, tag).set(Attr.VALUE, value)
 
 
 def _find_audio_clip(root: ET.Element) -> ET.Element:
     """Locate the (first) ``<AudioClip>`` in an .alc document."""
-    clip = root.find(".//AudioClip")
+    clip = root.find(".//" + Tag.AUDIO_CLIP)
     if clip is None:
         raise AlcError("No <AudioClip> found in .alc document")
     return clip
@@ -115,14 +113,14 @@ def _find_audio_clip(root: ET.Element) -> ET.Element:
 
 def _read_markers(clip: ET.Element) -> list[WarpMarker]:
     """Read ``<WarpMarkers>`` children, sorted by ``SecTime``."""
-    warp_markers_el = _get(clip, "WarpMarkers")
+    warp_markers_el = _get(clip, Tag.WARP_MARKERS)
     markers = [
         WarpMarker(
-            marker_id=int(_req_attr(el, "Id")),
-            sec_time=float(_req_attr(el, "SecTime")),
-            beat_time=float(_req_attr(el, "BeatTime")),
+            marker_id=int(_req_attr(el, Attr.ID)),
+            sec_time=float(_req_attr(el, Attr.SEC_TIME)),
+            beat_time=float(_req_attr(el, Attr.BEAT_TIME)),
         )
-        for el in warp_markers_el.findall("WarpMarker")
+        for el in warp_markers_el.findall(Tag.WARP_MARKER)
     ]
     markers.sort(key=lambda m: m.sec_time)
     return markers
@@ -139,21 +137,21 @@ def _write_two_markers(
     fields). Otherwise the existing markers are discarded and replaced with two fresh ones
     (``Id="0"``, ``Id="1"``).
     """
-    warp_markers_el = _get(clip, "WarpMarkers")
-    existing = warp_markers_el.findall("WarpMarker")
+    warp_markers_el = _get(clip, Tag.WARP_MARKERS)
+    existing = warp_markers_el.findall(Tag.WARP_MARKER)
     if len(existing) == 2:
         anchor_el, end_el = existing
     else:
         for el in existing:
             warp_markers_el.remove(el)
-        anchor_el = ET.SubElement(warp_markers_el, "WarpMarker")
-        anchor_el.set("Id", "0")
-        end_el = ET.SubElement(warp_markers_el, "WarpMarker")
-        end_el.set("Id", "1")
-    anchor_el.set("SecTime", _format_number(anchor_sec))
-    anchor_el.set("BeatTime", _format_number(anchor_beat))
-    end_el.set("SecTime", _format_number(end_sec))
-    end_el.set("BeatTime", _format_number(end_beat))
+        anchor_el = ET.SubElement(warp_markers_el, Tag.WARP_MARKER)
+        anchor_el.set(Attr.ID, "0")
+        end_el = ET.SubElement(warp_markers_el, Tag.WARP_MARKER)
+        end_el.set(Attr.ID, "1")
+    anchor_el.set(Attr.SEC_TIME, _format_number(anchor_sec))
+    anchor_el.set(Attr.BEAT_TIME, _format_number(anchor_beat))
+    end_el.set(Attr.SEC_TIME, _format_number(end_sec))
+    end_el.set(Attr.BEAT_TIME, _format_number(end_beat))
 
 
 class AlcClip:
@@ -178,51 +176,37 @@ class AlcClip:
 
     @classmethod
     def load(cls, path: Path) -> AlcClip:
-        """Load and parse a gzip-compressed ``.alc`` file."""
-        data = path.read_bytes()
-        if data[:2] != b"\x1f\x8b":
-            raise AlcError(f"{path}: not gzip-compressed, not a valid .alc file")
-        xml_text = gzip.decompress(data).decode("utf-8")
-        root = ET.fromstring(xml_text)
-        return cls(root)
+        """Load and parse an ``.alc`` file."""
+        return cls(live_document.read(path))
 
     def to_xml_bytes(self) -> bytes:
         """Serialize the document to XML bytes (header + body + trailing newline)."""
-        xml_bytes = ET.tostring(self._root, encoding="utf-8")
-        assert isinstance(xml_bytes, bytes)  # ET.tostring(..., encoding=str) always returns bytes
-        return _XML_HEADER + xml_bytes + _XML_FOOTER
+        return live_document.to_xml_bytes(self._root)
 
     def save(self, path: Path) -> None:
-        """Gzip-compress and write the clip to ``path``, atomically (write-temp + rename).
-
-        Uses :func:`gzip.compress` rather than :func:`gzip.open`: the latter embeds the
-        (temp) filename via the gzip FNAME header flag, and Live's browser refuses to
-        index .alc files whose gzip FLG byte differs from Ableton's own ``0x00``.
-        """
+        """Write the clip to ``path`` atomically, with the gzip header Live's browser insists on."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = path.with_name(path.name + ".tmp")
-        tmp_path.write_bytes(gzip.compress(self.to_xml_bytes()))
-        os.replace(tmp_path, path)
+        live_document.write(path, live_document.encode(self._root))
 
     # ── Name / color ─────────────────────────────────────────────────────────
 
     @property
     def name(self) -> str:
         """The clip's ``<Name>`` (shown in Live's clip view and on Push 3's display)."""
-        return _get_value(self._clip, "Name")
+        return _get_value(self._clip, Tag.NAME)
 
     @name.setter
     def name(self, value: str) -> None:
-        _set_value(self._clip, "Name", value)
+        _set_value(self._clip, Tag.NAME, value)
 
     @property
     def color_index(self) -> int:
         """The clip's ``<Color>`` index (Live's built-in clip color palette index)."""
-        return int(_get_value(self._clip, "Color"))
+        return int(_get_value(self._clip, Tag.COLOR))
 
     @color_index.setter
     def color_index(self, value: int) -> None:
-        _set_value(self._clip, "Color", str(value))
+        _set_value(self._clip, Tag.COLOR, str(value))
 
     # ── Warp markers ─────────────────────────────────────────────────────────
 
@@ -261,17 +245,17 @@ class AlcClip:
         clip_end_beats = _beats_from_seconds(duration_seconds - grid_start_seconds, bpm)
 
         _write_two_markers(self._clip, grid_start_seconds, 0.0, duration_seconds, clip_end_beats)
-        _set_value(self._clip, "IsWarped", "true")
+        _set_value(self._clip, Tag.IS_WARPED, "true")
 
-        _set_value(self._clip, "CurrentStart", _format_number(clip_start_beats))
-        _set_value(self._clip, "CurrentEnd", _format_number(clip_end_beats))
+        _set_value(self._clip, Tag.CURRENT_START, _format_number(clip_start_beats))
+        _set_value(self._clip, Tag.CURRENT_END, _format_number(clip_end_beats))
 
-        loop = _get(self._clip, "Loop")
-        _set_value(loop, "LoopStart", _format_number(clip_start_beats))
-        _set_value(loop, "LoopEnd", _format_number(clip_end_beats))
-        _set_value(loop, "OutMarker", _format_number(clip_end_beats))
-        _set_value(loop, "HiddenLoopStart", _format_number(clip_start_beats))
-        _set_value(loop, "HiddenLoopEnd", _format_number(clip_end_beats))
+        loop = _get(self._clip, Tag.LOOP)
+        _set_value(loop, Tag.LOOP_START, _format_number(clip_start_beats))
+        _set_value(loop, Tag.LOOP_END, _format_number(clip_end_beats))
+        _set_value(loop, Tag.OUT_MARKER, _format_number(clip_end_beats))
+        _set_value(loop, Tag.HIDDEN_LOOP_START, _format_number(clip_start_beats))
+        _set_value(loop, Tag.HIDDEN_LOOP_END, _format_number(clip_end_beats))
 
     def add_grid_marker(self, seconds: float, *, beat_time: float | None = None) -> None:
         """Insert an extra warp marker at ``seconds``, colinear with the existing grid.
@@ -295,15 +279,15 @@ class AlcClip:
             slope = (last.beat_time - first.beat_time) / (last.sec_time - first.sec_time)
             beat_time = first.beat_time + (seconds - first.sec_time) * slope
 
-        warp_markers_el = _get(self._clip, "WarpMarkers")
-        elements = warp_markers_el.findall("WarpMarker")
-        next_id = max(int(_req_attr(el, "Id")) for el in elements) + 1
-        new_el = ET.Element("WarpMarker")
-        new_el.set("Id", str(next_id))
-        new_el.set("SecTime", _format_number(seconds))
-        new_el.set("BeatTime", _format_number(beat_time))
+        warp_markers_el = _get(self._clip, Tag.WARP_MARKERS)
+        elements = warp_markers_el.findall(Tag.WARP_MARKER)
+        next_id = max(int(_req_attr(el, Attr.ID)) for el in elements) + 1
+        new_el = ET.Element(Tag.WARP_MARKER)
+        new_el.set(Attr.ID, str(next_id))
+        new_el.set(Attr.SEC_TIME, _format_number(seconds))
+        new_el.set(Attr.BEAT_TIME, _format_number(beat_time))
 
-        insert_at = sum(1 for el in elements if float(_req_attr(el, "SecTime")) < seconds)
+        insert_at = sum(1 for el in elements if float(_req_attr(el, Attr.SEC_TIME)) < seconds)
         warp_markers_el.insert(insert_at, new_el)
 
     def set_clip_start(self, seconds: float) -> None:
@@ -331,11 +315,11 @@ class AlcClip:
             raise AlcError("degenerate warp grid: both markers share the same SecTime")
         slope = (end.beat_time - anchor.beat_time) / (end.sec_time - anchor.sec_time)
         beat = anchor.beat_time + (seconds - anchor.sec_time) * slope
-        _set_value(self._clip, "CurrentStart", _format_number(beat))
-        loop = _get(self._clip, "Loop")
-        if _get_value(loop, "LoopOn") == "false":
-            _set_value(loop, "LoopStart", _format_number(beat))
-            _set_value(loop, "HiddenLoopStart", _format_number(beat))
+        _set_value(self._clip, Tag.CURRENT_START, _format_number(beat))
+        loop = _get(self._clip, Tag.LOOP)
+        if _get_value(loop, Tag.LOOP_ON) == "false":
+            _set_value(loop, Tag.LOOP_START, _format_number(beat))
+            _set_value(loop, Tag.HIDDEN_LOOP_START, _format_number(beat))
 
     def set_view_window(self, start_seconds: float, end_seconds: float, margin_bars: float) -> None:
         """Set the clip view's visible window to cover `start_seconds` through
@@ -361,7 +345,7 @@ class AlcClip:
         def to_beats(seconds: float) -> float:
             return anchor_marker.beat_time + (seconds - anchor_marker.sec_time) * slope
 
-        scroller = self._clip.find("ScrollerTimePreserver")
+        scroller = self._clip.find(Tag.SCROLLER_TIME_PRESERVER)
         if scroller is None:
             return
         left = to_beats(start_seconds)
@@ -370,8 +354,8 @@ class AlcClip:
         # point; give it the margin as its whole span instead of a zero window.
         if right - left < margin_bars * 4.0:
             right = left + margin_bars * 4.0
-        _set_value(scroller, "LeftTime", _format_number(left))
-        _set_value(scroller, "RightTime", _format_number(right))
+        _set_value(scroller, Tag.LEFT_TIME, _format_number(left))
+        _set_value(scroller, Tag.RIGHT_TIME, _format_number(right))
 
     @staticmethod
     def drop_alignment(*, bpm: float, grid_start_seconds: float, drop_seconds: float) -> DropAlignment:
@@ -401,11 +385,11 @@ class AlcClip:
 
         Also updates ``OriginalFileSize`` when ``absolute_path`` exists (the field
         the ``.asd`` format's stale-file detection keys on — see
-        ``abletoolz/asd/FORMAT.md``). ``OriginalCrc`` is left untouched: whether
+        ``abletoolz/formats/asd/FORMAT.md``). ``OriginalCrc`` is left untouched: whether
         Live's ``.alc`` loader treats a stale CRC differently is unverified.
         """
-        file_ref = _get(_get(self._clip, "SampleRef"), "FileRef")
-        _set_value(file_ref, "Path", absolute_path.as_posix())
-        _set_value(file_ref, "RelativePath", relative_path.as_posix())
+        file_ref = _get(_get(self._clip, Tag.SAMPLE_REF), Tag.FILE_REF)
+        _set_value(file_ref, Tag.PATH, absolute_path.as_posix())
+        _set_value(file_ref, Tag.RELATIVE_PATH, relative_path.as_posix())
         if absolute_path.exists():
-            _set_value(file_ref, "OriginalFileSize", str(absolute_path.stat().st_size))
+            _set_value(file_ref, Tag.ORIGINAL_FILE_SIZE, str(absolute_path.stat().st_size))

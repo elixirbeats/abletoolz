@@ -356,3 +356,48 @@ def test_graft_survives_save_and_reopen(tmp_path: pathlib.Path) -> None:
     ids = owned_ids(reopened.root)
     assert len(ids) == len(set(ids))
     assert int(counter_of(reopened).get("Value", "")) > max(ids)
+
+
+# --- automation on a replaced chain -----------------------------------------
+
+
+def automate(ableton_set: AbletonSet, track_name: str, target_ids: list[str]) -> ET.Element:
+    """Give the track one envelope per target id, the shape Live writes, and answer the list."""
+    (track,) = [track for track in ableton_set.tracks.load() if track.name == track_name]
+    envelopes = track.track_root.find("AutomationEnvelopes/Envelopes")
+    assert envelopes is not None
+    for index, target_id in enumerate(target_ids):
+        envelope = ET.SubElement(envelopes, "AutomationEnvelope", Id=str(index))
+        ET.SubElement(ET.SubElement(envelope, "EnvelopeTarget"), "PointeeId", Value=target_id)
+        ET.SubElement(envelope, "Automation")
+    return envelopes
+
+
+def envelope_targets(envelopes: ET.Element) -> list[str | None]:
+    return [envelope.find("EnvelopeTarget/PointeeId").get("Value") for envelope in envelopes]  # type: ignore[union-attr]
+
+
+def a_device_parameter_and_the_track_volume(ableton_set: AbletonSet, track_name: str) -> tuple[str, str]:
+    device = devices_element(ableton_set, track_name)[0]
+    device_target = next(node for node in device.iter("AutomationTarget"))
+    (track,) = [track for track in ableton_set.tracks.load() if track.name == track_name]
+    volume = track.track_root.find("DeviceChain/Mixer/Volume/AutomationTarget")
+    assert volume is not None
+    return device_target.attrib["Id"], volume.attrib["Id"]
+
+
+def test_replace_drops_automation_of_the_devices_it_removes(tmp_path: pathlib.Path) -> None:
+    """Measured recombining two finished songs: a replace left two envelopes naming gone parameters."""
+    ableton_set = make_set("12.4.5b", tmp_path)
+    device_param, volume = a_device_parameter_and_the_track_volume(ableton_set, "1-LOW")
+    envelopes = automate(ableton_set, "1-LOW", [device_param, volume])
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "1-LOW", mode="replace")
+    assert envelope_targets(envelopes) == [volume]
+
+
+def test_append_keeps_the_automation_of_the_devices_it_keeps(tmp_path: pathlib.Path) -> None:
+    ableton_set = make_set("12.4.5b", tmp_path)
+    device_param, volume = a_device_parameter_and_the_track_volume(ableton_set, "1-LOW")
+    envelopes = automate(ableton_set, "1-LOW", [device_param, volume])
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "1-LOW")
+    assert envelope_targets(envelopes) == [device_param, volume]

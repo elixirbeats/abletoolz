@@ -8,6 +8,10 @@ renames is doc/VERSION_DIFFS.md.
 
 from __future__ import annotations
 
+from abletoolz.schema.tags import Attr, Tag, path
+
+__all__ = ["Attr", "Tag", "path", "tag"]
+
 # Logical name -> (min_version, tag) entries, newest first, floor entry last.
 _TAGS: dict[str, tuple[tuple[tuple[int, int, int], str], ...]] = {
     # Live 12 renamed the master track.

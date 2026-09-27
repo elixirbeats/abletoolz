@@ -40,19 +40,20 @@ from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, No
 from abletoolz.live_set.devices import TrackDevices
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import get_element
+from abletoolz.schema import Tag, path
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
 # Live's own track tags, mapped to the schema's short names. MasterTrack is
 # pre-12, MainTrack 12+ (schema.tag("master_track", ...)); both mean "main".
-_TRACK_TYPE = {
-    "MidiTrack": "midi",
-    "AudioTrack": "audio",
-    "GroupTrack": "group",
-    "ReturnTrack": "return",
-    "MasterTrack": "main",
-    "MainTrack": "main",
+_TRACK_TYPE: dict[str, str] = {
+    Tag.MIDI_TRACK: "midi",
+    Tag.AUDIO_TRACK: "audio",
+    Tag.GROUP_TRACK: "group",
+    Tag.RETURN_TRACK: "return",
+    Tag.MASTER_TRACK: "main",
+    Tag.MAIN_TRACK: "main",
 }
 
 # The main track carries no Id attribute in any corpus fixture, across every
@@ -157,8 +158,10 @@ def _group_id(track: AbletonTrack) -> int | None:
 
 def _session_slot_index(track: AbletonTrack, clip_element: ET.Element) -> int:
     """Which session slot on ``track`` holds ``clip_element``, by identity."""
-    for index, slot in enumerate(track.track_root.iterfind("DeviceChain/MainSequencer/ClipSlotList/ClipSlot")):
-        value = get_element(slot, "ClipSlot.Value")
+    for index, slot in enumerate(
+        track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
+    ):
+        value = get_element(slot, path(Tag.CLIP_SLOT, Tag.VALUE))
         if any(child is clip_element for child in value):
             return index
     raise ValueError("Session clip not found in its own track's slot list")

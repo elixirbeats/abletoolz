@@ -10,7 +10,7 @@ import pathlib
 import struct
 from xml.etree import ElementTree as ET
 
-from abletoolz.decode_encode import string_to_xml
+from abletoolz.formats import hex_text
 from abletoolz.plugin_parsers.base import PluginData
 from abletoolz.plugin_parsers.parsers.xfadelooper import (
     LAYOUT_VERSION,
@@ -64,7 +64,7 @@ def make_plugin(
     unique_id: int | None = XFADE_UNIQUE_ID,
 ) -> PluginData:
     """Wrap a state in a minimal xfadelooper PluginDesc."""
-    buffer_text = string_to_xml(state.hex().upper(), levels=2)
+    buffer_text = hex_text.encode(state, 2)
     unique_id_line = f'    <UniqueId Value="{unique_id}" />\n' if unique_id is not None else ""
     xml = (
         "<PluginDesc>\n"

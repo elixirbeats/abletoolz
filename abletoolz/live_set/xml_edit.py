@@ -29,14 +29,15 @@ from __future__ import annotations
 from xml.etree import ElementTree as ET
 
 from abletoolz.misc import get_element
+from abletoolz.schema import Attr, Tag, path
 
 
 def owns_pointee_id(tag: str) -> bool:
     """Whether an element with this tag owns an id in the set-global (NextPointeeId) space."""
     return (
-        tag == "Pointee"
-        or tag.endswith("AutomationTarget")
-        or tag.endswith("ModulationTarget")
+        tag == Tag.POINTEE
+        or tag.endswith(Tag.AUTOMATION_TARGET)
+        or tag.endswith(Tag.MODULATION_TARGET)
         or tag.startswith("ControllerTargets.")
     )
 
@@ -89,7 +90,7 @@ def strip_remote_bindings(subtree: ET.Element) -> None:
     """
     for parent in list(subtree.iter()):
         children = list(parent)
-        bindings = [child for child in children if child.tag == "KeyMidi"]
+        bindings = [child for child in children if child.tag == Tag.KEY_MIDI]
         if not bindings:
             continue
         for binding in bindings:
@@ -111,19 +112,19 @@ def renumber_pointee_ids(subtree: ET.Element, root: ET.Element) -> dict[str, str
     -- which is also why pre-10 sets, which have no ``NextPointeeId`` element
     to advance, never reach the allocator.
     """
-    owners = [node for node in subtree.iter() if owns_pointee_id(node.tag) and "Id" in node.attrib]
+    owners = [node for node in subtree.iter() if owns_pointee_id(node.tag) and Attr.ID in node.attrib]
     if not owners:
         return {}
-    counter_element = get_element(root, "LiveSet.NextPointeeId")
-    next_id = int(get_element(root, "LiveSet.NextPointeeId", attribute="Value"))
+    counter_element = get_element(root, path(Tag.LIVE_SET, Tag.NEXT_POINTEE_ID))
+    next_id = int(get_element(root, path(Tag.LIVE_SET, Tag.NEXT_POINTEE_ID), attribute=Attr.VALUE))
     renumbered: dict[str, str] = {}
     for owner in owners:
-        renumbered[owner.attrib["Id"]] = str(next_id)
-        owner.set("Id", str(next_id))
+        renumbered[owner.attrib[Attr.ID]] = str(next_id)
+        owner.set(Attr.ID, str(next_id))
         next_id += 1
-    for reference in subtree.iter("PointeeId"):
-        replacement = renumbered.get(reference.get("Value", ""))
+    for reference in subtree.iter(Tag.POINTEE_ID):
+        replacement = renumbered.get(reference.get(Attr.VALUE, ""))
         if replacement is not None:
-            reference.set("Value", replacement)
-    counter_element.set("Value", str(next_id))
+            reference.set(Attr.VALUE, replacement)
+    counter_element.set(Attr.VALUE, str(next_id))
     return renumbered

@@ -64,7 +64,7 @@ It also:
   analysis (BPM, downbeat, drop cue) and builds a folder of pre-gridded `.alc` clips for your Live browser —
   drag one in and it's already beatmatched, with a second variant that starts right at the drop. Fair
   warning: the TSV schema currently comes from a companion cue-detection tool, so expect to massage your own
-  analysis data into it. (`abletoolz.asd` has the `.asd` analysis-file format decoded too, warp grids
+  analysis data into it. (`abletoolz.formats.asd` has the `.asd` analysis-file format decoded too, warp grids
   included, but Live ignores externally written `.asd` files and regenerates them — so `.alc` clips are the
   delivery vehicle that actually works.)
 - Python 3.12+ and a modern typed codebase.
@@ -454,6 +454,33 @@ for device in live_set.devices.graft_chain(chain, "2-Audio", mode="append"):
     print("grafted", device.display_name)
 live_set.save_set()
 ```
+
+**Change one setting on every Sampler in a set.** `walk` finds every device of a kind, including the ones inside
+racks, and every native device's settings have names in `abletoolz.schema.devices`, measured from 826 real sets, so
+nothing has to be looked up in the XML. Your editor lists them: `Sampler.` then tab. A value reads and writes as what
+it is (a number, a switch, text), and a value of the wrong kind is refused.
+
+```python
+import pathlib
+
+from abletoolz.live_set import AbletonSet
+from abletoolz.schema.devices import Device, EqEight, Sampler
+
+live_set = AbletonSet(pathlib.Path("my_set.als"))
+live_set.parse()
+for sampler in live_set.devices.walk(Device.SAMPLER):
+    volume = sampler.setting(Sampler.VOLUME)
+    print(sampler.display_name, volume.value)
+    volume.set(-6.0)
+# A setting that lives in a list, like an EQ band, takes its position.
+for eq in live_set.devices.walk(Device.EQ_EIGHT, track_name="Bass"):
+    eq.setting(EqEight.PARAMETER_A_GAIN, index=0).set(-3.0)
+live_set.save_set()
+```
+
+The same edit as an ops document for `--apply-ops`:
+`{"ops": [{"op": "set_device_setting", "device": "SAMPLER", "setting": "VOLUME", "value": -6}]}`, with an optional
+`"track": {"name": "Bass"}` and `"index"`.
 
 **Read back the sidecar a scan left.** It comes out as an object rather than a blob of YAML, your own `status` and
 `notes` included — enough to triage a whole library without opening a set.

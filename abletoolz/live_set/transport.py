@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 
 from abletoolz import schema
 from abletoolz.misc import SetError, get_element
+from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
 
 if TYPE_CHECKING:
@@ -46,12 +47,21 @@ class Transport:
     def bpm(self) -> float:
         """Master/main track tempo."""
         master = schema.tag("master_track", self.version)
-        manual = f"LiveSet.{master}.DeviceChain.Mixer.Tempo.Manual"
-        automation = f"LiveSet.{master}.DeviceChain.Mixer.Tempo.ArrangerAutomation.Events.FloatEvent"
+        manual = path(Tag.LIVE_SET, master, Tag.DEVICE_CHAIN, Tag.MIXER, Tag.TEMPO, Tag.MANUAL)
+        automation = path(
+            Tag.LIVE_SET,
+            master,
+            Tag.DEVICE_CHAIN,
+            Tag.MIXER,
+            Tag.TEMPO,
+            Tag.ARRANGER_AUTOMATION,
+            Tag.EVENTS,
+            Tag.FLOAT_EVENT,
+        )
         if self.version >= (9, 7, 0):
-            bpm_value = get_element(self._root, manual, attribute="Value", silent_error=True)
+            bpm_value = get_element(self._root, manual, attribute=Attr.VALUE, silent_error=True)
         else:
-            bpm_value = get_element(self._root, automation, attribute="Value")
+            bpm_value = get_element(self._root, automation, attribute=Attr.VALUE)
         if bpm_value is None:
             raise SetError("Couldn't find BPM in set XML")
         self._set.bpm = round(float(bpm_value), 6)
@@ -59,7 +69,7 @@ class Transport:
 
     def furthest_bar(self) -> int:
         """Max of the longest clip or furthest arrangement position, in bars."""
-        current_end_times = [int(float(el.get("Value", 0))) for el in self._root.iter("CurrentEnd")]
+        current_end_times = [int(float(el.get(Attr.VALUE, 0))) for el in self._root.iter(Tag.CURRENT_END)]
         self._set.furthest_bar = int(max(current_end_times) / 4) if current_end_times else 0
         return self._set.furthest_bar
 

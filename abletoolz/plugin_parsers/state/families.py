@@ -29,11 +29,13 @@ from __future__ import annotations
 import enum
 import struct
 
+from abletoolz.formats import FormatError
+from abletoolz.formats.fxb import FXB_MAGIC, FxbChunkBank
+
 # Little-endian words everywhere below. Ableton writes little-endian and so does
-# every framing measured here; the one big-endian thing is the FXB bank inside a
-# VstW envelope, which is big-endian by the VST2 spec.
+# every framing measured here; the one big-endian thing is the FXB bank, on its
+# own or inside a VstW envelope, which is big-endian by the VST2 spec.
 _U32 = struct.Struct("<I")
-_U32_BE = struct.Struct(">I")
 
 
 # -- what a buffer is -------------------------------------------------------
@@ -75,7 +77,6 @@ ZLIB_FIRST = 0x78
 ZLIB_SECOND = frozenset({0x01, 0x9C, 0xDA})
 
 VSTW_MAGIC = b"VstW"
-FXB_MAGIC = b"CcnK"
 
 # JUCE's AudioProcessor::copyXmlToBinary: magic 0x21324356 little-endian, a
 # uint32 length, then the XML. Measured on soothe2, Rift and ValhallaShimmer.
@@ -249,14 +250,6 @@ def length_prefix_strip(buffer: bytes) -> bytes | None:
 # reading 8, 1 and 0 in every buffer measured -- and then a whole FXB bank.
 VSTW_HEADER_BYTES = 16
 
-# The FXB chunk-bank form, which is the one that carries an opaque chunk: magic,
-# byte count, this form tag, version, fxID, fxVersion, program count, 128 future
-# bytes, the chunk size, the chunk. FxBk is the other form and holds programs
-# rather than a chunk, so it is refused here rather than misread.
-FXB_CHUNK_BANK = b"FBCh"
-_FXB_CHUNK_SIZE_OFFSET = 156
-_FXB_CHUNK_OFFSET = 160
-
 
 def vstw_chunk(buffer: bytes) -> bytes | None:
     """The VST2 chunk inside a ``VstW`` envelope, or None if it is not one.
@@ -276,13 +269,10 @@ def vstw_chunk(buffer: bytes) -> bytes | None:
     """
     if not buffer.startswith(VSTW_MAGIC):
         return None
-    bank = buffer[VSTW_HEADER_BYTES:]
-    if len(bank) < _FXB_CHUNK_OFFSET or not bank.startswith(FXB_MAGIC) or bank[8:12] != FXB_CHUNK_BANK:
+    try:
+        return FxbChunkBank.parse(buffer[VSTW_HEADER_BYTES:]).chunk
+    except FormatError:
         return None
-    (size,) = _U32_BE.unpack_from(bank, _FXB_CHUNK_SIZE_OFFSET)
-    if _FXB_CHUNK_OFFSET + size > len(bank):
-        return None
-    return bank[_FXB_CHUNK_OFFSET : _FXB_CHUNK_OFFSET + size]
 
 
 # What a JUCE host appends to a VST3 state that a VST2 chunk has not got.

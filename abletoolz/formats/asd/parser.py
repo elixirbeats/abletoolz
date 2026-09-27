@@ -1,4 +1,4 @@
-"""abletoolz.asd.parser  —  schema-driven parser/serializer for Ableton's binary .asd format.
+"""abletoolz.formats.asd.parser  —  schema-driven parser/serializer for Ableton's binary .asd format.
 
 Layout (reverse-engineered, byte-exact against Live 12 and legacy fixtures — see FORMAT.md):
 
@@ -26,6 +26,8 @@ import struct
 from dataclasses import dataclass
 from pathlib import Path
 from typing import override
+
+from abletoolz.formats.errors import FormatError
 
 FILE_MAGIC = b"\x06\x49"
 DOC_MAGIC = b"\xab\x1e\x56\x78"
@@ -168,13 +170,13 @@ class _Reader:
     def raw(self, n: int) -> bytes:
         v = self.data[self.pos : self.pos + n]
         if len(v) != n:
-            raise ValueError(f"truncated .asd: wanted {n} bytes at 0x{self.pos:x}")
+            raise FormatError(f"truncated .asd: wanted {n} bytes at 0x{self.pos:x}")
         self.pos += n
         return v
 
     def ascii_str(self) -> str:
         if self.data[self.pos] != 0:
-            raise ValueError(f"expected ascii string at 0x{self.pos:x}, got byte 0x{self.data[self.pos]:02x}")
+            raise FormatError(f"expected ascii string at 0x{self.pos:x}, got byte 0x{self.data[self.pos]:02x}")
         ln = self.data[self.pos + 1]
         s = self.data[self.pos + 2 : self.pos + 2 + ln].decode("ascii")
         self.pos += 2 + ln
@@ -240,7 +242,7 @@ def _parse_prim(r: _Reader, ftype: int) -> Value:
     if ftype in PRIM_ARRAY_ELEM_SIZE:
         n = r.u32()
         return PrimArray(ftype, r.raw(n * PRIM_ARRAY_ELEM_SIZE[ftype]))
-    raise ValueError(f"unknown primitive type id 0x{ftype:02x} at 0x{r.pos:x}")
+    raise FormatError(f"unknown primitive type id 0x{ftype:02x} at 0x{r.pos:x}")
 
 
 def _parse_value(r: _Reader, ftype: FieldType, classes: dict[str, ClassDef]) -> Value:
@@ -256,17 +258,17 @@ def _parse_value(r: _Reader, ftype: FieldType, classes: dict[str, ClassDef]) -> 
             ecls = r.ascii_str()
             idx = r.u32()
             if idx != i:
-                raise ValueError(f"list element index {idx} != position {i} at 0x{r.pos:x}")
+                raise FormatError(f"list element index {idx} != position {i} at 0x{r.pos:x}")
             elems.append(_parse_obj(r, classes[ecls], classes))
         term = r.raw(2)
         if term != b"\x00\x00":
-            raise ValueError(f"bad list terminator {term.hex()} at 0x{r.pos:x}")
+            raise FormatError(f"bad list terminator {term.hex()} at 0x{r.pos:x}")
         return ListValue(elems)
     if cd.field_count == -3:  # array container
         n = r.u32()
         ecls = r.ascii_str()
         return ArrayValue(ecls, [_parse_obj(r, classes[ecls], classes) for _ in range(n)])
-    raise ValueError(f"unsupported container field count {cd.field_count} for class {cd.name}")
+    raise FormatError(f"unsupported container field count {cd.field_count} for class {cd.name}")
 
 
 def _parse_obj(r: _Reader, cd: ClassDef, classes: dict[str, ClassDef]) -> Obj:
@@ -297,7 +299,7 @@ def _write_prim(w: _Writer, v: Value, ftype: int) -> None:
         w.u32(v.count)
         w.buf += v.raw
     else:
-        raise ValueError(f"unknown primitive type id 0x{ftype:02x}")
+        raise FormatError(f"unknown primitive type id 0x{ftype:02x}")
 
 
 def _write_value(w: _Writer, v: Value, ftype: FieldType, classes: dict[str, ClassDef]) -> None:
@@ -323,7 +325,7 @@ def _write_value(w: _Writer, v: Value, ftype: FieldType, classes: dict[str, Clas
         for elem in v.elems:
             _write_obj(w, elem, classes[v.elem_cls], classes)
     else:
-        raise ValueError(f"unsupported container field count {cd.field_count} for class {cd.name}")
+        raise FormatError(f"unsupported container field count {cd.field_count} for class {cd.name}")
 
 
 def _write_obj(w: _Writer, obj: Obj, cd: ClassDef, classes: dict[str, ClassDef]) -> None:
@@ -333,7 +335,7 @@ def _write_obj(w: _Writer, obj: Obj, cd: ClassDef, classes: dict[str, ClassDef])
 
 def _parse_document(r: _Reader) -> Document:
     if r.raw(4) != DOC_MAGIC:
-        raise ValueError(f"missing document magic at 0x{r.pos - 4:x}")
+        raise FormatError(f"missing document magic at 0x{r.pos - 4:x}")
     version = r.u8()
     doc_id = r.u32()
     root_cls = r.ascii_str()
@@ -417,7 +419,7 @@ class AsdFile:
         """Parse ``path`` fully; raises ValueError on structural surprises."""
         data = path.read_bytes()
         if data[:2] != FILE_MAGIC:
-            raise ValueError(f"{path.name}: not an .asd file (magic {data[:2].hex()})")
+            raise FormatError(f"{path.name}: not an .asd file (magic {data[:2].hex()})")
         n_lead = int(struct.unpack_from("<Q", data, 2)[0])
         lead_table = list(struct.unpack_from(f"<{n_lead}I", data, 10))
         r = _Reader(data, 10 + 4 * n_lead)
@@ -434,7 +436,7 @@ class AsdFile:
         for doc in self.documents:
             if doc.root.cls == "SampleData":
                 return doc
-        raise ValueError(f"{self.path.name}: no SampleData document")
+        raise FormatError(f"{self.path.name}: no SampleData document")
 
     def sample_data(self) -> Obj:
         """Return the root SampleData object."""

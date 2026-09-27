@@ -165,6 +165,12 @@ MEASURED_STATE: dict[str, MeasuredState] = {
     # Probed from the binary on 2026-08-13; the user heard both devices carry
     # their old settings on 2026-08-15, which is what closed the recovery set.
     "kHs Stereo": MeasuredState(StateRung.REFRAME, (StateEvidence.EAR,), datetime.date(2026, 8, 15)),
+    # NI Massive 1.7.0: the VST2 chunk and the VST3 component state are the same
+    # NI item container (u64 size, "hsin", ...), byte for byte. Measured in
+    # DawDreamer: one state loaded into Massive.dll and Massive.vst3 reads back
+    # with the same per-save ids rewritten (~32 bytes) and every sound parameter
+    # identical. Not heard in Live yet.
+    "Massive": MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), datetime.date(2026, 9, 26)),
 }
 
 

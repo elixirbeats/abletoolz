@@ -39,6 +39,8 @@ from abletoolz.live_set.document import AbletonSet
 from abletoolz.live_set.sections import SectionMode
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import get_element
+from abletoolz.schema import Tag, path
+from abletoolz.schema.devices import SETTINGS_OF, Device
 
 
 class TrackById(pydantic.BaseModel):
@@ -125,12 +127,31 @@ class RemoveSectionClipsOp(pydantic.BaseModel):
     tracks: list[str]
 
 
+class SetDeviceSettingOp(pydantic.BaseModel):
+    """Set one setting on every device of a kind, set-wide or on one track.
+
+    ``device`` and ``setting`` are member names from
+    :mod:`abletoolz.schema.devices`: ``{"device": "SAMPLER", "setting":
+    "VOLUME"}``. ``index`` picks the entry of a setting that lives in a list.
+    """
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+    op: Literal["set_device_setting"]
+    device: str
+    setting: str
+    value: bool | float | str
+    track: TrackSelector | None = None
+    index: int | None = None
+
+
 type Op = Annotated[
-    SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp,
+    SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp | SetDeviceSettingOp,
     pydantic.Field(discriminator="op"),
 ]
 
-type AnyOp = SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp
+type AnyOp = (
+    SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp | SetDeviceSettingOp
+)
 
 
 class OpsDocument(pydantic.BaseModel):
@@ -187,14 +208,16 @@ def _resolve_track_name(live_set: AbletonSet, selector: TrackSelector) -> str:
 
 
 def _session_slots(track: AbletonTrack) -> list[ET.Element]:
-    return list(track.track_root.iterfind("DeviceChain/MainSequencer/ClipSlotList/ClipSlot"))
+    return list(
+        track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
+    )
 
 
 def _clip_element_at_slot(track: AbletonTrack, slot_index: int) -> ET.Element:
     slots = _session_slots(track)
     if not 0 <= slot_index < len(slots):
         raise ValueError(f"Track {track.name!r} has {len(slots)} session slots; no slot {slot_index}")
-    value = get_element(slots[slot_index], "ClipSlot.Value")
+    value = get_element(slots[slot_index], path(Tag.CLIP_SLOT, Tag.VALUE))
     if not len(value):
         raise ValueError(f"Session slot {slot_index} of track {track.name!r} holds no clip")
     return value[0]
@@ -202,7 +225,7 @@ def _clip_element_at_slot(track: AbletonTrack, slot_index: int) -> ET.Element:
 
 def _first_empty_slot(track: AbletonTrack) -> int:
     for index, slot in enumerate(_session_slots(track)):
-        value = get_element(slot, "ClipSlot.Value")
+        value = get_element(slot, path(Tag.CLIP_SLOT, Tag.VALUE))
         if not len(value):
             return index
     raise ValueError(f"Track {track.name!r} has no empty session slot")
@@ -322,7 +345,7 @@ def _prepare_place_clip(live_set: AbletonSet, op: PlaceClipOp, donor_sets: dict[
     donor_track = _resolve_track(donor_set, op.donor_track)
     donor = _resolve_any_clip(donor_set, donor_track, op.donor)
     target = _resolve_track(live_set, op.target_track)
-    expected = "MidiTrack" if isinstance(donor, MidiClipRef) else "AudioTrack"
+    expected = Tag.MIDI_TRACK if isinstance(donor, MidiClipRef) else Tag.AUDIO_TRACK
     if target.type != expected:
         raise ValueError(f"place_clip needs a {expected} for this donor; track {target.name!r} is a {target.type}")
     if donor.version[0] != live_set.version_tuple[0]:
@@ -369,7 +392,36 @@ def _prepare_remove_section_clips(live_set: AbletonSet, op: RemoveSectionClipsOp
     return run
 
 
+def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) -> Callable[[], str]:
+    if op.device not in Device.__members__:
+        raise ValueError(f"set_device_setting: no device {op.device!r}; see abletoolz.schema.devices.Device")
+    device = Device[op.device]
+    if device not in SETTINGS_OF:
+        raise ValueError(f"set_device_setting: {op.device} is hosted; its state is the plugin's own")
+    settings = SETTINGS_OF[device]
+    if op.setting not in settings.__members__:
+        raise ValueError(f"set_device_setting: {settings.__name__} has no setting {op.setting!r}")
+    setting = settings[op.setting]
+    track_name = None if op.track is None else _resolve_track_name(live_set, op.track)
+    indices = {} if op.index is None else {"index": op.index}
+    # Resolving every target and encoding the value now is what makes a bad op fail before any edit.
+    targets = [ref.setting(setting, **indices) for ref in live_set.devices.walk(device, track_name=track_name)]
+    if not targets:
+        where = "this set" if track_name is None else f"track {track_name!r}"
+        raise ValueError(f"set_device_setting: no {op.device} in {where}")
+    text = targets[0].encode(op.value)
+
+    def run() -> str:
+        for target in targets:
+            target.set(op.value)
+        return f"set_device_setting: {settings.__name__}.{op.setting} = {text} on {len(targets)} device(s)"
+
+    return run
+
+
 def _prepare(live_set: AbletonSet, op: AnyOp, donor_sets: dict[str, AbletonSet]) -> Callable[[], str]:
+    if isinstance(op, SetDeviceSettingOp):
+        return _prepare_set_device_setting(live_set, op)
     if isinstance(op, SetNotesOp):
         return _prepare_set_notes(live_set, op)
     if isinstance(op, CloneClipOp):

@@ -1,8 +1,7 @@
-"""File-IO for .als documents: the gzip container, backups, and file times."""
+"""File-IO for .als documents: backups, renames and file times around :mod:`abletoolz.formats.live_document`."""
 
 from __future__ import annotations
 
-import gzip
 import logging
 import os
 import pathlib
@@ -11,9 +10,9 @@ import subprocess
 import sys
 import threading
 from typing import TYPE_CHECKING
-from xml.etree import ElementTree as ET
 
 from abletoolz import utils
+from abletoolz.formats import FormatError, live_document
 from abletoolz.misc import B, G, M, R, Y
 
 if TYPE_CHECKING:
@@ -24,44 +23,25 @@ if sys.platform == "win32":
 
 logger = logging.getLogger(__name__)
 
-GZIP_MAGIC = b"\x1f\x8b"
-PRE_8_2_MAGIC = b"\xab\x1e"  # yes, it spells able :P
-XML_MAGIC = b"<?"  # hand-unzipped/exported sets are plain XML; Live opens those too
-
 
 def read_set(live_set: AbletonSet) -> bool:
-    """Uncompress an .als and load it into an element tree."""
-    with open(live_set.path, "rb") as fd:
-        first_two_bytes = fd.read(2)
-    if first_two_bytes == PRE_8_2_MAGIC:
+    """Load the set's document into an element tree; log and say False when it is not one."""
+    try:
+        root = live_document.read(live_set.path)
+    except live_document.Pre82DocumentError:
         logger.error("%s%sIs pre Ableton 8.2.x which is unsupported.", R, live_set.path)
         return False
-    if first_two_bytes not in (GZIP_MAGIC, XML_MAGIC):
-        logger.error(
-            "%s%sFile is not .als or is an older format that doesn't use gzip!, cannot open...",
-            R,
-            live_set.path,
-        )
+    except FormatError as error:
+        logger.error("%s%s", R, error)
         return False
     get_file_times(live_set)
-    if first_two_bytes == XML_MAGIC:
-        data = live_set.path.read_text(encoding="utf-8")
-    else:
-        with gzip.open(live_set.path, "r") as fd:
-            data = fd.read().decode("utf-8")
-    if not data:
-        logger.error("%s%s is an empty gzip archive — the file is truncated or corrupt.", R, live_set.path)
-        return False
-    live_set._root = ET.fromstring(data)
+    live_set._root = root
     return True
 
 
 def to_xml_bytes(live_set: AbletonSet) -> bytes:
     """Serialize the tree with Ableton's xml header and trailing newline."""
-    header = b'<?xml version="1.0" encoding="UTF-8"?>\n'
-    footer = b"\n"
-    xml_bytes: bytes = ET.tostring(live_set.root, encoding="utf-8")
-    return header + xml_bytes + footer
+    return live_document.to_xml_bytes(live_set.root)
 
 
 def save_xml(live_set: AbletonSet) -> None:
@@ -111,14 +91,13 @@ def restore_file_times(live_set: AbletonSet) -> None:
     )
 
 
-def write_set(live_set: AbletonSet, xml_bytes: bytes) -> None:
-    """Recompress the set to gzip. Run in a thread to avoid corruption on interrupt."""
+def write_set(live_set: AbletonSet, document: bytes) -> None:
+    """Write the set the way Live does. Run in a thread to avoid corruption on interrupt."""
     if live_set.path.exists():
         raise FileExistsError(
             f"File {live_set.path} already exists!(Did it not get moved to the backup folder?) Cannot overwrite..."
         )
-    with gzip.open(live_set.path, "wb") as fd:
-        fd.write(xml_bytes)
+    live_document.write(live_set.path, document)
     logger.info("%sSaved set to %s", G, live_set.path)
     restore_file_times(live_set)
 
@@ -140,7 +119,7 @@ def save_set(
     """
     # Serialize before touching anything on disk: a tree that cannot serialize
     # must fail loudly here, while the original file is still in place.
-    xml_bytes = to_xml_bytes(live_set)
+    document = live_document.encode(live_set.root)
     if output_dir is None:
         utils.create_backup(live_set.path)
     if append_bars_bpm:
@@ -177,6 +156,6 @@ def save_set(
         live_set.path = target
 
     # Non daemon thread so the write is not forcibly killed if the parent process is.
-    thread = threading.Thread(target=write_set, args=(live_set, xml_bytes))
+    thread = threading.Thread(target=write_set, args=(live_set, document))
     thread.start()
     thread.join()

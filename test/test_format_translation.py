@@ -16,7 +16,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from abletoolz import decode_encode
+from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind, uid_sources
@@ -75,13 +75,13 @@ def set_state(info: ET.Element, payload: bytes) -> str:
     """Give a VST2 device some saved state, wrapped the way Live wraps a hex blob."""
     preset = get_element(info, "Preset.VstPreset")
     state = get_element(preset, "Buffer")
-    state.text = decode_encode.string_to_xml(payload.hex().upper(), levels=(preset.text or "").count("\t") + 1)
+    state.text = hex_text.encode(payload, (preset.text or "").count("\t") + 1)
     return state.text
 
 
 def read_state(element: ET.Element) -> bytes:
     assert element.text is not None
-    return bytes.fromhex(decode_encode.xml_to_string(element.text)[0])
+    return hex_text.decode(element.text)
 
 
 # -- shape ------------------------------------------------------------------
@@ -213,9 +213,7 @@ def test_a_constant_controller_state_is_indented_the_way_live_writes_a_blob() ->
     preset = get_element(info, "Preset.Vst3Preset")
     text = get_element(preset, "ControllerState").text
     assert text is not None
-    assert text == decode_encode.string_to_xml(
-        FABFILTER_CONTROLLER_TRAILER.hex().upper(), levels=(preset.text or "").count("\t") + 1
-    )
+    assert text == hex_text.encode(FABFILTER_CONTROLLER_TRAILER, (preset.text or "").count("\t") + 1)
 
 
 def test_an_ffbs_controller_state_carries_the_preset_name_out_of_the_bank() -> None:

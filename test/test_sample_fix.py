@@ -7,8 +7,9 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from abletoolz.formats import hex_text, path_data
 from abletoolz.live_set import AbletonSet
-from abletoolz.utils import parse_hex_path
+from abletoolz.live_set.sample_ref import RelativePathType, SampleRef
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 GENERATED = pathlib.Path(__file__).parent / "version_fixtures" / "generated"
@@ -35,7 +36,7 @@ def test_fix_matches_float_mtime_db_entry(tmp_path: pathlib.Path) -> None:
         }
     }
     ableton_set.samples.fix(db)
-    assert target.absolute_element.get("Value") == str(replacement)
+    assert target.absolute_element.get("Value") == replacement.as_posix()
 
 
 def test_fix_ignores_wrong_mtime(tmp_path: pathlib.Path) -> None:
@@ -178,4 +179,46 @@ def test_a_reference_with_a_path_but_no_date_is_still_checked_and_fixed(tmp_path
 
     replacement = tmp_path / target.name
     ableton_set.samples.fix({str(replacement): {"name": target.name, "size": target.size}})
-    assert parse_hex_path(target.absolute_element.text or "") == str(replacement)
+    assert path_data.decode(hex_text.decode(target.absolute_element.text)).path == str(replacement)
+
+
+def test_a_project_reference_found_only_by_its_absolute_path_is_repointed(tmp_path: pathlib.Path) -> None:
+    """A set written outside the project its samples came from.
+
+    The absolute path exists, the project-relative one does not, and Live
+    reported the sample missing (2026-09-27, recombined songs in a lab
+    folder). The check counts it missing and the fixer points Live at the file
+    the absolute path names, spelled the way Live spells paths.
+    """
+    ableton_set = AbletonSet(SKELETONS / "11.2.10.als")
+    assert ableton_set.parse()
+    target = next(ref for ref in ableton_set.samples.iterate() if not ref.pack_resolved)
+    path_element = target.absolute_element
+    assert path_element is not None
+    sample = tmp_path / "Samples" / "kick.wav"
+    sample.parent.mkdir()
+    sample.write_bytes(b"RIFF")
+    path_element.set("Value", str(sample))
+    target.set_relative_type(RelativePathType.PROJECT)
+    reparsed = SampleRef.from_element(target.sample_ref, ableton_set.version_tuple, tmp_path / "elsewhere")
+    assert reparsed.found_only_by_absolute_path
+
+    ableton_set.samples._cache = [reparsed]
+    assert ableton_set.samples.check() == [reparsed]
+    assert ableton_set.samples.fix({})
+    assert path_element.get("Value") == sample.as_posix()
+    assert reparsed.get_relative_type() == RelativePathType.ABSOLUTE
+    assert ableton_set.samples.check() == []
+
+
+def test_a_project_reference_that_resolves_in_its_project_is_left_alone(tmp_path: pathlib.Path) -> None:
+    ableton_set = AbletonSet(SKELETONS / "11.2.10.als")
+    assert ableton_set.parse()
+    target = next(ref for ref in ableton_set.samples.iterate() if not ref.pack_resolved and ref.relative)
+    assert target.relative is not None
+    in_project = tmp_path / "project" / target.relative
+    in_project.parent.mkdir(parents=True)
+    in_project.write_bytes(b"RIFF")
+    target.set_relative_type(RelativePathType.PROJECT)
+    reparsed = SampleRef.from_element(target.sample_ref, ableton_set.version_tuple, tmp_path / "project")
+    assert reparsed.relative_exists and not reparsed.found_only_by_absolute_path

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 from xml.etree import ElementTree as ET
 
-from abletoolz.decode_encode import string_to_xml
+from abletoolz.formats import hex_text
 from abletoolz.plugin_parsers.base import PluginData
 from abletoolz.plugin_parsers.parsers.serato import NO_SAMPLE_ISSUE, SeratoSampleParser
 from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
@@ -16,8 +16,7 @@ SERATO_UNIQUE_ID = 1399681132
 
 def make_serato_xml(json_payload: str, *, unique_id: int | None = SERATO_UNIQUE_ID) -> str:
     """Embed a JSON payload into a minimal Serato Sample PluginDesc."""
-    hex_out = json_payload.encode("utf-8").hex().upper()
-    buffer_text = string_to_xml(hex_out, levels=2)
+    buffer_text = hex_text.encode(json_payload.encode("utf-8"), 2)
     unique_id_line = f'    <UniqueId Value="{unique_id}" />\n' if unique_id is not None else ""
     return (
         "<PluginDesc>\n"

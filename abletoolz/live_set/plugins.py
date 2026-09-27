@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
 from abletoolz import utils
+from abletoolz.formats import path_data
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import (
     RST,
     C,
     G,
     R,
-    SetOperatingSystem,
     Y,
     default_au_component_dirs,
     default_live_database_dir,
@@ -44,6 +44,7 @@ from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair
 from abletoolz.plugin_parsers.uid_sources import UidLookup
 from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
 from abletoolz.sample_databaser import create_db
+from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TRACK_TYPES = {"AudioTrack", "MidiTrack", "ReturnTrack", "MasterTrack", "MainTrack", "GroupTrack"}
+_TRACK_TYPES = {Tag.AUDIO_TRACK, Tag.MIDI_TRACK, Tag.RETURN_TRACK, Tag.MASTER_TRACK, Tag.MAIN_TRACK, Tag.GROUP_TRACK}
 
 
 # -- VST3 resolution --------------------------------------------------------
@@ -296,18 +297,12 @@ class Plugins:
         return self._set.root
 
     def _parse_hex_path(self, text: str) -> str | None:
-        """Take raw hex string from XML entry and parses."""
-        if not text:
+        """The path in a pre-11 ``Data`` blob, noting which OS its encoding says saved the set."""
+        blob = path_data.read(text)
+        if blob is None:
             return None
-        # Strip new lines and tabs from raw text to have one long hex string.
-        abs_hash_path = text.replace("\t", "").replace("\n", "")
-        byte_data = bytearray.fromhex(abs_hash_path)
-        if byte_data[0:3] == b"\x00" * 3:  # Header only on mac projects.
-            self._set.set_os = SetOperatingSystem.MAC_OS
-            return utils.parse_mac_data(byte_data, abs_hash_path)
-        else:
-            self._set.set_os = SetOperatingSystem.WINDOWS_OS
-            return utils.parse_windows_data(byte_data, abs_hash_path)
+        self._set.set_os = blob.os
+        return blob.path
 
     def search(self, plugin_name: str) -> pathlib.Path | None:
         """Search this OS's standard plugin dirs and previously seen plugin dirs."""
@@ -354,22 +349,22 @@ class Plugins:
 
     def parse_au_element(self, au_element: ET.Element) -> tuple[str | None, str | None, AuIdentifier | None]:
         """Pull display metadata and exact component identity from an AuPluginInfo element."""
-        name_element = au_element.find("Name")
-        manufacturer_element = au_element.find("Manufacturer")
-        type_element = au_element.find("ComponentType")
-        subtype_element = au_element.find("ComponentSubType")
-        component_manufacturer_element = au_element.find("ComponentManufacturer")
-        type_value = type_element.get("Value") if type_element is not None else None
-        subtype_value = subtype_element.get("Value") if subtype_element is not None else None
+        name_element = au_element.find(Tag.NAME)
+        manufacturer_element = au_element.find(Tag.MANUFACTURER)
+        type_element = au_element.find(Tag.COMPONENT_TYPE)
+        subtype_element = au_element.find(Tag.COMPONENT_SUB_TYPE)
+        component_manufacturer_element = au_element.find(Tag.COMPONENT_MANUFACTURER)
+        type_value = type_element.get(Attr.VALUE) if type_element is not None else None
+        subtype_value = subtype_element.get(Attr.VALUE) if subtype_element is not None else None
         component_manufacturer_value = (
-            component_manufacturer_element.get("Value") if component_manufacturer_element is not None else None
+            component_manufacturer_element.get(Attr.VALUE) if component_manufacturer_element is not None else None
         )
         identity = None
         if type_value is not None and subtype_value is not None and component_manufacturer_value is not None:
             identity = (int(type_value), int(subtype_value), int(component_manufacturer_value))
         return (
-            name_element.get("Value") if name_element is not None else None,
-            manufacturer_element.get("Value") if manufacturer_element is not None else None,
+            name_element.get(Attr.VALUE) if name_element is not None else None,
+            manufacturer_element.get(Attr.VALUE) if manufacturer_element is not None else None,
             identity,
         )
 
@@ -378,19 +373,19 @@ class Plugins:
 
         Every version stores a Name; only newer sets also store a Path.
         """
-        name_ele = vst3_element.find("Name")
-        name = name_ele.get("Value") if name_ele is not None else None
-        path_ele = vst3_element.find("Path")
-        path_value = path_ele.get("Value") if path_ele is not None else None
+        name_ele = vst3_element.find(Tag.NAME)
+        name = name_ele.get(Attr.VALUE) if name_ele is not None else None
+        path_ele = vst3_element.find(Tag.PATH)
+        path_value = path_ele.get(Attr.VALUE) if path_ele is not None else None
         return name, pathlib.Path(path_value) if path_value else None
 
     def parse_vst_element(self, vst_element: ET.Element) -> tuple[pathlib.Path | None, str | None, pathlib.Path | None]:
         """Parse out VST element from vst xtree."""
-        for plugin_path in ["Dir", "Path"]:
+        for plugin_path in [Tag.DIR, Tag.PATH]:
             path_results = vst_element.findall(f".//{plugin_path}")
             if len(path_results):
-                if plugin_path == "Path":
-                    if (full_path := path_results[0].get("Value")) is None:
+                if plugin_path == Tag.PATH:
+                    if (full_path := path_results[0].get(Attr.VALUE)) is None:
                         logger.error("Couldn't get Path for %s", path_results[0])
                         continue
                     if "/" not in full_path and "\\" not in full_path:
@@ -400,15 +395,15 @@ class Plugins:
                     path_separator = utils.path_separator_type(full_path)
                     name = full_path.split(path_separator)[-1]
                     return pathlib.Path(full_path), name, None
-                elif plugin_path == "Dir":
-                    if (dir_bin := path_results[0].find("Data")) is None:
+                elif plugin_path == Tag.DIR:
+                    if (dir_bin := path_results[0].find(Tag.DATA)) is None:
                         logger.error("Couldn't get Path for %s", path_results[0])
                         continue
                     if (text := dir_bin.text) is None:
                         continue
                     path = self._parse_hex_path(text)
-                    name_ele = vst_element.find("FileName")
-                    name = name_ele.get("Value", "") if name_ele is not None else "<>"
+                    name_ele = vst_element.find(Tag.FILE_NAME)
+                    name = name_ele.get(Attr.VALUE, "") if name_ele is not None else "<>"
                     if not path:
                         logger.error("%sCouldn't parse absolute path for %s", Y, name)
                         return None, name, None
@@ -454,18 +449,18 @@ class Plugins:
         track = self.containing_track(element)
         if track is None:
             return "?"
-        name_elem = track.find(".//EffectiveName")
+        name_elem = track.find(".//" + Tag.EFFECTIVE_NAME)
         if name_elem is not None:
-            return f"{track.tag}: {name_elem.get('Value', '?')}"
+            return f"{track.tag}: {name_elem.get(Attr.VALUE, '?')}"
         return track.tag
 
     def scan(self, vst_dirs: list[pathlib.Path]) -> list[PluginRef]:
         """Resolve every plugin reference in the set against disk."""
         self.found_vst_dirs.extend(vst_dirs)
         refs: list[PluginRef] = []
-        for plugin_element in self._root.iter("PluginDesc"):
+        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
             track_loc = self._find_track_for_element(plugin_element)
-            for vst_element in plugin_element.iter("VstPluginInfo"):
+            for vst_element in plugin_element.iter(Tag.VST_PLUGIN_INFO):
                 full_path, name, potential = self.parse_vst_element(vst_element)
                 exists = bool(full_path and full_path.exists())
                 if exists and full_path is not None and full_path.parent not in self.found_vst_dirs:
@@ -483,7 +478,7 @@ class Plugins:
                         track_location=track_loc,
                     )
                 )
-            for vst3_element in plugin_element.iter("Vst3PluginInfo"):
+            for vst3_element in plugin_element.iter(Tag.VST3_PLUGIN_INFO):
                 name, stored_path = self.parse_vst3_element(vst3_element)
                 exists = bool(stored_path and stored_path.exists())
                 if exists and stored_path is not None and stored_path.parent not in self.found_vst_dirs:
@@ -509,7 +504,7 @@ class Plugins:
                         track_location=track_loc,
                     )
                 refs.append(ref)
-            for au_element in plugin_element.iter("AuPluginInfo"):
+            for au_element in plugin_element.iter(Tag.AU_PLUGIN_INFO):
                 name, manufacturer, identifier = self.parse_au_element(au_element)
                 registered = identifier is not None and audio_component_registered(identifier)
                 component_path = self.search_au(identifier) if identifier is not None else None
@@ -529,8 +524,8 @@ class Plugins:
     def analyze(self, config: AbletoolzConfig | None = None) -> list[PluginAnalysis]:
         """Analyze all plugins in set using registered parsers."""
         results: list[PluginAnalysis] = []
-        for plugin_element in self._root.iter("PluginDesc"):
-            for vst_element in plugin_element.iter("VstPluginInfo"):
+        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
+            for vst_element in plugin_element.iter(Tag.VST_PLUGIN_INFO):
                 plugin = PluginData.from_element(vst_element)
                 analysis = analyze_plugin(plugin, config)
                 if analysis:
@@ -545,8 +540,8 @@ class Plugins:
     def dump(self, max_hex: int = 256, max_decoded: int = 500) -> list[str]:
         """Dump all plugin buffer data for reverse engineering new parsers."""
         dumps: list[str] = []
-        for plugin_element in self._root.iter("PluginDesc"):
-            for vst_element in plugin_element.iter("VstPluginInfo"):
+        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
+            for vst_element in plugin_element.iter(Tag.VST_PLUGIN_INFO):
                 plugin = PluginData.from_element(vst_element)
                 dump = plugin.dump_buffer(max_hex_bytes=max_hex, max_decoded_chars=max_decoded)
                 dumps.append(dump)
@@ -562,8 +557,8 @@ class Plugins:
         rather than only that something did.
         """
         fixed: list[DeviceStateFix] = []
-        for plugin_element in self._root.iter("PluginDesc"):
-            for vst_element in plugin_element.iter("VstPluginInfo"):
+        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
+            for vst_element in plugin_element.iter(Tag.VST_PLUGIN_INFO):
                 plugin = PluginData.from_element(vst_element)
                 if fix_plugin(plugin, db, config):
                     logger.info("%sFixed plugin: %s", G, plugin.plugin_name)
@@ -582,12 +577,12 @@ class Plugins:
             return []
 
         upgraded: list[DeviceUpgrade] = []
-        for plugin_element in self._root.iter("PluginDesc"):
-            path_el = get_element(plugin_element, "VstPluginInfo.Path", silent_error=True)
+        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
+            path_el = get_element(plugin_element, path(Tag.VST_PLUGIN_INFO, Tag.PATH), silent_error=True)
             if not isinstance(path_el, ET.Element):
                 continue
 
-            current_path = path_el.get("Value", "")
+            current_path = path_el.get(Attr.VALUE, "")
             if not current_path:
                 continue
 
@@ -597,13 +592,13 @@ class Plugins:
             if result:
                 target_name, target_path = result
                 new_path = str(target_path).replace("\\", "/")
-                path_el.set("Value", new_path)
+                path_el.set(Attr.VALUE, new_path)
 
-                plugname_el = get_element(plugin_element, "VstPluginInfo.PlugName", silent_error=True)
+                plugname_el = get_element(plugin_element, path(Tag.VST_PLUGIN_INFO, Tag.PLUG_NAME), silent_error=True)
                 if isinstance(plugname_el, ET.Element):
-                    plugname_el.set("Value", target_path.stem)
+                    plugname_el.set(Attr.VALUE, target_path.stem)
 
-                logger.info("%sUpgraded: %s%s%s â†’ %s%s", G, Y, current_filename, RST, G, target_name)
+                logger.info("%sUpgraded: %s%s%s -> %s%s", G, Y, current_filename, RST, G, target_name)
                 upgraded.append(DeviceUpgrade(self.track_name(plugin_element), current_filename, target_name))
 
         return upgraded

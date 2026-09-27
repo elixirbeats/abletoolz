@@ -17,6 +17,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.alc import AlcClip, AlcError
+from abletoolz.formats import FormatError
 from abletoolz.live_set import elements_equal
 
 FIXTURES = Path(__file__).parent / "alc_fixtures"
@@ -249,10 +250,10 @@ def test_retarget_sample_updates_paths_and_size(tmp_path: Path) -> None:
 
 
 def test_load_rejects_non_gzip(tmp_path: Path) -> None:
-    """load() raises AlcError for a file that isn't gzip-compressed."""
+    """load() refuses a file that is neither gzip nor XML."""
     bad = tmp_path / "not_gzip.alc"
     bad.write_bytes(b"not a gzip file")
-    with pytest.raises(AlcError, match="gzip"):
+    with pytest.raises(FormatError, match="gzip"):
         AlcClip.load(bad)
 
 

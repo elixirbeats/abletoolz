@@ -56,6 +56,7 @@ from abletoolz.live_set.sections import CopiedPlacement, SkippedStraddler
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value, renumber_pointee_ids, shift_indentation, tab_depth
 from abletoolz.misc import get_element
+from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version, versioned
 
 if TYPE_CHECKING:
@@ -296,42 +297,45 @@ class AudioClipRef:
 
 
 def _parse_note(element: ET.Element, pitch: int) -> MidiNote:
-    note_id = element.get("NoteId")
+    note_id = element.get(Attr.NOTE_ID)
     return MidiNote(
         pitch=pitch,
-        start=float(element.get("Time", "0")),
-        duration=float(element.get("Duration", "0")),
-        velocity=float(element.get("Velocity", "0")),
-        off_velocity=float(element.get("OffVelocity", "0")),
-        enabled=element.get("IsEnabled", "true") == "true",
-        probability=float(element.get("Probability", "1")),
-        velocity_deviation=float(element.get("VelocityDeviation", "0")),
+        start=float(element.get(Attr.TIME, "0")),
+        duration=float(element.get(Attr.DURATION, "0")),
+        velocity=float(element.get(Attr.VELOCITY, "0")),
+        off_velocity=float(element.get(Attr.OFF_VELOCITY, "0")),
+        enabled=element.get(Attr.IS_ENABLED, "true") == "true",
+        probability=float(element.get(Attr.PROBABILITY, "1")),
+        velocity_deviation=float(element.get(Attr.VELOCITY_DEVIATION, "0")),
         note_id=int(note_id) if note_id is not None else None,
     )
 
 
 def _parse_notes(clip_element: ET.Element) -> list[MidiNote]:
     notes: list[MidiNote] = []
-    for key_track in clip_element.iterfind("Notes/KeyTracks/KeyTrack"):
-        key_element = key_track.find("MidiKey")
+    for key_track in clip_element.iterfind(path(Tag.NOTES, Tag.KEY_TRACKS, Tag.KEY_TRACK)):
+        key_element = key_track.find(Tag.MIDI_KEY)
         if key_element is None:
             continue
-        pitch_value = key_element.get("Value")
+        pitch_value = key_element.get(Attr.VALUE)
         if pitch_value is None:
             continue
         pitch = int(pitch_value)
-        notes.extend(_parse_note(note_element, pitch) for note_element in key_track.iterfind("Notes/MidiNoteEvent"))
+        notes.extend(
+            _parse_note(note_element, pitch)
+            for note_element in key_track.iterfind(path(Tag.NOTES, Tag.MIDI_NOTE_EVENT))
+        )
     return notes
 
 
 def _clip_length(clip_element: ET.Element) -> float | None:
     """Loop length in beats, when the clip carries loop markers."""
-    loop_start = clip_element.find("Loop/LoopStart")
-    loop_end = clip_element.find("Loop/LoopEnd")
+    loop_start = clip_element.find(path(Tag.LOOP, Tag.LOOP_START))
+    loop_end = clip_element.find(path(Tag.LOOP, Tag.LOOP_END))
     if loop_start is None or loop_end is None:
         return None
-    start_value = loop_start.get("Value")
-    end_value = loop_end.get("Value")
+    start_value = loop_start.get(Attr.VALUE)
+    end_value = loop_end.get(Attr.VALUE)
     if start_value is None or end_value is None:
         return None
     return float(end_value) - float(start_value)
@@ -340,14 +344,14 @@ def _clip_length(clip_element: ET.Element) -> float | None:
 def _parse_clip(
     clip_element: ET.Element, track_name: str | None, location: ClipLocation, version: Version
 ) -> MidiClipRef:
-    name_element = clip_element.find("Name")
-    name = name_element.get("Value", "") if name_element is not None else ""
+    name_element = clip_element.find(Tag.NAME)
+    name = name_element.get(Attr.VALUE, "") if name_element is not None else ""
     notes = sorted(_parse_notes(clip_element), key=lambda note: (note.start, note.pitch))
     return MidiClipRef(
         name=name,
         track_name=track_name,
         location=location,
-        start_time=float(clip_element.get("Time", "0")),
+        start_time=float(clip_element.get(Attr.TIME, "0")),
         length=_clip_length(clip_element),
         notes=tuple(notes),
         version=version,
@@ -362,15 +366,15 @@ def _parse_audio_clip(
     version: Version,
     project_root: pathlib.Path,
 ) -> AudioClipRef:
-    name_element = clip_element.find("Name")
-    name = name_element.get("Value", "") if name_element is not None else ""
-    sample_ref_element = get_element(clip_element, "SampleRef")
+    name_element = clip_element.find(Tag.NAME)
+    name = name_element.get(Attr.VALUE, "") if name_element is not None else ""
+    sample_ref_element = get_element(clip_element, Tag.SAMPLE_REF)
     parsed_sample = sample_ref.SampleRef.from_element(sample_ref_element, version, project_root)
     return AudioClipRef(
         name=name,
         track_name=track_name,
         location=location,
-        start_time=float(clip_element.get("Time", "0")),
+        start_time=float(clip_element.get(Attr.TIME, "0")),
         length=_clip_length(clip_element),
         sample_name=parsed_sample.name,
         version=version,
@@ -454,17 +458,17 @@ def _set_clip_length(clip_element: ET.Element, length: float) -> None:
     if length <= 0:
         raise ValueError(f"Clip length must be positive, got {length}")
     end = number_value(length)
-    get_element(clip_element, "CurrentStart").set("Value", "0")
-    get_element(clip_element, "CurrentEnd").set("Value", end)
-    loop = get_element(clip_element, "Loop")
+    get_element(clip_element, Tag.CURRENT_START).set(Attr.VALUE, "0")
+    get_element(clip_element, Tag.CURRENT_END).set(Attr.VALUE, end)
+    loop = get_element(clip_element, Tag.LOOP)
     for tag, value in (
-        ("LoopStart", "0"),
-        ("LoopEnd", end),
-        ("OutMarker", end),
-        ("HiddenLoopStart", "0"),
-        ("HiddenLoopEnd", end),
+        (Tag.LOOP_START, "0"),
+        (Tag.LOOP_END, end),
+        (Tag.OUT_MARKER, end),
+        (Tag.HIDDEN_LOOP_START, "0"),
+        (Tag.HIDDEN_LOOP_END, end),
     ):
-        get_element(loop, tag).set("Value", value)
+        get_element(loop, tag).set(Attr.VALUE, value)
 
 
 class Clips:
@@ -485,11 +489,11 @@ class Clips:
         """Every MIDI clip in the set, session and arrangement, with its notes."""
         refs: list[MidiClipRef] = []
         for track in self._set.tracks.load():
-            if track.type != "MidiTrack":
+            if track.type != Tag.MIDI_TRACK:
                 continue
             track_name = track.name or None
             for clip_slot in track.clips_clipview():
-                midi_clip = clip_slot.find("ClipSlot/Value/MidiClip")
+                midi_clip = clip_slot.find(path(Tag.CLIP_SLOT, Tag.VALUE, Tag.MIDI_CLIP))
                 if midi_clip is not None:
                     refs.append(_parse_clip(midi_clip, track_name, ClipLocation.SESSION, self.version))
             for midi_clip in track.clips_arrangement():
@@ -511,21 +515,21 @@ class Clips:
         refs: list[AudioClipRef] = []
         project_root = self._set.project_root_folder or pathlib.Path(".")
         for track in self._set.tracks.load():
-            if track.type != "AudioTrack":
+            if track.type != Tag.AUDIO_TRACK:
                 continue
             track_name = track.name or None
-            main_sequencer = track.track_root.find("DeviceChain/MainSequencer")
+            main_sequencer = track.track_root.find(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER))
             if main_sequencer is None:
                 continue
-            for clip_slot in main_sequencer.iter("ClipSlot"):
-                audio_clip = clip_slot.find("ClipSlot/Value/AudioClip")
+            for clip_slot in main_sequencer.iter(Tag.CLIP_SLOT):
+                audio_clip = clip_slot.find(path(Tag.CLIP_SLOT, Tag.VALUE, Tag.AUDIO_CLIP))
                 if audio_clip is not None:
                     refs.append(
                         _parse_audio_clip(audio_clip, track_name, ClipLocation.SESSION, self.version, project_root)
                     )
-            sample = main_sequencer.find("Sample")
+            sample = main_sequencer.find(Tag.SAMPLE)
             if sample is not None:
-                for audio_clip in sample.iter("AudioClip"):
+                for audio_clip in sample.iter(Tag.AUDIO_CLIP):
                     refs.append(
                         _parse_audio_clip(audio_clip, track_name, ClipLocation.ARRANGEMENT, self.version, project_root)
                     )
@@ -537,25 +541,25 @@ class Clips:
     def _note_attributes(self, note: MidiNote, note_id: int) -> dict[str, str]:
         """Pre-11: integer velocities, IsEnabled, and no note ids at all."""
         return {
-            "Time": number_value(note.start),
-            "Duration": number_value(note.duration),
-            "Velocity": str(round(note.velocity)),
-            "OffVelocity": str(round(note.off_velocity)),
-            "IsEnabled": _boolean(note.enabled),
+            Attr.TIME: number_value(note.start),
+            Attr.DURATION: number_value(note.duration),
+            Attr.VELOCITY: str(round(note.velocity)),
+            Attr.OFF_VELOCITY: str(round(note.off_velocity)),
+            Attr.IS_ENABLED: _boolean(note.enabled),
         }
 
     @_note_attributes.since((11, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 11+ override
     def _note_attributes(self, note: MidiNote, note_id: int) -> dict[str, str]:
         """11.x: float velocities plus the full expression set and a NoteId."""
         return {
-            "Time": number_value(note.start),
-            "Duration": number_value(note.duration),
-            "Velocity": number_value(note.velocity),
-            "VelocityDeviation": number_value(note.velocity_deviation),
-            "OffVelocity": number_value(note.off_velocity),
-            "Probability": number_value(note.probability),
-            "IsEnabled": _boolean(note.enabled),
-            "NoteId": str(note_id),
+            Attr.TIME: number_value(note.start),
+            Attr.DURATION: number_value(note.duration),
+            Attr.VELOCITY: number_value(note.velocity),
+            Attr.VELOCITY_DEVIATION: number_value(note.velocity_deviation),
+            Attr.OFF_VELOCITY: number_value(note.off_velocity),
+            Attr.PROBABILITY: number_value(note.probability),
+            Attr.IS_ENABLED: _boolean(note.enabled),
+            Attr.NOTE_ID: str(note_id),
         }
 
     @_note_attributes.since((12, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 12+ override
@@ -569,18 +573,18 @@ class Clips:
         them back in 11's attribute order rather than losing it.
         """
         attributes = {
-            "Time": number_value(note.start),
-            "Duration": number_value(note.duration),
-            "Velocity": number_value(note.velocity),
+            Attr.TIME: number_value(note.start),
+            Attr.DURATION: number_value(note.duration),
+            Attr.VELOCITY: number_value(note.velocity),
         }
         if note.velocity_deviation != 0.0:
-            attributes["VelocityDeviation"] = number_value(note.velocity_deviation)
-        attributes["OffVelocity"] = number_value(note.off_velocity)
+            attributes[Attr.VELOCITY_DEVIATION] = number_value(note.velocity_deviation)
+        attributes[Attr.OFF_VELOCITY] = number_value(note.off_velocity)
         if note.probability != 1.0:
-            attributes["Probability"] = number_value(note.probability)
+            attributes[Attr.PROBABILITY] = number_value(note.probability)
         if not note.enabled:
-            attributes["IsEnabled"] = _boolean(note.enabled)
-        attributes["NoteId"] = str(note_id)
+            attributes[Attr.IS_ENABLED] = _boolean(note.enabled)
+        attributes[Attr.NOTE_ID] = str(note_id)
         return attributes
 
     @versioned
@@ -591,7 +595,7 @@ class Clips:
     @_key_track_attributes.since((10, 0, 0))  # type: ignore[no-redef]  # @versioned pattern: same name registers the 10+ override
     def _key_track_attributes(self, index: int) -> dict[str, str]:
         """10.0+: clip-local Id, numbered from 0 across the clip's KeyTracks."""
-        return {"Id": str(index)}
+        return {Attr.ID: str(index)}
 
     @versioned
     def _sync_note_bookkeeping(self, notes_element: ET.Element, next_note_id: int) -> None:
@@ -605,8 +609,8 @@ class Clips:
         makes every one of them point at a note that no longer exists, so they
         go rather than survive as expression data attached to nothing.
         """
-        get_element(notes_element, "NoteIdGenerator.NextId").set("Value", str(next_note_id))
-        event_lists = get_element(notes_element, "PerNoteEventStore.EventLists")
+        get_element(notes_element, path(Tag.NOTE_ID_GENERATOR, Tag.NEXT_ID)).set(Attr.VALUE, str(next_note_id))
+        event_lists = get_element(notes_element, path(Tag.PER_NOTE_EVENT_STORE, Tag.EVENT_LISTS))
         for entry in list(event_lists):
             event_lists.remove(entry)
         event_lists.text = None
@@ -618,8 +622,8 @@ class Clips:
         self._write_notes(clip.clip_element, notes)
 
     def _write_notes(self, clip_element: ET.Element, notes: Sequence[MidiNote]) -> None:
-        notes_element = get_element(clip_element, "Notes")
-        key_tracks = get_element(notes_element, "KeyTracks")
+        notes_element = get_element(clip_element, Tag.NOTES)
+        key_tracks = get_element(notes_element, Tag.KEY_TRACKS)
         paired = _prepare_notes(notes)
 
         by_pitch: dict[int, list[tuple[MidiNote, int]]] = {}
@@ -629,11 +633,11 @@ class Clips:
         for existing in list(key_tracks):
             key_tracks.remove(existing)
         for index, pitch in enumerate(sorted(by_pitch)):
-            key_track = ET.SubElement(key_tracks, "KeyTrack", self._key_track_attributes(index))
-            events = ET.SubElement(key_track, "Notes")
+            key_track = ET.SubElement(key_tracks, Tag.KEY_TRACK, self._key_track_attributes(index))
+            events = ET.SubElement(key_track, Tag.NOTES)
             for note, note_id in sorted(by_pitch[pitch], key=lambda pair: pair[0].start):
-                ET.SubElement(events, "MidiNoteEvent", self._note_attributes(note, note_id))
-            ET.SubElement(key_track, "MidiKey", {"Value": str(pitch)})
+                ET.SubElement(events, Tag.MIDI_NOTE_EVENT, self._note_attributes(note, note_id))
+            ET.SubElement(key_track, Tag.MIDI_KEY, {Attr.VALUE: str(pitch)})
 
         _indent_key_tracks(clip_element, key_tracks)
         self._sync_note_bookkeeping(notes_element, max((note_id for _, note_id in paired), default=0) + 1)
@@ -662,11 +666,13 @@ class Clips:
         into a session clip that plays once and stops.
         """
         track = self.track_of(donor.clip_element)
-        slots = list(track.track_root.iterfind("DeviceChain/MainSequencer/ClipSlotList/ClipSlot"))
+        slots = list(
+            track.track_root.iterfind(path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT))
+        )
         if not 0 <= slot_index < len(slots):
             raise ValueError(f"Track {track.name!r} has {len(slots)} session slots; no slot {slot_index}")
-        inner_slot = get_element(slots[slot_index], "ClipSlot")
-        value = get_element(inner_slot, "Value")
+        inner_slot = get_element(slots[slot_index], Tag.CLIP_SLOT)
+        value = get_element(inner_slot, Tag.VALUE)
         if len(value):
             raise ValueError(f"Session slot {slot_index} of track {track.name!r} already holds a clip")
 
@@ -675,12 +681,12 @@ class Clips:
         renumber_pointee_ids(clone, self._root)
 
         # A session clip always starts at 0 and is the only clip in its slot.
-        clone.set("Time", "0")
-        if "Id" in clone.attrib:
-            clone.set("Id", "0")
-        get_element(clone, "Name").set("Value", name)
-        get_element(clone, "Disabled").set("Value", "false")
-        get_element(clone, "Loop.LoopOn").set("Value", "true")
+        clone.set(Attr.TIME, "0")
+        if Attr.ID in clone.attrib:
+            clone.set(Attr.ID, "0")
+        get_element(clone, Tag.NAME).set(Attr.VALUE, name)
+        get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
+        get_element(clone, path(Tag.LOOP, Tag.LOOP_ON)).set(Attr.VALUE, "true")
         clone_length = donor.length if length is None else length
         if clone_length is None:
             raise ValueError("Donor clip carries no loop markers; pass length explicitly")
@@ -727,7 +733,7 @@ class Clips:
         """
         target = self._resolve_track(track)
         events = self._require_events(target)
-        expected = "MidiTrack" if isinstance(donor, MidiClipRef) else "AudioTrack"
+        expected = Tag.MIDI_TRACK if isinstance(donor, MidiClipRef) else Tag.AUDIO_TRACK
         if target.type != expected:
             raise ValueError(
                 f"A {donor.clip_element.tag} donor needs a {expected}, but track {target.name!r} is a {target.type}"
@@ -745,7 +751,7 @@ class Clips:
 
         shift_indentation(clone, (tab_depth(events.indent) + 1) - (tab_depth(clone.text) - 1))
         renumber_pointee_ids(clone, self._root)
-        get_element(clone, "Disabled").set("Value", "false")
+        get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
         sections.assign_event_id(events.element, clone)
         sections.insert_in_time_order(events.element, clone, indent=events.indent)
 
@@ -830,7 +836,9 @@ class Clips:
             if not inside:
                 continue
             for clip in self._span_occupants(events, dest_start, dest_end):
-                collisions.append(f"{sections.clip_name(clip)!r} on track {target.name!r} at beat {clip.get('Time')}")
+                collisions.append(
+                    f"{sections.clip_name(clip)!r} on track {target.name!r} at beat {clip.get(Attr.TIME)}"
+                )
         if collisions and mode is sections.SectionMode.REFUSE:
             raise ValueError(
                 f"Destination {number_value(dest_start)}-{number_value(dest_end)} already holds "
@@ -852,7 +860,7 @@ class Clips:
                 start = sections.event_time(clone) + delta
                 sections.move_clip(clone, start, None)
                 renumber_pointee_ids(clone, self._root)
-                get_element(clone, "Disabled").set("Value", "false")
+                get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
                 sections.assign_event_id(events.element, clone)
                 sections.insert_in_time_order(events.element, clone, indent=events.indent)
                 copied.append(CopiedPlacement(track_name=target.name, clip_name=sections.clip_name(clone), start=start))
@@ -958,7 +966,7 @@ class Clips:
         if not occupants:
             return
         if not replace:
-            names = ", ".join(f"{sections.clip_name(clip)!r} at beat {clip.get('Time')}" for clip in occupants)
+            names = ", ".join(f"{sections.clip_name(clip)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
             raise ValueError(
                 f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track.name!r} already hold "
                 f"{len(occupants)} clip(s): {names}"

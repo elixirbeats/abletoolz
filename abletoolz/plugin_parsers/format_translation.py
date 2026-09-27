@@ -33,7 +33,7 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
-from abletoolz import decode_encode
+from abletoolz.formats import hex_text
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.state import (
@@ -46,6 +46,7 @@ from abletoolz.plugin_parsers.state import (
     parse_state,
     state_bytes,
 )
+from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import MIN_SUPPORTED, Version
 
 if TYPE_CHECKING:
@@ -59,9 +60,9 @@ class IncompleteDevice(ValueError):
 
 # The element a PluginDesc holds for each format.
 INFO_TAGS: dict[PluginKind, str] = {
-    PluginKind.VST: "VstPluginInfo",
-    PluginKind.VST3: "Vst3PluginInfo",
-    PluginKind.AU: "AuPluginInfo",
+    PluginKind.VST: Tag.VST_PLUGIN_INFO,
+    PluginKind.VST3: Tag.VST3_PLUGIN_INFO,
+    PluginKind.AU: Tag.AU_PLUGIN_INFO,
 }
 
 
@@ -256,11 +257,11 @@ def _read_vst2(info: ET.Element) -> PluginIdentity:
     plugin is -- the name is still there, which is the half repair needs to
     report it.
     """
-    category = info.find("Category")
+    category = info.find(Tag.CATEGORY)
     return PluginIdentity(
         format=PluginKind.VST,
-        name=get_element(info, "PlugName", attribute="Value"),
-        is_instrument=None if category is None else category.get("Value") == "2",
+        name=get_element(info, Tag.PLUG_NAME, attribute=Attr.VALUE),
+        is_instrument=None if category is None else category.get(Attr.VALUE) == "2",
     )
 
 
@@ -268,8 +269,8 @@ def _read_vst3(info: ET.Element) -> PluginIdentity:
     """VST3 keeps its display name in Name; DeviceType 1 means instrument."""
     return PluginIdentity(
         format=PluginKind.VST3,
-        name=get_element(info, "Name", attribute="Value"),
-        is_instrument=get_element(info, "DeviceType", attribute="Value") == "1",
+        name=get_element(info, Tag.NAME, attribute=Attr.VALUE),
+        is_instrument=get_element(info, Tag.DEVICE_TYPE, attribute=Attr.VALUE) == "1",
     )
 
 
@@ -294,7 +295,7 @@ def read_identity(info: ET.Element) -> PluginIdentity:
 # and no set Live wrote carries the shape. Nothing in that stub says
 # what the device is, so nothing here will invent it.
 _REQUIRED_FIELDS: dict[PluginKind, tuple[str, ...]] = {
-    PluginKind.VST: ("Category", "Preset/VstPreset"),
+    PluginKind.VST: (Tag.CATEGORY, path(Tag.PRESET, Tag.VST_PRESET)),
     PluginKind.VST3: (),
 }
 
@@ -370,10 +371,10 @@ def _rebuild(parent: ET.Element, order: tuple[str, ...], closing: str | None) ->
 
 def _uid_element(fields: UidFields, indent: str | None) -> ET.Element:
     """Live's Uid block, indented for a parent whose children sit at ``indent``."""
-    uid = ET.Element("Uid")
+    uid: ET.Element = ET.Element(Tag.UID)
     uid.text = None if indent is None else indent + "\t"
     for index, value in enumerate(fields):
-        field = ET.SubElement(uid, f"Fields.{index}", {"Value": str(value)})
+        field = ET.SubElement(uid, f"Fields.{index}", {Attr.VALUE: str(value)})
         field.tail = uid.text
     uid[-1].tail = indent
     return uid
@@ -386,10 +387,7 @@ def _uid_element(fields: UidFields, indent: str | None) -> ET.Element:
 
 def _state_payload(element: ET.Element) -> bytes:
     """The bytes a state element holds, or none at all for a device saved without a patch."""
-    text = element.text
-    if text is None or not text.strip():
-        return b""
-    return bytes.fromhex(decode_encode.xml_to_string(text)[0])
+    return hex_text.decode(element.text)
 
 
 def _transform_state(element: ET.Element, policy: StatePolicy) -> None:
@@ -400,9 +398,7 @@ def _transform_state(element: ET.Element, policy: StatePolicy) -> None:
     text = element.text
     if text is None or not text.strip():
         return
-    hex_string, levels = decode_encode.xml_to_string(text)
-    payload = rewrite(bytes.fromhex(hex_string))
-    element.text = decode_encode.string_to_xml(payload.hex().upper(), levels=levels)
+    element.text = hex_text.encode(rewrite(hex_text.decode(text)), hex_text.depth(text))
 
 
 def _controller_element(controller: ControllerState, source: bytes, indent: str | None) -> ET.Element:
@@ -417,11 +413,11 @@ def _controller_element(controller: ControllerState, source: bytes, indent: str 
     A device saved with no patch at all has nothing to build one out of, and
     gets the empty element that says so.
     """
-    element = ET.Element("ControllerState")
+    element: ET.Element = ET.Element(Tag.CONTROLLER_STATE)
     payload = controller.build(source) if source else None
     if payload:
         levels = 0 if indent is None else indent.count("\t") + 1
-        element.text = decode_encode.string_to_xml(payload.hex().upper(), levels=levels)
+        element.text = hex_text.encode(payload, levels)
     return element
 
 
@@ -435,40 +431,40 @@ def _controller_element(controller: ControllerState, source: bytes, indent: str 
 # elements in the Live 10.1.3 and 11.3.42 fixtures, which are this list minus
 # whatever that version of Live did not write yet.
 _VST3_INFO_ORDER = (
-    "WinPosX",
-    "WinPosY",
-    "NumAudioInputs",
-    "NumAudioOutputs",
-    "IsPlaceholderDevice",
-    "Preset",
-    "Name",
-    "Uid",
-    "DeviceType",
+    Tag.WIN_POS_X,
+    Tag.WIN_POS_Y,
+    Tag.NUM_AUDIO_INPUTS,
+    Tag.NUM_AUDIO_OUTPUTS,
+    Tag.IS_PLACEHOLDER_DEVICE,
+    Tag.PRESET,
+    Tag.NAME,
+    Tag.UID,
+    Tag.DEVICE_TYPE,
 )
 
 # Same for the preset. The 13 tags up to ParametersListWrapperLomId are the ones
 # both formats share untouched; Type, ProgramCount, ParameterCount,
 # ProgramNumber, PluginVersion, UniqueId and ByteOrder are VST2-only and go.
 _VST3_PRESET_ORDER = (
-    "OverwriteProtectionNumber",
-    "MpeEnabled",
-    "MpeSettings",
-    "ParameterSettings",
-    "IsOn",
-    "PowerMacroControlIndex",
-    "PowerMacroMappingRange",
-    "IsFolded",
-    "StoredAllParameters",
-    "DeviceLomId",
-    "DeviceViewLomId",
-    "IsOnLomId",
-    "ParametersListWrapperLomId",
-    "Uid",
-    "DeviceType",
-    "ProcessorState",
-    "ControllerState",
-    "Name",
-    "PresetRef",
+    Tag.OVERWRITE_PROTECTION_NUMBER,
+    Tag.MPE_ENABLED,
+    Tag.MPE_SETTINGS,
+    Tag.PARAMETER_SETTINGS,
+    Tag.IS_ON,
+    Tag.POWER_MACRO_CONTROL_INDEX,
+    Tag.POWER_MACRO_MAPPING_RANGE,
+    Tag.IS_FOLDED,
+    Tag.STORED_ALL_PARAMETERS,
+    Tag.DEVICE_LOM_ID,
+    Tag.DEVICE_VIEW_LOM_ID,
+    Tag.IS_ON_LOM_ID,
+    Tag.PARAMETERS_LIST_WRAPPER_LOM_ID,
+    Tag.UID,
+    Tag.DEVICE_TYPE,
+    Tag.PROCESSOR_STATE,
+    Tag.CONTROLLER_STATE,
+    Tag.NAME,
+    Tag.PRESET_REF,
 )
 
 
@@ -480,23 +476,23 @@ def _translate_vst2_to_vst3(info: ET.Element, target: TranslationTarget) -> None
     device_type = "1" if is_instrument else "2"
     info_closing = info[-1].tail
 
-    preset = get_element(info, "Preset.VstPreset")
+    preset = get_element(info, path(Tag.PRESET, Tag.VST_PRESET))
     preset_closing = preset[-1].tail
-    preset.tag = "Vst3Preset"
-    state = get_element(preset, "Buffer")
-    state.tag = "ProcessorState"
+    preset.tag = Tag.VST3_PRESET
+    state = get_element(preset, Tag.BUFFER)
+    state.tag = Tag.PROCESSOR_STATE
     # Read before the rewrite: the controller half is built from what the VST2
     # device saved, not from what the processor half is about to become.
     source = _state_payload(state)
     _transform_state(state, target.state_transform)
     preset.append(_uid_element(target.uid_fields, _inner_indent(preset)))
-    preset.append(ET.Element("DeviceType", {"Value": device_type}))
+    preset.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
     preset.append(_controller_element(target.controller_state, source, _inner_indent(preset)))
     _rebuild(preset, _VST3_PRESET_ORDER, preset_closing)
 
-    info.append(ET.Element("Name", {"Value": target.name}))
+    info.append(ET.Element(Tag.NAME, {Attr.VALUE: target.name}))
     info.append(_uid_element(target.uid_fields, _inner_indent(info)))
-    info.append(ET.Element("DeviceType", {"Value": device_type}))
+    info.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
     _rebuild(info, _VST3_INFO_ORDER, info_closing)
     info.tag = INFO_TAGS[PluginKind.VST3]
 
@@ -530,7 +526,7 @@ def device_infos(live_set: AbletonSet) -> list[tuple[ET.Element, PluginKind]]:
     device of the target format and report it twice.
     """
     found: list[tuple[ET.Element, PluginKind]] = []
-    for plugin_desc in live_set.root.iter("PluginDesc"):
+    for plugin_desc in live_set.root.iter(Tag.PLUGIN_DESC):
         for kind in _READERS:
             found.extend((info, kind) for info in plugin_desc.iter(INFO_TAGS[kind]))
     return found

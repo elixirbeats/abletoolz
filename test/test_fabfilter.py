@@ -17,7 +17,7 @@ import struct
 
 import pytest
 
-from abletoolz import decode_encode
+from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind
@@ -421,16 +421,14 @@ def test_a_pro_q1_device_comes_out_of_a_translation_as_a_pro_q3_patch() -> None:
     ]
     preset = get_element(info, "Preset.VstPreset")
     bank = LegacyBank("Default Setting", q1_bank(with_field(Q1_DEFAULT_BAND, Q1BandField.GAIN, 1.0)))
-    get_element(preset, "Buffer").text = decode_encode.string_to_xml(
-        bank.encode().hex().upper(), levels=(preset.text or "").count("\t") + 1
-    )
+    get_element(preset, "Buffer").text = hex_text.encode(bank.encode(), (preset.text or "").count("\t") + 1)
 
     target = TranslationTarget(PluginKind.VST3, "Pro-Q 3", (1, 2, 3, 4), CustomState(PRO_Q1_TO_PRO_Q3))
     translate_device(info, target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
     assert state.text is not None
-    converted = FfbsState.parse(bytes.fromhex(decode_encode.xml_to_string(state.text)[0]))
+    converted = FfbsState.parse(hex_text.decode(state.text))
     assert converted.parameters[Q3BandField.GAIN] == pytest.approx(30.0)
     assert converted.tail == FABFILTER_PROCESSOR_TRAILER
 

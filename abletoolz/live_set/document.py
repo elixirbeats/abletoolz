@@ -17,6 +17,7 @@ from abletoolz.live_set.samples import Samples
 from abletoolz.live_set.tracks import Tracks
 from abletoolz.live_set.transport import Transport
 from abletoolz.misc import B, C, M, R, SetError, SetOperatingSystem, Y
+from abletoolz.schema import Attr
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ class AbletonSet:
 
     def load_version(self) -> None:
         """Load version."""
-        self.version = self.root.get("Creator")
+        self.version = self.root.get(Attr.CREATOR)
         if not isinstance(self.version, str):
             raise SetError("Couldn't parse Creator from set.")
         try:

@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 
 from abletoolz import color_tools, schema
 from abletoolz.misc import RST, STEREO_OUTPUTS, G, R, get_element
+from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
 
 if TYPE_CHECKING:
@@ -24,10 +25,10 @@ class AbletonTrack:
         """Parse one track element of a set saved by ``version``."""
         self.track_root = track_root
         self.type = track_root.tag
-        self.name = get_element(track_root, "Name.UserName", attribute="Value")
+        self.name = get_element(track_root, path(Tag.NAME, Tag.USER_NAME), attribute=Attr.VALUE)
         if not self.name:
-            self.name = get_element(track_root, "Name.EffectiveName", attribute="Value")
-        self.id = track_root.get("Id")
+            self.name = get_element(track_root, path(Tag.NAME, Tag.EFFECTIVE_NAME), attribute=Attr.VALUE)
+        self.id = track_root.get(Attr.ID)
         # Some group and return tracks leave out three things Live writes on
         # every track, and each one used to take the whole set down. Measured
         # over 811 sets: 44 return tracks have no TrackGroupId (they belong to
@@ -36,27 +37,31 @@ class AbletonTrack:
         # third-party generator wrote, and no Live-written set in
         # the library omits any of them -- but absent is unset, not malformed,
         # whoever wrote the file.
-        self.group_id = get_element(track_root, "TrackGroupId", attribute="Value", silent_error=True)
+        self.group_id = get_element(track_root, Tag.TRACK_GROUP_ID, attribute=Attr.VALUE, silent_error=True)
         self.width = get_element(
             track_root,
-            f"DeviceChain.Mixer.{schema.tag('track_width', version)}",
-            attribute="Value",
+            path(Tag.DEVICE_CHAIN, Tag.MIXER, schema.tag("track_width", version)),
+            attribute=Attr.VALUE,
             silent_error=True,
         )
         # Lane height in arrangement view will be automation lane 0
         self.height = get_element(
             track_root,
-            "DeviceChain.AutomationLanes.AutomationLanes.AutomationLane.LaneHeight",
-            attribute="Value",
+            path(Tag.DEVICE_CHAIN, Tag.AUTOMATION_LANES, Tag.AUTOMATION_LANES, Tag.AUTOMATION_LANE, Tag.LANE_HEIGHT),
+            attribute=Attr.VALUE,
             silent_error=True,
         )
         self.color_element = schema.tag("color", version)
-        self.unfolded = get_element(track_root, "TrackUnfolded", attribute="Value", silent_error=True)  # Ableton 10
+        self.unfolded = get_element(
+            track_root, Tag.TRACK_UNFOLDED, attribute=Attr.VALUE, silent_error=True
+        )  # Ableton 10
         if not self.unfolded:
             # Ableton 9/8. A track with neither element has no fold state to
             # read -- the same 44 return tracks, which have no automation lanes
             # to fold in the first place -- and an unfoldable track is unfolded.
-            folded = get_element(track_root, "DeviceChain.Mixer.IsFolded", attribute="Value", silent_error=True)
+            folded = get_element(
+                track_root, path(Tag.DEVICE_CHAIN, Tag.MIXER, Tag.IS_FOLDED), attribute=Attr.VALUE, silent_error=True
+            )
             self.unfolded = "false" if folded == "true" else "true"
 
     def __str__(self) -> str:
@@ -71,7 +76,7 @@ class AbletonTrack:
     def color(self) -> int:
         """Return color index, -1 when the element is missing."""
         if (clr := self.track_root.find(self.color_element)) is not None:
-            return int(clr.get("Value", 0))
+            return int(clr.get(Attr.VALUE, 0))
         return -1
 
     @color.setter
@@ -80,20 +85,20 @@ class AbletonTrack:
         if not 0 <= value <= 69:
             raise ValueError("Color index must be within 0 - 69")
         if (clr_element := self.track_root.find(self.color_element)) is not None:
-            clr_element.set("Value", str(value))
+            clr_element.set(Attr.VALUE, str(value))
 
     def clips_clipview(self) -> Iterator[ET.Element]:
         """Iterate through all the clips in the clip view."""
-        yield from self.track_root.iter("ClipSlot")
+        yield from self.track_root.iter(Tag.CLIP_SLOT)
 
     def clips_arrangement(self) -> Iterator[ET.Element]:
         """Iterate through all the clips in the arangement view."""
-        if self.type == "MidiTrack":
-            tree_element = "ClipTimeable"
-            clip_element = "MidiClip"
-        elif self.type == "AudioTrack":
-            tree_element = "Sample"
-            clip_element = "AudioClip"
+        if self.type == Tag.MIDI_TRACK:
+            tree_element = Tag.CLIP_TIMEABLE
+            clip_element = Tag.MIDI_CLIP
+        elif self.type == Tag.AUDIO_TRACK:
+            tree_element = Tag.SAMPLE
+            clip_element = Tag.AUDIO_CLIP
         else:
             return
         clip_timeample = self.track_root.find(f".//{tree_element}")
@@ -132,16 +137,16 @@ class Tracks:
     def load(self) -> list[AbletonTrack]:
         """Parse all tracks, cached."""
         if self._loaded is None:
-            tracks_element = get_element(self._root, "LiveSet.Tracks", silent_error=False)
+            tracks_element = get_element(self._root, path(Tag.LIVE_SET, Tag.TRACKS), silent_error=False)
             self._loaded = [AbletonTrack(track, self.version) for track in tracks_element]
         return self._loaded
 
     def set_heights(self, height: int) -> int:
         """Set every arrangement lane height; returns elements changed."""
         height = min(425, (max(17, height)))  # Clamp to valid range.
-        elements = list(self._root.iter("LaneHeight"))
+        elements = list(self._root.iter(Tag.LANE_HEIGHT))
         for el in elements:
-            el.set("Value", str(height))
+            el.set(Attr.VALUE, str(height))
         logger.info("%sSet track heights to %s.", G, height)
         return len(elements)
 
@@ -150,7 +155,7 @@ class Tracks:
         width = min(264, (max(17, width)))  # Clamp to valid range.
         elements = list(self._root.iter(schema.tag("track_width", self.version)))
         for el in elements:
-            el.set("Value", str(width))
+            el.set(Attr.VALUE, str(width))
         logger.info("%sSet track widths to %s.", G, width)
         return len(elements)
 
@@ -159,29 +164,29 @@ class Tracks:
         group's own mixer is what collapses the group, and it reads inverted."""
         return [
             is_folded
-            for group in self._root.findall("LiveSet/Tracks/GroupTrack")
-            if (is_folded := group.find("DeviceChain/Mixer/IsFolded")) is not None
+            for group in self._root.findall(path(Tag.LIVE_SET, Tag.TRACKS, Tag.GROUP_TRACK))
+            if (is_folded := group.find(path(Tag.DEVICE_CHAIN, Tag.MIXER, Tag.IS_FOLDED))) is not None
         ]
 
     def fold(self) -> int:
         """Fold all tracks and collapse group tracks; returns elements changed."""
-        elements = list(self._root.iter("TrackUnfolded"))
+        elements = list(self._root.iter(Tag.TRACK_UNFOLDED))
         for el in elements:
-            el.set("Value", "false")
+            el.set(Attr.VALUE, "false")
         group_folds = self._group_fold_elements()
         for el in group_folds:
-            el.set("Value", "true")
+            el.set(Attr.VALUE, "true")
         logger.info("%sFolded all tracks.", G)
         return len(elements) + len(group_folds)
 
     def unfold(self) -> int:
         """Unfold all tracks and expand group tracks; returns elements changed."""
-        elements = list(self._root.iter("TrackUnfolded"))
+        elements = list(self._root.iter(Tag.TRACK_UNFOLDED))
         for el in elements:
-            el.set("Value", "true")
+            el.set(Attr.VALUE, "true")
         group_folds = self._group_fold_elements()
         for el in group_folds:
-            el.set("Value", "false")
+            el.set(Attr.VALUE, "false")
         logger.info("%sUnfolded all tracks.", G)
         return len(elements) + len(group_folds)
 
@@ -189,34 +194,38 @@ class Tracks:
         """Route the master or cue track to a stereo output pair."""
         if output_number not in STEREO_OUTPUTS:
             raise ValueError(f"{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}")
-        if element_string == "MasterTrack":
+        if element_string == Tag.MASTER_TRACK:
             element_string = schema.tag("master_track", self.version)
         # Some sets carry no cue track at all (seen in real 10.1 sets); nothing to route.
-        if self._root.find(f"LiveSet/{element_string}") is None:
+        if self._root.find(path(Tag.LIVE_SET, element_string)) is None:
             logger.warning("%sSet has no %s, skipping audio output routing.", R, element_string)
             return
         output_obj = STEREO_OUTPUTS[output_number]
         out_target_element = get_element(
             self._root,
-            f"LiveSet.{element_string}.DeviceChain.AudioOutputRouting.Target",
+            path(Tag.LIVE_SET, element_string, Tag.DEVICE_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.TARGET),
             silent_error=True,
         )
         if not isinstance(out_target_element, ET.Element):
             out_target_element = get_element(  # ableton 8 sets use "MasterChain" for master track.
                 self._root,
-                f"LiveSet.{element_string}.MasterChain.AudioOutputRouting.Target",
+                path(Tag.LIVE_SET, element_string, Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.TARGET),
             )
             lower_display_string_element = get_element(
                 self._root,
-                f"LiveSet.{element_string}.MasterChain.AudioOutputRouting.LowerDisplayString",
+                path(
+                    Tag.LIVE_SET, element_string, Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.LOWER_DISPLAY_STRING
+                ),
             )
         else:
             lower_display_string_element = get_element(
                 self._root,
-                f"LiveSet.{element_string}.DeviceChain.AudioOutputRouting.LowerDisplayString",
+                path(
+                    Tag.LIVE_SET, element_string, Tag.DEVICE_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.LOWER_DISPLAY_STRING
+                ),
             )
-        out_target_element.set("Value", output_obj["target"])
-        lower_display_string_element.set("Value", output_obj["lower_display_string"])
+        out_target_element.set(Attr.VALUE, output_obj["target"])
+        lower_display_string_element.set(Attr.VALUE, output_obj["lower_display_string"])
         logger.info("%sSet %s to %s", G, element_string, output_obj["lower_display_string"])
 
     def gradient(self) -> None:
@@ -228,11 +237,11 @@ class Tracks:
             clipview_clr_elements = list(track.clip_clipview_colors())
             clip_view_gradient = color_tools.create_gradient_ableton(len(clipview_clr_elements), starting_index=clr_ind)
             for sub_ind, clip_clr_ele in zip(clip_view_gradient, clipview_clr_elements, strict=False):
-                clip_clr_ele.set("Value", str(sub_ind))
+                clip_clr_ele.set(Attr.VALUE, str(sub_ind))
 
             arangement_clr_elements = list(track.clip_arangement_colors())
             clip_view_gradient = color_tools.create_gradient_ableton(
                 len(arangement_clr_elements), starting_index=clr_ind
             )
             for sub_ind, clip_clr_ele in zip(clip_view_gradient, arangement_clr_elements, strict=False):
-                clip_clr_ele.set("Value", str(sub_ind))
+                clip_clr_ele.set(Attr.VALUE, str(sub_ind))

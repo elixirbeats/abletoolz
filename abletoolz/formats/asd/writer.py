@@ -1,4 +1,4 @@
-"""abletoolz.asd.writer  —  author Live-12 warp grids: rewrite existing .asd or cold-synthesize.
+"""abletoolz.formats.asd.writer  —  author Live-12 warp grids: rewrite existing .asd or cold-synthesize.
 
 Strategy (see FORMAT.md):
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 import wave
 from pathlib import Path
 
-from abletoolz.asd.parser import (
+from abletoolz.formats.asd.parser import (
     PRE_DOC_BYTES,
     PRIM_BOOL,
     PRIM_DOUBLE,

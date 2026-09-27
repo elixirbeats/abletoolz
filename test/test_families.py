@@ -16,10 +16,9 @@ import struct
 
 import pytest
 
+from abletoolz.formats.fxb import FXB_CHUNK_BANK, FXB_MAGIC
 from abletoolz.plugin_parsers.state import StateTransform, state_bytes
 from abletoolz.plugin_parsers.state.families import (
-    FXB_CHUNK_BANK,
-    FXB_MAGIC,
     JUCE_PRIVATE_DATA_BYTES,
     JUCE_PRIVATE_DATA_TAG,
     VSTW_MAGIC,

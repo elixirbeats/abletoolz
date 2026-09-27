@@ -1,4 +1,4 @@
-"""abletoolz.asd.analysis  —  BPM detection and first-beat onset finding.
+"""abletoolz.formats.asd.analysis  —  BPM detection and first-beat onset finding.
 
 Requires: librosa, scipy
 

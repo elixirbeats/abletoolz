@@ -58,15 +58,19 @@ from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
 from abletoolz.live_set.xml_edit import number_value
+from abletoolz.schema import Attr, Tag, path
 
 # Where each track type keeps its arrangement clips, and what the clips are called.
-ARRANGEMENT_EVENTS_PATH = {
-    "MidiTrack": ("DeviceChain/MainSequencer/ClipTimeable/ArrangerAutomation", "MidiClip"),
-    "AudioTrack": ("DeviceChain/MainSequencer/Sample/ArrangerAutomation", "AudioClip"),
+ARRANGEMENT_EVENTS_PATH: dict[str, tuple[str, str]] = {
+    Tag.MIDI_TRACK: (
+        path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_TIMEABLE, Tag.ARRANGER_AUTOMATION),
+        Tag.MIDI_CLIP,
+    ),
+    Tag.AUDIO_TRACK: (path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.SAMPLE, Tag.ARRANGER_AUTOMATION), Tag.AUDIO_CLIP),
 }
 
 # The only automation event tags observed in any Automation/Events list.
-AUTOMATION_EVENT_TAGS = frozenset({"FloatEvent", "BoolEvent", "EnumEvent"})
+AUTOMATION_EVENT_TAGS = frozenset({Tag.FLOAT_EVENT, Tag.BOOL_EVENT, Tag.ENUM_EVENT})
 
 
 class SectionMode(enum.StrEnum):
@@ -156,7 +160,7 @@ def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEv
     arranger = track_root.find(path)
     if arranger is None:
         return None
-    events = arranger.find("Events")
+    events = arranger.find(Tag.EVENTS)
     if events is None:
         return None
     # ``arranger.text`` is the whitespace before its first child, which is the
@@ -166,20 +170,20 @@ def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEv
 
 def event_time(element: ET.Element) -> float:
     """The ``Time`` attribute of a clip or automation event, in beats."""
-    return float(element.get("Time", "0"))
+    return float(element.get(Attr.TIME, "0"))
 
 
 def event_span(clip: ET.Element) -> tuple[float, float]:
     """A clip's arrangement span ``[Time, CurrentEnd)`` in beats."""
-    current_end = clip.find("CurrentEnd")
+    current_end = clip.find(Tag.CURRENT_END)
     if current_end is None:
         raise ValueError(f"Arrangement {clip.tag} carries no CurrentEnd; it has no span")
-    return event_time(clip), float(current_end.get("Value", "0"))
+    return event_time(clip), float(current_end.get(Attr.VALUE, "0"))
 
 
 def clip_name(clip: ET.Element) -> str:
-    name = clip.find("Name")
-    return "" if name is None else name.get("Value", "")
+    name = clip.find(Tag.NAME)
+    return "" if name is None else name.get(Attr.VALUE, "")
 
 
 def straddled_boundary(span: tuple[float, float], start: float, end: float) -> SectionBoundary | None:
@@ -210,22 +214,24 @@ def move_clip(clip: ET.Element, start: float, length: float | None) -> None:
     A resize also carries ``LoopEnd`` on a non-looping clip, which is the one
     marker the corpus ties to the arrangement span.
     """
-    current_start = _child(clip, "CurrentStart")
-    current_end = _child(clip, "CurrentEnd")
-    span = float(current_end.get("Value", "0")) - float(current_start.get("Value", "0"))
+    current_start = _child(clip, Tag.CURRENT_START)
+    current_end = _child(clip, Tag.CURRENT_END)
+    span = float(current_end.get(Attr.VALUE, "0")) - float(current_start.get(Attr.VALUE, "0"))
     if length is None:
         length = span
     if length <= 0:
         raise ValueError(f"Clip length must be positive, got {length}")
 
-    clip.set("Time", number_value(start))
-    current_start.set("Value", number_value(start))
-    current_end.set("Value", number_value(start + length))
+    clip.set(Attr.TIME, number_value(start))
+    current_start.set(Attr.VALUE, number_value(start))
+    current_end.set(Attr.VALUE, number_value(start + length))
 
-    loop_on = clip.find("Loop/LoopOn")
-    if length != span and loop_on is not None and loop_on.get("Value") == "false":
-        loop_start = _child(clip, "Loop/LoopStart")
-        _child(clip, "Loop/LoopEnd").set("Value", number_value(float(loop_start.get("Value", "0")) + length))
+    loop_on = clip.find(path(Tag.LOOP, Tag.LOOP_ON))
+    if length != span and loop_on is not None and loop_on.get(Attr.VALUE) == "false":
+        loop_start = _child(clip, path(Tag.LOOP, Tag.LOOP_START))
+        _child(clip, path(Tag.LOOP, Tag.LOOP_END)).set(
+            Attr.VALUE, number_value(float(loop_start.get(Attr.VALUE, "0")) + length)
+        )
 
 
 def next_event_id(events: ET.Element) -> str | None:
@@ -234,7 +240,7 @@ def next_event_id(events: ET.Element) -> str | None:
     Ids are list-local and sparse, so ``max + 1`` is the only claim the
     corpus supports; pre-10 clips have no ``Id`` attribute at all.
     """
-    ids = [int(child.attrib["Id"]) for child in events if child.attrib.get("Id", "").lstrip("-").isdigit()]
+    ids = [int(child.attrib[Attr.ID]) for child in events if child.attrib.get(Attr.ID, "").lstrip("-").isdigit()]
     if not ids:
         return None
     return str(max(ids) + 1)
@@ -249,9 +255,9 @@ def assign_event_id(events: ET.Element, clip: ET.Element) -> None:
     """
     fresh = next_event_id(events)
     if fresh is not None:
-        clip.set("Id", fresh)
-    elif "Id" in clip.attrib:
-        clip.set("Id", "0")
+        clip.set(Attr.ID, fresh)
+    elif Attr.ID in clip.attrib:
+        clip.set(Attr.ID, "0")
 
 
 def insert_in_time_order(container: ET.Element, element: ET.Element, *, indent: str) -> None:
@@ -296,8 +302,8 @@ def remove_children(container: ET.Element, doomed: Sequence[ET.Element]) -> None
 
 def track_envelopes(track_root: ET.Element) -> list[ET.Element]:
     """A track's automation envelopes, empty for Live 9 sets which have no container."""
-    envelopes = track_root.find("AutomationEnvelopes/Envelopes")
-    return [] if envelopes is None else [child for child in envelopes if child.tag == "AutomationEnvelope"]
+    envelopes = track_root.find(path(Tag.AUTOMATION_ENVELOPES, Tag.ENVELOPES))
+    return [] if envelopes is None else [child for child in envelopes if child.tag == Tag.AUTOMATION_ENVELOPE]
 
 
 def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta: float) -> int:
@@ -312,10 +318,10 @@ def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta:
     ``start + delta``, so the copied stretch inherits whatever value the
     envelope already held just before it.
     """
-    automation = envelope.find("Automation")
+    automation = envelope.find(Tag.AUTOMATION)
     if automation is None:
         return 0
-    events = automation.find("Events")
+    events = automation.find(Tag.EVENTS)
     if events is None:
         return 0
     indent = automation.text or ""
@@ -325,9 +331,9 @@ def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta:
     counter = 0 if next_id is None else int(next_id)
     for source in sources:
         copied = copy.deepcopy(source)
-        copied.set("Time", number_value(event_time(source) + delta))
-        if "Id" in copied.attrib:
-            copied.set("Id", str(counter))
+        copied.set(Attr.TIME, number_value(event_time(source) + delta))
+        if Attr.ID in copied.attrib:
+            copied.set(Attr.ID, str(counter))
             counter += 1
         insert_in_time_order(events, copied, indent=indent)
     return len(sources)

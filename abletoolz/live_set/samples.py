@@ -13,6 +13,7 @@ from abletoolz.live_set import sample_ref
 from abletoolz.misc import G, M, R, Y
 from abletoolz.sample_databaser.create_db import DatabaseT, SampleRecord
 from abletoolz.sample_matcher import is_factory_pack_path, order_candidates_by_name
+from abletoolz.schema import Tag
 from abletoolz.versioning import Version
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ class Samples:
         if self._cache:
             yield from self._cache
             return
-        for element in self._root.iter("SampleRef"):
+        for element in self._root.iter(Tag.SAMPLE_REF):
             parsed = sample_ref.SampleRef.from_element(
                 element,
                 self.version,
@@ -60,7 +61,7 @@ class Samples:
                 # be a guess dressed as a finding.
                 logger.debug("%sSample %s comes from Pack %s", G, parsed.name, parsed.live_pack)
                 continue
-            if parsed.absolute_exists or parsed.relative_exists:
+            if (parsed.absolute_exists or parsed.relative_exists) and not parsed.found_only_by_absolute_path:
                 # Sample will load in ableton, no need to do anything.
                 logger.debug(
                     "%sSample %s found: Relative %s, Absolute %s",
@@ -98,6 +99,13 @@ class Samples:
                 # Addressed by Pack id, not by path: there is nothing here to
                 # repair and rewriting it to a path would break what works.
                 logger.debug("%sSkipping Pack reference %s (%s)", Y, parsed.name, parsed.live_pack)
+                continue
+            if parsed.found_only_by_absolute_path and parsed.absolute is not None:
+                # The file is where the absolute path says; point Live there.
+                missing_samples += 1
+                parsed.set_absolute(parsed.absolute)
+                parsed.set_relative_type(sample_ref.RelativePathType.ABSOLUTE)
+                fixed_samples += 1
                 continue
             if parsed.absolute_exists or parsed.relative_exists:
                 # Sample will load in ableton, no need to do anything.
@@ -201,7 +209,7 @@ class Samples:
         if collect_and_save and project_root:
             # Relative type 3 is collected and saved, 1 is absolute path.
             relative_type = parsed.get_relative_type()
-            if relative_type == 3:
+            if relative_type == sample_ref.RelativePathType.PROJECT:
                 rel_path = str(parsed.get_relative_value())
             else:
                 rel_path = "Samples/Imported"
@@ -222,15 +230,15 @@ class Samples:
             else:
                 shutil.copy(replacement_sample, copied_sample)
             parsed.set_relative(f"{rel_path}/{copied_sample.name}")
-            parsed.set_relative_type(3)
+            parsed.set_relative_type(sample_ref.RelativePathType.PROJECT)
         elif collect_and_save and not project_root:
             logger.warning(
                 "%sProject root () not found, can't collect and save this sample. Using absolute path instead..",
                 Y,
             )
             parsed.set_absolute(replacement_sample)
-            parsed.set_relative_type(1)
+            parsed.set_relative_type(sample_ref.RelativePathType.ABSOLUTE)
         else:
             parsed.set_absolute(replacement_sample)
-            parsed.set_relative_type(1)
+            parsed.set_relative_type(sample_ref.RelativePathType.ABSOLUTE)
         return True

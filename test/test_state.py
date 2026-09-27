@@ -18,7 +18,7 @@ from collections.abc import Iterator
 import pydantic
 import pytest
 
-from abletoolz import decode_encode
+from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind
@@ -213,7 +213,7 @@ def controller_states(key: str) -> dict[str, bytes]:
     found: dict[str, bytes] = {}
     for info in live_set.root.iter("Vst3PluginInfo"):
         text = get_element(info, "Preset.Vst3Preset.ControllerState").text
-        payload = b"" if text is None or not text.strip() else bytes.fromhex(decode_encode.xml_to_string(text)[0])
+        payload = hex_text.decode(text)
         found[get_element(info, "Name", attribute="Value")] = payload
     return found
 
@@ -280,14 +280,14 @@ def test_a_custom_transform_reaches_a_translated_device(registry: None) -> None:
     ]
     preset = get_element(info, "Preset.VstPreset")
     buffer = get_element(preset, "Buffer")
-    buffer.text = decode_encode.string_to_xml(b"patch".hex().upper(), levels=(preset.text or "").count("\t") + 1)
+    buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
     target = TranslationTarget(PluginKind.VST3, "New Thing", (1, 2, 3, 4), CustomState("shout"))
     translate_device(info, target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
     assert state.text is not None
-    assert bytes.fromhex(decode_encode.xml_to_string(state.text)[0]) == b"LOUDpatch"
+    assert hex_text.decode(state.text) == b"LOUDpatch"
 
 
 def test_a_record_is_frozen() -> None:
@@ -344,7 +344,7 @@ def test_a_named_controller_state_reaches_a_translated_device() -> None:
     ]
     preset = get_element(info, "Preset.VstPreset")
     buffer = get_element(preset, "Buffer")
-    buffer.text = decode_encode.string_to_xml(b"patch".hex().upper(), levels=(preset.text or "").count("\t") + 1)
+    buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
     target = TranslationTarget(
         PluginKind.VST3, "Pro-C 2", (1, 2, 3, 4), StateTransform.VERBATIM, FABFILTER_CONSTANT_CONTROLLER
@@ -353,4 +353,4 @@ def test_a_named_controller_state_reaches_a_translated_device() -> None:
 
     controller = get_element(info, "Preset.Vst3Preset.ControllerState")
     assert controller.text is not None
-    assert bytes.fromhex(decode_encode.xml_to_string(controller.text)[0]) == FABFILTER_CONTROLLER_TRAILER
+    assert hex_text.decode(controller.text) == FABFILTER_CONTROLLER_TRAILER

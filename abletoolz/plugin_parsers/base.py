@@ -23,7 +23,7 @@ from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, ConfigDict
 
-from abletoolz import decode_encode
+from abletoolz.formats import hex_text
 from abletoolz.misc import search_element
 
 if TYPE_CHECKING:
@@ -151,9 +151,7 @@ class PluginData(BaseModel):
         """Decode Buffer hex to raw string (often JSON for modern plugins)."""
         if self.buffer_element is None or self.buffer_element.text is None:
             return ""
-        hex_str, _levels = decode_encode.xml_to_string(self.buffer_element.text)
-        raw_bytes = decode_encode.hex_to_string(hex_str, return_bytes=True)
-        decoded = raw_bytes.decode("utf-8", errors="ignore")
+        decoded = hex_text.decode(self.buffer_element.text).decode("utf-8", errors="ignore")
         # Extract JSON payload if present
         start = decoded.find("{")
         end = decoded.rfind("}")
@@ -167,19 +165,11 @@ class PluginData(BaseModel):
         except json.JSONDecodeError:
             return None
 
-    def get_buffer_raw_hex(self) -> str:
-        """Get the raw hex string from Buffer (stripped of whitespace)."""
-        if self.buffer_element is None or self.buffer_element.text is None:
-            return ""
-        hex_str, _levels = decode_encode.xml_to_string(self.buffer_element.text)
-        return hex_str
-
     def get_buffer_raw_bytes(self) -> bytes:
         """Get the raw bytes from Buffer (decoded from hex)."""
-        hex_str = self.get_buffer_raw_hex()
-        if not hex_str:
+        if self.buffer_element is None:
             return b""
-        return bytes.fromhex(hex_str)
+        return hex_text.decode(self.buffer_element.text)
 
     def detect_buffer_format(self) -> BufferFormat:
         """Attempt to auto-detect the buffer format.
@@ -289,8 +279,8 @@ class PluginData(BaseModel):
         if self.buffer_element is None:
             return
         existing_text = self.buffer_element.text or ""
-        _hex_existing, levels = decode_encode.xml_to_string(existing_text) if existing_text.strip() else ("", 14)
-        self.buffer_element.text = decode_encode.string_to_xml(data.hex().upper(), levels=levels)
+        levels = hex_text.depth(existing_text) if existing_text.strip() else 14
+        self.buffer_element.text = hex_text.encode(data, levels)
 
     def set_buffer_from_string(self, data: str) -> None:
         """Encode string back into Buffer as hex with original indentation."""
