@@ -14,11 +14,11 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from abletoolz.errors import ElementNotFound
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, SetDeviceSettingResult, apply_ops
 from abletoolz.schema import Tag
 from abletoolz.schema.devices import Device, EqEight, Sampler, Simpler
+from abletoolz.schema.settings import NotInThisVersion
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 
@@ -96,9 +96,9 @@ def test_a_hosted_plugin_has_no_settings_here() -> None:
 
 
 def test_a_setting_the_set_predates_says_so() -> None:
-    """Round robin arrived in Live 12.4.5; a Live 10 Sampler has none."""
+    """Round robin arrived in Live 12; a Live 10 Sampler has none, and the corpus has later ones without it."""
     (sampler,) = make_set("10.0.1").devices.walk(Device.SAMPLER)
-    with pytest.raises(ElementNotFound):
+    with pytest.raises(NotInThisVersion, match="first appears in Live 12"):
         sampler.setting(Sampler.ROUND_ROBIN)
 
 

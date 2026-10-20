@@ -169,5 +169,5 @@ def test_device_ref_compares_on_content_not_on_tree_identity() -> None:
     """The element is a handle for the write path, not part of what a ref means."""
     element = ET.Element("Eq8")
     other = ET.Element("Eq8")
-    assert DeviceRef("Eq8", "Eq8", True, element) == DeviceRef("Eq8", "Eq8", True, other)
-    assert "Element" not in repr(DeviceRef("Eq8", "Eq8", True, element))
+    assert DeviceRef("Eq8", "Eq8", True, element, (12, 0, 0)) == DeviceRef("Eq8", "Eq8", True, other, (11, 0, 0))
+    assert "Element" not in repr(DeviceRef("Eq8", "Eq8", True, element, (12, 0, 0)))

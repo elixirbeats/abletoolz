@@ -44,9 +44,8 @@ from xml.etree import ElementTree as ET
 
 from abletoolz import schema
 from abletoolz.elements import get_element
-from abletoolz.errors import ElementNotFound
+from abletoolz.live_set.settings import Setting, resolve
 from abletoolz.live_set.xml_edit import (
-    number_value,
     owns_pointee_id,
     renumber_pointee_ids,
     shift_indentation,
@@ -55,7 +54,7 @@ from abletoolz.live_set.xml_edit import (
 )
 from abletoolz.plugins import PluginData
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.schema.devices import SETTINGS_OF, Device, ValueKind, is_templated, kind_of
+from abletoolz.schema.devices import SETTINGS_OF, Device
 from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
@@ -75,6 +74,7 @@ class DeviceRef:
     display_name: str
     enabled: bool
     device_element: ET.Element = dataclasses.field(repr=False, compare=False)
+    version: Version = dataclasses.field(repr=False, compare=False)
 
     def setting(self, name: enum.StrEnum, **indices: int) -> Setting:
         """One of this device's settings, by its name in :mod:`abletoolz.schema.devices`.
@@ -92,65 +92,7 @@ class DeviceRef:
             raise ValueError(
                 f"{type(name).__name__}.{name.name} is not a setting of {self.tag}; use {settings.__name__}"
             )
-        if is_templated(name) and not indices:
-            raise ValueError(f"{settings.__name__}.{name.name} is in a list; say which one, e.g. index=0")
-        setting_path = name.format(**indices)
-        element = self.device_element.find(setting_path)
-        if element is None:
-            raise ElementNotFound(f"{self.display_name} has no {setting_path} (the set's Live version may predate it)")
-        # A parameter keeps its value in Manual; a setting that later became one did not.
-        manual = element.find(Tag.MANUAL)
-        return Setting(path=setting_path, kind=kind_of(name), element=element if manual is None else manual)
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class Setting:
-    """One setting of a native device, read and written as the value it is.
-
-    ``kind`` is what the census saw the setting hold. Whole numbers are what
-    Live writes for any number that sits on one, so INT and FLOAT both read as
-    a number and take any number on write.
-    """
-
-    path: str
-    kind: ValueKind
-    element: ET.Element = dataclasses.field(repr=False, compare=False)
-
-    @property
-    def raw(self) -> str:
-        """The ``Value`` attribute exactly as the set holds it."""
-        value = self.element.get(Attr.VALUE)
-        if value is None:
-            raise ElementNotFound(f"{self.path} has no Value attribute")
-        return value
-
-    @property
-    def value(self) -> bool | int | float | str:
-        raw = self.raw
-        if self.kind is ValueKind.BOOL:
-            return raw == "true"
-        if self.kind in (ValueKind.INT, ValueKind.FLOAT):
-            number = float(raw)
-            return int(number) if number.is_integer() else number
-        return raw
-
-    def encode(self, value: bool | float | str) -> str:
-        """``value`` as Live writes it, refusing one of the wrong kind."""
-        if self.kind is ValueKind.BOOL:
-            if not isinstance(value, bool):
-                raise TypeError(f"{self.path} is a switch; give True or False, not {value!r}")
-            return "true" if value else "false"
-        if self.kind in (ValueKind.INT, ValueKind.FLOAT):
-            if isinstance(value, bool) or not isinstance(value, int | float):
-                raise TypeError(f"{self.path} is a number, not {value!r}")
-            return number_value(value)
-        if not isinstance(value, str):
-            raise TypeError(f"{self.path} holds text, not {value!r}")
-        return value
-
-    def set(self, value: bool | float | str) -> None:
-        """Write ``value`` the way Live would."""
-        self.element.set(Attr.VALUE, self.encode(value))
+        return resolve(self.device_element, name, self.version, indices, label=self.display_name)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -351,6 +293,7 @@ class Devices:
             display_name=self._display_name(element),
             enabled=get_element(element, path(Tag.ON, Tag.MANUAL), attribute=Attr.VALUE) == "true",
             device_element=element,
+            version=self.version,
         )
 
     def _display_name(self, element: ET.Element) -> str:
