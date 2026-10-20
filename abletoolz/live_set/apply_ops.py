@@ -27,6 +27,7 @@ can't reach a track whose only unique handle is its id.
 
 from __future__ import annotations
 
+import enum
 import pathlib
 from collections.abc import Callable, Sequence
 from typing import Annotated, Literal
@@ -42,6 +43,7 @@ from abletoolz.live_set.sections import SectionMode, SkippedStraddler
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.schema import Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device
+from abletoolz.schema.objects import Clip, Mixer, Track, Transport
 
 
 class TrackById(pydantic.BaseModel):
@@ -145,13 +147,70 @@ class SetDeviceSettingOp(pydantic.BaseModel):
     index: int | None = None
 
 
+class SetTrackSettingOp(pydantic.BaseModel):
+    """Set one track or mixer setting on one track, or on every track.
+
+    ``setting`` names the enum and the member: ``"Track.COLOR"``,
+    ``"Mixer.VOLUME"`` (:mod:`abletoolz.schema.objects`). Without ``track``
+    it lands on every track that has it, the main track included; ``track``
+    may name the main track. ``index`` picks the entry of a setting that lives
+    in a list (a send, an automation lane).
+    """
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+    op: Literal["set_track_setting"]
+    setting: str
+    value: bool | float | str
+    track: TrackSelector | None = None
+    index: int | None = None
+
+
+class SetClipSettingOp(pydantic.BaseModel):
+    """Set one setting of one clip: ``{"setting": "LOOP_ON", "value": false}``, a ``Clip`` member name."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+    op: Literal["set_clip_setting"]
+    track: TrackSelector
+    clip: ClipSelector
+    setting: str
+    value: bool | float | str
+    index: int | None = None
+
+
+class SetTransportSettingOp(pydantic.BaseModel):
+    """Set one of the set's transport settings: ``{"setting": "LOOP_ON", "value": true}``, a ``Transport`` member."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+    op: Literal["set_transport_setting"]
+    setting: str
+    value: bool | float | str
+
+
 type Op = Annotated[
-    SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp | SetDeviceSettingOp,
+    SetNotesOp
+    | CloneClipOp
+    | GraftChainOp
+    | PlaceClipOp
+    | CopySectionOp
+    | RemoveSectionClipsOp
+    | SetDeviceSettingOp
+    | SetTrackSettingOp
+    | SetClipSettingOp
+    | SetTransportSettingOp,
     pydantic.Field(discriminator="op"),
 ]
 
 type AnyOp = (
-    SetNotesOp | CloneClipOp | GraftChainOp | PlaceClipOp | CopySectionOp | RemoveSectionClipsOp | SetDeviceSettingOp
+    SetNotesOp
+    | CloneClipOp
+    | GraftChainOp
+    | PlaceClipOp
+    | CopySectionOp
+    | RemoveSectionClipsOp
+    | SetDeviceSettingOp
+    | SetTrackSettingOp
+    | SetClipSettingOp
+    | SetTransportSettingOp
 )
 
 
@@ -244,6 +303,27 @@ class SetDeviceSettingResult(pydantic.BaseModel):
     devices: int
 
 
+class SetTrackSettingResult(pydantic.BaseModel):
+    op: Literal["set_track_setting"] = "set_track_setting"
+    setting: str
+    value: str
+    tracks: list[str]
+
+
+class SetClipSettingResult(pydantic.BaseModel):
+    op: Literal["set_clip_setting"] = "set_clip_setting"
+    track: str
+    clip: str
+    setting: str
+    value: str
+
+
+class SetTransportSettingResult(pydantic.BaseModel):
+    op: Literal["set_transport_setting"] = "set_transport_setting"
+    setting: str
+    value: str
+
+
 type OpResult = (
     SetNotesResult
     | CloneClipResult
@@ -252,6 +332,9 @@ type OpResult = (
     | CopySectionResult
     | RemoveSectionClipsResult
     | SetDeviceSettingResult
+    | SetTrackSettingResult
+    | SetClipSettingResult
+    | SetTransportSettingResult
 )
 
 
@@ -531,9 +614,88 @@ def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) ->
     return run
 
 
+def _member[E: enum.StrEnum](op: str, text: str, settings_class: type[E]) -> E:
+    if text not in settings_class.__members__:
+        raise ValueError(f"{op}: {settings_class.__name__} has no setting {text!r}")
+    return settings_class[text]
+
+
+def _track_member(text: str) -> Track | Mixer:
+    """``"Track.COLOR"`` or ``"Mixer.VOLUME"`` to its member."""
+    class_name, _, name = text.partition(".")
+    classes: dict[str, type[Track] | type[Mixer]] = {"Track": Track, "Mixer": Mixer}
+    if class_name not in classes or not name:
+        raise ValueError(f"set_track_setting: name the enum and the member, e.g. 'Mixer.VOLUME', not {text!r}")
+    return _member("set_track_setting", name, classes[class_name])
+
+
+def _resolve_any_track(live_set: AbletonSet, selector: TrackSelector) -> AbletonTrack:
+    """A selector to one track, the main track included (by name; it has no id)."""
+    if isinstance(selector, TrackById):
+        return _resolve_track(live_set, selector)
+    matches = [track for track in live_set.tracks.walk() if track.name == selector.name]
+    if not matches:
+        raise ValueError(f"No track named {selector.name!r}")
+    if len(matches) > 1:
+        raise ValueError(f"{len(matches)} tracks are named {selector.name!r}; use {{'id': ...}} instead")
+    return matches[0]
+
+
+def _prepare_set_track_setting(live_set: AbletonSet, op: SetTrackSettingOp) -> Callable[[], OpResult]:
+    member = _track_member(op.setting)
+    indices = {} if op.index is None else {"index": op.index}
+    if op.track is not None:
+        track = _resolve_any_track(live_set, op.track)
+        targets = [(track, track.setting(member, **indices))]
+    else:
+        found = [(track, track.find_setting(member, **indices)) for track in live_set.tracks.walk()]
+        targets = [(track, setting) for track, setting in found if setting is not None]
+        if not targets:
+            raise ValueError(f"set_track_setting: no track in this set has {op.setting}")
+    text = targets[0][1].encode(op.value)
+
+    def run() -> OpResult:
+        for _, setting in targets:
+            setting.set(op.value)
+        return SetTrackSettingResult(setting=op.setting, value=text, tracks=[track.name for track, _ in targets])
+
+    return run
+
+
+def _prepare_set_clip_setting(live_set: AbletonSet, op: SetClipSettingOp) -> Callable[[], OpResult]:
+    member = _member("set_clip_setting", op.setting, Clip)
+    track = _resolve_track(live_set, op.track)
+    clip = _resolve_any_clip(live_set, track, op.clip)
+    setting = clip.setting(member, **({} if op.index is None else {"index": op.index}))
+    text = setting.encode(op.value)
+
+    def run() -> OpResult:
+        setting.set(op.value)
+        return SetClipSettingResult(track=track.name, clip=clip.name, setting=op.setting, value=text)
+
+    return run
+
+
+def _prepare_set_transport_setting(live_set: AbletonSet, op: SetTransportSettingOp) -> Callable[[], OpResult]:
+    setting = live_set.transport.setting(_member("set_transport_setting", op.setting, Transport))
+    text = setting.encode(op.value)
+
+    def run() -> OpResult:
+        setting.set(op.value)
+        return SetTransportSettingResult(setting=op.setting, value=text)
+
+    return run
+
+
 def _prepare(live_set: AbletonSet, op: AnyOp, donor_sets: dict[str, AbletonSet]) -> Callable[[], OpResult]:
     if isinstance(op, SetDeviceSettingOp):
         return _prepare_set_device_setting(live_set, op)
+    if isinstance(op, SetTrackSettingOp):
+        return _prepare_set_track_setting(live_set, op)
+    if isinstance(op, SetClipSettingOp):
+        return _prepare_set_clip_setting(live_set, op)
+    if isinstance(op, SetTransportSettingOp):
+        return _prepare_set_transport_setting(live_set, op)
     if isinstance(op, SetNotesOp):
         return _prepare_set_notes(live_set, op)
     if isinstance(op, CloneClipOp):

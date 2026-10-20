@@ -14,8 +14,11 @@ from abletoolz.live_set.apply_ops import (
     OpResult,
     PlaceClipResult,
     RemoveSectionClipsResult,
+    SetClipSettingResult,
     SetDeviceSettingResult,
     SetNotesResult,
+    SetTrackSettingResult,
+    SetTransportSettingResult,
     StraddlerModel,
 )
 from abletoolz.live_set.plugins import PluginRef
@@ -345,6 +348,12 @@ def _applied_op_line(result: OpResult) -> str:
         if result.envelope_events:
             line += f", copied {result.envelope_events} automation event(s)"
         return line
+    if isinstance(result, SetTrackSettingResult):
+        return f"set_track_setting: {result.setting} = {result.value} on {len(result.tracks)} track(s)"
+    if isinstance(result, SetClipSettingResult):
+        return f"set_clip_setting: Clip.{result.setting} = {result.value} on {result.clip!r} on track {result.track!r}"
+    if isinstance(result, SetTransportSettingResult):
+        return f"set_transport_setting: Transport.{result.setting} = {result.value}"
     if isinstance(result, SetDeviceSettingResult):
         return f"set_device_setting: {result.device}.{result.setting} = {result.value} on {result.devices} device(s)"
     if not result.removed and not result.kept:
