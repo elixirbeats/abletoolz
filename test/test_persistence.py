@@ -8,7 +8,6 @@ import pathlib
 
 import pytest
 
-from abletoolz import utils
 from abletoolz.live_set import AbletonSet, persistence
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -107,4 +106,4 @@ def test_macos_hands_setfile_the_creation_date_it_has(tmp_path: pathlib.Path, mo
     monkeypatch.setattr(persistence.subprocess, "run", lambda command, **_: commands.append(command))
 
     persistence.restore_file_times(ableton_set)
-    assert commands == [["SetFile", "-d", utils.format_date(CREATED), str(ableton_set.path)]]
+    assert commands == [["SetFile", "-d", persistence.format_date(CREATED), str(ableton_set.path)]]

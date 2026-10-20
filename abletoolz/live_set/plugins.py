@@ -14,7 +14,6 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
-from abletoolz import utils
 from abletoolz.formats import path_data
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.misc import (
@@ -392,7 +391,7 @@ class Plugins:
                         if search_result := self.search(full_path):
                             return None, search_result.name, search_result
                         return None, full_path, None
-                    path_separator = utils.path_separator_type(full_path)
+                    path_separator = path_data.path_separator_type(full_path)
                     name = full_path.split(path_separator)[-1]
                     return pathlib.Path(full_path), name, None
                 elif plugin_path == Tag.DIR:
@@ -416,7 +415,7 @@ class Plugins:
                         # is all it has, which is what repair reports it by.
                         logger.debug("%sNo directory stored for %s; device is a stub", Y, name)
                         return None, name, None
-                    path_separator = utils.path_separator_type(path)
+                    path_separator = path_data.path_separator_type(path)
                     if path[-1] == path_separator:
                         full_path = f"{path}{name}"
                     else:

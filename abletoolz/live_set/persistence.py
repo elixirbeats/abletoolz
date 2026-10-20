@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import pathlib
@@ -11,9 +12,8 @@ import sys
 import threading
 from typing import TYPE_CHECKING
 
-from abletoolz import utils
 from abletoolz.formats import FormatError, live_document
-from abletoolz.misc import B, G, M, R, Y
+from abletoolz.misc import BACKUP_DIR, B, G, M, R, Y
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -22,6 +22,37 @@ if sys.platform == "win32":
     import win32_setctime
 
 logger = logging.getLogger(__name__)
+
+
+def format_date(timestamp: float) -> str:
+    """Return easy to read date."""
+    return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %H:%M:%S")
+
+
+def unclaimed_path(pathlib_obj: pathlib.Path) -> pathlib.Path:
+    """First name__N.suffix path beside ``pathlib_obj`` that doesn't exist yet."""
+    ending_int = 1
+    while True:
+        candidate = pathlib_obj.parent / (pathlib_obj.stem + "__" + str(ending_int) + pathlib_obj.suffix)
+        if not candidate.exists():
+            return candidate
+        ending_int += 1
+
+
+def create_backup(pathlib_obj: pathlib.Path) -> None:
+    """Move file to backup directory, does not replace previous files moved there."""
+    backup_dir = pathlib_obj.parent / BACKUP_DIR
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = unclaimed_path(backup_dir / pathlib_obj.name)
+    logger.info(
+        "%sMoving original file to backup directory:\n%s --> %s",
+        B,
+        pathlib_obj,
+        backup_path,
+    )
+    # Rename creates a new pathlib object with the new path,
+    # so pathlib_obj will still point to the original path when the file is saved.
+    pathlib_obj.rename(backup_path)
 
 
 def read_set(live_set: AbletonSet) -> bool:
@@ -48,7 +79,7 @@ def save_xml(live_set: AbletonSet) -> None:
     """Dump the decompressed XML next to the set."""
     xml_file = live_set.path.parent / (live_set.path.stem + ".xml")
     if xml_file.exists():
-        utils.create_backup(xml_file)
+        create_backup(xml_file)
     xml_file.write_bytes(to_xml_bytes(live_set))
     logger.info("%sSaved xml to %s", G, xml_file)
 
@@ -65,8 +96,8 @@ def get_file_times(live_set: AbletonSet) -> None:
     logger.debug(
         "%sFile creation time %s, Last modification time: %s",
         B,
-        utils.format_date(live_set.creation_time),
-        utils.format_date(live_set.last_modification_time),
+        format_date(live_set.creation_time),
+        format_date(live_set.last_modification_time),
     )
 
 
@@ -81,13 +112,13 @@ def restore_file_times(live_set: AbletonSet) -> None:
     if sys.platform == "win32":
         win32_setctime.setctime(live_set.path, live_set.creation_time)
     elif sys.platform == "darwin":
-        date = utils.format_date(live_set.creation_time)
+        date = format_date(live_set.creation_time)
         subprocess.run(["SetFile", "-d", date, str(live_set.path)], capture_output=True, check=False)
     logger.debug(
         "%sRestored set creation and modification times: %s, %s",
         G,
-        utils.format_date(live_set.creation_time),
-        utils.format_date(live_set.last_modification_time),
+        format_date(live_set.creation_time),
+        format_date(live_set.last_modification_time),
     )
 
 
@@ -121,7 +152,7 @@ def save_set(
     # must fail loudly here, while the original file is still in place.
     document = live_document.encode(live_set.root)
     if output_dir is None:
-        utils.create_backup(live_set.path)
+        create_backup(live_set.path)
     if append_bars_bpm:
         logger.warning(
             "%s--append-bars-bpm is deprecated and will be removed in a future release. "
@@ -151,7 +182,7 @@ def save_set(
         output_dir.mkdir(parents=True, exist_ok=True)
         target = output_dir / live_set.path.name
         if target.exists():
-            target = utils.unclaimed_path(target)
+            target = unclaimed_path(target)
             logger.info("%s%s already exists, saving as %s", Y, output_dir / live_set.path.name, target.name)
         live_set.path = target
 

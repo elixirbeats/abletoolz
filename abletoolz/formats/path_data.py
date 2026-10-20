@@ -22,6 +22,17 @@ from abletoolz.misc import R, SetOperatingSystem
 
 logger = logging.getLogger(__name__)
 
+
+def path_separator_type(path_str: str) -> str:
+    """Get OS path string separator."""
+    if "\\" in path_str:
+        return "\\"
+    elif "/" in path_str:
+        return "/"
+    else:
+        raise ValueError(f"Couldn't parse OS path type! {path_str}")
+
+
 _MAC_HEADER = b"\x00" * 3
 # The alias record's first bytes are a header carrying the record's size.
 _MAC_FIELDS_START = 6
