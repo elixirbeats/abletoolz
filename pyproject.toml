@@ -47,8 +47,8 @@ Repository = "https://github.com/elixirbeats/abletoolz"
 abletoolz = "abletoolz:main"
 abletoolz-dj-crates = "abletoolz.dj_crates:main"
 
-[tool.setuptools]
-packages = ["abletoolz", "abletoolz.formats", "abletoolz.formats.asd", "abletoolz.data", "abletoolz.live_set", "abletoolz.plugin_parsers", "abletoolz.plugin_parsers.parsers", "abletoolz.plugin_parsers.state", "abletoolz.schema", "abletoolz.sample_databaser"]
+[tool.setuptools.packages.find]
+include = ["abletoolz*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "abletoolz.__version__"}
