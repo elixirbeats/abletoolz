@@ -14,7 +14,7 @@ from abletoolz.misc import G, M, R, Y
 from abletoolz.samples.database import DatabaseT, SampleRecord
 from abletoolz.samples.matcher import is_factory_pack_path, order_candidates_by_name
 from abletoolz.schema import Tag
-from abletoolz.versioning import Version
+from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

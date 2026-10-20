@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from abletoolz.versioning import Version, parse_creator, versioned
+from abletoolz.schema.versioning import Version, parse_creator, versioned
 
 
 @pytest.mark.parametrize(

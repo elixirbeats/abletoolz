@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from abletoolz import schema
 from abletoolz.misc import SetError, get_element
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.versioning import Version
+from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

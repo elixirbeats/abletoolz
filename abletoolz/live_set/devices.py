@@ -55,7 +55,7 @@ from abletoolz.misc import ElementNotFound, get_element
 from abletoolz.plugin_parsers import PluginData
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device, ValueKind, is_templated, kind_of
-from abletoolz.versioning import Version
+from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

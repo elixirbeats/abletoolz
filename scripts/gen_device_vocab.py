@@ -49,14 +49,16 @@ type Version = tuple[int, int, int]
 
 
 def _load_parse_creator() -> Callable[[str], Version]:
-    """``abletoolz.versioning.parse_creator``, loaded from its file.
+    """``abletoolz.schema.versioning.parse_creator``, loaded from its file.
 
     versioning.py imports nothing from the package, so loading it alone keeps
     the census independent of whatever else in the checkout is mid-change.
     """
-    spec = importlib.util.spec_from_file_location("_census_versioning", REPO_ROOT / "abletoolz" / "versioning.py")
+    spec = importlib.util.spec_from_file_location(
+        "_census_versioning", REPO_ROOT / "abletoolz" / "schema" / "versioning.py"
+    )
     if spec is None or spec.loader is None:
-        raise SystemExit("cannot load abletoolz/versioning.py")
+        raise SystemExit("cannot load abletoolz/schema/versioning.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     parse: Callable[[str], Version] = module.parse_creator

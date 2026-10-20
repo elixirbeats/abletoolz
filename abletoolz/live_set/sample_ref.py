@@ -18,7 +18,7 @@ import pydantic
 from abletoolz.formats import hex_text, path_data
 from abletoolz.misc import ElementNotFound, get_element
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.versioning import Version, versioned
+from abletoolz.schema.versioning import Version, versioned
 
 logger = logging.getLogger(__name__)
 

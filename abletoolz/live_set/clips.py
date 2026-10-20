@@ -56,7 +56,7 @@ from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value, renumber_pointee_ids, shift_indentation, tab_depth
 from abletoolz.misc import get_element
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.versioning import Version, versioned
+from abletoolz.schema.versioning import Version, versioned
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

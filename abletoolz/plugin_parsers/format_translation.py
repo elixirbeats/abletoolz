@@ -47,7 +47,7 @@ from abletoolz.plugin_parsers.state import (
     state_bytes,
 )
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.versioning import MIN_SUPPORTED, Version
+from abletoolz.schema.versioning import MIN_SUPPORTED, Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

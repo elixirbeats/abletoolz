@@ -11,7 +11,7 @@ from abletoolz import schema
 from abletoolz.live_set import colors, sections
 from abletoolz.misc import RST, STEREO_OUTPUTS, G, R, get_element
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.versioning import Version
+from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
