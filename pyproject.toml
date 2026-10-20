@@ -82,5 +82,5 @@ select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # Color tables mirror Live's 14-wide color-picker layout; long lines are the point.
-"abletoolz/color_tools.py" = ["E501"]
+"abletoolz/live_set/colors.py" = ["E501"]
 "abletoolz/misc.py" = ["E501"]

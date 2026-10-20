@@ -7,8 +7,8 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz import color_tools, schema
-from abletoolz.live_set import sections
+from abletoolz import schema
+from abletoolz.live_set import colors, sections
 from abletoolz.misc import RST, STEREO_OUTPUTS, G, R, get_element
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
@@ -230,17 +230,15 @@ class Tracks:
     def gradient(self) -> None:
         """Make a rough gradient across tracks and their clips using built in colors."""
         tracks = self.load()
-        for clr_ind, track in zip(color_tools.create_gradient_ableton(len(tracks)), tracks, strict=False):
+        for clr_ind, track in zip(colors.create_gradient_ableton(len(tracks)), tracks, strict=False):
             track.color = clr_ind
 
             clipview_clr_elements = list(track.clip_clipview_colors())
-            clip_view_gradient = color_tools.create_gradient_ableton(len(clipview_clr_elements), starting_index=clr_ind)
+            clip_view_gradient = colors.create_gradient_ableton(len(clipview_clr_elements), starting_index=clr_ind)
             for sub_ind, clip_clr_ele in zip(clip_view_gradient, clipview_clr_elements, strict=False):
                 clip_clr_ele.set(Attr.VALUE, str(sub_ind))
 
             arangement_clr_elements = list(track.clip_arangement_colors())
-            clip_view_gradient = color_tools.create_gradient_ableton(
-                len(arangement_clr_elements), starting_index=clr_ind
-            )
+            clip_view_gradient = colors.create_gradient_ableton(len(arangement_clr_elements), starting_index=clr_ind)
             for sub_ind, clip_clr_ele in zip(clip_view_gradient, arangement_clr_elements, strict=False):
                 clip_clr_ele.set(Attr.VALUE, str(sub_ind))
