@@ -145,7 +145,7 @@ class AbletonTrack:
         it, which also reached clips inside racks and take lanes -- clips the
         writers refuse to touch, reported to callers as if they were placeable.
         """
-        events = sections.arrangement_events(self.track_root, self.type)
+        events = sections.arrangement_events(self.track_root, self.type, self.version)
         if events is None:
             return
         yield from events.clips()

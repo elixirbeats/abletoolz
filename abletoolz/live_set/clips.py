@@ -53,9 +53,11 @@ from xml.etree import ElementTree as ET
 from abletoolz.elements import get_element
 from abletoolz.live_set import sample_ref, sections
 from abletoolz.live_set.sections import CopiedPlacement, SkippedStraddler
+from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value, renumber_pointee_ids, shift_indentation, tab_depth
 from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.objects import Clip
 from abletoolz.schema.versioning import Version, versioned
 
 if TYPE_CHECKING:
@@ -198,6 +200,10 @@ class MidiClipRef:
     version: Version = dataclasses.field(repr=False, compare=False)
     clip_element: ET.Element = dataclasses.field(repr=False, compare=False)
 
+    def setting(self, member: Clip, **indices: int) -> Setting:
+        """One of this clip's settings: ``setting(Clip.LOOP_START)``."""
+        return resolve(self.clip_element, member, self.version, indices, label=f"clip {self.name!r}")
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class AudioClipRef:
@@ -217,6 +223,10 @@ class AudioClipRef:
     sample_name: str
     version: Version = dataclasses.field(repr=False, compare=False)
     clip_element: ET.Element = dataclasses.field(repr=False, compare=False)
+
+    def setting(self, member: Clip, **indices: int) -> Setting:
+        """One of this clip's settings: ``setting(Clip.WARP_MODE)``."""
+        return resolve(self.clip_element, member, self.version, indices, label=f"clip {self.name!r}")
 
 
 def _parse_note(element: ET.Element, pitch: int) -> MidiNote:
@@ -251,31 +261,26 @@ def _parse_notes(clip_element: ET.Element) -> list[MidiNote]:
     return notes
 
 
-def _clip_length(clip_element: ET.Element) -> float | None:
+def _clip_length(clip_element: ET.Element, version: Version) -> float | None:
     """Loop length in beats, when the clip carries loop markers."""
-    loop_start = clip_element.find(path(Tag.LOOP, Tag.LOOP_START))
-    loop_end = clip_element.find(path(Tag.LOOP, Tag.LOOP_END))
+    loop_start = find(clip_element, Clip.LOOP_START, version)
+    loop_end = find(clip_element, Clip.LOOP_END, version)
     if loop_start is None or loop_end is None:
         return None
-    start_value = loop_start.get(Attr.VALUE)
-    end_value = loop_end.get(Attr.VALUE)
-    if start_value is None or end_value is None:
-        return None
-    return float(end_value) - float(start_value)
+    return float(loop_end.raw) - float(loop_start.raw)
 
 
 def _parse_clip(
     clip_element: ET.Element, track_name: str | None, location: ClipLocation, version: Version
 ) -> MidiClipRef:
-    name_element = clip_element.find(Tag.NAME)
-    name = name_element.get(Attr.VALUE, "") if name_element is not None else ""
+    name = sections.clip_name(clip_element, version)
     notes = sorted(_parse_notes(clip_element), key=lambda note: (note.start, note.pitch))
     return MidiClipRef(
         name=name,
         track_name=track_name,
         location=location,
         start_time=float(clip_element.get(Attr.TIME, "0")),
-        length=_clip_length(clip_element),
+        length=_clip_length(clip_element, version),
         notes=tuple(notes),
         version=version,
         clip_element=clip_element,
@@ -289,8 +294,7 @@ def _parse_audio_clip(
     version: Version,
     project_root: pathlib.Path,
 ) -> AudioClipRef:
-    name_element = clip_element.find(Tag.NAME)
-    name = name_element.get(Attr.VALUE, "") if name_element is not None else ""
+    name = sections.clip_name(clip_element, version)
     sample_ref_element = get_element(clip_element, Tag.SAMPLE_REF)
     parsed_sample = sample_ref.SampleRef.from_element(sample_ref_element, version, project_root)
     return AudioClipRef(
@@ -298,7 +302,7 @@ def _parse_audio_clip(
         track_name=track_name,
         location=location,
         start_time=float(clip_element.get(Attr.TIME, "0")),
-        length=_clip_length(clip_element),
+        length=_clip_length(clip_element, version),
         sample_name=parsed_sample.name,
         version=version,
         clip_element=clip_element,
@@ -430,7 +434,7 @@ class Clips:
                     refs.append(
                         _parse_audio_clip(audio_clip, track_name, ClipLocation.SESSION, self.version, project_root)
                     )
-            events = sections.arrangement_events(track.track_root, track.type)
+            events = sections.arrangement_events(track.track_root, track.type, track.version)
             if events is not None:
                 for audio_clip in events.clips():
                     refs.append(
@@ -582,13 +586,13 @@ class Clips:
         clone.set(Attr.TIME, "0")
         if Attr.ID in clone.attrib:
             clone.set(Attr.ID, "0")
-        get_element(clone, Tag.NAME).set(Attr.VALUE, name)
-        get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
-        get_element(clone, path(Tag.LOOP, Tag.LOOP_ON)).set(Attr.VALUE, "true")
+        resolve(clone, Clip.NAME, self.version).set(name)
+        resolve(clone, Clip.DISABLED, self.version).set(False)
+        resolve(clone, Clip.LOOP_ON, self.version).set(True)
         clone_length = donor.length if length is None else length
         if clone_length is None:
             raise ValueError("Donor clip carries no loop markers; pass length explicitly")
-        sections.set_clip_length(clone, clone_length)
+        sections.set_clip_length(clone, clone_length, self.version)
         self._write_notes(clone, notes)
 
         value.text = (slot.holder.text or "") + "\t"
@@ -643,13 +647,13 @@ class Clips:
             )
 
         clone = copy.deepcopy(donor.clip_element)
-        sections.move_clip(clone, at, length)
-        span = sections.event_span(clone)
+        sections.move_clip(clone, at, length, self.version)
+        span = sections.event_span(clone, self.version)
         sections.clear_span(target, events, span, replace=replace)
 
         shift_indentation(clone, (tab_depth(events.indent) + 1) - (tab_depth(clone.text) - 1))
         renumber_pointee_ids(clone, self._root)
-        get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
+        resolve(clone, Clip.DISABLED, self.version).set(False)
         sections.assign_event_id(events.element, clone)
         sections.insert_in_time_order(events.element, clone, indent=events.indent)
 
@@ -708,18 +712,18 @@ class Clips:
 
         selected = self._section_tracks(track_names)
         for target in selected:
-            events = sections.arrangement_events(target.track_root, target.type)
+            events = sections.arrangement_events(target.track_root, target.type, target.version)
             if events is None:
                 continue
             inside: list[ET.Element] = []
             for clip in events.clips():
-                span = sections.event_span(clip)
+                span = sections.event_span(clip, self.version)
                 boundary = sections.straddled_boundary(span, src_start, src_end)
                 if boundary is not None:
                     skipped.append(
                         SkippedStraddler(
                             track_name=target.name,
-                            clip_name=sections.clip_name(clip),
+                            clip_name=sections.clip_name(clip, self.version),
                             start=span[0],
                             end=span[1],
                             boundary=boundary,
@@ -735,7 +739,7 @@ class Clips:
                 continue
             for clip in sections.span_occupants(events, dest_start, dest_end):
                 collisions.append(
-                    f"{sections.clip_name(clip)!r} on track {target.name!r} at beat {clip.get(Attr.TIME)}"
+                    f"{sections.clip_name(clip, self.version)!r} on track {target.name!r} at beat {clip.get(Attr.TIME)}"
                 )
         if collisions and mode is sections.SectionMode.REFUSE:
             raise ValueError(
@@ -756,12 +760,16 @@ class Clips:
                 replaced += len(doomed)
             for clone in cloned:
                 start = sections.event_time(clone) + delta
-                sections.move_clip(clone, start, None)
+                sections.move_clip(clone, start, None, self.version)
                 renumber_pointee_ids(clone, self._root)
-                get_element(clone, Tag.DISABLED).set(Attr.VALUE, "false")
+                resolve(clone, Clip.DISABLED, self.version).set(False)
                 sections.assign_event_id(events.element, clone)
                 sections.insert_in_time_order(events.element, clone, indent=events.indent)
-                copied.append(CopiedPlacement(track_name=target.name, clip_name=sections.clip_name(clone), start=start))
+                copied.append(
+                    CopiedPlacement(
+                        track_name=target.name, clip_name=sections.clip_name(clone, self.version), start=start
+                    )
+                )
 
         # Automation belongs to the track, not to its clips: a group track
         # holds envelopes and no clips at all, so this walks every selected
@@ -795,18 +803,18 @@ class Clips:
         removed: list[sections.RemovedClip] = []
         kept: list[SkippedStraddler] = []
         for target in self._section_tracks(track_names):
-            events = sections.arrangement_events(target.track_root, target.type)
+            events = sections.arrangement_events(target.track_root, target.type, target.version)
             if events is None:
                 continue
             doomed: list[ET.Element] = []
             for clip in events.clips():
-                span = sections.event_span(clip)
+                span = sections.event_span(clip, self.version)
                 boundary = sections.straddled_boundary(span, start, end)
                 if boundary is not None:
                     kept.append(
                         SkippedStraddler(
                             track_name=target.name,
-                            clip_name=sections.clip_name(clip),
+                            clip_name=sections.clip_name(clip, self.version),
                             start=span[0],
                             end=span[1],
                             boundary=boundary,
@@ -817,7 +825,7 @@ class Clips:
             removed.extend(
                 sections.RemovedClip(
                     track_name=target.name,
-                    clip_name=sections.clip_name(clip),
+                    clip_name=sections.clip_name(clip, self.version),
                     start=sections.event_time(clip),
                 )
                 for clip in doomed

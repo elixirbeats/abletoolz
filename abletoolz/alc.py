@@ -23,8 +23,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from abletoolz.errors import ElementNotFound
 from abletoolz.formats import FormatError, live_document
+from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.schema import Attr, Tag
+from abletoolz.schema.objects import Clip
+from abletoolz.schema.settings import SettingUnavailable
+from abletoolz.schema.versioning import Version, parse_creator
 
 
 class AlcError(FormatError):
@@ -161,6 +166,22 @@ class AlcClip:
         """Wrap an already-parsed ``.alc`` document root (``<Ableton>``)."""
         self._root = root
         self._clip = _find_audio_clip(root)
+        creator = root.get(Attr.CREATOR)
+        if creator is None:
+            raise AlcError("the .alc document has no Creator, so its Live version is unknown")
+        self._version = parse_creator(creator)
+
+    @property
+    def version(self) -> Version:
+        """The Live version that wrote the clip document."""
+        return self._version
+
+    def setting(self, member: Clip) -> Setting:
+        """One of the clip's settings, where this document's Live version keeps it."""
+        try:
+            return resolve(self._clip, member, self._version, label="AudioClip")
+        except (ElementNotFound, SettingUnavailable) as error:
+            raise AlcError(str(error)) from error
 
     @property
     def root(self) -> ET.Element:
@@ -193,20 +214,20 @@ class AlcClip:
     @property
     def name(self) -> str:
         """The clip's ``<Name>`` (shown in Live's clip view and on Push 3's display)."""
-        return _get_value(self._clip, Tag.NAME)
+        return self.setting(Clip.NAME).raw
 
     @name.setter
     def name(self, value: str) -> None:
-        _set_value(self._clip, Tag.NAME, value)
+        self.setting(Clip.NAME).set(value)
 
     @property
     def color_index(self) -> int:
-        """The clip's ``<Color>`` index (Live's built-in clip color palette index)."""
-        return int(_get_value(self._clip, Tag.COLOR))
+        """The clip's color index (Live's built-in clip color palette index)."""
+        return int(self.setting(Clip.COLOR).raw)
 
     @color_index.setter
     def color_index(self, value: int) -> None:
-        _set_value(self._clip, Tag.COLOR, str(value))
+        self.setting(Clip.COLOR).set(value)
 
     # ── Warp markers ─────────────────────────────────────────────────────────
 
@@ -245,17 +266,17 @@ class AlcClip:
         clip_end_beats = _beats_from_seconds(duration_seconds - grid_start_seconds, bpm)
 
         _write_two_markers(self._clip, grid_start_seconds, 0.0, duration_seconds, clip_end_beats)
-        _set_value(self._clip, Tag.IS_WARPED, "true")
-
-        _set_value(self._clip, Tag.CURRENT_START, _format_number(clip_start_beats))
-        _set_value(self._clip, Tag.CURRENT_END, _format_number(clip_end_beats))
-
-        loop = _get(self._clip, Tag.LOOP)
-        _set_value(loop, Tag.LOOP_START, _format_number(clip_start_beats))
-        _set_value(loop, Tag.LOOP_END, _format_number(clip_end_beats))
-        _set_value(loop, Tag.OUT_MARKER, _format_number(clip_end_beats))
-        _set_value(loop, Tag.HIDDEN_LOOP_START, _format_number(clip_start_beats))
-        _set_value(loop, Tag.HIDDEN_LOOP_END, _format_number(clip_end_beats))
+        self.setting(Clip.IS_WARPED).set(True)
+        for member, beats in (
+            (Clip.CURRENT_START, clip_start_beats),
+            (Clip.CURRENT_END, clip_end_beats),
+            (Clip.LOOP_START, clip_start_beats),
+            (Clip.LOOP_END, clip_end_beats),
+            (Clip.OUT_MARKER, clip_end_beats),
+            (Clip.HIDDEN_LOOP_START, clip_start_beats),
+            (Clip.HIDDEN_LOOP_END, clip_end_beats),
+        ):
+            self.setting(member).set(beats)
 
     def add_grid_marker(self, seconds: float, *, beat_time: float | None = None) -> None:
         """Insert an extra warp marker at ``seconds``, colinear with the existing grid.
@@ -315,11 +336,10 @@ class AlcClip:
             raise AlcError("degenerate warp grid: both markers share the same SecTime")
         slope = (end.beat_time - anchor.beat_time) / (end.sec_time - anchor.sec_time)
         beat = anchor.beat_time + (seconds - anchor.sec_time) * slope
-        _set_value(self._clip, Tag.CURRENT_START, _format_number(beat))
-        loop = _get(self._clip, Tag.LOOP)
-        if _get_value(loop, Tag.LOOP_ON) == "false":
-            _set_value(loop, Tag.LOOP_START, _format_number(beat))
-            _set_value(loop, Tag.HIDDEN_LOOP_START, _format_number(beat))
+        self.setting(Clip.CURRENT_START).set(beat)
+        if self.setting(Clip.LOOP_ON).value is False:
+            self.setting(Clip.LOOP_START).set(beat)
+            self.setting(Clip.HIDDEN_LOOP_START).set(beat)
 
     def set_view_window(self, start_seconds: float, end_seconds: float, margin_bars: float) -> None:
         """Set the clip view's visible window to cover `start_seconds` through
@@ -345,8 +365,9 @@ class AlcClip:
         def to_beats(seconds: float) -> float:
             return anchor_marker.beat_time + (seconds - anchor_marker.sec_time) * slope
 
-        scroller = self._clip.find(Tag.SCROLLER_TIME_PRESERVER)
-        if scroller is None:
+        left_time = find(self._clip, Clip.LEFT_TIME, self._version)
+        right_time = find(self._clip, Clip.RIGHT_TIME, self._version)
+        if left_time is None or right_time is None:
             return
         left = to_beats(start_seconds)
         right = to_beats(end_seconds) + margin_bars * 4.0
@@ -354,8 +375,8 @@ class AlcClip:
         # point; give it the margin as its whole span instead of a zero window.
         if right - left < margin_bars * 4.0:
             right = left + margin_bars * 4.0
-        _set_value(scroller, Tag.LEFT_TIME, _format_number(left))
-        _set_value(scroller, Tag.RIGHT_TIME, _format_number(right))
+        left_time.set(left)
+        right_time.set(right)
 
     @staticmethod
     def drop_alignment(*, bpm: float, grid_start_seconds: float, drop_seconds: float) -> DropAlignment:

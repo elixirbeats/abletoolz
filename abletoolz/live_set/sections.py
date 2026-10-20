@@ -57,10 +57,12 @@ import enum
 from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
-from abletoolz.elements import get_element
+from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value
 from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.objects import Clip
+from abletoolz.schema.versioning import Version
 
 # Where each track type keeps its arrangement clips, and what the clips are called.
 ARRANGEMENT_EVENTS_PATH: dict[str, tuple[str, str]] = {
@@ -225,12 +227,13 @@ class ArrangementEvents:
     element: ET.Element
     indent: str
     clip_tag: str
+    version: Version
 
     def clips(self) -> list[ET.Element]:
         return [child for child in self.element if child.tag == self.clip_tag]
 
 
-def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEvents | None:
+def arrangement_events(track_root: ET.Element, track_type: str, version: Version) -> ArrangementEvents | None:
     """A track's arrangement clip list, or ``None`` for a track type that has none.
 
     Group, return and main tracks hold no clips at all; the path is looked up
@@ -249,7 +252,7 @@ def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEv
         return None
     # ``arranger.text`` is the whitespace before its first child, which is the
     # indentation ``Events`` itself sits on -- the anchor every insert needs.
-    return ArrangementEvents(element=events, indent=arranger.text or "", clip_tag=clip_tag)
+    return ArrangementEvents(element=events, indent=arranger.text or "", clip_tag=clip_tag, version=version)
 
 
 def event_time(element: ET.Element) -> float:
@@ -257,17 +260,17 @@ def event_time(element: ET.Element) -> float:
     return float(element.get(Attr.TIME, "0"))
 
 
-def event_span(clip: ET.Element) -> tuple[float, float]:
+def event_span(clip: ET.Element, version: Version) -> tuple[float, float]:
     """A clip's arrangement span ``[Time, CurrentEnd)`` in beats."""
-    current_end = clip.find(Tag.CURRENT_END)
+    current_end = find(clip, Clip.CURRENT_END, version)
     if current_end is None:
         raise ValueError(f"Arrangement {clip.tag} carries no CurrentEnd; it has no span")
-    return event_time(clip), float(current_end.get(Attr.VALUE, "0"))
+    return event_time(clip), float(current_end.raw)
 
 
-def clip_name(clip: ET.Element) -> str:
-    name = clip.find(Tag.NAME)
-    return "" if name is None else name.get(Attr.VALUE, "")
+def clip_name(clip: ET.Element, version: Version) -> str:
+    name = find(clip, Clip.NAME, version)
+    return "" if name is None else name.raw
 
 
 def straddled_boundary(span: tuple[float, float], start: float, end: float) -> SectionBoundary | None:
@@ -291,31 +294,29 @@ def straddled_boundary(span: tuple[float, float], start: float, end: float) -> S
     return None
 
 
-def move_clip(clip: ET.Element, start: float, length: float | None) -> None:
+def move_clip(clip: ET.Element, start: float, length: float | None, version: Version) -> None:
     """Put a clip element at ``start``, optionally resizing its arrangement span.
 
     ``Time``, ``CurrentStart`` and ``CurrentEnd`` are the whole placement.
     A resize also carries ``LoopEnd`` on a non-looping clip, which is the one
     marker the corpus ties to the arrangement span.
     """
-    current_start = _child(clip, Tag.CURRENT_START)
-    current_end = _child(clip, Tag.CURRENT_END)
-    span = float(current_end.get(Attr.VALUE, "0")) - float(current_start.get(Attr.VALUE, "0"))
+    current_start = _clip_setting(clip, Clip.CURRENT_START, version)
+    current_end = _clip_setting(clip, Clip.CURRENT_END, version)
+    span = float(current_end.raw) - float(current_start.raw)
     if length is None:
         length = span
     if length <= 0:
         raise ValueError(f"Clip length must be positive, got {length}")
 
     clip.set(Attr.TIME, number_value(start))
-    current_start.set(Attr.VALUE, number_value(start))
-    current_end.set(Attr.VALUE, number_value(start + length))
+    current_start.set(start)
+    current_end.set(start + length)
 
-    loop_on = clip.find(path(Tag.LOOP, Tag.LOOP_ON))
-    if length != span and loop_on is not None and loop_on.get(Attr.VALUE) == "false":
-        loop_start = _child(clip, path(Tag.LOOP, Tag.LOOP_START))
-        _child(clip, path(Tag.LOOP, Tag.LOOP_END)).set(
-            Attr.VALUE, number_value(float(loop_start.get(Attr.VALUE, "0")) + length)
-        )
+    loop_on = find(clip, Clip.LOOP_ON, version)
+    if length != span and loop_on is not None and loop_on.value is False:
+        loop_start = _clip_setting(clip, Clip.LOOP_START, version)
+        _clip_setting(clip, Clip.LOOP_END, version).set(float(loop_start.raw) + length)
 
 
 def next_event_id(events: ET.Element) -> str | None:
@@ -423,14 +424,14 @@ def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta:
     return len(sources)
 
 
-def _child(element: ET.Element, path: str) -> ET.Element:
-    found = element.find(path)
+def _clip_setting(clip: ET.Element, member: Clip, version: Version) -> Setting:
+    found = find(clip, member, version)
     if found is None:
-        raise ValueError(f"Clip element {element.tag} has no {path}")
+        raise ValueError(f"Clip element {clip.tag} has no {member.value}")
     return found
 
 
-def set_clip_length(clip_element: ET.Element, length: float) -> None:
+def set_clip_length(clip_element: ET.Element, length: float, version: Version) -> None:
     """Make a session clip exactly ``length`` beats long, start to loop end.
 
     Live shows a clip's length from ``CurrentStart``/``CurrentEnd`` and loops
@@ -439,23 +440,21 @@ def set_clip_length(clip_element: ET.Element, length: float) -> None:
     """
     if length <= 0:
         raise ValueError(f"Clip length must be positive, got {length}")
-    end = number_value(length)
-    get_element(clip_element, Tag.CURRENT_START).set(Attr.VALUE, "0")
-    get_element(clip_element, Tag.CURRENT_END).set(Attr.VALUE, end)
-    loop = get_element(clip_element, Tag.LOOP)
-    for tag, value in (
-        (Tag.LOOP_START, "0"),
-        (Tag.LOOP_END, end),
-        (Tag.OUT_MARKER, end),
-        (Tag.HIDDEN_LOOP_START, "0"),
-        (Tag.HIDDEN_LOOP_END, end),
+    for member, value in (
+        (Clip.CURRENT_START, 0.0),
+        (Clip.CURRENT_END, length),
+        (Clip.LOOP_START, 0.0),
+        (Clip.LOOP_END, length),
+        (Clip.OUT_MARKER, length),
+        (Clip.HIDDEN_LOOP_START, 0.0),
+        (Clip.HIDDEN_LOOP_END, length),
     ):
-        get_element(loop, tag).set(Attr.VALUE, value)
+        resolve(clip_element, member, version).set(value)
 
 
 def require_events(track: AbletonTrack) -> ArrangementEvents:
     """A track's arrangement clip list, or a refusal naming why it has none."""
-    events = arrangement_events(track.track_root, track.type)
+    events = arrangement_events(track.track_root, track.type, track.version)
     if events is None:
         raise ValueError(f"Track {track.name!r} is a {track.type} and holds no arrangement clips")
     return events
@@ -465,11 +464,11 @@ def span_occupants(events: ArrangementEvents, start: float, end: float) -> list[
     """Clips inside ``[start, end)``, raising on any that straddle an edge."""
     occupants: list[ET.Element] = []
     for clip in events.clips():
-        span = event_span(clip)
+        span = event_span(clip, events.version)
         boundary = straddled_boundary(span, start, end)
         if boundary is not None:
             raise ValueError(
-                f"Clip {clip_name(clip)!r} spans {number_value(span[0])}-{number_value(span[1])} and "
+                f"Clip {clip_name(clip, events.version)!r} spans {number_value(span[0])}-{number_value(span[1])} and "
                 f"crosses the {boundary} of {number_value(start)}-{number_value(end)}; "
                 "sections are never trimmed, so move or delete it first"
             )
@@ -490,7 +489,7 @@ def clear_span(
     if not occupants:
         return
     if not replace:
-        names = ", ".join(f"{clip_name(clip)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
+        names = ", ".join(f"{clip_name(clip, events.version)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
         raise ValueError(
             f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track.name!r} already hold "
             f"{len(occupants)} clip(s): {names}"
