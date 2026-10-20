@@ -11,19 +11,19 @@ with the fixture that proved it:
   including 11.0.12's MIDI track, whose ids run 0, 9, 5, 10, 11, 13 down the
   list while its times run 96, 128, 144, 152, 168, 192.
 * ``Id`` is unique inside one ``Events`` list, sparse, and starts wherever
-  Live felt like: 0 in 10.0.6 and 11.0.12, 1 in 10.1.3. 9.0.1 clips have no
-  ``Id`` attribute at all.
+  Live felt like: 0 in 10.0.6, 10.1.18 and 11.0.12, 2 in the real set. 9.0.1
+  clips have no ``Id`` attribute at all.
 * Every ``LoopOn="false"`` event in the corpus has
   ``LoopEnd - LoopStart == CurrentEnd - CurrentStart``, 0 exceptions.
 * Automation events (``FloatEvent``/``BoolEvent``/``EnumEvent``) are leaves
   carrying ``Id``, ``Time``, ``Value`` and nothing else -- no curve or shape
   attributes exist anywhere in the corpus. 11.0.0's group track holds 71
-  FloatEvents, the densest envelope available; 10.1.3 writes its 57
-  BoolEvents on a single line, which is why insertion re-indents one seam
-  instead of the whole list.
-* Only 11.0.0, 11.0.12, 10.x and 9.x skeletons carry arrangements at all;
-  the 11.2+ and 12.x skeletons are empty, so section tests live on the
-  older ones.
+  FloatEvents, the densest envelope available. Live writes one event per
+  line, but another tool may write a whole list on one, which is why
+  insertion re-indents one seam instead of the whole list.
+* Only 11.0.0, 11.0.12, 9.x and the 10.x skeletons but 10.1.30 carry
+  arrangements at all; the 11.2+ and 12.x skeletons are empty, so section
+  tests live on the older ones.
 """
 
 from __future__ import annotations
@@ -471,12 +471,13 @@ def test_the_pre_timeline_sentinel_is_never_copied(tmp_path: pathlib.Path) -> No
 
 
 def test_envelope_automation_written_on_one_line_stays_that_way(tmp_path: pathlib.Path) -> None:
-    """10.1.3 writes its 57 BoolEvents inline; only the insertion seam changes."""
-    ableton_set = make_set("10.1.3", tmp_path)
-    events = envelope_events(ableton_set, "kick sparkle")
-    assert all(child.tail is None for child in list(events)[:-1])
+    """An envelope written on one line keeps it; only the insertion seam changes."""
+    ableton_set = make_set("11.0.0", tmp_path)
+    events = envelope_events(ableton_set, "Drums")
+    for child in list(events)[:-1]:
+        child.tail = None
 
-    ableton_set.clips.copy_section(32.0, 64.0, 2000.0, track_names=["kick sparkle"])
+    ableton_set.clips.copy_section(224.0, 300.0, 2000.0, track_names=["Drums"])
     assert all(child.tail is None for child in list(events)[:-1])
     times = [float(child.get("Time", "")) for child in events]
     assert times == sorted(times)

@@ -614,10 +614,10 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     ``test_a_vst3_target_is_refused_on_a_set_older_than_vst3`` covers it, and the
     exhaustiveness check below stays honest by naming it as the exception.
     """
-    live_set = make_set("10.1.3")
-    loadable_names = {"Texture", "SPAN"}
+    live_set = make_set("10.1.18")
+    loadable_names = {"EchoBoy", "RatshackReverb2 x64"}
     # A device only ever written down as a stub.
-    make_stub(vst2_info(live_set, "midiChordAnalyzer-64"))
+    make_stub(vst2_info(live_set, "Sonalksis MaxLimit"))
 
     def loadable(info: ET.Element) -> bool:
         return read_identity(info).name in loadable_names
@@ -625,23 +625,23 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     report = repair_set(
         live_set,
         targets={
-            "Texture": NamedTarget(PluginKind.VST3, "Texture"),
-            "Wolfram": TranslationTarget(PluginKind.VST3, "Wolfram", OTHER_FIELDS),
-            "iZotope Trash 2": NamedTarget(PluginKind.VST3, "Trash 2"),
-            "midiChordAnalyzer-64": TranslationTarget(PluginKind.VST3, "Chords", OTHER_FIELDS),
+            "EchoBoy": NamedTarget(PluginKind.VST3, "EchoBoy"),
+            "Crystallizer": TranslationTarget(PluginKind.VST3, "Crystallizer", OTHER_FIELDS),
+            "PhaseMistress": NamedTarget(PluginKind.VST3, "PhaseMistress"),
+            "Sonalksis MaxLimit": TranslationTarget(PluginKind.VST3, "MaxLimit", OTHER_FIELDS),
             # A pair with no translator: the user said it, abletoolz cannot do it.
-            "Ohmicide_vstwin.64": TranslationTarget(PluginKind.AU, "Ohmicide", OTHER_FIELDS),
+            "CamelCrusher": TranslationTarget(PluginKind.AU, "CamelCrusher", OTHER_FIELDS),
         },
-        uid_lookup=UidLookup((UidSource("test", {"Texture": OTHER_FIELDS, "Pro-R": SERUM_FIELDS}),)),
+        uid_lookup=UidLookup((UidSource("test", {"EchoBoy": OTHER_FIELDS, "Pro-R": SERUM_FIELDS}),)),
         loadable=loadable,
     )
     statuses = {action.source_name: action.status for action in report.actions}
-    assert statuses["Wolfram"] is RepairStatus.FIXED
-    assert statuses["iZotope Trash 2"] is RepairStatus.BROKEN_NO_UID
-    assert statuses["midiChordAnalyzer-64"] is RepairStatus.INCOMPLETE_DEVICE
-    assert statuses["Ohmicide_vstwin.64"] is RepairStatus.UNSUPPORTED_PAIR
-    assert statuses["Texture"] is RepairStatus.MAPPED_NOT_BROKEN
-    assert statuses["SPAN"] is RepairStatus.OK
+    assert statuses["Crystallizer"] is RepairStatus.FIXED
+    assert statuses["PhaseMistress"] is RepairStatus.BROKEN_NO_UID
+    assert statuses["Sonalksis MaxLimit"] is RepairStatus.INCOMPLETE_DEVICE
+    assert statuses["CamelCrusher"] is RepairStatus.UNSUPPORTED_PAIR
+    assert statuses["EchoBoy"] is RepairStatus.MAPPED_NOT_BROKEN
+    assert statuses["RatshackReverb2 x64"] is RepairStatus.OK
     assert set(statuses.values()) == set(RepairStatus) - {RepairStatus.SET_TOO_OLD_FOR_TARGET}
     # A VST3 device whose name a class id source knows becomes a suggestion too.
     assert any(line.startswith('"Pro-R": {to: vst3, name: "Pro-R"}') for line in report.suggestions)
@@ -649,11 +649,11 @@ def test_every_status_is_reachable_in_one_pass() -> None:
 
 def test_only_names_a_source_knows_are_suggested() -> None:
     """Nine unmapped devices here, one of which a class id source has heard of."""
-    live_set = make_set("10.1.3")
-    lookup = UidLookup((UidSource("test", {"Ohmicide_vstwin": SERUM_FIELDS}),))
+    live_set = make_set("10.1.18")
+    lookup = UidLookup((UidSource("test", {"RatshackReverb2": SERUM_FIELDS}),))
     report = repair_set(live_set, targets={}, uid_lookup=lookup, loadable=nothing_loads)
     assert report.suggestions == (
-        '"Ohmicide_vstwin.64": {to: vst3, name: "Ohmicide_vstwin"}'
+        '"RatshackReverb2 x64": {to: vst3, name: "RatshackReverb2"}'
         "  # state: unknown -- experiment, audition before trusting",
     )
 
@@ -747,19 +747,19 @@ def test_a_stub_device_is_reported_rather_than_translated() -> None:
 
 
 def test_a_stub_device_does_not_stop_the_devices_around_it() -> None:
-    live_set = make_set("10.1.3")
-    make_stub(vst2_info(live_set, "Wolfram"))
+    live_set = make_set("10.1.18")
+    make_stub(vst2_info(live_set, "Crystallizer"))
     report = repair_set(
         live_set,
         targets={
-            "Wolfram": TranslationTarget(PluginKind.VST3, "Wolfram", OTHER_FIELDS),
-            "Texture": TranslationTarget(PluginKind.VST3, "Texture", SERUM_FIELDS),
+            "Crystallizer": TranslationTarget(PluginKind.VST3, "Crystallizer", OTHER_FIELDS),
+            "EchoBoy": TranslationTarget(PluginKind.VST3, "EchoBoy", SERUM_FIELDS),
         },
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
-    assert only(report, "Wolfram").status is RepairStatus.INCOMPLETE_DEVICE
-    assert only(report, "Texture").status is RepairStatus.FIXED
+    assert only(report, "Crystallizer").status is RepairStatus.INCOMPLETE_DEVICE
+    assert only(report, "EchoBoy").status is RepairStatus.FIXED
 
 
 def test_translating_a_stub_on_purpose_refuses_loudly() -> None:

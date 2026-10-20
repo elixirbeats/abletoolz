@@ -19,8 +19,8 @@ ElementTree walks before any of it existed in code, the same way
 * The main track is ``MainTrack`` from Live 12 and ``MasterTrack`` before it,
   named "Main" and "Master" respectively, and its chain sits one tab
   shallower than a track's.
-* ``PreHearTrack`` (the cue chain) exists in every fixture but 10.1.3 and is
-  empty in all of them.
+* ``PreHearTrack`` (the cue chain) exists in every fixture and is empty in
+  all of them.
 """
 
 from __future__ import annotations
@@ -138,7 +138,7 @@ def test_a_rack_nests_whole_chains_that_restart_device_ids() -> None:
     ("key", "tag", "name"),
     [
         ("9.0.1", "MasterTrack", "Master"),
-        ("10.1.3", "MasterTrack", "Master"),
+        ("10.1.18", "MasterTrack", "Master"),
         ("11.2.10", "MasterTrack", "Master"),
         ("12.2.6", "MainTrack", "Main"),
         ("12.4.5b", "MainTrack", "Main"),

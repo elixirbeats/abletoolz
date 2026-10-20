@@ -32,7 +32,7 @@ def make_set(key: str) -> AbletonSet:
     return ableton_set
 
 
-@pytest.mark.parametrize("key", ["10.1.3", "11.3.41"])
+@pytest.mark.parametrize("key", ["11.2.10", "11.3.41"])
 def test_zero_notes_fixtures_return_no_clips(key: str) -> None:
     """These fixtures carry MidiTracks but no MidiClip content at all."""
     assert make_set(key).clips.midi() == []

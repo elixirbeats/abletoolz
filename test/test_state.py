@@ -230,16 +230,16 @@ def test_a_constant_controller_state_ignores_the_patch() -> None:
     assert constant.build(b"another") == b"fixed"
 
 
-@pytest.mark.parametrize("plugin", ["Pro-R", "Pro-L 2"])
-def test_the_fabfilter_constant_is_what_a_set_holds_for_those_products(plugin: str) -> None:
+@pytest.mark.parametrize(("key", "plugin"), [("10.1.18", "Pro-R"), ("10.1.30", "Pro-L 2")])
+def test_the_fabfilter_constant_is_what_a_set_holds_for_those_products(key: str, plugin: str) -> None:
     """The oracle is a set Live wrote: twelve bytes, the same twelve for each of them."""
-    assert controller_states("10.1.3")[plugin] == FABFILTER_CONTROLLER_TRAILER
+    assert controller_states(key)[plugin] == FABFILTER_CONTROLLER_TRAILER
     assert FABFILTER_CONSTANT_CONTROLLER.build(b"any patch") == FABFILTER_CONTROLLER_TRAILER
 
 
 def test_a_populated_controller_state_in_a_set_carries_the_preset_name() -> None:
     """Which is the statement this replaces: the editor state is in the file after all."""
-    payload = controller_states("10.1.3")["Pro-Q 3"]
+    payload = controller_states("10.1.30")["Pro-Q 3"]
     assert payload.endswith(FABFILTER_CONTROLLER_TRAILER)
     assert EditorState.parse(payload).preset_name == "Default Setting"
 

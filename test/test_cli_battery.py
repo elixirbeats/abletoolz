@@ -189,7 +189,7 @@ def test_db_create_makes_missing_config_dir(monkeypatch: pytest.MonkeyPatch, tmp
 def test_upgrade_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """--upgrade-plugins with no rules configured is a clean no-op."""
     copy = tmp_path / "upgrade.als"
-    copy.write_bytes((SKELETONS / "10.1.3.als").read_bytes())
+    copy.write_bytes((SKELETONS / "10.1.18.als").read_bytes())
     assert run_cli(monkeypatch, str(copy), "--upgrade-plugins") == 0
 
 

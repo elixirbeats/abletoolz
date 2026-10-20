@@ -88,7 +88,7 @@ def read_state(element: ET.Element) -> bytes:
 # -- shape ------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("key", "plug_name"), [("11.3.42", "Serum_x64"), ("10.1.3", "Texture")])
+@pytest.mark.parametrize(("key", "plug_name"), [("11.3.42", "Serum_x64"), ("10.1.18", "EchoBoy")])
 def test_translated_device_matches_the_vst3_live_wrote_beside_it(key: str, plug_name: str) -> None:
     """Every version keeps a different subset of the info tags; the fixture says which."""
     live_set = make_set(key)
@@ -316,14 +316,14 @@ def test_empty_state_stays_empty() -> None:
 
 
 def test_harvest_set_uids_reads_every_vst3_in_a_set() -> None:
-    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
-    assert set(harvested) == {"Pro-R", "Pro-Q 3", "Pro-L 2"}
+    harvested = uid_sources.harvest_set_uids(make_set("10.1.30"))
+    assert set(harvested) == {"Phase Plant", "Pro-Q 3", "Pro-L 2"}
     assert all(len(fields) == 4 for fields in harvested.values())
 
 
 def test_seeded_uid_matches_a_set_that_already_uses_the_vst3() -> None:
     """Cross-check of the seed table against an independent measurement."""
-    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
+    harvested = uid_sources.harvest_set_uids(make_set("10.1.30"))
     assert translation.KNOWN_TRANSLATIONS["FabFilter Pro-Q 3"].uid_fields == harvested["Pro-Q 3"]
 
 

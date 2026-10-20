@@ -154,17 +154,17 @@ def test_search_skips_windows_dll_on_macos(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
     monkeypatch.setattr(pathlib.Path, "rglob", lambda *_args: pytest.fail("unexpected plugin directory scan"))
-    assert make_set("10.1.3").plugins.search("Rift.dll") is None
+    assert make_set("10.1.18").plugins.search("Rift.dll") is None
 
 
 @pytest.mark.usefixtures("hermetic")
 def test_scan_resolves_bundle_via_plist(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """A set's vst3 ref resolves to a bundle whose dir name differs from the display name."""
-    bundle = make_bundle(tmp_path, "FabFilter Pro-R Installed", {"CFBundleDisplayName": "Pro-R"})
+    bundle = make_bundle(tmp_path, "FabFilter Pro-L 2 Installed", {"CFBundleDisplayName": "Pro-L 2"})
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
-    refs = {ref.name: ref for ref in make_set("10.1.3").plugins.scan([]) if ref.kind == "vst3"}
-    assert refs["Pro-R"].exists
-    assert refs["Pro-R"].path == bundle
+    refs = {ref.name: ref for ref in make_set("10.1.30").plugins.scan([]) if ref.kind == "vst3"}
+    assert refs["Pro-L 2"].exists
+    assert refs["Pro-L 2"].path == bundle
     assert not refs["Pro-Q 3"].exists
     assert refs["Pro-Q 3"].path is None
 
@@ -174,7 +174,7 @@ def test_scan_indexes_vst3_dirs_once(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     """Many VST3 instances must not recursively rescan the plugin tree for each reference."""
     make_bundle(tmp_path, "FabFilter Pro-R Installed", {"CFBundleDisplayName": "Pro-R"})
     monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [tmp_path])
-    ableton_set = make_set("10.1.3")
+    ableton_set = make_set("10.1.18")
     plugin_desc = ableton_set.root.find(".//PluginDesc")
     vst3_element = ableton_set.root.find(".//Vst3PluginInfo")
     assert plugin_desc is not None
@@ -210,8 +210,8 @@ def test_vst3_index_is_shared_between_sets(monkeypatch: pytest.MonkeyPatch, tmp_
         return original_rglob(path, pattern)
 
     monkeypatch.setattr(pathlib.Path, "rglob", counting_rglob)
-    assert make_set("10.1.3").plugins.search_vst3("Pro-R") is not None
-    assert make_set("10.1.3").plugins.search_vst3("Pro-R") is not None
+    assert make_set("10.1.18").plugins.search_vst3("Pro-R") is not None
+    assert make_set("10.1.18").plugins.search_vst3("Pro-R") is not None
     assert traversals == 1
 
 
@@ -259,7 +259,7 @@ def test_scan_searches_when_stored_path_is_gone(monkeypatch: pytest.MonkeyPatch,
 
 
 def test_parse_vst3_element_name_and_path() -> None:
-    plugins_domain = make_set("10.1.3").plugins
+    plugins_domain = make_set("10.1.18").plugins
     element = ET.fromstring('<Vst3PluginInfo><Name Value="Pro-R" /><Path Value="C:/x/Pro-R.vst3" /></Vst3PluginInfo>')
     assert plugins_domain.parse_vst3_element(element) == ("Pro-R", pathlib.Path("C:/x/Pro-R.vst3"))
     bare = ET.fromstring('<Vst3PluginInfo><Name Value="Pro-R" /></Vst3PluginInfo>')
