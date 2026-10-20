@@ -411,10 +411,10 @@ any set.
 import pathlib
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.sample_databaser import create_db
+from abletoolz.samples import database
 
-create_db.create_or_update_db(["D:/samples"], db_path=pathlib.Path("sample_db.json"))
-db = create_db.load_db(pathlib.Path("sample_db.json"))
+database.create_or_update_db(["D:/samples"], db_path=pathlib.Path("sample_db.json"))
+db = database.load_db(pathlib.Path("sample_db.json"))
 live_set = AbletonSet(pathlib.Path("my_set.als"))
 live_set.parse()
 live_set.find_project_root_folder()  # where collect-and-save copies to

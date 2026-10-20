@@ -38,10 +38,10 @@ from abletoolz.plugin_parsers.base import (
     SampleContainerParser,
 )
 from abletoolz.plugin_parsers.registry import register_parser
-from abletoolz.sample_matcher import select_best_candidate_by_name
+from abletoolz.samples.matcher import select_best_candidate_by_name
 
 if TYPE_CHECKING:
-    from abletoolz.sample_databaser.create_db import DatabaseT
+    from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
 

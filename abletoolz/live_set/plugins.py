@@ -43,7 +43,7 @@ from abletoolz.plugin_parsers.plugin_db import load_plugin_db
 from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair_set
 from abletoolz.plugin_parsers.uid_sources import UidLookup
 from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
-from abletoolz.sample_databaser import create_db
+from abletoolz.samples.database import DatabaseT
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.versioning import Version
 
@@ -550,7 +550,7 @@ class Plugins:
                 print("-" * 80)
         return dumps
 
-    def fix(self, db: create_db.DatabaseT, config: AbletoolzConfig | None = None) -> list[DeviceStateFix]:
+    def fix(self, db: DatabaseT, config: AbletoolzConfig | None = None) -> list[DeviceStateFix]:
         """Scan supported plugins and apply in-place fixes using sample DB.
 
         Answers the devices it repaired, so a caller can record what happened

@@ -27,7 +27,7 @@ from abletoolz.formats import hex_text
 from abletoolz.misc import search_element
 
 if TYPE_CHECKING:
-    from abletoolz.sample_databaser.create_db import DatabaseT
+    from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
 

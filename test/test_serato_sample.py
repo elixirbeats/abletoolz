@@ -9,7 +9,7 @@ from abletoolz.formats import hex_text
 from abletoolz.plugin_parsers.base import PluginData
 from abletoolz.plugin_parsers.parsers.serato import NO_SAMPLE_ISSUE, SeratoSampleParser
 from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
-from abletoolz.sample_databaser.create_db import DatabaseT
+from abletoolz.samples.database import DatabaseT
 
 SERATO_UNIQUE_ID = 1399681132
 

@@ -9,7 +9,7 @@ from abletoolz.plugin_parsers.base import PluginAnalysis, PluginData, PluginPars
 
 if TYPE_CHECKING:
     from abletoolz.plugin_parsers.config import AbletoolzConfig
-    from abletoolz.sample_databaser.create_db import DatabaseT
+    from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
 

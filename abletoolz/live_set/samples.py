@@ -11,8 +11,8 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.live_set import sample_ref
 from abletoolz.misc import G, M, R, Y
-from abletoolz.sample_databaser.create_db import DatabaseT, SampleRecord
-from abletoolz.sample_matcher import is_factory_pack_path, order_candidates_by_name
+from abletoolz.samples.database import DatabaseT, SampleRecord
+from abletoolz.samples.matcher import is_factory_pack_path, order_candidates_by_name
 from abletoolz.schema import Tag
 from abletoolz.versioning import Version
 

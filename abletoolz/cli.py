@@ -27,7 +27,7 @@ from abletoolz.plugin_parsers import (
     survey_machine,
 )
 from abletoolz.run import console, meta, report
-from abletoolz.sample_databaser import create_db
+from abletoolz.samples import database
 
 logger = logging.getLogger(__name__)
 
@@ -415,7 +415,7 @@ def parse_arguments() -> argparse.Namespace:
 def process_set(
     args: argparse.Namespace,
     pathlib_obj: pathlib.Path,
-    db: create_db.DatabaseT | None,
+    db: database.DatabaseT | None,
     config: AbletoolzConfig,
 ) -> report.SetRecord:
     """Process individual set, answering what the run did to it.
@@ -677,12 +677,12 @@ def process(args: argparse.Namespace) -> int:
     config = load_config()
 
     if args.db:
-        create_db.create_or_update_db(args.srcs, db_path=args.db_path)
+        database.create_or_update_db(args.srcs, db_path=args.db_path)
         return 0
     db = None
     if args.fix_samples_collect or args.fix_samples_absolute or args.fix_plugins:
         logger.info("%sLoading db...", M)
-        db = create_db.load_db(args.db_path)
+        db = database.load_db(args.db_path)
 
     started = datetime.datetime.now().astimezone()
     pathlib_objects = get_pathlib_objects(srcs=args.srcs)

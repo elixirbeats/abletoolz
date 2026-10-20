@@ -52,7 +52,7 @@ from abletoolz.plugin_parsers.base import (
 from abletoolz.plugin_parsers.registry import register_parser
 
 if TYPE_CHECKING:
-    from abletoolz.sample_databaser.create_db import DatabaseT
+    from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
 
