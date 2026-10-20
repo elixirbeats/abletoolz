@@ -491,16 +491,21 @@ for device in live_set.devices.graft_chain(chain, "2-Audio", mode="append"):
 live_set.save_set()
 ```
 
-**Change one setting on every Sampler in a set.** `walk` finds every device of a kind, including the ones inside
-racks, and every native device's settings have names in `abletoolz.schema.devices`, measured from 826 real sets, so
-nothing has to be looked up in the XML. Your editor lists them: `Sampler.` then tab. A value reads and writes as what
-it is (a number, a switch, text), and a value of the wrong kind is refused.
+**Change any setting by name.** Every native device's settings have names in `abletoolz.schema.devices`, and tracks,
+mixers, clips and the transport have theirs in `abletoolz.schema.objects`, all measured from real sets, so nothing has
+to be looked up in the XML. Your editor lists them: `Sampler.` then tab. `walk` finds every device of a kind, including
+the ones inside racks. A value reads and writes as what it is (a number, a switch, text), and a value of the wrong kind
+is refused.
+
+The names work on sets from any Live version. Where Live renamed or moved a setting, the same name still finds it, so
+this runs unchanged on a Live 9 set and a Live 12 one:
 
 ```python
 import pathlib
 
 from abletoolz.live_set import AbletonSet
 from abletoolz.schema.devices import Device, EqEight, Sampler
+from abletoolz.schema.objects import Clip, Mixer, Track
 
 live_set = AbletonSet(pathlib.Path("my_set.als"))
 live_set.parse()
@@ -508,15 +513,31 @@ for sampler in live_set.devices.walk(Device.SAMPLER):
     volume = sampler.setting(Sampler.VOLUME)
     print(sampler.display_name, volume.value)
     volume.set(-6.0)
-# A setting that lives in a list, like an EQ band, takes its position.
+# A setting that lives in a list, like an EQ band or a send, takes its position.
 for eq in live_set.devices.walk(Device.EQ_EIGHT, track_name="Bass"):
     eq.setting(EqEight.PARAMETER_A_GAIN, index=0).set(-3.0)
+for track in live_set.tracks.load():
+    track.setting(Track.COLOR).set(14)
+    track.setting(Mixer.VOLUME).set(0.5)
+live_set.tracks.main().setting(Mixer.TEMPO).set(174)
+for clip in live_set.clips.midi():
+    clip.setting(Clip.LOOP_ON).set(True)
 live_set.save_set()
 ```
 
-The same edit as an ops document for `--apply-ops`:
-`{"ops": [{"op": "set_device_setting", "device": "SAMPLER", "setting": "VOLUME", "value": -6}]}`, with an optional
-`"track": {"name": "Bass"}` and `"index"`.
+The same edits as an ops document for `--apply-ops`:
+
+```json
+{"ops": [
+  {"op": "set_device_setting", "device": "SAMPLER", "setting": "VOLUME", "value": -6},
+  {"op": "set_track_setting", "setting": "Mixer.VOLUME", "value": 0.5},
+  {"op": "set_clip_setting", "track": {"name": "Bass"}, "clip": {"slot": 0}, "setting": "LOOP_ON", "value": true},
+  {"op": "set_transport_setting", "setting": "LOOP_ON", "value": true}
+]}
+```
+
+`set_device_setting` and `set_track_setting` change every match in the set unless given a `"track"`, and take an
+`"index"` for a setting in a list.
 
 **Read back the sidecar a scan left.** It comes out as an object rather than a blob of YAML, your own `status` and
 `notes` included — enough to triage a whole library without opening a set.

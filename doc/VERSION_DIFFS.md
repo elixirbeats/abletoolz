@@ -2,8 +2,8 @@
 
 What actually changed in the `.als` XML between Live 11 and 12, harvested by
 structurally diffing real sets with `test/tools/schema_census.py`. This is the
-ground truth behind `abletoolz/schema.py` and the raw material for a future
-down-version converter.
+ground truth behind the `RENAMES` table in `scripts/gen_vocab.py` and the raw
+material for a future down-version converter.
 
 ## Version gate (root attributes)
 
@@ -25,19 +25,20 @@ attributes, not just `Creator`.
 
 ## Renames (the master/slave purge + typo fixes)
 
-Live 12 renamed a family of tags. Only the first three are touched by
-abletoolz features and handled in `schema.py`; the rest are confirmed but
-currently untouched:
+Live 12 renamed a family of tags. Where one names a setting abletoolz
+measures, the setting's name finds both spellings (`schema.settings.path_for`);
+the census checks each declared rename against the corpus. The rest are
+confirmed but untouched:
 
-| Live 11 | Live 12 | in `schema.py` |
+| Live 11 | Live 12 | resolved by name |
 |---|---|---|
-| `MasterTrack` | `MainTrack` | yes (`master_track`) |
-| `ViewStateSesstionTrackWidth` | `ViewStateSessionTrackWidth` | yes (`track_width`) — exact boundary unconfirmed: our earliest Live 12 fixture (12.2.6) already has the fix, and community forks disagree (12.1 vs 12.4 claims); the floor sits at 12.0.0 until a real 12.0.x set proves otherwise |
-| `ColorIndex` | `Color` (renamed in 11.0, listed for completeness) | yes (`color`) |
+| `MasterTrack` | `MainTrack` | yes (`tracks.main()`) |
+| `ViewStateSesstionTrackWidth` | `ViewStateSessionTrackWidth` | yes (`Mixer.VIEW_STATE_SESSION_TRACK_WIDTH`) — exact boundary unconfirmed: the corpus has no 12.0 sets and its earliest Live 12 set (12.1.5) already has the fix; the floor sits at 12.0.0 until a real 12.0.x set proves otherwise |
+| `ColorIndex` | `Color` (renamed in 11.0, listed for completeness) | yes (`Track.COLOR`, `Clip.COLOR`) |
 | `AutoColorPickerForReturnAndMasterTracks` | `AutoColorPickerForReturnAndMainTracks` | no |
-| `ReWireSlaveMidiTargetId` | `ReWireDeviceMidiTargetId` | no |
-| `TrackSendHolder/Active` | `TrackSendHolder/EnabledByUser` | no |
-| `ScaleInformation/RootNote` | `ScaleInformation/Root` | no |
+| `ReWireSlaveMidiTargetId` | `ReWireDeviceMidiTargetId` | yes (`Track.RE_WIRE_DEVICE_MIDI_TARGET_ID`) |
+| `TrackSendHolder/Active` | `TrackSendHolder/EnabledByUser` | no — kept as two settings: the 12.1 sets in the corpus carry neither, so it is not clear one replaced the other |
+| `ScaleInformation/RootNote` | `ScaleInformation/Root` | no — kept as two settings: the values seen do not line up (0–11 against 0–3) |
 | `ViewStateSessionMixerHeight` | `ViewStateSessionMixerVolumeSectionHeight` | no |
 | `ExpressionLane` | `MidiEditorLaneModel` | no |
 | `SongMasterValues/SessionScrollerPos` | `SessionScrollPos` (flattened to `LiveSet` level) | no |
@@ -66,7 +67,7 @@ Removed outright in 12: `VelocityDetail`, `ChooserBar`,
 
 12 stable → 12 beta is additive only (e.g. `UserTempoAutomation`,
 `AutomationEnvelopesListWrapper`, device `Modulation_*` params) — no renames,
-which is why one `(12, 0, 0)` floor covers both in `schema.py`.
+which is why one `(12, 0, 0)` floor covers both in `RENAMES`.
 
 Feature paths abletoolz relies on — `Tempo/Manual`, `FloatEvent`,
 `TrackUnfolded`, `IsFolded`, `LaneHeight` (inside `AutomationLane`),
