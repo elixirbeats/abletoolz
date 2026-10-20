@@ -14,7 +14,7 @@ import struct
 
 import pytest
 
-from abletoolz.plugin_parsers.read_plugin_files import scan_mac_bundles, scan_plugin_dirs
+from abletoolz.plugin_parsers.identity.binaries import scan_mac_bundles, scan_plugin_dirs
 
 ARM64 = 0x0100000C
 X86_64 = 0x01000007

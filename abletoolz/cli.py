@@ -24,10 +24,10 @@ from abletoolz.plugin_parsers import (
     default_suggestions_path,
     get_all_parsers,
     load_config,
-    plugin_db,
     render_targets_yaml,
     survey_machine,
 )
+from abletoolz.plugin_parsers.identity import plugin_db
 from abletoolz.run import console, meta, report
 from abletoolz.samples import database
 

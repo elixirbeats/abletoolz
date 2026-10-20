@@ -23,8 +23,8 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.errors import ElementNotFound, SetError
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugin_parsers.base import PluginKind
-from abletoolz.plugin_parsers.format_translation import TranslationTarget, set_supports
+from abletoolz.plugin_parsers.container.format_translation import TranslationTarget, set_supports
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 from abletoolz.plugin_parsers.repair import repair_set
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"

@@ -11,7 +11,8 @@ import struct
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text
-from abletoolz.plugin_parsers.base import PluginData
+from abletoolz.plugin_parsers.parsers.base import PluginData
+from abletoolz.plugin_parsers.parsers.registry import fix_plugin, get_parser_for_plugin
 from abletoolz.plugin_parsers.parsers.xfadelooper import (
     LAYOUT_VERSION,
     MAGIC,
@@ -20,7 +21,6 @@ from abletoolz.plugin_parsers.parsers.xfadelooper import (
     PATH_OFFSET,
     XfadeLooperParser,
 )
-from abletoolz.plugin_parsers.registry import fix_plugin, get_parser_for_plugin
 
 XFADE_UNIQUE_ID = 1163098214
 NAME_FIELD_SIZE = 32

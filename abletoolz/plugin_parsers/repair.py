@@ -7,7 +7,7 @@ nothing can translate, or a mapping whose class id nothing can supply is
 reported and left exactly as it was.
 
 Direction is not an argument. Every mapping entry carries its own ``to`` format
-(see :class:`~abletoolz.plugin_parsers.format_translation.TargetConfig`), so the
+(see :class:`~abletoolz.plugin_parsers.container.format_translation.TargetConfig`), so the
 table says which way each plugin goes and the command says nothing at all --
 which is the only way one table can hold a VST2 that should become a VST3 and a
 VST3 that should become something else.
@@ -27,14 +27,14 @@ broken, so it is read live, every run, and it gets two answers:
   though their .dll files are all still there; switched back on and rescanned,
   the same database says the opposite. A module that failed the scan, or that
   sits in a folder Live never scans, has no row either way. The full
-  measurement, both times, is in :mod:`abletoolz.plugin_parsers.uid_sources`.
+  measurement, both times, is in :mod:`abletoolz.plugin_parsers.identity.uid_sources`.
 * Failing that -- no Live installed, another OS, a database whose schema moved
   on -- the same disk evidence ``Plugins.scan`` reports: a VST2 is loadable if
   its stored path is still there or its file turns up in a plugin folder, a VST3
   is loadable if its display name resolves to something installed.
 
 A device that is broken and unmapped gets a suggested config line, built with
-the same name rules :mod:`abletoolz.plugin_parsers.mapping` tiers with, so the
+the same name rules :mod:`abletoolz.plugin_parsers.identity.mapping` tiers with, so the
 one-device suggestion here and the whole-machine survey behind
 ``--suggest-plugin-mappings`` can never drift apart. Like every suggestion, it
 is a line to read and paste, never something repair acts on.
@@ -58,8 +58,7 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz.machine import default_live_database_dir
-from abletoolz.plugin_parsers.base import PluginKind
-from abletoolz.plugin_parsers.format_translation import (
+from abletoolz.plugin_parsers.container.format_translation import (
     KNOWN_TRANSLATIONS,
     ConfiguredTarget,
     device_infos,
@@ -70,9 +69,10 @@ from abletoolz.plugin_parsers.format_translation import (
     set_supports,
     translate_device,
 )
-from abletoolz.plugin_parsers.mapping import suggest_target_name, suggestion_line
+from abletoolz.plugin_parsers.identity.mapping import suggest_target_name, suggestion_line
+from abletoolz.plugin_parsers.identity.uid_sources import DatabasePlugin, UidLookup, read_live_databases
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 from abletoolz.plugin_parsers.state import MeasuredState, measured_state
-from abletoolz.plugin_parsers.uid_sources import DatabasePlugin, UidLookup, read_live_databases
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

@@ -19,9 +19,10 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
-from abletoolz.plugin_parsers import PluginKind, uid_sources
-from abletoolz.plugin_parsers import format_translation as translation
-from abletoolz.plugin_parsers.format_translation import TranslationTarget
+from abletoolz.plugin_parsers import PluginKind
+from abletoolz.plugin_parsers.container import format_translation as translation
+from abletoolz.plugin_parsers.container.format_translation import TranslationTarget
+from abletoolz.plugin_parsers.identity import uid_sources
 from abletoolz.plugin_parsers.state import StateTransform
 from abletoolz.plugin_parsers.state.fabfilter import (
     FABFILTER_CONSTANT_CONTROLLER,

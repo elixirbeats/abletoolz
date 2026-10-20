@@ -43,13 +43,13 @@ import pathlib
 import re
 from typing import TYPE_CHECKING
 
-from abletoolz.plugin_parsers.base import (
+from abletoolz.plugin_parsers.parsers.base import (
     BufferFormat,
     PluginAnalysis,
     PluginData,
     SampleContainerParser,
 )
-from abletoolz.plugin_parsers.registry import register_parser
+from abletoolz.plugin_parsers.parsers.registry import register_parser
 
 if TYPE_CHECKING:
     from abletoolz.samples.database import DatabaseT

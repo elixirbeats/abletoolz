@@ -10,7 +10,7 @@ order:
 4. ``moduleinfo.json`` inside installed VST3 bundles.
 
 This module reads each of those; the order is assembled in
-:mod:`abletoolz.plugin_parsers.plugin_db`, which reads them all once into the
+:mod:`abletoolz.plugin_parsers.identity.plugin_db`, which reads them all once into the
 local plugin database and hands out a :class:`UidLookup` over it.
 
 Order matters only where sources overlap, and overlap is where danger lives: a
@@ -100,8 +100,8 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
-from abletoolz.plugin_parsers.base import PluginKind
-from abletoolz.plugin_parsers.format_translation import INFO_TAGS, UidFields, read_identity
+from abletoolz.plugin_parsers.container.format_translation import INFO_TAGS, UidFields, read_identity
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

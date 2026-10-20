@@ -28,11 +28,11 @@ from abletoolz.plugin_parsers import (
     fix_plugin,
 )
 from abletoolz.plugin_parsers.config import load_config
-from abletoolz.plugin_parsers.format_translation import ConfiguredTarget
-from abletoolz.plugin_parsers.plugin_db import load_plugin_db
+from abletoolz.plugin_parsers.container.format_translation import ConfiguredTarget
+from abletoolz.plugin_parsers.container.upgrade_rules import get_upgrade
+from abletoolz.plugin_parsers.identity.plugin_db import load_plugin_db
+from abletoolz.plugin_parsers.identity.uid_sources import UidLookup
 from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair_set
-from abletoolz.plugin_parsers.uid_sources import UidLookup
-from abletoolz.plugin_parsers.upgrade_rules import get_upgrade
 from abletoolz.samples.database import DatabaseT
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.versioning import Version

@@ -6,7 +6,7 @@ floats and its VST3 as a block of floats in the plugin's own units, and nobody
 outside the vendor has written down the curve between the two. Rather than
 guess one, the rig asks both binaries: which state slot each parameter owns,
 and what the plugin writes there across a sweep of that parameter. What comes
-back is a table, one JSON file per product in ``abletoolz/data/``.
+back is a table, one JSON file per product in ``state/data/``.
 
 Three things live here, in that order: the curves a table may name, the table
 itself, and the ``FabF`` container the tables measured so far write. The
@@ -280,7 +280,7 @@ class DerivedTable:
 # Where the tables the rig produced are kept, one JSON file per product. Three
 # levels up from here is the package root, because this module sits two
 # packages deep.
-DERIVED_TABLES: pathlib.Path = pathlib.Path(__file__).parents[2] / "data" / "fabfilter"
+DERIVED_TABLES: pathlib.Path = pathlib.Path(__file__).parent / "data"
 
 
 def read_derived_table(path: pathlib.Path) -> DerivedTable:

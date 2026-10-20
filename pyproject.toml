@@ -54,7 +54,8 @@ include = ["abletoolz*"]
 version = {attr = "abletoolz.__version__"}
 
 [tool.setuptools.package-data]
-"abletoolz.data" = ["*.alc", "fabfilter/*.json"]
+"abletoolz.data" = ["*.alc"]
+"abletoolz.plugin_parsers.state" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

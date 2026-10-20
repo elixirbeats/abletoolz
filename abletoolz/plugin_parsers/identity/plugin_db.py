@@ -48,11 +48,10 @@ from collections.abc import Iterable, Mapping, Sequence
 import pydantic
 
 from abletoolz.machine import DEFAULT_PLUGIN_DB_PATH, default_live_database_dir, default_vst_dirs
-from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.format_translation import UidFields
-from abletoolz.plugin_parsers.read_plugin_files import scan_plugin_dirs
-from abletoolz.plugin_parsers.uid_sources import (
+from abletoolz.plugin_parsers.container.format_translation import UidFields
+from abletoolz.plugin_parsers.identity.binaries import scan_plugin_dirs
+from abletoolz.plugin_parsers.identity.uid_sources import (
     DatabasePlugin,
     UidLookup,
     UidSource,
@@ -60,6 +59,7 @@ from abletoolz.plugin_parsers.uid_sources import (
     read_live_databases,
     read_uid_db,
 )
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 
 logger = logging.getLogger(__name__)
 

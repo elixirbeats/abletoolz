@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from abletoolz.plugin_parsers.base import PluginAnalysis, PluginData, PluginParser
+from abletoolz.plugin_parsers.parsers.base import PluginAnalysis, PluginData, PluginParser
 
 if TYPE_CHECKING:
     from abletoolz.plugin_parsers.config import AbletoolzConfig

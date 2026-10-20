@@ -20,10 +20,10 @@ import pytest
 
 from abletoolz.elements import get_element
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugin_parsers import PluginKind, plugin_db, repair, uid_sources
+from abletoolz.plugin_parsers import PluginKind, repair
 from abletoolz.plugin_parsers import config as config_module
 from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.format_translation import (
+from abletoolz.plugin_parsers.container.format_translation import (
     IncompleteDevice,
     NamedTarget,
     TranslationTarget,
@@ -33,10 +33,9 @@ from abletoolz.plugin_parsers.format_translation import (
     resolve_target,
     translate_device,
 )
-from abletoolz.plugin_parsers.mapping import name_variants, strip_bitness, suggest_target_name
-from abletoolz.plugin_parsers.repair import DeviceRepair, RepairStatus, repair_set
-from abletoolz.plugin_parsers.state import UNMEASURED, StateEvidence, StateRung, StateTransform
-from abletoolz.plugin_parsers.uid_sources import (
+from abletoolz.plugin_parsers.identity import plugin_db, uid_sources
+from abletoolz.plugin_parsers.identity.mapping import name_variants, strip_bitness, suggest_target_name
+from abletoolz.plugin_parsers.identity.uid_sources import (
     UidLookup,
     UidSource,
     harvest_live_database_uids,
@@ -44,6 +43,8 @@ from abletoolz.plugin_parsers.uid_sources import (
     read_uid_db,
     read_uid_fields,
 )
+from abletoolz.plugin_parsers.repair import DeviceRepair, RepairStatus, repair_set
+from abletoolz.plugin_parsers.state import UNMEASURED, StateEvidence, StateRung, StateTransform
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 GENERATED = pathlib.Path(__file__).parent / "version_fixtures" / "generated"

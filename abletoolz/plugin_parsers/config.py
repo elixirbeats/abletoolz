@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import yaml
 
-from abletoolz.plugin_parsers.format_translation import ConfiguredTarget, parse_config_targets
+from abletoolz.plugin_parsers.container.format_translation import ConfiguredTarget, parse_config_targets
 
 logger = logging.getLogger(__name__)
 

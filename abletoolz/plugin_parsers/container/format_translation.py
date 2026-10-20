@@ -21,7 +21,7 @@ What the target format cannot infer from the source is supplied by a
 :class:`TranslationTarget`: VST3 identifies a plugin by a class id that appears
 nowhere in a VST2 device, so it has to come from somewhere else. The
 :data:`KNOWN_TRANSLATIONS` seed table is one place; every other one is
-:mod:`abletoolz.plugin_parsers.uid_sources`.
+:mod:`abletoolz.plugin_parsers.identity.uid_sources`.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ import pydantic
 
 from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
-from abletoolz.plugin_parsers.base import PluginKind
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 from abletoolz.plugin_parsers.state import (
     NO_CONTROLLER_STATE,
     ControllerState,
@@ -94,7 +94,7 @@ class NamedTarget:
 
     What a config entry means when it gives a ``name`` and no ``uid``: the user
     knows which VST3 they want, and the class id is a machine fact
-    :mod:`abletoolz.plugin_parsers.uid_sources` can look up. Kept apart from
+    :mod:`abletoolz.plugin_parsers.identity.uid_sources` can look up. Kept apart from
     :class:`TranslationTarget` so nothing can reach ``translate_device`` without
     a class id in hand.
     """

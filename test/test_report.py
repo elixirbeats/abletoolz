@@ -17,9 +17,11 @@ import pytest
 
 from abletoolz import cli
 from abletoolz.live_set import plugins
-from abletoolz.plugin_parsers import PluginKind, plugin_db, repair, upgrade_rules
+from abletoolz.plugin_parsers import PluginKind, repair
 from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.format_translation import TranslationTarget
+from abletoolz.plugin_parsers.container import upgrade_rules
+from abletoolz.plugin_parsers.container.format_translation import TranslationTarget
+from abletoolz.plugin_parsers.identity import plugin_db
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 

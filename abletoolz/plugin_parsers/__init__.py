@@ -4,7 +4,7 @@ A plugin device in a set can be broken in three independent ways, and the
 package is split along those three questions:
 
 * **identity** -- which plugin is this, and what is its id in another format?
-  ``plugin_db`` writes down what this machine has, ``read_plugin_files`` reads
+  ``plugin_db`` writes down what this machine has, ``binaries`` reads
   a dll or a bundle without loading it, ``uid_sources`` finds the VST3 class id
   a translation needs, and ``mapping`` drafts the user's what-becomes-what
   table.
@@ -40,14 +40,14 @@ live_set domains reach for. Everything else is imported from the module that
 owns it, so a reader arriving at a name can tell which question it answers.
 """
 
-from abletoolz.plugin_parsers.base import PluginAnalysis, PluginData, PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig, load_config
-from abletoolz.plugin_parsers.mapping import (
+from abletoolz.plugin_parsers.identity.mapping import (
     default_suggestions_path,
     render_targets_yaml,
     survey_machine,
 )
-from abletoolz.plugin_parsers.registry import analyze_plugin, fix_plugin, get_all_parsers
+from abletoolz.plugin_parsers.parsers.base import PluginAnalysis, PluginData, PluginKind
+from abletoolz.plugin_parsers.parsers.registry import analyze_plugin, fix_plugin, get_all_parsers
 
 __all__ = [
     "AbletoolzConfig",

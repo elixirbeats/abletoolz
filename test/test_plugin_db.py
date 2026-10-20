@@ -17,10 +17,10 @@ import pytest
 from test_read_plugin_files import ARM64, X86_64, fat, make_bundle
 from test_repair import OTHER_CID, OTHER_FIELDS, SERUM_CID, SERUM_FIELDS, installed, write_database, write_uid_db
 
-from abletoolz.plugin_parsers import plugin_db
-from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.plugin_db import (
+from abletoolz.plugin_parsers.identity import plugin_db
+from abletoolz.plugin_parsers.identity.binaries import scan_plugin_dirs
+from abletoolz.plugin_parsers.identity.plugin_db import (
     PluginDatabase,
     PluginEntry,
     PluginSource,
@@ -30,7 +30,7 @@ from abletoolz.plugin_parsers.plugin_db import (
     read_plugin_db,
     write_plugin_db,
 )
-from abletoolz.plugin_parsers.read_plugin_files import scan_plugin_dirs
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 
 BUILT = datetime.datetime(2026, 8, 12, 9, 30, tzinfo=datetime.UTC)
 

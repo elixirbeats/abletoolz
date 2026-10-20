@@ -21,7 +21,7 @@ from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.plugin_parsers import PluginKind
-from abletoolz.plugin_parsers.format_translation import TranslationTarget, translate_device
+from abletoolz.plugin_parsers.container.format_translation import TranslationTarget, translate_device
 from abletoolz.plugin_parsers.state import (
     CustomState,
     StateEvidence,

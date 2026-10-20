@@ -28,7 +28,7 @@ The tiers, and what each is worth
 the same name minus a bitness marker ("Serum_x64" against "Serum") or minus the
 vendor's first word ("FabFilter Pro-Q 3" against "Pro-Q 3") -- the two shapes
 every hand-checked mapping in
-:data:`~abletoolz.plugin_parsers.format_translation.KNOWN_TRANSLATIONS` already
+:data:`~abletoolz.plugin_parsers.container.format_translation.KNOWN_TRANSLATIONS` already
 has. :attr:`FUZZY` is a name similarity score, which is a place to start looking
 and nothing more. The tier is written into the comment; it no longer decides
 anything, because nothing here decides anything.
@@ -65,16 +65,16 @@ import pathlib
 import re
 from collections.abc import Iterable, Mapping, Sequence
 
-from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig, get_config_path
-from abletoolz.plugin_parsers.format_translation import KNOWN_TRANSLATIONS, has_translator
-from abletoolz.plugin_parsers.plugin_db import (
+from abletoolz.plugin_parsers.container.format_translation import KNOWN_TRANSLATIONS, has_translator
+from abletoolz.plugin_parsers.identity.plugin_db import (
     FORMAT_LABELS,
     PluginDatabase,
     PluginEntry,
     SourceCount,
     load_plugin_db,
 )
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 from abletoolz.plugin_parsers.state import UNMEASURED, MeasuredState, measured_state
 
 logger = logging.getLogger(__name__)

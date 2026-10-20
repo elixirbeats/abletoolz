@@ -24,8 +24,8 @@ from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.transport import SetLength
 from abletoolz.live_set.xml_edit import number_value
 from abletoolz.plugin_parsers import PluginKind
-from abletoolz.plugin_parsers.mapping import MatchTier, SuggestionReport, VendorAgreement
-from abletoolz.plugin_parsers.plugin_db import FORMAT_LABELS, PluginDatabase
+from abletoolz.plugin_parsers.identity.mapping import MatchTier, SuggestionReport, VendorAgreement
+from abletoolz.plugin_parsers.identity.plugin_db import FORMAT_LABELS, PluginDatabase
 from abletoolz.plugin_parsers.repair import RepairReport, RepairStatus
 from abletoolz.plugin_parsers.state import UNMEASURED
 

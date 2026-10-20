@@ -19,11 +19,10 @@ from test_plugin_db import BUILT
 from test_repair import OTHER_CID, SERUM_CID, installed, write_database
 
 from abletoolz import cli
-from abletoolz.plugin_parsers import mapping, plugin_db
-from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.format_translation import NamedTarget, parse_config_targets
-from abletoolz.plugin_parsers.mapping import (
+from abletoolz.plugin_parsers.container.format_translation import NamedTarget, parse_config_targets
+from abletoolz.plugin_parsers.identity import mapping, plugin_db
+from abletoolz.plugin_parsers.identity.mapping import (
     FUZZY_CUTOFF,
     MappingSuggestion,
     MatchTier,
@@ -35,7 +34,8 @@ from abletoolz.plugin_parsers.mapping import (
     suggest_target_name,
     survey_machine,
 )
-from abletoolz.plugin_parsers.plugin_db import PluginDatabase, PluginEntry, PluginSource
+from abletoolz.plugin_parsers.identity.plugin_db import PluginDatabase, PluginEntry, PluginSource
+from abletoolz.plugin_parsers.parsers.base import PluginKind
 
 
 @pytest.fixture(autouse=True)
