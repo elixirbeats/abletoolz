@@ -53,7 +53,7 @@ from abletoolz.live_set.xml_edit import (
     strip_remote_bindings,
     tab_depth,
 )
-from abletoolz.plugin_parsers import PluginData
+from abletoolz.plugins import PluginData
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device, ValueKind, is_templated, kind_of
 from abletoolz.schema.versioning import Version
@@ -358,7 +358,7 @@ class Devices:
 
         Each format keeps the name in a different child, and every fixture
         carries exactly one of the three, so the readers in ``plugins.py`` and
-        ``plugin_parsers`` do the parsing rather than a fourth copy of it.
+        ``abletoolz.plugins`` do the parsing rather than a fourth copy of it.
         """
         vst3_element = element.find(path(Tag.PLUGIN_DESC, Tag.VST3_PLUGIN_INFO))
         if vst3_element is not None:

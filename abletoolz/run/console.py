@@ -23,11 +23,11 @@ from abletoolz.live_set.sample_ref import SampleRef
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.transport import SetLength
 from abletoolz.live_set.xml_edit import number_value
-from abletoolz.plugin_parsers import PluginKind
-from abletoolz.plugin_parsers.identity.mapping import MatchTier, SuggestionReport, VendorAgreement
-from abletoolz.plugin_parsers.identity.plugin_db import FORMAT_LABELS, PluginDatabase
-from abletoolz.plugin_parsers.repair import RepairReport, RepairStatus
-from abletoolz.plugin_parsers.state import UNMEASURED
+from abletoolz.plugins import PluginKind
+from abletoolz.plugins.identity.mapping import MatchTier, SuggestionReport, VendorAgreement
+from abletoolz.plugins.identity.plugin_db import FORMAT_LABELS, PluginDatabase
+from abletoolz.plugins.repair import RepairReport, RepairStatus
+from abletoolz.plugins.state import UNMEASURED
 
 logger = logging.getLogger(__name__)
 

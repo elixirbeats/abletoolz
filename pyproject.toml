@@ -55,7 +55,7 @@ version = {attr = "abletoolz.__version__"}
 
 [tool.setuptools.package-data]
 "abletoolz.data" = ["*.alc"]
-"abletoolz.plugin_parsers.state" = ["data/*.json"]
+"abletoolz.plugins.state" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

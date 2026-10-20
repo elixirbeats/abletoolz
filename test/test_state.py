@@ -3,7 +3,7 @@
 Two halves. The first is the seam -- the policies a config entry may name, the
 two registries a vendor module fills, and the refusals that keep an unregistered
 name from being quietly treated as verbatim. The second is the evidence:
-:data:`~abletoolz.plugin_parsers.state.MEASURED_STATE` and what each row's
+:data:`~abletoolz.plugins.state.MEASURED_STATE` and what each row's
 evidence is worth, since a rung the bytes merely imply must never print as a
 measurement.
 """
@@ -21,17 +21,17 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
-from abletoolz.plugin_parsers import PluginKind
-from abletoolz.plugin_parsers.container.format_translation import (
+from abletoolz.plugins import PluginKind
+from abletoolz.plugins.container.format_translation import (
     NamedTarget,
     TranslationTarget,
     parse_config_targets,
     translate_device,
 )
-from abletoolz.plugin_parsers.state import (
+from abletoolz.plugins.state import (
     _CUSTOM_TRANSFORMS as REGISTRY,
 )
-from abletoolz.plugin_parsers.state import (
+from abletoolz.plugins.state import (
     CUSTOM_PREFIX,
     MEASURED_STATE,
     NO_CONTROLLER_STATE,
@@ -53,7 +53,7 @@ from abletoolz.plugin_parsers.state import (
     registered_custom_states,
     state_bytes,
 )
-from abletoolz.plugin_parsers.state.fabfilter import (
+from abletoolz.plugins.state.fabfilter import (
     FABFILTER_CONSTANT_CONTROLLER,
     FABFILTER_CONTROLLER_TRAILER,
     FABFILTER_FABF_CONTROLLER,
@@ -124,7 +124,7 @@ def test_an_unknown_name_is_an_experiment_rather_than_an_error() -> None:
 @pytest.fixture
 def registry(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """A registry that starts as it really is and is put back afterwards."""
-    monkeypatch.setattr("abletoolz.plugin_parsers.state._CUSTOM_TRANSFORMS", dict(REGISTRY))
+    monkeypatch.setattr("abletoolz.plugins.state._CUSTOM_TRANSFORMS", dict(REGISTRY))
     yield
 
 

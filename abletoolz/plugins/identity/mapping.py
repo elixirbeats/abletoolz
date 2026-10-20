@@ -28,7 +28,7 @@ The tiers, and what each is worth
 the same name minus a bitness marker ("Serum_x64" against "Serum") or minus the
 vendor's first word ("FabFilter Pro-Q 3" against "Pro-Q 3") -- the two shapes
 every hand-checked mapping in
-:data:`~abletoolz.plugin_parsers.container.format_translation.KNOWN_TRANSLATIONS` already
+:data:`~abletoolz.plugins.container.format_translation.KNOWN_TRANSLATIONS` already
 has. :attr:`FUZZY` is a name similarity score, which is a place to start looking
 and nothing more. The tier is written into the comment; it no longer decides
 anything, because nothing here decides anything.
@@ -47,7 +47,7 @@ day -- see :func:`normalize_vendor`.
 
 Name matching is the identity axis, and identity is only two thirds of a
 conversion. Whether the patch survives is the third, so every suggestion also
-carries what :data:`~abletoolz.plugin_parsers.state.MEASURED_STATE` knows about
+carries what :data:`~abletoolz.plugins.state.MEASURED_STATE` knows about
 that plugin -- measured by ear, inferred from the bytes, or nothing at all. Two
 plugins can be certainly the same plugin and still need a listen, and a comment
 that said only "exact" would hide exactly that.
@@ -65,17 +65,17 @@ import pathlib
 import re
 from collections.abc import Iterable, Mapping, Sequence
 
-from abletoolz.plugin_parsers.config import AbletoolzConfig, get_config_path
-from abletoolz.plugin_parsers.container.format_translation import KNOWN_TRANSLATIONS, has_translator
-from abletoolz.plugin_parsers.identity.plugin_db import (
+from abletoolz.plugins.config import AbletoolzConfig, get_config_path
+from abletoolz.plugins.container.format_translation import KNOWN_TRANSLATIONS, has_translator
+from abletoolz.plugins.identity.plugin_db import (
     FORMAT_LABELS,
     PluginDatabase,
     PluginEntry,
     SourceCount,
     load_plugin_db,
 )
-from abletoolz.plugin_parsers.parsers.base import PluginKind
-from abletoolz.plugin_parsers.state import UNMEASURED, MeasuredState, measured_state
+from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.state import UNMEASURED, MeasuredState, measured_state
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ _DIRECTIONS = ((PluginKind.VST, PluginKind.VST3), (PluginKind.VST3, PluginKind.V
 
 # -- names ------------------------------------------------------------------
 # The one implementation of what two plugin names have to have in common. Repair
-# suggests a config line with it (see :mod:`abletoolz.plugin_parsers.repair`)
+# suggests a config line with it (see :mod:`abletoolz.plugins.repair`)
 # and the suggester tiers with it, so the two can never drift apart.
 
 # Measured on installed VST2 file names: a plugin's VST2 is routinely the VST3

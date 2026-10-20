@@ -10,7 +10,7 @@ order:
 4. ``moduleinfo.json`` inside installed VST3 bundles.
 
 This module reads each of those; the order is assembled in
-:mod:`abletoolz.plugin_parsers.identity.plugin_db`, which reads them all once into the
+:mod:`abletoolz.plugins.identity.plugin_db`, which reads them all once into the
 local plugin database and hands out a :class:`UidLookup` over it.
 
 Order matters only where sources overlap, and overlap is where danger lives: a
@@ -56,7 +56,7 @@ What the database says about loadability, and what it does not:
   as missing while every one of the 1234 module paths still existed on disk.
 
 So the oracle is ``plugin_domains.enabled`` on a device's module, plus the
-module path still being there. See :mod:`abletoolz.plugin_parsers.repair`.
+module path still being there. See :mod:`abletoolz.plugins.repair`.
 
 Re-measured 2026-08-13, and the reason it is read live
 ------------------------------------------------------
@@ -100,8 +100,8 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
-from abletoolz.plugin_parsers.container.format_translation import INFO_TAGS, UidFields, read_identity
-from abletoolz.plugin_parsers.parsers.base import PluginKind
+from abletoolz.plugins.container.format_translation import INFO_TAGS, UidFields, read_identity
+from abletoolz.plugins.parsers.base import PluginKind
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet

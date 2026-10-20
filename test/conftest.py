@@ -12,8 +12,8 @@ import functools
 
 import pytest
 
-from abletoolz.plugin_parsers.identity import plugin_db
-from abletoolz.plugin_parsers.identity.binaries import scan_plugin_dirs
+from abletoolz.plugins.identity import plugin_db
+from abletoolz.plugins.identity.binaries import scan_plugin_dirs
 
 
 @pytest.fixture

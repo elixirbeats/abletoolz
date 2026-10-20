@@ -20,7 +20,7 @@ chooses, and there are only three shapes of answer:
   means when it says nothing about state.
 * ``kilohearts`` -- the one measured reframe: same payload, new envelope.
 * ``custom:<name>`` -- a per-plugin re-encode registered by name.
-  :mod:`abletoolz.plugin_parsers.state.fabfilter` registers the first,
+  :mod:`abletoolz.plugins.state.fabfilter` registers the first,
   ``custom:fabfilter-q1-to-q3``. Naming one nothing has registered is a loud
   error rather than a silent fall back to verbatim, because a plugin that needs
   re-encoding and gets the old bytes is exactly the failure this module exists
@@ -41,8 +41,8 @@ What goes in the ControllerState beside it
 A VST3 preset holds two blobs, not one, and the second is a per-plugin fact
 rather than a formality. :class:`ControllerState` and its three shapes --
 :class:`NoControllerState`, :class:`ConstantControllerState`, and the
-FFBS-generation form in :mod:`abletoolz.plugin_parsers.state.fabfilter` -- are what a
-:class:`~abletoolz.plugin_parsers.container.format_translation.TranslationTarget` declares
+FFBS-generation form in :mod:`abletoolz.plugins.state.fabfilter` -- are what a
+:class:`~abletoolz.plugins.container.format_translation.TranslationTarget` declares
 about it.
 
 Where the rest of the axis lives
@@ -51,17 +51,17 @@ The containers behind the seam are one module per *family* rather than one per
 vendor, because a container is almost never a vendor's invention; the two vendor
 modules hold only what really is theirs.
 
-* :mod:`~abletoolz.plugin_parsers.state.measured` -- which rung each plugin sits
+* :mod:`~abletoolz.plugins.state.measured` -- which rung each plugin sits
   on and how that was learned, which is what every run prints.
-* :mod:`~abletoolz.plugin_parsers.state.families` -- what a buffer is, read off
+* :mod:`~abletoolz.plugins.state.families` -- what a buffer is, read off
   its own bytes, and the reframes those families share.
-* :mod:`~abletoolz.plugin_parsers.state.fxbk` -- the standard VST2 bank a host
+* :mod:`~abletoolz.plugins.state.fxbk` -- the standard VST2 bank a host
   writes for a plugin that exposes no chunk.
-* :mod:`~abletoolz.plugin_parsers.state.derived` -- a transfer table the
+* :mod:`~abletoolz.plugins.state.derived` -- a transfer table the
   derivation rig measured, and the state it writes.
-* :mod:`~abletoolz.plugin_parsers.state.fabfilter` -- what really is FabFilter's
+* :mod:`~abletoolz.plugins.state.fabfilter` -- what really is FabFilter's
   own: its chunk, its editor state, its trailers and the re-encodes between them.
-* :mod:`~abletoolz.plugin_parsers.state.izotope` -- what really is iZotope's own:
+* :mod:`~abletoolz.plugins.state.izotope` -- what really is iZotope's own:
   the refusal that stops a wrapper crossing as a patch.
 """
 
@@ -72,8 +72,8 @@ import enum
 from collections.abc import Callable
 from typing import Protocol
 
-from abletoolz.plugin_parsers.state.families import kilohearts_wrap
-from abletoolz.plugin_parsers.state.measured import (
+from abletoolz.plugins.state.families import kilohearts_wrap
+from abletoolz.plugins.state.measured import (
     MEASURED_STATE,
     UNMEASURED,
     MeasuredState,
@@ -234,7 +234,7 @@ class ControllerState(Protocol):
 
     A protocol rather than a closed union so that a vendor's own form can live
     with that vendor's parser -- the FFBS-generation FabFilter one is in
-    :mod:`abletoolz.plugin_parsers.state.fabfilter`, which already knows the layout.
+    :mod:`abletoolz.plugins.state.fabfilter`, which already knows the layout.
     """
 
     def build(self, source: bytes) -> bytes | None:
@@ -316,7 +316,7 @@ def _load_vendor_states() -> None:
     the two registries, the controller shapes -- so none of them can be imported
     until this file has finished defining it.
     """
-    from abletoolz.plugin_parsers.state import fabfilter, izotope  # noqa: F401
+    from abletoolz.plugins.state import fabfilter, izotope  # noqa: F401
 
 
 _load_vendor_states()
@@ -324,7 +324,7 @@ _load_vendor_states()
 # What the rest of abletoolz reaches for. Everything else this module defines is
 # still importable and still tested -- it is just not advertised, because a name
 # nothing outside calls reads as a promise that was never asked for. The family
-# toolbox in :mod:`~abletoolz.plugin_parsers.state.families` is the same: a
+# toolbox in :mod:`~abletoolz.plugins.state.families` is the same: a
 # measured knowledge base, imported from where it lives.
 __all__ = [
     # What a mapping entry may say about the bytes

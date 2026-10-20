@@ -1,7 +1,7 @@
 """A transfer table the derivation rig measured, and the state it writes.
 
 A product whose VST2 exposes no chunk is saved
-as a :class:`~abletoolz.plugin_parsers.state.fxbk.LegacyBank` of normalized
+as a :class:`~abletoolz.plugins.state.fxbk.LegacyBank` of normalized
 floats and its VST3 as a block of floats in the plugin's own units, and nobody
 outside the vendor has written down the curve between the two. Rather than
 guess one, the rig asks both binaries: which state slot each parameter owns,
@@ -11,7 +11,7 @@ back is a table, one JSON file per product in ``state/data/``.
 Three things live here, in that order: the curves a table may name, the table
 itself, and the ``FabF`` container the tables measured so far write. The
 container sits with the tables rather than with
-:mod:`abletoolz.plugin_parsers.state.fabfilter` because a derived table is the
+:mod:`abletoolz.plugins.state.fabfilter` because a derived table is the
 only thing in the library that writes one -- FabFilter's other generation, the
 ``FFBS`` chunk, is a codec on its own.
 
@@ -31,8 +31,8 @@ import struct
 from collections.abc import Mapping
 from typing import cast
 
-from abletoolz.plugin_parsers.state import StateTransformError
-from abletoolz.plugin_parsers.state.fxbk import LegacyBank
+from abletoolz.plugins.state import StateTransformError
+from abletoolz.plugins.state.fxbk import LegacyBank
 
 # Length-prefixed fields run through every FabFilter format: a little-endian
 # word, then that many bytes.
@@ -127,10 +127,10 @@ class FabfState:
     """The state the FabF-generation products keep, taken apart.
 
     The other half of the same story as
-    :class:`~abletoolz.plugin_parsers.state.fabfilter.FfbsState`. Pro-C 2,
+    :class:`~abletoolz.plugins.state.fabfilter.FfbsState`. Pro-C 2,
     Pro-L 2, Pro-R, Pro-MB, Pro-DS, Pro-G and Micro expose no VST2 chunk either
     -- so their ``.als`` Buffer is a
-    :class:`~abletoolz.plugin_parsers.state.fxbk.LegacyBank` too -- but their
+    :class:`~abletoolz.plugins.state.fxbk.LegacyBank` too -- but their
     VST3 writes this: ``FabF``, a version, a length-prefixed preset name, a word
     that is always zero, a parameter count, that many float32 in the plugin's
     own units, and two trailing words that are always one.

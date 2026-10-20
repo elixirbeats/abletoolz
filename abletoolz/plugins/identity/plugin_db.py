@@ -17,7 +17,7 @@ what makes a snapshot safe to keep.
 Whether Live can *load* a plugin today is the unstable half: it flips when the
 user toggles a plug-in folder in preferences, and a stale "yes" would make
 repair skip a device that is actually broken. So the repair oracle keeps reading
-Live's database live (see :mod:`abletoolz.plugin_parsers.repair`) and this file
+Live's database live (see :mod:`abletoolz.plugins.repair`) and this file
 never records loadability.
 
 Records, not merged rows
@@ -48,10 +48,10 @@ from collections.abc import Iterable, Mapping, Sequence
 import pydantic
 
 from abletoolz.machine import DEFAULT_PLUGIN_DB_PATH, default_live_database_dir, default_vst_dirs
-from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.container.format_translation import UidFields
-from abletoolz.plugin_parsers.identity.binaries import scan_plugin_dirs
-from abletoolz.plugin_parsers.identity.uid_sources import (
+from abletoolz.plugins.config import AbletoolzConfig
+from abletoolz.plugins.container.format_translation import UidFields
+from abletoolz.plugins.identity.binaries import scan_plugin_dirs
+from abletoolz.plugins.identity.uid_sources import (
     DatabasePlugin,
     UidLookup,
     UidSource,
@@ -59,7 +59,7 @@ from abletoolz.plugin_parsers.identity.uid_sources import (
     read_live_databases,
     read_uid_db,
 )
-from abletoolz.plugin_parsers.parsers.base import PluginKind
+from abletoolz.plugins.parsers.base import PluginKind
 
 logger = logging.getLogger(__name__)
 

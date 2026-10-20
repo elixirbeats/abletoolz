@@ -40,14 +40,14 @@ live_set domains reach for. Everything else is imported from the module that
 owns it, so a reader arriving at a name can tell which question it answers.
 """
 
-from abletoolz.plugin_parsers.config import AbletoolzConfig, load_config
-from abletoolz.plugin_parsers.identity.mapping import (
+from abletoolz.plugins.config import AbletoolzConfig, load_config
+from abletoolz.plugins.identity.mapping import (
     default_suggestions_path,
     render_targets_yaml,
     survey_machine,
 )
-from abletoolz.plugin_parsers.parsers.base import PluginAnalysis, PluginData, PluginKind
-from abletoolz.plugin_parsers.parsers.registry import analyze_plugin, fix_plugin, get_all_parsers
+from abletoolz.plugins.parsers.base import PluginAnalysis, PluginData, PluginKind
+from abletoolz.plugins.parsers.registry import analyze_plugin, fix_plugin, get_all_parsers
 
 __all__ = [
     "AbletoolzConfig",

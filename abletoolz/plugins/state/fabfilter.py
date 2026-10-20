@@ -10,9 +10,9 @@ The older products -- Pro-Q 1, Pro-C 1 and 2, Pro-L 1, Pro-R, Pro-G, Pro-MB,
 Micro, Saturn 1, Timeless 2, Volcano 2 -- expose no chunk of their own. What an
 ``.als`` stores for them is therefore the host's own stored-parameter bank,
 which is nothing to do with FabFilter and lives in
-:mod:`abletoolz.plugin_parsers.state.fxbk`; what their VST3 writes is the
+:mod:`abletoolz.plugins.state.fxbk`; what their VST3 writes is the
 ``FabF`` container, which only a derived table writes and so lives in
-:mod:`abletoolz.plugin_parsers.state.derived`.
+:mod:`abletoolz.plugins.state.derived`.
 
 The current products -- Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 -- expose a real
 chunk instead: ``FFBS``, a version, a count, that many float32 in the plugin's
@@ -74,7 +74,7 @@ import math
 import struct
 from collections.abc import Sequence
 
-from abletoolz.plugin_parsers.state import (
+from abletoolz.plugins.state import (
     ConstantControllerState,
     StateTransform,
     StateTransformError,
@@ -82,8 +82,8 @@ from abletoolz.plugin_parsers.state import (
     register_controller_state,
     register_custom_state,
 )
-from abletoolz.plugin_parsers.state.derived import DERIVED_TABLES, read_derived_table
-from abletoolz.plugin_parsers.state.fxbk import LegacyBank
+from abletoolz.plugins.state.derived import DERIVED_TABLES, read_derived_table
+from abletoolz.plugins.state.fxbk import LegacyBank
 
 # Length-prefixed fields run through every FabFilter format: a little-endian
 # word, then that many bytes.
@@ -347,7 +347,7 @@ class EditorState:
 class FfbsControllerState:
     """The ``ControllerState`` an FFBS-generation FabFilter VST3 wants.
 
-    A :class:`~abletoolz.plugin_parsers.state.ControllerState`, so a
+    A :class:`~abletoolz.plugins.state.ControllerState`, so a
     ``TranslationTarget`` naming one of these products can declare it. What
     arrives is whatever that device's VST2 saved, and there are two shapes of
     it, told apart by the product's own editor magic rather than by guessing:

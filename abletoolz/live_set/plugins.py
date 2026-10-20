@@ -19,7 +19,7 @@ from abletoolz.elements import get_element
 from abletoolz.formats import path_data
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.machine import default_au_component_dirs, default_live_database_dir, default_vst_dirs, read_plist
-from abletoolz.plugin_parsers import (
+from abletoolz.plugins import (
     AbletoolzConfig,
     PluginAnalysis,
     PluginData,
@@ -27,12 +27,12 @@ from abletoolz.plugin_parsers import (
     analyze_plugin,
     fix_plugin,
 )
-from abletoolz.plugin_parsers.config import load_config
-from abletoolz.plugin_parsers.container.format_translation import ConfiguredTarget
-from abletoolz.plugin_parsers.container.upgrade_rules import get_upgrade
-from abletoolz.plugin_parsers.identity.plugin_db import load_plugin_db
-from abletoolz.plugin_parsers.identity.uid_sources import UidLookup
-from abletoolz.plugin_parsers.repair import RepairReport, default_oracle, repair_set
+from abletoolz.plugins.config import load_config
+from abletoolz.plugins.container.format_translation import ConfiguredTarget
+from abletoolz.plugins.container.upgrade_rules import get_upgrade
+from abletoolz.plugins.identity.plugin_db import load_plugin_db
+from abletoolz.plugins.identity.uid_sources import UidLookup
+from abletoolz.plugins.repair import RepairReport, default_oracle, repair_set
 from abletoolz.samples.database import DatabaseT
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.versioning import Version

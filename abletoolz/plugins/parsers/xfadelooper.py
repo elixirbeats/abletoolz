@@ -31,13 +31,13 @@ import logging
 import pathlib
 from typing import TYPE_CHECKING
 
-from abletoolz.plugin_parsers.parsers.base import (
+from abletoolz.plugins.parsers.base import (
     BufferFormat,
     PluginAnalysis,
     PluginData,
     SampleContainerParser,
 )
-from abletoolz.plugin_parsers.parsers.registry import register_parser
+from abletoolz.plugins.parsers.registry import register_parser
 from abletoolz.samples.matcher import select_best_candidate_by_name
 
 if TYPE_CHECKING:

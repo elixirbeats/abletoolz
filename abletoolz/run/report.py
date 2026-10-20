@@ -26,8 +26,8 @@ import pydantic
 
 from abletoolz import __version__
 from abletoolz.live_set.plugins import DeviceStateFix, DeviceUpgrade, PluginRef
-from abletoolz.plugin_parsers.parsers.base import PluginKind
-from abletoolz.plugin_parsers.repair import RepairReport, RepairStatus
+from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.repair import RepairReport, RepairStatus
 
 logger = logging.getLogger(__name__)
 

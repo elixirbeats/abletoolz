@@ -23,9 +23,9 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.errors import ElementNotFound, SetError
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugin_parsers.container.format_translation import TranslationTarget, set_supports
-from abletoolz.plugin_parsers.parsers.base import PluginKind
-from abletoolz.plugin_parsers.repair import repair_set
+from abletoolz.plugins.container.format_translation import TranslationTarget, set_supports
+from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.repair import repair_set
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 EXPECTED: dict[str, dict[str, Any]] = json.loads((SKELETONS / "expected.json").read_text(encoding="utf-8"))

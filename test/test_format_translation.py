@@ -19,18 +19,18 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
-from abletoolz.plugin_parsers import PluginKind
-from abletoolz.plugin_parsers.container import format_translation as translation
-from abletoolz.plugin_parsers.container.format_translation import TranslationTarget
-from abletoolz.plugin_parsers.identity import uid_sources
-from abletoolz.plugin_parsers.state import StateTransform
-from abletoolz.plugin_parsers.state.fabfilter import (
+from abletoolz.plugins import PluginKind
+from abletoolz.plugins.container import format_translation as translation
+from abletoolz.plugins.container.format_translation import TranslationTarget
+from abletoolz.plugins.identity import uid_sources
+from abletoolz.plugins.state import StateTransform
+from abletoolz.plugins.state.fabfilter import (
     FABFILTER_CONSTANT_CONTROLLER,
     FABFILTER_CONTROLLER_TRAILER,
     EditorState,
     FfbsControllerState,
 )
-from abletoolz.plugin_parsers.state.fxbk import LegacyBank
+from abletoolz.plugins.state.fxbk import LegacyBank
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 

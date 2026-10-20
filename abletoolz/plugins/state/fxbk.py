@@ -12,7 +12,7 @@ Two constraints the layout carries:
 * **The units are the host's.** 0.5 is the middle of whatever range the plugin
   declares and only the plugin knows what that is, which is the whole reason a
   re-encode off one of these needs a measured transfer curve (see
-  :mod:`abletoolz.plugin_parsers.state.derived`).
+  :mod:`abletoolz.plugins.state.derived`).
 * **The byte order is Ableton's.** FXB is big-endian by the VST2 spec; Live
   writes the same program payload with the floats flipped to little-endian, so
   what an ``.als`` Buffer holds is read little-endian here. A host handed these
@@ -25,7 +25,7 @@ from __future__ import annotations
 import dataclasses
 import struct
 
-from abletoolz.plugin_parsers.state import StateTransformError
+from abletoolz.plugins.state import StateTransformError
 
 # Live pads the preset name to a fixed field and the parameters follow it.
 LEGACY_NAME_BYTES = 28

@@ -11,9 +11,9 @@ import struct
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text
-from abletoolz.plugin_parsers.parsers.base import PluginData
-from abletoolz.plugin_parsers.parsers.registry import fix_plugin, get_parser_for_plugin
-from abletoolz.plugin_parsers.parsers.xfadelooper import (
+from abletoolz.plugins.parsers.base import PluginData
+from abletoolz.plugins.parsers.registry import fix_plugin, get_parser_for_plugin
+from abletoolz.plugins.parsers.xfadelooper import (
     LAYOUT_VERSION,
     MAGIC,
     PATH_END,

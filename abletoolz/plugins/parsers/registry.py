@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from abletoolz.plugin_parsers.parsers.base import PluginAnalysis, PluginData, PluginParser
+from abletoolz.plugins.parsers.base import PluginAnalysis, PluginData, PluginParser
 
 if TYPE_CHECKING:
-    from abletoolz.plugin_parsers.config import AbletoolzConfig
+    from abletoolz.plugins.config import AbletoolzConfig
     from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
@@ -96,13 +96,13 @@ def _load_builtin_parsers() -> None:
     try:
         # Importing one is what registers it, which is why nothing re-exports
         # these: a parser is reached through this registry and nowhere else.
-        from abletoolz.plugin_parsers.parsers import maschine, serato, xfadelooper  # noqa: F401
+        from abletoolz.plugins.parsers import maschine, serato, xfadelooper  # noqa: F401
     except ImportError as e:
         logger.debug("Could not import the built-in sample parsers: %s", e)
 
     # Add more parser imports here as they're created
-    # from abletoolz.plugin_parsers import kontakt_parser
-    # from abletoolz.plugin_parsers import battery_parser
+    # from abletoolz.plugins import kontakt_parser
+    # from abletoolz.plugins import battery_parser
 
 
 # Load parsers on module import

@@ -12,9 +12,9 @@ from collections.abc import Iterable
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text
-from abletoolz.plugin_parsers.parsers.base import PluginData
-from abletoolz.plugin_parsers.parsers.maschine import CONTAINER_MAGIC, Maschine2Parser
-from abletoolz.plugin_parsers.parsers.registry import fix_plugin, get_parser_for_plugin
+from abletoolz.plugins.parsers.base import PluginData
+from abletoolz.plugins.parsers.maschine import CONTAINER_MAGIC, Maschine2Parser
+from abletoolz.plugins.parsers.registry import fix_plugin, get_parser_for_plugin
 
 MASCHINE_UNIQUE_ID = 1315523890
 

@@ -19,7 +19,7 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
 from abletoolz.live_set.describe import DescribeLevel, describe_json
 from abletoolz.live_set.persistence import BACKUP_DIR, is_backup_set
-from abletoolz.plugin_parsers import (
+from abletoolz.plugins import (
     AbletoolzConfig,
     default_suggestions_path,
     get_all_parsers,
@@ -27,7 +27,7 @@ from abletoolz.plugin_parsers import (
     render_targets_yaml,
     survey_machine,
 )
-from abletoolz.plugin_parsers.identity import plugin_db
+from abletoolz.plugins.identity import plugin_db
 from abletoolz.run import console, meta, report
 from abletoolz.samples import database
 

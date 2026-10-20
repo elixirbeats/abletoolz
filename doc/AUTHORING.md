@@ -1,6 +1,6 @@
 # The set authoring model
 
-`plugin_parsers/` turns Ableton's plugin bytes into something a program can
+`plugins/` turns Ableton's plugin bytes into something a program can
 reason about. This package does the same for the set itself: tracks, clips,
 notes, device chains and arrangement sections, read out as typed objects and
 written back as the XML the running Live version expects.

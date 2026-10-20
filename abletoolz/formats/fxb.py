@@ -15,7 +15,7 @@ is how a patch leaves a set, or enters one, through Live's own
 
 The other form, ``FxBk``, holds a list of programs rather than a chunk and is
 refused here rather than misread. What Live stores for a plugin that has no
-chunk is not a bank file at all; see :mod:`abletoolz.plugin_parsers.state.fxbk`.
+chunk is not a bank file at all; see :mod:`abletoolz.plugins.state.fxbk`.
 """
 
 from __future__ import annotations

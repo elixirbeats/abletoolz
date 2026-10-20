@@ -1,7 +1,7 @@
 """Naming a buffer by its bytes, and the reframes the families share.
 
 Hermetic, and deliberately so: every buffer here is synthesized from the layout
-:mod:`abletoolz.plugin_parsers.state.families` documents, short enough to read
+:mod:`abletoolz.plugins.state.families` documents, short enough to read
 in the source, and belongs to nobody. A corpus blob would test the corpus.
 
 The detection tests are as much about the *order* of the rules as the rules
@@ -17,8 +17,8 @@ import struct
 import pytest
 
 from abletoolz.formats.fxb import FXB_CHUNK_BANK, FXB_MAGIC
-from abletoolz.plugin_parsers.state import StateTransform, state_bytes
-from abletoolz.plugin_parsers.state.families import (
+from abletoolz.plugins.state import StateTransform, state_bytes
+from abletoolz.plugins.state.families import (
     JUCE_PRIVATE_DATA_BYTES,
     JUCE_PRIVATE_DATA_TAG,
     VSTW_MAGIC,

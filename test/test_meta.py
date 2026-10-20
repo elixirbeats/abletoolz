@@ -16,9 +16,9 @@ import yaml
 
 from abletoolz import cli
 from abletoolz.live_set import plugins
-from abletoolz.plugin_parsers import repair
-from abletoolz.plugin_parsers.config import AbletoolzConfig
-from abletoolz.plugin_parsers.identity import plugin_db
+from abletoolz.plugins import repair
+from abletoolz.plugins.config import AbletoolzConfig
+from abletoolz.plugins.identity import plugin_db
 from abletoolz.run import meta
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
