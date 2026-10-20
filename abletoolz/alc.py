@@ -28,7 +28,6 @@ from abletoolz.formats import FormatError, live_document
 from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.schema import Attr, Tag
 from abletoolz.schema.objects import Clip
-from abletoolz.schema.settings import SettingUnavailable
 from abletoolz.schema.versioning import Version, parse_creator
 
 
@@ -180,7 +179,7 @@ class AlcClip:
         """One of the clip's settings, where this document's Live version keeps it."""
         try:
             return resolve(self._clip, member, self._version, label="AudioClip")
-        except (ElementNotFound, SettingUnavailable) as error:
+        except ElementNotFound as error:
             raise AlcError(str(error)) from error
 
     @property

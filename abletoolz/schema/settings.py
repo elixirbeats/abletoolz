@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from types import ModuleType
 from typing import cast
 
+from abletoolz.errors import ElementNotFound
 from abletoolz.schema import devices, objects
 from abletoolz.schema.devices import ValueKind
 from abletoolz.schema.versioning import Version
@@ -55,8 +56,13 @@ def _merged_versions() -> dict[str, tuple[Version, ...]]:
 _VERSIONS_SEEN = _merged_versions()
 
 
-class SettingUnavailable(LookupError):
-    """The setting is not there to be read or written in this element."""
+class SettingUnavailable(ElementNotFound, LookupError):
+    """The setting is not there to be read or written in this element.
+
+    An :class:`~abletoolz.errors.ElementNotFound` with a reason attached, so
+    code that already treats a missing element as "this set has no such
+    setting" keeps working.
+    """
 
 
 class NotInThisVersion(SettingUnavailable):

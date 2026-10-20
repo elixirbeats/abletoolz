@@ -163,7 +163,7 @@ def find(
     """:func:`resolve`, or None where this element has no such setting in this version."""
     try:
         return resolve(owner, member, version, indices, owner_tag=owner_tag, label=label)
-    except (ElementNotFound, SettingUnavailable):
+    except ElementNotFound:
         return None
 
 
