@@ -79,7 +79,7 @@ reports name what they kept as well as what they moved.
 
 **Nothing returns English to a program.** Domain writers answer with typed
 reports; `apply_ops` answers with one typed result per op. Prose is
-`console.py`'s job, rendered from the same fields.
+`run/console.py`'s job, rendered from the same fields.
 
 ## Reading a set out
 

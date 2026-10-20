@@ -524,7 +524,7 @@ The same edit as an ops document for `--apply-ops`:
 ```python
 import pathlib
 
-from abletoolz import meta
+from abletoolz.run import meta
 
 sidecar = meta.read(pathlib.Path("my_set.als"))
 if sidecar is not None and sidecar.scan is not None:

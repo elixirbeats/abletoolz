@@ -8,8 +8,8 @@ import plistlib
 
 import pytest
 
-from abletoolz.console import render_plugins
 from abletoolz.live_set import AbletonSet, plugins
+from abletoolz.run.console import render_plugins
 
 SKELETON = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons" / "11.3.41.als"
 APPLE_BANDPASS = (1635083896, 1651532147, 1634758764)
