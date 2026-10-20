@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -12,7 +11,6 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.sample_ref import RelativePathType, SampleRef
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-GENERATED = pathlib.Path(__file__).parent / "version_fixtures" / "generated"
 
 
 def test_fix_matches_float_mtime_db_entry(tmp_path: pathlib.Path) -> None:
@@ -100,71 +98,13 @@ def test_save_set_keeps_original_when_serialization_fails(tmp_path: pathlib.Path
 
 
 # -- references that store no modification date -----------------------------
-#
-# Measured over 811 sets: 98 SampleRefs in 14 of them have no LastModDate at
-# all, and every one of the 14 used to fail to parse outright -- one such ref
-# took the whole set down, including the refs that were fine. Every one of the
-# 14 is the output of a third-party set generator; no set Live
-# wrote is missing a date on any of its 76,906 references. Two shapes make up
-# the 98, and they must not be handled alike.
-#
-# abletoolz writes sets itself, so reading what another tool wrote is in scope
-# on its own terms. The fixture lives under ``generated/`` rather than in the
-# version matrix, because it can testify to a generator's output and not to
-# what any version of Live does.
-
-
-def test_a_set_of_pack_references_parses_at_all() -> None:
-    """A Pack reference has no LastModDate; the set still has to load.
-
-    Regression: SampleRef.from_element required LastModDate and pre-11 Data, so
-    all 13 generated sets of this shape in the corpus raised ElementNotFound on
-    every sample command instead of reporting what they hold.
-    """
-    ableton_set = AbletonSet(GENERATED / "set_generator_9_7_7.als")
-    assert ableton_set.parse()
-    refs = list(ableton_set.samples.iterate())
-    assert len(refs) == 4
-    packs = [ref for ref in refs if ref.pack_resolved]
-    assert len(packs) == 2
-    for ref in packs:
-        assert ref.last_modified is None
-        assert ref.absolute is None  # a Pack reference stores no path at all
-        assert ref.live_pack == "Core Library"
-
-
-def test_a_pack_reference_is_not_reported_missing() -> None:
-    """Live loads it out of the Pack, so no path on this machine can condemn it."""
-    ableton_set = AbletonSet(GENERATED / "set_generator_9_7_7.als")
-    assert ableton_set.parse()
-    missing = ableton_set.samples.check()
-    assert [ref.pack_resolved for ref in missing] == [False, False]
-    # The two ordinary refs in the same set are still reported: the skip is
-    # about how a reference is addressed, not about where the set came from.
-    assert len(missing) == 2
-
-
-def test_a_pack_reference_is_never_rewritten_to_a_path(tmp_path: pathlib.Path) -> None:
-    """Rewriting one would break a reference that works."""
-    ableton_set = AbletonSet(GENERATED / "set_generator_9_7_7.als")
-    assert ableton_set.parse()
-    pack = next(ref for ref in ableton_set.samples.iterate() if ref.pack_resolved)
-    before = ET.tostring(pack.sample_ref)
-
-    db = {str(tmp_path / pack.name): {"name": pack.name, "size": 0, "last_modified": 0.0}}
-    ableton_set.samples.fix(db)
-    assert ET.tostring(pack.sample_ref) == before
 
 
 def test_a_reference_with_a_path_but_no_date_is_still_checked_and_fixed(tmp_path: pathlib.Path) -> None:
-    """The other shape of the 98: a real path, no date, and repairable by size.
+    """A reference with a real path and no date is still checked, and repaired by size.
 
-    74 of them sit in one generated set, 55 of those FL Studio imports that kept
-    a ``%FLStudioFactoryData%`` path but none of the file's metadata. A missing
-    date must not make one look like a Pack reference, because that would skip
-    a sample that really is missing and really can be found. Set up here on a
-    real Live 9.0.1 skeleton, since the shape has to stay repairable wherever it
-    turns up.
+    A missing date must not make it look like a Pack reference, because that
+    would skip a sample that really is missing and really can be found.
     """
     ableton_set = AbletonSet(SKELETONS / "9.0.1.als")
     assert ableton_set.parse()

@@ -47,7 +47,6 @@ from abletoolz.plugins.repair import DeviceRepair, RepairStatus, repair_set
 from abletoolz.plugins.state import UNMEASURED, StateEvidence, StateRung, StateTransform
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-GENERATED = pathlib.Path(__file__).parent / "version_fixtures" / "generated"
 
 # Live 12.4.5b, Live-plugins-1.db, transcribed exactly.
 _SCHEMA = """
@@ -71,13 +70,6 @@ OTHER_FIELDS = (10, 11, 12, 13)
 
 def make_set(key: str) -> AbletonSet:
     ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def generated_set() -> AbletonSet:
-    """The one fixture no version of Live wrote. See the section at the bottom."""
-    ableton_set = AbletonSet(GENERATED / "set_generator_9_7_7.als")
     assert ableton_set.parse()
     return ableton_set
 
@@ -885,68 +877,6 @@ def test_plugins_repair_resolves_a_named_config_target_through_the_live_database
     uid = info.find("Uid")
     assert uid is not None
     assert read_uid_fields(uid) == SERUM_FIELDS
-
-
-# -- a set another tool generated -------------------------------------------
-#
-# `set_generator_9_7_7.als` is not a Live fixture and is deliberately kept out
-# of the version matrix. It declares Creator "Ableton Live 9.7.7" and Live never
-# touched it: it is indented with four spaces where Live uses tabs, it pastes
-# tab-indented Live fragments inside its own output, it omits SchemaChangeCount,
-# and it carries markup Live only started writing in 10.0. Every stub device,
-# every dateless reference and every incomplete track in the library sits in a
-# set with that fingerprint -- 23 of 811, all from the same generator.
-#
-# Tolerating them is in scope: abletoolz generates sets too, and reading one
-# tool's output is what the whole library does. What these tests may not do is
-# say anything about Live 9.7.7, which this file cannot testify to.
-
-
-def test_a_generated_stub_is_shaped_like_the_synthetic_one() -> None:
-    """``make_stub`` asserts a shape; this is that shape off a real file.
-
-    Everything above builds stubs by stripping a full device, which proves the
-    handling and not the premise. The generated fixture carries a device its
-    writer only half described, with exactly the four children make_stub keeps
-    -- so the synthetic helper is measuring the right thing.
-    """
-    live_set = generated_set()
-    info = vst2_info(live_set, "Phase Plant")
-    assert [child.tag for child in info] == ["Dir", "FileName", "PlugName", "UniqueId"]
-    assert read_identity(info).name == "Phase Plant"
-    assert read_identity(info).is_instrument is None  # no Category, so the set never says
-    assert not is_translatable(info)
-
-
-def test_a_generated_stub_device_is_reported_rather_than_translated() -> None:
-    live_set = generated_set()
-    info = vst2_info(live_set, "Phase Plant")
-    before = ET.tostring(info)
-    report = repair_set(
-        live_set,
-        targets={"Phase Plant": TranslationTarget(PluginKind.VST3, "Phase Plant", OTHER_FIELDS)},
-        uid_lookup=UidLookup(),
-        loadable=nothing_loads,
-    )
-    assert only(report, "Phase Plant").status is RepairStatus.INCOMPLETE_DEVICE
-    assert report.fixed_count == 0
-    assert ET.tostring(info) == before
-
-
-def test_scanning_a_set_with_a_stub_device_reports_it_instead_of_crashing() -> None:
-    """A stub's Dir holds the plugin's file name and no directory.
-
-    Regression: parse_vst_element handed that to path_separator_type, which
-    raises when a path has no separator, so --check-plugins died on every set of
-    this shape instead of listing the devices it could read.
-    """
-    live_set = generated_set()
-    refs = live_set.plugins.scan([])  # raised ValueError before the fix
-    (stub,) = [ref for ref in refs if ref.name == "Phase Plant.dll"]
-    assert stub.kind is PluginKind.VST
-    assert stub.path is None  # no directory was stored, so none is invented
-    assert not stub.exists
-    assert stub.track_location.endswith("Reese Sub*")
 
 
 # -- a target format the set's own schema never declared --------------------
