@@ -33,9 +33,13 @@ XML_MAGIC = b"<?"
 XML_HEADER = b'<?xml version="1.0" encoding="UTF-8"?>\n'
 XML_FOOTER = b"\n"
 
-# What Live's header carries: best compression (extra flags 2) and no timestamp.
+# What Live's header carries: best compression (extra flags 2), no timestamp, and
+# OS 255. zlib stamps the OS it was built for (3 on Linux, 19 on macOS), so the
+# OS byte is set after compressing.
 _COMPRESSLEVEL = 9
 _MTIME = 0
+_OS_OFFSET = 9
+_OS_UNKNOWN = 0xFF
 
 
 class Pre82DocumentError(FormatError):
@@ -66,7 +70,9 @@ def parse(data: bytes) -> ET.Element:
 
 def encode(root: ET.Element) -> bytes:
     """The document compressed the way Live writes it."""
-    return gzip.compress(to_xml_bytes(root), compresslevel=_COMPRESSLEVEL, mtime=_MTIME)
+    data = bytearray(gzip.compress(to_xml_bytes(root), compresslevel=_COMPRESSLEVEL, mtime=_MTIME))
+    data[_OS_OFFSET] = _OS_UNKNOWN
+    return bytes(data)
 
 
 def read(path: pathlib.Path) -> ET.Element:
