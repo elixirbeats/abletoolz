@@ -143,6 +143,7 @@ class Tag(enum.StrEnum):
     PLUG_NAME = "PlugName"
     DIR = "Dir"
     FILE_NAME = "FileName"
+    UNIQUE_ID = "UniqueId"
     CATEGORY = "Category"
     DEVICE_TYPE = "DeviceType"
     UID = "Uid"

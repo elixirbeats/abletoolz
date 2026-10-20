@@ -59,6 +59,7 @@ from typing import Literal
 from abletoolz.alc import AlcClip, AlcError
 from abletoolz.ansi import C, R, Y
 from abletoolz.machine import default_ableton_user_library
+from abletoolz.schema import Attr, Tag, path
 
 logger = logging.getLogger(__name__)
 
@@ -518,10 +519,10 @@ def _set_relative_path_type(clip: AlcClip, value: int) -> None:
     the template's own value (6, "user library") is left untouched -- the correct
     value for link mode's cross-volume references is pending a live drag test.
     """
-    element = clip.clip.find("SampleRef/FileRef/RelativePathType")
+    element = clip.clip.find(path(Tag.SAMPLE_REF, Tag.FILE_REF, Tag.RELATIVE_PATH_TYPE))
     if element is None:
         raise AlcError("clip is missing SampleRef/FileRef/RelativePathType")
-    element.set("Value", str(value))
+    element.set(Attr.VALUE, str(value))
 
 
 # ── Audio placement (where the clip's audio lives, per --audio mode) ────────

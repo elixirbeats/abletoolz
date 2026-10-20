@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict
 
 from abletoolz.elements import search_element
 from abletoolz.formats import hex_text
+from abletoolz.schema import Attr, Tag
 
 if TYPE_CHECKING:
     from abletoolz.samples.database import DatabaseT
@@ -117,24 +118,24 @@ class PluginData(BaseModel):
     def from_element(cls, root: ET.Element) -> PluginData:
         """Parse PluginData from VstPluginInfo or AuPluginInfo element."""
         # Try new format first (Path element with Value attribute)
-        path_element = root.find(".//Path")
-        path_str = path_element.get("Value") if path_element is not None else None
+        path_element = root.find(f".//{Tag.PATH}")
+        path_str = path_element.get(Attr.VALUE) if path_element is not None else None
         path = pathlib.Path(path_str) if path_str else None
 
         # Old format: Dir/Data with hex-encoded path
-        dir_element = root.find(".//Dir")
-        data = dir_element.findtext("Data") if dir_element is not None else None
+        dir_element = root.find(f".//{Tag.DIR}")
+        data = dir_element.findtext(Tag.DATA) if dir_element is not None else None
 
         # Get names
-        file_name = search_element(root, "FileName", "Value")
-        plugin_name = search_element(root, "PlugName", "Value") or file_name or "<unknown>"
+        file_name = search_element(root, Tag.FILE_NAME, Attr.VALUE)
+        plugin_name = search_element(root, Tag.PLUG_NAME, Attr.VALUE) or file_name or "<unknown>"
 
         # Unique ID
-        unique_id_str = search_element(root, "UniqueId", "Value")
+        unique_id_str = search_element(root, Tag.UNIQUE_ID, Attr.VALUE)
         unique_id = int(unique_id_str) if unique_id_str and unique_id_str.isdigit() else None
 
         # Buffer element (contains plugin state)
-        buffer_element = search_element(root, "Buffer")
+        buffer_element = search_element(root, Tag.BUFFER)
 
         return cls(
             plugin_name=plugin_name,
@@ -294,7 +295,7 @@ class PluginData(BaseModel):
     def set_path(self, new_path: pathlib.Path) -> bool:
         """Update plugin path in XML (new format only)."""
         if self.path_element is not None:
-            self.path_element.set("Value", str(new_path))
+            self.path_element.set(Attr.VALUE, str(new_path))
             self.path = new_path
             return True
         return False

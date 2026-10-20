@@ -102,6 +102,7 @@ import pydantic
 
 from abletoolz.plugins.container.format_translation import INFO_TAGS, UidFields, read_identity
 from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.schema import Tag
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -367,7 +368,7 @@ def harvest_set_uids(live_set: AbletonSet) -> dict[str, UidFields]:
     """
     found: dict[str, UidFields] = {}
     for info in live_set.root.iter(INFO_TAGS[PluginKind.VST3]):
-        uid = info.find("Uid")
+        uid = info.find(Tag.UID)
         if uid is None:
             continue
         found[read_identity(info).name] = read_uid_fields(uid)
