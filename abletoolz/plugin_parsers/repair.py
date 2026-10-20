@@ -57,7 +57,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz.misc import default_live_database_dir
+from abletoolz.machine import default_live_database_dir
 from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.format_translation import (
     KNOWN_TRANSLATIONS,

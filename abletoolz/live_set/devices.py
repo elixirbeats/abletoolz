@@ -43,6 +43,8 @@ from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
 
 from abletoolz import schema
+from abletoolz.elements import get_element
+from abletoolz.errors import ElementNotFound
 from abletoolz.live_set.xml_edit import (
     number_value,
     owns_pointee_id,
@@ -51,7 +53,6 @@ from abletoolz.live_set.xml_edit import (
     strip_remote_bindings,
     tab_depth,
 )
-from abletoolz.misc import ElementNotFound, get_element
 from abletoolz.plugin_parsers import PluginData
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device, ValueKind, is_templated, kind_of

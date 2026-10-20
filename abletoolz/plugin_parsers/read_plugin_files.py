@@ -15,7 +15,7 @@ import sys
 from collections.abc import Callable, Iterable, Mapping
 from functools import lru_cache
 
-from abletoolz.misc import default_vst_dirs, read_plist
+from abletoolz.machine import default_vst_dirs, read_plist
 
 
 @lru_cache(maxsize=8192)

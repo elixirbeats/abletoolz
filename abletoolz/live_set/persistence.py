@@ -12,8 +12,8 @@ import sys
 import threading
 from typing import TYPE_CHECKING
 
+from abletoolz.ansi import B, G, M, R, Y
 from abletoolz.formats import FormatError, live_document
-from abletoolz.misc import BACKUP_DIR, B, G, M, R, Y
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -22,6 +22,26 @@ if sys.platform == "win32":
     import win32_setctime
 
 logger = logging.getLogger(__name__)
+
+BACKUP_DIR = "abletoolz_backup"
+
+# Live's own backup folder, and the one abletoolz writes. A set inside either is
+# a copy of one the user already has.
+_BACKUP_DIRS = frozenset({"Backup", "backup", BACKUP_DIR})
+
+
+def is_backup_set(path: pathlib.Path) -> bool:
+    """Whether ``path`` is a copy of a set rather than a set worth acting on.
+
+    Two kinds of copy: a file inside a backup folder, and a macOS ``._``
+    resource fork that only looks like a set. Only the parent directories are
+    checked, so a set legitimately *named* "Backup.als" is still a real set.
+
+    One predicate rather than two because the collector and the sidecar writer
+    have to agree: a set the collector accepts but the writer thinks is a
+    backup, or the reverse, leaves files in Ableton's own Backup folder.
+    """
+    return path.name.startswith("._") or not _BACKUP_DIRS.isdisjoint(path.parts[:-1])
 
 
 def format_date(timestamp: float) -> str:

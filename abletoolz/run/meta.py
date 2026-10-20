@@ -34,7 +34,7 @@ import pydantic
 import yaml
 
 from abletoolz import __version__
-from abletoolz.misc import is_backup_set
+from abletoolz.live_set.persistence import is_backup_set
 
 logger = logging.getLogger(__name__)
 

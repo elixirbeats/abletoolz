@@ -33,8 +33,8 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
+from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
-from abletoolz.misc import get_element
 from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.state import (
     NO_CONTROLLER_STATE,

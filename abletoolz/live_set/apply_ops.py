@@ -34,12 +34,12 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
+from abletoolz.elements import get_element
 from abletoolz.live_set import sections
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, decode_note_array
 from abletoolz.live_set.document import AbletonSet
 from abletoolz.live_set.sections import SectionMode, SkippedStraddler
 from abletoolz.live_set.tracks import AbletonTrack
-from abletoolz.misc import get_element
 from abletoolz.schema import Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device
 

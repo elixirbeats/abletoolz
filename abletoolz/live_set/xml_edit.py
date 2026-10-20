@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from xml.etree import ElementTree as ET
 
-from abletoolz.misc import get_element
+from abletoolz.elements import get_element
 from abletoolz.schema import Attr, Tag, path
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pathlib
 
-from abletoolz.misc import default_vst_dirs
+from abletoolz.machine import default_vst_dirs
 
 
 def find_plugin(filename: str, scan_paths: list[pathlib.Path] | None = None) -> pathlib.Path | None:

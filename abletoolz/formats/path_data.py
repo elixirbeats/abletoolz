@@ -15,12 +15,25 @@ whatever read it, as the library always has.
 from __future__ import annotations
 
 import dataclasses
+import enum
 import logging
 
+from abletoolz.ansi import R
 from abletoolz.formats import hex_text
-from abletoolz.misc import R, SetOperatingSystem
 
 logger = logging.getLogger(__name__)
+
+
+class SetOperatingSystem(enum.Enum):
+    """Pre ableton 11, sets store data differently.
+
+    Sets do not store any OS information, but we can guess based on encoding of data, AU units vs VSTs and some
+    other differences.
+    """
+
+    MAC_OS = enum.auto()
+    WINDOWS_OS = enum.auto()
+    UNSET = enum.auto()
 
 
 def path_separator_type(path_str: str) -> str:

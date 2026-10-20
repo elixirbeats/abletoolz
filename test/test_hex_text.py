@@ -9,7 +9,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.formats import FormatError, hex_text, path_data
-from abletoolz.misc import SetOperatingSystem
+from abletoolz.formats.path_data import SetOperatingSystem
 
 SKELETONS = sorted((pathlib.Path(__file__).parent / "version_fixtures" / "skeletons").glob("*.als"))
 HEX_TAGS = frozenset({"Buffer", "ProcessorState", "ControllerState", "Data"})

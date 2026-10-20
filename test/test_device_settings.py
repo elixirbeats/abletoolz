@@ -14,9 +14,9 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from abletoolz.errors import ElementNotFound
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, SetDeviceSettingResult, apply_ops
-from abletoolz.misc import ElementNotFound
 from abletoolz.schema import Tag
 from abletoolz.schema.devices import Device, EqEight, Sampler, Simpler
 

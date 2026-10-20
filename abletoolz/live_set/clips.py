@@ -50,11 +50,11 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
+from abletoolz.elements import get_element
 from abletoolz.live_set import sample_ref, sections
 from abletoolz.live_set.sections import CopiedPlacement, SkippedStraddler
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value, renumber_pointee_ids, shift_indentation, tab_depth
-from abletoolz.misc import get_element
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.versioning import Version, versioned
 

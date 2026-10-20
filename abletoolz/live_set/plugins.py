@@ -14,20 +14,11 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
+from abletoolz.ansi import RST, C, G, R, Y
+from abletoolz.elements import get_element
 from abletoolz.formats import path_data
 from abletoolz.live_set.tracks import AbletonTrack
-from abletoolz.misc import (
-    RST,
-    C,
-    G,
-    R,
-    Y,
-    default_au_component_dirs,
-    default_live_database_dir,
-    default_vst_dirs,
-    get_element,
-    read_plist,
-)
+from abletoolz.machine import default_au_component_dirs, default_live_database_dir, default_vst_dirs, read_plist
 from abletoolz.plugin_parsers import (
     AbletoolzConfig,
     PluginAnalysis,

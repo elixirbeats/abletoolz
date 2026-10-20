@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz import schema
-from abletoolz.misc import SetError, get_element
+from abletoolz.elements import get_element
+from abletoolz.errors import SetError
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.versioning import Version
 

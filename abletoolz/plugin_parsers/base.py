@@ -23,8 +23,8 @@ from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, ConfigDict
 
+from abletoolz.elements import search_element
 from abletoolz.formats import hex_text
-from abletoolz.misc import search_element
 
 if TYPE_CHECKING:
     from abletoolz.samples.database import DatabaseT

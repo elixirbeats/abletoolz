@@ -57,7 +57,8 @@ from pathlib import Path
 from typing import Literal
 
 from abletoolz.alc import AlcClip, AlcError
-from abletoolz.misc import C, R, Y, default_ableton_user_library
+from abletoolz.ansi import C, R, Y
+from abletoolz.machine import default_ableton_user_library
 
 logger = logging.getLogger(__name__)
 

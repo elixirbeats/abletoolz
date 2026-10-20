@@ -47,7 +47,7 @@ from collections.abc import Iterable, Mapping, Sequence
 
 import pydantic
 
-from abletoolz.misc import DEFAULT_PLUGIN_DB_PATH, default_live_database_dir, default_vst_dirs
+from abletoolz.machine import DEFAULT_PLUGIN_DB_PATH, default_live_database_dir, default_vst_dirs
 from abletoolz.plugin_parsers.base import PluginKind
 from abletoolz.plugin_parsers.config import AbletoolzConfig
 from abletoolz.plugin_parsers.format_translation import UidFields

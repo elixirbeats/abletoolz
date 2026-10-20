@@ -16,9 +16,9 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
-from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind, uid_sources
 from abletoolz.plugin_parsers import format_translation as translation
 from abletoolz.plugin_parsers.format_translation import TranslationTarget

@@ -7,6 +7,9 @@ import subprocess
 import sys
 from xml.etree import ElementTree as ET
 
+from abletoolz.ansi import B, C, M, R, Y
+from abletoolz.errors import SetError
+from abletoolz.formats.path_data import SetOperatingSystem
 from abletoolz.live_set import persistence
 from abletoolz.live_set.clips import Clips
 from abletoolz.live_set.describe import Describe
@@ -15,7 +18,6 @@ from abletoolz.live_set.plugins import Plugins
 from abletoolz.live_set.samples import Samples
 from abletoolz.live_set.tracks import Tracks
 from abletoolz.live_set.transport import Transport
-from abletoolz.misc import B, C, M, R, SetError, SetOperatingSystem, Y
 from abletoolz.schema import Attr, versioning
 
 logger = logging.getLogger(__name__)

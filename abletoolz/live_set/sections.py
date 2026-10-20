@@ -57,9 +57,9 @@ import enum
 from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
+from abletoolz.elements import get_element
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value
-from abletoolz.misc import get_element
 from abletoolz.schema import Attr, Tag, path
 
 # Where each track type keeps its arrangement clips, and what the clips are called.

@@ -15,8 +15,9 @@ from xml.etree import ElementTree as ET
 
 import pydantic
 
+from abletoolz.elements import get_element
+from abletoolz.errors import ElementNotFound
 from abletoolz.formats import hex_text, path_data
-from abletoolz.misc import ElementNotFound, get_element
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.versioning import Version, versioned
 

@@ -6,7 +6,7 @@ import pathlib
 
 import tqdm
 
-from abletoolz.misc import DEFAULT_DB_PATH
+from abletoolz.machine import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 

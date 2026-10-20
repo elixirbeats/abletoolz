@@ -7,7 +7,7 @@ listed by hand, and live in :mod:`abletoolz.schema.devices`.
 
 A member's value is the tag exactly as Live writes it, so a member goes
 anywhere a string does: ``element.find(Tag.DEVICE_CHAIN)``. :func:`path`
-joins members into a path both ``Element.find`` and ``misc.get_element``
+joins members into a path both ``Element.find`` and ``elements.get_element``
 read. A tag Live renamed across versions has a member per spelling, and
 ``schema.tag`` picks the one a set's version uses.
 """

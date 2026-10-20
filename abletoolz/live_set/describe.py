@@ -36,11 +36,11 @@ import json
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
+from abletoolz.elements import get_element
 from abletoolz.live_set import sections
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, encode_note
 from abletoolz.live_set.devices import TrackDevices
 from abletoolz.live_set.tracks import AbletonTrack
-from abletoolz.misc import get_element
 from abletoolz.schema import Tag, path
 
 if TYPE_CHECKING:

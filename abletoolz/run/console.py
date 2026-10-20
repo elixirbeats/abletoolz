@@ -6,6 +6,7 @@ import logging
 import pathlib
 from collections.abc import Mapping, Sequence
 
+from abletoolz.ansi import CB, B, C, G, M, R, Y
 from abletoolz.live_set.apply_ops import (
     CloneClipResult,
     CopySectionResult,
@@ -22,7 +23,6 @@ from abletoolz.live_set.sample_ref import SampleRef
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.transport import SetLength
 from abletoolz.live_set.xml_edit import number_value
-from abletoolz.misc import CB, B, C, G, M, R, Y
 from abletoolz.plugin_parsers import PluginKind
 from abletoolz.plugin_parsers.mapping import MatchTier, SuggestionReport, VendorAgreement
 from abletoolz.plugin_parsers.plugin_db import FORMAT_LABELS, PluginDatabase

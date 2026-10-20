@@ -18,8 +18,8 @@ from xml.etree import ElementTree as ET
 import pydantic
 import pytest
 
+from abletoolz.elements import get_element
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.misc import get_element
 from abletoolz.plugin_parsers import PluginKind, plugin_db, repair, uid_sources
 from abletoolz.plugin_parsers import config as config_module
 from abletoolz.plugin_parsers.config import AbletoolzConfig
