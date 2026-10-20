@@ -5,7 +5,7 @@ device, native and hosted side by side: ``Eq8``, ``Reverb``, ``Compressor2``
 and ``PluginDevice``/``AuPluginDevice`` are siblings distinguished only by
 tag. Every track type carries a chain -- audio, MIDI, return, group -- and so
 does the main track, which lives at ``LiveSet/MainTrack`` in Live 12 and
-``LiveSet/MasterTrack`` before it (``schema.tag("master_track", ...)``). Its
+``LiveSet/MasterTrack`` before it (``tracks.main()`` finds either). Its
 chain is nested one level shallower than a track's, which is why grafting
 re-indents rather than copying whitespace along. The cue chain
 (``PreHearTrack``) is deliberately not walked: it is not a track anyone
@@ -42,7 +42,6 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
 
-from abletoolz import schema
 from abletoolz.elements import get_element
 from abletoolz.live_set.settings import Setting, resolve
 from abletoolz.live_set.xml_edit import (
@@ -161,12 +160,8 @@ class Devices:
         about the track, and it is where a graft usually wants to land.
         """
         chains = [self._track_devices(track.track_root, track.type, track.name) for track in self._set.tracks.load()]
-        main = self._main_track()
-        chains.append(
-            self._track_devices(
-                main, main.tag, get_element(main, path(Tag.NAME, Tag.EFFECTIVE_NAME), attribute=Attr.VALUE)
-            )
-        )
+        main = self._set.tracks.main()
+        chains.append(self._track_devices(main.track_root, main.type, main.name))
         return chains
 
     def walk(self, kind: str | None = None, *, track_name: str | None = None) -> Iterator[DeviceRef]:
@@ -179,9 +174,7 @@ class Devices:
         document order: the rack, then what it holds. The main track comes last
         and the cue track is not walked, as in :meth:`inventory`.
         """
-        tracks = [(track.name, track.track_root) for track in self._set.tracks.load()]
-        main = self._main_track()
-        tracks.append((get_element(main, path(Tag.NAME, Tag.EFFECTIVE_NAME), attribute=Attr.VALUE), main))
+        tracks = [(track.name, track.track_root) for track in self._set.tracks.walk()]
         for name, track_root in tracks:
             if track_name is not None and name != track_name:
                 continue
@@ -264,17 +257,11 @@ class Devices:
         devices.text = child_indent if len(devices) else None
         return grafted
 
-    def _main_track(self) -> ET.Element:
-        return get_element(self._root, path(Tag.LIVE_SET, schema.tag("master_track", self.version)))
-
     def _track_root(self, track_name: str) -> ET.Element:
         """The named track's element. Duplicate names resolve to the first."""
-        for track in self._set.tracks.load():
+        for track in self._set.tracks.walk():
             if track.name == track_name:
                 return track.track_root
-        main = self._main_track()
-        if get_element(main, path(Tag.NAME, Tag.EFFECTIVE_NAME), attribute=Attr.VALUE) == track_name:
-            return main
         raise ValueError(f"No track named {track_name!r} in this set")
 
     def _track_devices(self, track_root: ET.Element, track_type: str, track_name: str) -> TrackDevices:

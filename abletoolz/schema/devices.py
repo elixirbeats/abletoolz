@@ -3387,15 +3387,18 @@ class Sampler(enum.StrEnum):
     CIRCUIT_BP_NO_MO = "Filter/Slot/Value/SimplerFilter/CircuitBpNoMo"
     # parameter, int (one value seen), 891 seen, Live 9.6.0-12.4.15
     CIRCUIT_LP_HP = "Filter/Slot/Value/SimplerFilter/CircuitLpHp"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProEnvelope in Live 9.6.0  # noqa: E501 - the path alone is that long
     COMPLEX_PRO_ENVELOPE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProEnvelope"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProFormants in Live 9.6.0  # noqa: E501 - the path alone is that long
     COMPLEX_PRO_FORMANTS = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProFormants"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator in Live 9.6.0  # noqa: E501 - the path alone is that long
     DENOMINATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator"  # noqa: E501 - the path alone is longer than a line
     # parameter, float (seen as float, int), 891 seen, Live 9.6.0-12.4.15
     DRIVE = "Filter/Slot/Value/SimplerFilter/Drive"
@@ -3415,15 +3418,19 @@ class Sampler(enum.StrEnum):
     FEEDBACK = "MidiCtrl.{index}/Feedback"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     FILTER_IS_ON = "Filter/IsOn"
-    # value, bool (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Fixed in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Fixed"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedDenominator in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED_DENOMINATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedDenominator"  # noqa: E501 - the path alone is longer than a line
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedNumerator in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED_NUMERATOR = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedNumerator"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/FluctuationTexture in Live 9.6.0  # noqa: E501 - the path alone is that long
     FLUCTUATION_TEXTURE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/FluctuationTexture"
     )
@@ -3435,21 +3442,25 @@ class Sampler(enum.StrEnum):
     FREQ_FIXED_MUL = "Player/SubOsc/Slot/Value/SimplerSubOsc/FreqFixedMul"
     # value, int (one value seen), 1452 seen, Live 9.6.0-12.4.15
     GLOBALS_PLAYBACK_MODE = "Globals/PlaybackMode"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTexture in Live 9.6.0  # noqa: E501 - the path alone is that long
     GRANULARITY_TEXTURE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTexture"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTones in Live 9.6.0  # noqa: E501 - the path alone is that long
     GRANULARITY_TONES = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTones"
     )
-    # value, bool, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool, 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/Onsets/HasUserOnsets in Live 9.6.0  # noqa: E501 - the path alone is that long
     HAS_USER_ONSETS = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/Onsets/HasUserOnsets"
     )
     # value, int, 1454 seen, Live 9.0.1-12.4.15
     INTERPOLATION_MODE = "Player/InterpolationMode"
-    # value, bool (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool (one value seen), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/IsActive in Live 9.0.1-9.6.0
     IS_ACTIVE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/IsActive"
     # parameter, bool (one value seen), 3 seen, Live 11.0.0-11.3.2
     IS_FIXED_FREQ = "Player/SubOsc/Slot/Value/SimplerSubOsc/IsFixedFreq"
@@ -3457,19 +3468,24 @@ class Sampler(enum.StrEnum):
     IS_MODULATED = "Player/LoopModulators/IsModulated"
     # value, bool (one value seen), 1454 seen, Live 9.0.1-12.4.15
     IS_SIMPLER = "Globals/IsSimpler"
-    # value, bool, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool, 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/IsWarped in Live 9.6.0  # noqa: E501 - the path alone is that long
     IS_WARPED = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/IsWarped"
     # value, int, 2908 seen, Live 9.0.1-12.4.15, {index} <= 1
     KEY_DST_MOD_CONNECTIONS_AMOUNT = "KeyDst/ModConnections.{index}/Amount"
     # value, int, 2908 seen, Live 9.0.1-12.4.15, {index} <= 1
     KEY_DST_MOD_CONNECTIONS_CONNECTION = "KeyDst/ModConnections.{index}/Connection"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMax in Live 9.0.1-9.6.0
     KEY_RANGE_CROSSFADE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMax"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMin in Live 9.0.1-9.6.0
     KEY_RANGE_CROSSFADE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMin"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Max in Live 9.0.1-9.6.0
     KEY_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Max"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Min in Live 9.0.1-9.6.0
     KEY_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Min"
     # parameter, int (one value seen), 1454 seen, Live 9.0.1-12.4.15
     KEY_ZONE_SHIFT = "Globals/KeyZoneShift"
@@ -3483,7 +3499,8 @@ class Sampler(enum.StrEnum):
     LEGACY_TYPE = "Filter/Slot/Value/SimplerFilter/LegacyType"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     LFO_IS_ON = "Lfo/IsOn"
-    # value, bool (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool (one value seen), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Link in Live 9.0.1-9.6.0
     LINK = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Link"
     # value, bool (one value seen), 1454 seen, Live 9.0.1-12.4.15
     LOAD_IN_RAM = "Player/MultiSampleMap/LoadInRam"
@@ -3509,19 +3526,26 @@ class Sampler(enum.StrEnum):
     MOD_BY_VELOCITY = "Filter/Slot/Value/SimplerFilter/ModByVelocity"
     # value, int (one value seen), 1314 seen, Live 11.0.0-12.4.15
     MPE_PITCH_BEND_RANGE = "Globals/MpePitchBendRange"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Detune in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Detune"
-    # value, float (seen as float, int), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, float (seen as float, int), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Panorama in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_PANORAMA = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Panorama"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleStart in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_SAMPLE_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleStart"
-    # value, float (seen as float, int), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, float (seen as float, int), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Volume in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_VOLUME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Volume"
-    # value, str, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, str, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Name in Live 9.0.1-9.6.0
     NAME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Name"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Ntoles in Live 9.6.0  # noqa: E501 - the path alone is that long
     NTOLES = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Ntoles"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator in Live 9.6.0  # noqa: E501 - the path alone is that long
     NUMERATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator"  # noqa: E501 - the path alone is longer than a line
     # value, int, 1454 seen, Live 9.0.1-12.4.15
     NUM_VOICES = "Globals/NumVoices"
@@ -3549,15 +3573,20 @@ class Sampler(enum.StrEnum):
     PORTAMENTO_TIME = "Globals/PortamentoTime"
     # parameter, float (one value seen), 2 seen, Live 9.0.1
     Q = "Filter/Slot/Value/SimplerFilter/Q"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Crossfade in Live 9.0.1-9.6.0
     RELEASE_LOOP_CROSSFADE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Crossfade"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Detune in Live 9.0.1-9.6.0
     RELEASE_LOOP_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Detune"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/End in Live 9.0.1-9.6.0
     RELEASE_LOOP_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/End"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Mode in Live 9.0.1-9.6.0
     RELEASE_LOOP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Mode"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Start in Live 9.0.1-9.6.0
     RELEASE_LOOP_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Start"
     # value, int (one value seen), 2908 seen, Live 9.0.1-12.4.15, {index} <= 1
     REL_VEL_DST_MOD_CONNECTIONS_AMOUNT = "RelVelDst/ModConnections.{index}/Amount"
@@ -3569,7 +3598,8 @@ class Sampler(enum.StrEnum):
     RETRIGGER_MODE = "Globals/RetriggerMode"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     REVERSE = "Player/Reverse"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/RootKey in Live 9.0.1-9.6.0
     ROOT_KEY = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/RootKey"
     # value, bool (one value seen), 30 seen, Live 12.4.5-12.4.15
     ROUND_ROBIN = "Player/MultiSampleMap/RoundRobin"
@@ -3579,23 +3609,28 @@ class Sampler(enum.StrEnum):
     ROUND_ROBIN_RANDOM_SEED = "Player/MultiSampleMap/RoundRobinRandomSeed"
     # value, int (one value seen), 30 seen, Live 12.4.5-12.4.15
     ROUND_ROBIN_RESET_PERIOD = "Player/MultiSampleMap/RoundRobinResetPeriod"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleEnd in Live 9.0.1-9.6.0
     SAMPLE_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleEnd"
     # parameter, int (one value seen), 1454 seen, Live 9.0.1-12.4.15
     SAMPLE_LENGTH = "Player/LoopModulators/SampleLength"
     # parameter, int (one value seen), 1454 seen, Live 9.0.1-12.4.15
     SAMPLE_SELECTOR = "Player/SampleSelector"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMax in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     SELECTOR_RANGE_CROSSFADE_MAX = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMax"
     )
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMin in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     SELECTOR_RANGE_CROSSFADE_MIN = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMin"
     )
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Max in Live 9.0.1-9.6.0
     SELECTOR_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Max"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Min in Live 9.0.1-9.6.0
     SELECTOR_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Min"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     SHAPER_IS_ON = "Shaper/IsOn"
@@ -3805,17 +3840,20 @@ class Sampler(enum.StrEnum):
     SLICING_REGIONS = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingRegions"
     # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
     SLICING_STYLE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingStyle"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SlicingThreshold in Live 9.6.0
     SLICING_THRESHOLD = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingThreshold"
     # parameter, bool, 891 seen, Live 9.6.0-12.4.15
     SLOPE = "Filter/Slot/Value/SimplerFilter/Slope"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     SNAP = "Player/Snap"
-    # value, bool (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/SnapToGrid in Live 9.6.0  # noqa: E501 - the path alone is that long
     SNAP_TO_GRID = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/SnapToGrid"
     )
-    # value, bool (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, bool (one value seen), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Solo in Live 9.0.1-9.6.0
     SOLO = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Solo"
     # parameter, int, 1454 seen, Live 9.0.1-12.4.15
     SPREAD_AMOUNT = "Globals/SpreadAmount"
@@ -3823,29 +3861,38 @@ class Sampler(enum.StrEnum):
     STRUCTURE = "Shaper/Slot/Value/SimplerShaper/Structure"
     # parameter, bool, 1454 seen, Live 9.0.1-12.4.15
     SUB_OSC_IS_ON = "Player/SubOsc/IsOn"
-    # value, float (seen as float, int), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, float (seen as float, int), 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Crossfade in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_CROSSFADE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Crossfade"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Detune in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Detune"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/End in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/End"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Mode in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Mode"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Start in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Start"
     # parameter, int (one value seen), 1452 seen, Live 9.6.0-12.4.15
     SUSTAIN_MODE = "VolumeAndPan/OneShotEnvelope/SustainMode"
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time in Live 9.6.0  # noqa: E501 - the path alone is that long
     TIME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time"  # noqa: E501 - the path alone is longer than a line
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientEnvelope in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_ENVELOPE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientEnvelope"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientLoopMode in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_LOOP_MODE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientLoopMode"
     )
-    # value, int (one value seen), 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int (one value seen), 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientResolution in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_RESOLUTION = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientResolution"
     )
@@ -3857,7 +3904,8 @@ class Sampler(enum.StrEnum):
     TUNE_COARSE = "Player/SubOsc/Slot/Value/SimplerSubOsc/TuneCoarse"
     # parameter, int, 3 seen, Live 11.0.0-11.3.2
     TUNE_FINE = "Player/SubOsc/Slot/Value/SimplerSubOsc/TuneFine"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/TuneScale in Live 9.0.1-9.6.0
     TUNE_SCALE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/TuneScale"
     # value, bool, 1454 seen, Live 9.0.1-12.4.15
     USE_CONST_POW_CROSSFADE = "Player/UseConstPowCrossfade"
@@ -3867,17 +3915,21 @@ class Sampler(enum.StrEnum):
     USE_DYNAMIC_REGION_SLICES = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/UseDynamicRegionSlices"
     )
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMax in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     VELOCITY_RANGE_CROSSFADE_MAX = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMax"
     )
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMin in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     VELOCITY_RANGE_CROSSFADE_MIN = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMin"
     )
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Max in Live 9.0.1-9.6.0
     VELOCITY_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Max"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23482 seen, Live 9.0.1-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Min in Live 9.0.1-9.6.0
     VELOCITY_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Min"
     # value, float (seen as float, int), 2908 seen, Live 9.0.1-12.4.15, {index} <= 1
     VEL_DST_MOD_CONNECTIONS_AMOUNT = "VelDst/ModConnections.{index}/Amount"
@@ -3919,7 +3971,8 @@ class Sampler(enum.StrEnum):
     VOLUME_LFO_AMOUNT = "VolumeAndPan/VolumeLfoAmount"
     # parameter, float (seen as float, int), 1454 seen, Live 9.0.1-12.4.15
     VOLUME_VEL_SCALE = "VolumeAndPan/VolumeVelScale"
-    # value, int, 23478 seen, Live 10.0.1-12.4.15, {index} <= 425
+    # value, int, 23480 seen, Live 9.6.0-12.4.15, {index} <= 425
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/WarpMode in Live 9.6.0  # noqa: E501 - the path alone is that long
     WARP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/WarpMode"
     # parameter, float (seen as float, int), 893 seen, Live 9.0.1-12.4.15
     X = "Filter/Slot/Value/SimplerFilter/X"
@@ -4109,15 +4162,18 @@ class Simpler(enum.StrEnum):
     CIRCUIT_BP_NO_MO = "Filter/Slot/Value/SimplerFilter/CircuitBpNoMo"
     # parameter, int, 5374 seen, Live 9.6.0-12.4.15
     CIRCUIT_LP_HP = "Filter/Slot/Value/SimplerFilter/CircuitLpHp"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProEnvelope in Live 9.6.0  # noqa: E501 - the path alone is that long
     COMPLEX_PRO_ENVELOPE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProEnvelope"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProFormants in Live 9.6.0  # noqa: E501 - the path alone is that long
     COMPLEX_PRO_FORMANTS = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProFormants"
     )
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator in Live 9.6.0  # noqa: E501 - the path alone is that long
     DENOMINATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator"  # noqa: E501 - the path alone is longer than a line
     # parameter, float (seen as float, int), 5374 seen, Live 9.6.0-12.4.15
     DRIVE = "Filter/Slot/Value/SimplerFilter/Drive"
@@ -4137,15 +4193,19 @@ class Simpler(enum.StrEnum):
     FEEDBACK = "MidiCtrl.{index}/Feedback"
     # parameter, bool, 11598 seen, Live 9.0.1-12.4.15
     FILTER_IS_ON = "Filter/IsOn"
-    # value, bool (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Fixed in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Fixed"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedDenominator in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED_DENOMINATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedDenominator"  # noqa: E501 - the path alone is longer than a line
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedNumerator in Live 9.6.0  # noqa: E501 - the path alone is that long
     FIXED_NUMERATOR = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedNumerator"
     )
-    # value, float (seen as float, int), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, float (seen as float, int), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/FluctuationTexture in Live 9.6.0  # noqa: E501 - the path alone is that long
     FLUCTUATION_TEXTURE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/FluctuationTexture"
     )
@@ -4157,21 +4217,25 @@ class Simpler(enum.StrEnum):
     FREQ_FIXED_MUL = "Player/SubOsc/Slot/Value/SimplerSubOsc/FreqFixedMul"
     # value, int, 11338 seen, Live 9.6.0-12.4.15
     GLOBALS_PLAYBACK_MODE = "Globals/PlaybackMode"
-    # value, float (seen as float, int), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, float (seen as float, int), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTexture in Live 9.6.0  # noqa: E501 - the path alone is that long
     GRANULARITY_TEXTURE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTexture"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTones in Live 9.6.0  # noqa: E501 - the path alone is that long
     GRANULARITY_TONES = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTones"
     )
-    # value, bool, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/Onsets/HasUserOnsets in Live 9.6.0  # noqa: E501 - the path alone is that long
     HAS_USER_ONSETS = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/Onsets/HasUserOnsets"
     )
     # value, int, 11598 seen, Live 9.0.1-12.4.15
     INTERPOLATION_MODE = "Player/InterpolationMode"
-    # value, bool (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/IsActive in Live 9.0.1-9.6.0
     IS_ACTIVE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/IsActive"
     # parameter, bool (one value seen), 34 seen, Live 11.0.12-12.4.5
     IS_FIXED_FREQ = "Player/SubOsc/Slot/Value/SimplerSubOsc/IsFixedFreq"
@@ -4179,19 +4243,24 @@ class Simpler(enum.StrEnum):
     IS_MODULATED = "Player/LoopModulators/IsModulated"
     # value, bool (one value seen), 11598 seen, Live 9.0.1-12.4.15
     IS_SIMPLER = "Globals/IsSimpler"
-    # value, bool, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/IsWarped in Live 9.6.0  # noqa: E501 - the path alone is that long
     IS_WARPED = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/IsWarped"
     # value, int (one value seen), 23196 seen, Live 9.0.1-12.4.15, {index} <= 1
     KEY_DST_MOD_CONNECTIONS_AMOUNT = "KeyDst/ModConnections.{index}/Amount"
     # value, int (one value seen), 23196 seen, Live 9.0.1-12.4.15, {index} <= 1
     KEY_DST_MOD_CONNECTIONS_CONNECTION = "KeyDst/ModConnections.{index}/Connection"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMax in Live 9.0.1-9.6.0
     KEY_RANGE_CROSSFADE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMax"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMin in Live 9.0.1-9.6.0
     KEY_RANGE_CROSSFADE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMin"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Max in Live 9.0.1-9.6.0
     KEY_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Max"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Min in Live 9.0.1-9.6.0
     KEY_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Min"
     # parameter, int (one value seen), 11598 seen, Live 9.0.1-12.4.15
     KEY_ZONE_SHIFT = "Globals/KeyZoneShift"
@@ -4205,7 +4274,8 @@ class Simpler(enum.StrEnum):
     LEGACY_TYPE = "Filter/Slot/Value/SimplerFilter/LegacyType"
     # parameter, bool, 11598 seen, Live 9.0.1-12.4.15
     LFO_IS_ON = "Lfo/IsOn"
-    # value, bool (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Link in Live 9.0.1-9.6.0
     LINK = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Link"
     # value, bool (one value seen), 11598 seen, Live 9.0.1-12.4.15
     LOAD_IN_RAM = "Player/MultiSampleMap/LoadInRam"
@@ -4237,19 +4307,26 @@ class Simpler(enum.StrEnum):
     )
     # value, int (one value seen), 9391 seen, Live 11.0.0-12.4.15
     MPE_PITCH_BEND_RANGE = "Globals/MpePitchBendRange"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Detune in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Detune"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Panorama in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_PANORAMA = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Panorama"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleStart in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_SAMPLE_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleStart"
-    # value, float (seen as float, int), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, float (seen as float, int), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Volume in Live 9.0.1-9.6.0
     MULTI_SAMPLE_PART_VOLUME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Volume"
-    # value, str (seen as int, str), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, str (seen as float, int, str), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Name in Live 9.0.1-9.6.0
     NAME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Name"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Ntoles in Live 9.6.0  # noqa: E501 - the path alone is that long
     NTOLES = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Ntoles"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator in Live 9.6.0  # noqa: E501 - the path alone is that long
     NUMERATOR = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator"  # noqa: E501 - the path alone is longer than a line
     # value, int, 11598 seen, Live 9.0.1-12.4.15
     NUM_VOICES = "Globals/NumVoices"
@@ -4277,15 +4354,20 @@ class Simpler(enum.StrEnum):
     PORTAMENTO_TIME = "Globals/PortamentoTime"
     # parameter, float (one value seen), 32 seen, Live 9.0.1-9.1.8
     Q = "Filter/Slot/Value/SimplerFilter/Q"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Crossfade in Live 9.0.1-9.6.0
     RELEASE_LOOP_CROSSFADE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Crossfade"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Detune in Live 9.0.1-9.6.0
     RELEASE_LOOP_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Detune"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/End in Live 9.0.1-9.6.0
     RELEASE_LOOP_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/End"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Mode in Live 9.0.1-9.6.0
     RELEASE_LOOP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Mode"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Start in Live 9.0.1-9.6.0
     RELEASE_LOOP_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Start"
     # value, int (one value seen), 23196 seen, Live 9.0.1-12.4.15, {index} <= 1
     REL_VEL_DST_MOD_CONNECTIONS_AMOUNT = "RelVelDst/ModConnections.{index}/Amount"
@@ -4297,7 +4379,8 @@ class Simpler(enum.StrEnum):
     RETRIGGER_MODE = "Globals/RetriggerMode"
     # parameter, bool (one value seen), 11598 seen, Live 9.0.1-12.4.15
     REVERSE = "Player/Reverse"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/RootKey in Live 9.0.1-9.6.0
     ROOT_KEY = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/RootKey"
     # value, bool (one value seen), 211 seen, Live 12.1.10-12.4.15
     ROUND_ROBIN = "Player/MultiSampleMap/RoundRobin"
@@ -4307,23 +4390,28 @@ class Simpler(enum.StrEnum):
     ROUND_ROBIN_RANDOM_SEED = "Player/MultiSampleMap/RoundRobinRandomSeed"
     # value, int (one value seen), 211 seen, Live 12.1.10-12.4.15
     ROUND_ROBIN_RESET_PERIOD = "Player/MultiSampleMap/RoundRobinResetPeriod"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleEnd in Live 9.0.1-9.6.0
     SAMPLE_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleEnd"
     # parameter, float (seen as float, int), 11598 seen, Live 9.0.1-12.4.15
     SAMPLE_LENGTH = "Player/LoopModulators/SampleLength"
     # parameter, int (one value seen), 11598 seen, Live 9.0.1-12.4.15
     SAMPLE_SELECTOR = "Player/SampleSelector"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMax in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     SELECTOR_RANGE_CROSSFADE_MAX = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMax"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMin in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     SELECTOR_RANGE_CROSSFADE_MIN = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMin"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Max in Live 9.0.1-9.6.0
     SELECTOR_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Max"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Min in Live 9.0.1-9.6.0
     SELECTOR_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Min"
     # parameter, bool, 11598 seen, Live 9.0.1-12.4.15
     SHAPER_IS_ON = "Shaper/IsOn"
@@ -4489,17 +4577,20 @@ class Simpler(enum.StrEnum):
     SLICING_REGIONS = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingRegions"
     # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
     SLICING_STYLE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingStyle"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SlicingThreshold in Live 9.6.0
     SLICING_THRESHOLD = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingThreshold"
     # parameter, bool, 5374 seen, Live 9.6.0-12.4.15
     SLOPE = "Filter/Slot/Value/SimplerFilter/Slope"
     # parameter, bool, 11598 seen, Live 9.0.1-12.4.15
     SNAP = "Player/Snap"
-    # value, bool, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/SnapToGrid in Live 9.6.0  # noqa: E501 - the path alone is that long
     SNAP_TO_GRID = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/SnapToGrid"
     )
-    # value, bool (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, bool (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Solo in Live 9.0.1-9.6.0
     SOLO = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Solo"
     # parameter, int, 11598 seen, Live 9.0.1-12.4.15
     SPREAD_AMOUNT = "Globals/SpreadAmount"
@@ -4507,29 +4598,38 @@ class Simpler(enum.StrEnum):
     STRUCTURE = "Shaper/Slot/Value/SimplerShaper/Structure"
     # parameter, bool, 11598 seen, Live 9.0.1-12.4.15
     SUB_OSC_IS_ON = "Player/SubOsc/IsOn"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Crossfade in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_CROSSFADE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Crossfade"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Detune in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_DETUNE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Detune"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/End in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_END = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/End"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Mode in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Mode"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Start in Live 9.0.1-9.6.0
     SUSTAIN_LOOP_START = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Start"
     # parameter, int, 11338 seen, Live 9.6.0-12.4.15
     SUSTAIN_MODE = "VolumeAndPan/OneShotEnvelope/SustainMode"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time in Live 9.6.0  # noqa: E501 - the path alone is that long
     TIME = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time"  # noqa: E501 - the path alone is longer than a line
-    # value, float (seen as float, int), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, float (seen as float, int), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientEnvelope in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_ENVELOPE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientEnvelope"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientLoopMode in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_LOOP_MODE = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientLoopMode"
     )
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientResolution in Live 9.6.0  # noqa: E501 - the path alone is that long
     TRANSIENT_RESOLUTION = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientResolution"
     )
@@ -4541,7 +4641,8 @@ class Simpler(enum.StrEnum):
     TUNE_COARSE = "Player/SubOsc/Slot/Value/SimplerSubOsc/TuneCoarse"
     # parameter, int (one value seen), 34 seen, Live 11.0.12-12.4.5
     TUNE_FINE = "Player/SubOsc/Slot/Value/SimplerSubOsc/TuneFine"
-    # value, int (one value seen), 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int (one value seen), 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/TuneScale in Live 9.0.1-9.6.0
     TUNE_SCALE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/TuneScale"
     # value, bool, 11598 seen, Live 9.0.1-12.4.15
     USE_CONST_POW_CROSSFADE = "Player/UseConstPowCrossfade"
@@ -4551,17 +4652,21 @@ class Simpler(enum.StrEnum):
     USE_DYNAMIC_REGION_SLICES = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/UseDynamicRegionSlices"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMax in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     VELOCITY_RANGE_CROSSFADE_MAX = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMax"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMin in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     VELOCITY_RANGE_CROSSFADE_MIN = (
         "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMin"
     )
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Max in Live 9.0.1-9.6.0
     VELOCITY_RANGE_MAX = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Max"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12601 seen, Live 9.0.1-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Min in Live 9.0.1-9.6.0
     VELOCITY_RANGE_MIN = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Min"
     # value, int (one value seen), 23196 seen, Live 9.0.1-12.4.15, {index} <= 1
     VEL_DST_MOD_CONNECTIONS_AMOUNT = "VelDst/ModConnections.{index}/Amount"
@@ -4603,7 +4708,8 @@ class Simpler(enum.StrEnum):
     VOLUME_LFO_AMOUNT = "VolumeAndPan/VolumeLfoAmount"
     # parameter, float (seen as float, int), 11598 seen, Live 9.0.1-12.4.15
     VOLUME_VEL_SCALE = "VolumeAndPan/VolumeVelScale"
-    # value, int, 12063 seen, Live 10.0.1-12.4.15, {index} <= 339
+    # value, int, 12349 seen, Live 9.6.0-12.4.15, {index} <= 339
+    # was Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/WarpMode in Live 9.6.0  # noqa: E501 - the path alone is that long
     WARP_MODE = "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/WarpMode"
     # parameter, float (seen as float, int), 5406 seen, Live 9.0.1-12.4.15
     X = "Filter/Slot/Value/SimplerFilter/X"
@@ -12182,9 +12288,9 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.AUX_LFOS_IS_ON: (9, 0, 1),
         Sampler.CIRCUIT_BP_NO_MO: (9, 6, 0),
         Sampler.CIRCUIT_LP_HP: (9, 6, 0),
-        Sampler.COMPLEX_PRO_ENVELOPE: (10, 0, 1),
-        Sampler.COMPLEX_PRO_FORMANTS: (10, 0, 1),
-        Sampler.DENOMINATOR: (10, 0, 1),
+        Sampler.COMPLEX_PRO_ENVELOPE: (9, 6, 0),
+        Sampler.COMPLEX_PRO_FORMANTS: (9, 6, 0),
+        Sampler.DENOMINATOR: (9, 6, 0),
         Sampler.DRIVE: (9, 6, 0),
         Sampler.ENVELOPE_AMOUNT: (9, 0, 1),
         Sampler.ENV_TIME: (9, 0, 1),
@@ -12194,36 +12300,36 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.FADE_OUT_TIME: (9, 6, 0),
         Sampler.FEEDBACK: (9, 0, 1),
         Sampler.FILTER_IS_ON: (9, 0, 1),
-        Sampler.FIXED: (10, 0, 1),
-        Sampler.FIXED_DENOMINATOR: (10, 0, 1),
-        Sampler.FIXED_NUMERATOR: (10, 0, 1),
-        Sampler.FLUCTUATION_TEXTURE: (10, 0, 1),
+        Sampler.FIXED: (9, 6, 0),
+        Sampler.FIXED_DENOMINATOR: (9, 6, 0),
+        Sampler.FIXED_NUMERATOR: (9, 6, 0),
+        Sampler.FLUCTUATION_TEXTURE: (9, 6, 0),
         Sampler.FREQ: (9, 0, 1),
         Sampler.FREQ_FIXED: (11, 0, 0),
         Sampler.FREQ_FIXED_MUL: (11, 0, 0),
         Sampler.GLOBALS_PLAYBACK_MODE: (9, 6, 0),
-        Sampler.GRANULARITY_TEXTURE: (10, 0, 1),
-        Sampler.GRANULARITY_TONES: (10, 0, 1),
-        Sampler.HAS_USER_ONSETS: (10, 0, 1),
+        Sampler.GRANULARITY_TEXTURE: (9, 6, 0),
+        Sampler.GRANULARITY_TONES: (9, 6, 0),
+        Sampler.HAS_USER_ONSETS: (9, 6, 0),
         Sampler.INTERPOLATION_MODE: (9, 0, 1),
-        Sampler.IS_ACTIVE: (10, 0, 1),
+        Sampler.IS_ACTIVE: (9, 0, 1),
         Sampler.IS_FIXED_FREQ: (11, 0, 0),
         Sampler.IS_MODULATED: (9, 0, 1),
         Sampler.IS_SIMPLER: (9, 0, 1),
-        Sampler.IS_WARPED: (10, 0, 1),
+        Sampler.IS_WARPED: (9, 6, 0),
         Sampler.KEY_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Sampler.KEY_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
-        Sampler.KEY_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Sampler.KEY_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Sampler.KEY_RANGE_MAX: (10, 0, 1),
-        Sampler.KEY_RANGE_MIN: (10, 0, 1),
+        Sampler.KEY_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Sampler.KEY_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Sampler.KEY_RANGE_MAX: (9, 0, 1),
+        Sampler.KEY_RANGE_MIN: (9, 0, 1),
         Sampler.KEY_ZONE_SHIFT: (9, 0, 1),
         Sampler.LAYER_CROSSFADE: (9, 0, 1),
         Sampler.LEGACY_MODE: (9, 6, 0),
         Sampler.LEGACY_Q: (9, 6, 0),
         Sampler.LEGACY_TYPE: (9, 6, 0),
         Sampler.LFO_IS_ON: (9, 0, 1),
-        Sampler.LINK: (10, 0, 1),
+        Sampler.LINK: (9, 0, 1),
         Sampler.LOAD_IN_RAM: (9, 0, 1),
         Sampler.LOOP_FADE: (9, 0, 1),
         Sampler.LOOP_LENGTH: (9, 0, 1),
@@ -12236,13 +12342,13 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.MOD_BY_PITCH: (9, 0, 1),
         Sampler.MOD_BY_VELOCITY: (9, 0, 1),
         Sampler.MPE_PITCH_BEND_RANGE: (11, 0, 0),
-        Sampler.MULTI_SAMPLE_PART_DETUNE: (10, 0, 1),
-        Sampler.MULTI_SAMPLE_PART_PANORAMA: (10, 0, 1),
-        Sampler.MULTI_SAMPLE_PART_SAMPLE_START: (10, 0, 1),
-        Sampler.MULTI_SAMPLE_PART_VOLUME: (10, 0, 1),
-        Sampler.NAME: (10, 0, 1),
-        Sampler.NTOLES: (10, 0, 1),
-        Sampler.NUMERATOR: (10, 0, 1),
+        Sampler.MULTI_SAMPLE_PART_DETUNE: (9, 0, 1),
+        Sampler.MULTI_SAMPLE_PART_PANORAMA: (9, 0, 1),
+        Sampler.MULTI_SAMPLE_PART_SAMPLE_START: (9, 0, 1),
+        Sampler.MULTI_SAMPLE_PART_VOLUME: (9, 0, 1),
+        Sampler.NAME: (9, 0, 1),
+        Sampler.NTOLES: (9, 6, 0),
+        Sampler.NUMERATOR: (9, 6, 0),
         Sampler.NUM_VOICES: (9, 0, 1),
         Sampler.NUM_VOICES_ENV_TIME_CONTROL: (9, 0, 1),
         Sampler.ON: (9, 0, 1),
@@ -12256,28 +12362,28 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.PORTAMENTO_MODE: (9, 0, 1),
         Sampler.PORTAMENTO_TIME: (9, 0, 1),
         Sampler.Q: (9, 0, 1),
-        Sampler.RELEASE_LOOP_CROSSFADE: (10, 0, 1),
-        Sampler.RELEASE_LOOP_DETUNE: (10, 0, 1),
-        Sampler.RELEASE_LOOP_END: (10, 0, 1),
-        Sampler.RELEASE_LOOP_MODE: (10, 0, 1),
-        Sampler.RELEASE_LOOP_START: (10, 0, 1),
+        Sampler.RELEASE_LOOP_CROSSFADE: (9, 0, 1),
+        Sampler.RELEASE_LOOP_DETUNE: (9, 0, 1),
+        Sampler.RELEASE_LOOP_END: (9, 0, 1),
+        Sampler.RELEASE_LOOP_MODE: (9, 0, 1),
+        Sampler.RELEASE_LOOP_START: (9, 0, 1),
         Sampler.REL_VEL_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Sampler.REL_VEL_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
         Sampler.RES: (9, 6, 0),
         Sampler.RETRIGGER_MODE: (9, 0, 1),
         Sampler.REVERSE: (9, 0, 1),
-        Sampler.ROOT_KEY: (10, 0, 1),
+        Sampler.ROOT_KEY: (9, 0, 1),
         Sampler.ROUND_ROBIN: (12, 4, 5),
         Sampler.ROUND_ROBIN_MODE: (12, 4, 5),
         Sampler.ROUND_ROBIN_RANDOM_SEED: (12, 4, 5),
         Sampler.ROUND_ROBIN_RESET_PERIOD: (12, 4, 5),
-        Sampler.SAMPLE_END: (10, 0, 1),
+        Sampler.SAMPLE_END: (9, 0, 1),
         Sampler.SAMPLE_LENGTH: (9, 0, 1),
         Sampler.SAMPLE_SELECTOR: (9, 0, 1),
-        Sampler.SELECTOR_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Sampler.SELECTOR_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Sampler.SELECTOR_RANGE_MAX: (10, 0, 1),
-        Sampler.SELECTOR_RANGE_MIN: (10, 0, 1),
+        Sampler.SELECTOR_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Sampler.SELECTOR_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Sampler.SELECTOR_RANGE_MAX: (9, 0, 1),
+        Sampler.SELECTOR_RANGE_MIN: (9, 0, 1),
         Sampler.SHAPER_IS_ON: (9, 0, 1),
         Sampler.SIMPLER_AUX_ENVELOPE_ATTACK_LEVEL: (11, 3, 41),
         Sampler.SIMPLER_AUX_ENVELOPE_ATTACK_SLOPE: (11, 3, 41),
@@ -12378,36 +12484,36 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.SLICING_BEAT_GRID: (10, 0, 1),
         Sampler.SLICING_REGIONS: (10, 0, 1),
         Sampler.SLICING_STYLE: (10, 0, 1),
-        Sampler.SLICING_THRESHOLD: (10, 0, 1),
+        Sampler.SLICING_THRESHOLD: (9, 6, 0),
         Sampler.SLOPE: (9, 6, 0),
         Sampler.SNAP: (9, 0, 1),
-        Sampler.SNAP_TO_GRID: (10, 0, 1),
-        Sampler.SOLO: (10, 0, 1),
+        Sampler.SNAP_TO_GRID: (9, 6, 0),
+        Sampler.SOLO: (9, 0, 1),
         Sampler.SPREAD_AMOUNT: (9, 0, 1),
         Sampler.STRUCTURE: (10, 0, 1),
         Sampler.SUB_OSC_IS_ON: (9, 0, 1),
-        Sampler.SUSTAIN_LOOP_CROSSFADE: (10, 0, 1),
-        Sampler.SUSTAIN_LOOP_DETUNE: (10, 0, 1),
-        Sampler.SUSTAIN_LOOP_END: (10, 0, 1),
-        Sampler.SUSTAIN_LOOP_MODE: (10, 0, 1),
-        Sampler.SUSTAIN_LOOP_START: (10, 0, 1),
+        Sampler.SUSTAIN_LOOP_CROSSFADE: (9, 0, 1),
+        Sampler.SUSTAIN_LOOP_DETUNE: (9, 0, 1),
+        Sampler.SUSTAIN_LOOP_END: (9, 0, 1),
+        Sampler.SUSTAIN_LOOP_MODE: (9, 0, 1),
+        Sampler.SUSTAIN_LOOP_START: (9, 0, 1),
         Sampler.SUSTAIN_MODE: (9, 6, 0),
-        Sampler.TIME: (10, 0, 1),
-        Sampler.TRANSIENT_ENVELOPE: (10, 0, 1),
-        Sampler.TRANSIENT_LOOP_MODE: (10, 0, 1),
-        Sampler.TRANSIENT_RESOLUTION: (10, 0, 1),
+        Sampler.TIME: (9, 6, 0),
+        Sampler.TRANSIENT_ENVELOPE: (9, 6, 0),
+        Sampler.TRANSIENT_LOOP_MODE: (9, 6, 0),
+        Sampler.TRANSIENT_RESOLUTION: (9, 6, 0),
         Sampler.TRANSPOSE_FINE: (9, 0, 1),
         Sampler.TRANSPOSE_KEY: (9, 0, 1),
         Sampler.TUNE_COARSE: (11, 0, 0),
         Sampler.TUNE_FINE: (11, 0, 0),
-        Sampler.TUNE_SCALE: (10, 0, 1),
+        Sampler.TUNE_SCALE: (9, 0, 1),
         Sampler.USE_CONST_POW_CROSSFADE: (9, 0, 1),
         Sampler.USE_DYNAMIC_BEAT_SLICES: (10, 0, 1),
         Sampler.USE_DYNAMIC_REGION_SLICES: (10, 0, 1),
-        Sampler.VELOCITY_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Sampler.VELOCITY_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Sampler.VELOCITY_RANGE_MAX: (10, 0, 1),
-        Sampler.VELOCITY_RANGE_MIN: (10, 0, 1),
+        Sampler.VELOCITY_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Sampler.VELOCITY_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Sampler.VELOCITY_RANGE_MAX: (9, 0, 1),
+        Sampler.VELOCITY_RANGE_MIN: (9, 0, 1),
         Sampler.VEL_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Sampler.VEL_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
         Sampler.VOLUME: (9, 0, 1),
@@ -12428,7 +12534,7 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Sampler.VOLUME_KEY_SCALE: (9, 0, 1),
         Sampler.VOLUME_LFO_AMOUNT: (9, 0, 1),
         Sampler.VOLUME_VEL_SCALE: (9, 0, 1),
-        Sampler.WARP_MODE: (10, 0, 1),
+        Sampler.WARP_MODE: (9, 6, 0),
         Sampler.X: (9, 0, 1),
     },
     Saturator: {
@@ -12520,9 +12626,9 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.AUX_LFOS_IS_ON: (9, 0, 1),
         Simpler.CIRCUIT_BP_NO_MO: (9, 6, 0),
         Simpler.CIRCUIT_LP_HP: (9, 6, 0),
-        Simpler.COMPLEX_PRO_ENVELOPE: (10, 0, 1),
-        Simpler.COMPLEX_PRO_FORMANTS: (10, 0, 1),
-        Simpler.DENOMINATOR: (10, 0, 1),
+        Simpler.COMPLEX_PRO_ENVELOPE: (9, 6, 0),
+        Simpler.COMPLEX_PRO_FORMANTS: (9, 6, 0),
+        Simpler.DENOMINATOR: (9, 6, 0),
         Simpler.DRIVE: (9, 6, 0),
         Simpler.ENVELOPE_AMOUNT: (9, 0, 1),
         Simpler.ENV_TIME: (9, 0, 1),
@@ -12532,36 +12638,36 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.FADE_OUT_TIME: (9, 6, 0),
         Simpler.FEEDBACK: (9, 0, 1),
         Simpler.FILTER_IS_ON: (9, 0, 1),
-        Simpler.FIXED: (10, 0, 1),
-        Simpler.FIXED_DENOMINATOR: (10, 0, 1),
-        Simpler.FIXED_NUMERATOR: (10, 0, 1),
-        Simpler.FLUCTUATION_TEXTURE: (10, 0, 1),
+        Simpler.FIXED: (9, 6, 0),
+        Simpler.FIXED_DENOMINATOR: (9, 6, 0),
+        Simpler.FIXED_NUMERATOR: (9, 6, 0),
+        Simpler.FLUCTUATION_TEXTURE: (9, 6, 0),
         Simpler.FREQ: (9, 0, 1),
         Simpler.FREQ_FIXED: (11, 0, 12),
         Simpler.FREQ_FIXED_MUL: (11, 0, 12),
         Simpler.GLOBALS_PLAYBACK_MODE: (9, 6, 0),
-        Simpler.GRANULARITY_TEXTURE: (10, 0, 1),
-        Simpler.GRANULARITY_TONES: (10, 0, 1),
-        Simpler.HAS_USER_ONSETS: (10, 0, 1),
+        Simpler.GRANULARITY_TEXTURE: (9, 6, 0),
+        Simpler.GRANULARITY_TONES: (9, 6, 0),
+        Simpler.HAS_USER_ONSETS: (9, 6, 0),
         Simpler.INTERPOLATION_MODE: (9, 0, 1),
-        Simpler.IS_ACTIVE: (10, 0, 1),
+        Simpler.IS_ACTIVE: (9, 0, 1),
         Simpler.IS_FIXED_FREQ: (11, 0, 12),
         Simpler.IS_MODULATED: (9, 0, 1),
         Simpler.IS_SIMPLER: (9, 0, 1),
-        Simpler.IS_WARPED: (10, 0, 1),
+        Simpler.IS_WARPED: (9, 6, 0),
         Simpler.KEY_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Simpler.KEY_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
-        Simpler.KEY_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Simpler.KEY_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Simpler.KEY_RANGE_MAX: (10, 0, 1),
-        Simpler.KEY_RANGE_MIN: (10, 0, 1),
+        Simpler.KEY_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Simpler.KEY_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Simpler.KEY_RANGE_MAX: (9, 0, 1),
+        Simpler.KEY_RANGE_MIN: (9, 0, 1),
         Simpler.KEY_ZONE_SHIFT: (9, 0, 1),
         Simpler.LAYER_CROSSFADE: (9, 0, 1),
         Simpler.LEGACY_MODE: (9, 6, 0),
         Simpler.LEGACY_Q: (9, 6, 0),
         Simpler.LEGACY_TYPE: (9, 6, 0),
         Simpler.LFO_IS_ON: (9, 0, 1),
-        Simpler.LINK: (10, 0, 1),
+        Simpler.LINK: (9, 0, 1),
         Simpler.LOAD_IN_RAM: (9, 0, 1),
         Simpler.LOOP_FADE: (9, 0, 1),
         Simpler.LOOP_LENGTH: (9, 0, 1),
@@ -12576,13 +12682,13 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.MOD_DST_MOD_CONNECTIONS_AMOUNT: (11, 3, 2),
         Simpler.MOD_DST_MOD_CONNECTIONS_CONNECTION: (11, 3, 2),
         Simpler.MPE_PITCH_BEND_RANGE: (11, 0, 0),
-        Simpler.MULTI_SAMPLE_PART_DETUNE: (10, 0, 1),
-        Simpler.MULTI_SAMPLE_PART_PANORAMA: (10, 0, 1),
-        Simpler.MULTI_SAMPLE_PART_SAMPLE_START: (10, 0, 1),
-        Simpler.MULTI_SAMPLE_PART_VOLUME: (10, 0, 1),
-        Simpler.NAME: (10, 0, 1),
-        Simpler.NTOLES: (10, 0, 1),
-        Simpler.NUMERATOR: (10, 0, 1),
+        Simpler.MULTI_SAMPLE_PART_DETUNE: (9, 0, 1),
+        Simpler.MULTI_SAMPLE_PART_PANORAMA: (9, 0, 1),
+        Simpler.MULTI_SAMPLE_PART_SAMPLE_START: (9, 0, 1),
+        Simpler.MULTI_SAMPLE_PART_VOLUME: (9, 0, 1),
+        Simpler.NAME: (9, 0, 1),
+        Simpler.NTOLES: (9, 6, 0),
+        Simpler.NUMERATOR: (9, 6, 0),
         Simpler.NUM_VOICES: (9, 0, 1),
         Simpler.NUM_VOICES_ENV_TIME_CONTROL: (9, 0, 1),
         Simpler.ON: (9, 0, 1),
@@ -12596,28 +12702,28 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.PORTAMENTO_MODE: (9, 0, 1),
         Simpler.PORTAMENTO_TIME: (9, 0, 1),
         Simpler.Q: (9, 0, 1),
-        Simpler.RELEASE_LOOP_CROSSFADE: (10, 0, 1),
-        Simpler.RELEASE_LOOP_DETUNE: (10, 0, 1),
-        Simpler.RELEASE_LOOP_END: (10, 0, 1),
-        Simpler.RELEASE_LOOP_MODE: (10, 0, 1),
-        Simpler.RELEASE_LOOP_START: (10, 0, 1),
+        Simpler.RELEASE_LOOP_CROSSFADE: (9, 0, 1),
+        Simpler.RELEASE_LOOP_DETUNE: (9, 0, 1),
+        Simpler.RELEASE_LOOP_END: (9, 0, 1),
+        Simpler.RELEASE_LOOP_MODE: (9, 0, 1),
+        Simpler.RELEASE_LOOP_START: (9, 0, 1),
         Simpler.REL_VEL_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Simpler.REL_VEL_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
         Simpler.RES: (9, 6, 0),
         Simpler.RETRIGGER_MODE: (9, 0, 1),
         Simpler.REVERSE: (9, 0, 1),
-        Simpler.ROOT_KEY: (10, 0, 1),
+        Simpler.ROOT_KEY: (9, 0, 1),
         Simpler.ROUND_ROBIN: (12, 1, 10),
         Simpler.ROUND_ROBIN_MODE: (12, 1, 10),
         Simpler.ROUND_ROBIN_RANDOM_SEED: (12, 1, 10),
         Simpler.ROUND_ROBIN_RESET_PERIOD: (12, 1, 10),
-        Simpler.SAMPLE_END: (10, 0, 1),
+        Simpler.SAMPLE_END: (9, 0, 1),
         Simpler.SAMPLE_LENGTH: (9, 0, 1),
         Simpler.SAMPLE_SELECTOR: (9, 0, 1),
-        Simpler.SELECTOR_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Simpler.SELECTOR_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Simpler.SELECTOR_RANGE_MAX: (10, 0, 1),
-        Simpler.SELECTOR_RANGE_MIN: (10, 0, 1),
+        Simpler.SELECTOR_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Simpler.SELECTOR_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Simpler.SELECTOR_RANGE_MAX: (9, 0, 1),
+        Simpler.SELECTOR_RANGE_MIN: (9, 0, 1),
         Simpler.SHAPER_IS_ON: (9, 0, 1),
         Simpler.SIMPLER_AUX_LFO_ATTACK: (11, 3, 2),
         Simpler.SIMPLER_AUX_LFO_BEAT_RATE: (11, 3, 2),
@@ -12700,36 +12806,36 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.SLICING_BEAT_GRID: (10, 0, 1),
         Simpler.SLICING_REGIONS: (10, 0, 1),
         Simpler.SLICING_STYLE: (10, 0, 1),
-        Simpler.SLICING_THRESHOLD: (10, 0, 1),
+        Simpler.SLICING_THRESHOLD: (9, 6, 0),
         Simpler.SLOPE: (9, 6, 0),
         Simpler.SNAP: (9, 0, 1),
-        Simpler.SNAP_TO_GRID: (10, 0, 1),
-        Simpler.SOLO: (10, 0, 1),
+        Simpler.SNAP_TO_GRID: (9, 6, 0),
+        Simpler.SOLO: (9, 0, 1),
         Simpler.SPREAD_AMOUNT: (9, 0, 1),
         Simpler.STRUCTURE: (10, 1, 0),
         Simpler.SUB_OSC_IS_ON: (9, 0, 1),
-        Simpler.SUSTAIN_LOOP_CROSSFADE: (10, 0, 1),
-        Simpler.SUSTAIN_LOOP_DETUNE: (10, 0, 1),
-        Simpler.SUSTAIN_LOOP_END: (10, 0, 1),
-        Simpler.SUSTAIN_LOOP_MODE: (10, 0, 1),
-        Simpler.SUSTAIN_LOOP_START: (10, 0, 1),
+        Simpler.SUSTAIN_LOOP_CROSSFADE: (9, 0, 1),
+        Simpler.SUSTAIN_LOOP_DETUNE: (9, 0, 1),
+        Simpler.SUSTAIN_LOOP_END: (9, 0, 1),
+        Simpler.SUSTAIN_LOOP_MODE: (9, 0, 1),
+        Simpler.SUSTAIN_LOOP_START: (9, 0, 1),
         Simpler.SUSTAIN_MODE: (9, 6, 0),
-        Simpler.TIME: (10, 0, 1),
-        Simpler.TRANSIENT_ENVELOPE: (10, 0, 1),
-        Simpler.TRANSIENT_LOOP_MODE: (10, 0, 1),
-        Simpler.TRANSIENT_RESOLUTION: (10, 0, 1),
+        Simpler.TIME: (9, 6, 0),
+        Simpler.TRANSIENT_ENVELOPE: (9, 6, 0),
+        Simpler.TRANSIENT_LOOP_MODE: (9, 6, 0),
+        Simpler.TRANSIENT_RESOLUTION: (9, 6, 0),
         Simpler.TRANSPOSE_FINE: (9, 0, 1),
         Simpler.TRANSPOSE_KEY: (9, 0, 1),
         Simpler.TUNE_COARSE: (11, 0, 12),
         Simpler.TUNE_FINE: (11, 0, 12),
-        Simpler.TUNE_SCALE: (10, 0, 1),
+        Simpler.TUNE_SCALE: (9, 0, 1),
         Simpler.USE_CONST_POW_CROSSFADE: (9, 0, 1),
         Simpler.USE_DYNAMIC_BEAT_SLICES: (10, 0, 1),
         Simpler.USE_DYNAMIC_REGION_SLICES: (10, 0, 1),
-        Simpler.VELOCITY_RANGE_CROSSFADE_MAX: (10, 0, 1),
-        Simpler.VELOCITY_RANGE_CROSSFADE_MIN: (10, 0, 1),
-        Simpler.VELOCITY_RANGE_MAX: (10, 0, 1),
-        Simpler.VELOCITY_RANGE_MIN: (10, 0, 1),
+        Simpler.VELOCITY_RANGE_CROSSFADE_MAX: (9, 0, 1),
+        Simpler.VELOCITY_RANGE_CROSSFADE_MIN: (9, 0, 1),
+        Simpler.VELOCITY_RANGE_MAX: (9, 0, 1),
+        Simpler.VELOCITY_RANGE_MIN: (9, 0, 1),
         Simpler.VEL_DST_MOD_CONNECTIONS_AMOUNT: (9, 0, 1),
         Simpler.VEL_DST_MOD_CONNECTIONS_CONNECTION: (9, 0, 1),
         Simpler.VOLUME: (9, 0, 1),
@@ -12750,7 +12856,7 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Simpler.VOLUME_KEY_SCALE: (9, 0, 1),
         Simpler.VOLUME_LFO_AMOUNT: (9, 0, 1),
         Simpler.VOLUME_VEL_SCALE: (9, 0, 1),
-        Simpler.WARP_MODE: (10, 0, 1),
+        Simpler.WARP_MODE: (9, 6, 0),
         Simpler.X: (9, 0, 1),
     },
     SimpleDelay: {
@@ -13234,11 +13340,689 @@ OLDER_PATHS: dict[type[enum.StrEnum], dict[enum.StrEnum, tuple[tuple[Version, st
     Redux: {},
     Redux2: {},
     Reverb: {},
-    Sampler: {},
+    Sampler: {
+        Sampler.COMPLEX_PRO_ENVELOPE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProEnvelope",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProEnvelope",
+            ),
+        ),
+        Sampler.COMPLEX_PRO_FORMANTS: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProFormants",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProFormants",
+            ),
+        ),
+        Sampler.DENOMINATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator",
+            ),
+        ),
+        Sampler.FIXED: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Fixed",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Fixed",
+            ),
+        ),
+        Sampler.FIXED_DENOMINATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedDenominator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedDenominator",
+            ),
+        ),
+        Sampler.FIXED_NUMERATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedNumerator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedNumerator",
+            ),
+        ),
+        Sampler.FLUCTUATION_TEXTURE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/FluctuationTexture",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/FluctuationTexture",
+            ),
+        ),
+        Sampler.GRANULARITY_TEXTURE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTexture",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTexture",
+            ),
+        ),
+        Sampler.GRANULARITY_TONES: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTones",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTones",
+            ),
+        ),
+        Sampler.HAS_USER_ONSETS: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/Onsets/HasUserOnsets",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/Onsets/HasUserOnsets",
+            ),
+        ),
+        Sampler.IS_ACTIVE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/IsActive"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/IsActive"),
+        ),
+        Sampler.IS_WARPED: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/IsWarped",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/IsWarped",
+            ),
+        ),
+        Sampler.KEY_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMax"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMax"),
+        ),
+        Sampler.KEY_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMin"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMin"),
+        ),
+        Sampler.KEY_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Max"),
+        ),
+        Sampler.KEY_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Min"),
+        ),
+        Sampler.LINK: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Link"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Link"),
+        ),
+        Sampler.MULTI_SAMPLE_PART_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Detune"),
+        ),
+        Sampler.MULTI_SAMPLE_PART_PANORAMA: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Panorama"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Panorama"),
+        ),
+        Sampler.MULTI_SAMPLE_PART_SAMPLE_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleStart"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleStart"),
+        ),
+        Sampler.MULTI_SAMPLE_PART_VOLUME: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Volume"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Volume"),
+        ),
+        Sampler.NAME: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Name"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Name"),
+        ),
+        Sampler.NTOLES: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Ntoles",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Ntoles",
+            ),
+        ),
+        Sampler.NUMERATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator",
+            ),
+        ),
+        Sampler.RELEASE_LOOP_CROSSFADE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Crossfade"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Crossfade"),
+        ),
+        Sampler.RELEASE_LOOP_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Detune"),
+        ),
+        Sampler.RELEASE_LOOP_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/End"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/End"),
+        ),
+        Sampler.RELEASE_LOOP_MODE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Mode"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Mode"),
+        ),
+        Sampler.RELEASE_LOOP_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Start"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Start"),
+        ),
+        Sampler.ROOT_KEY: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/RootKey"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/RootKey"),
+        ),
+        Sampler.SAMPLE_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleEnd"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleEnd"),
+        ),
+        Sampler.SELECTOR_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMax"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMax",
+            ),
+        ),
+        Sampler.SELECTOR_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMin"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMin",
+            ),
+        ),
+        Sampler.SELECTOR_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Max"),
+        ),
+        Sampler.SELECTOR_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Min"),
+        ),
+        Sampler.SLICING_THRESHOLD: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingThreshold"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SlicingThreshold"),
+        ),
+        Sampler.SNAP_TO_GRID: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/SnapToGrid",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/SnapToGrid",
+            ),
+        ),
+        Sampler.SOLO: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Solo"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Solo"),
+        ),
+        Sampler.SUSTAIN_LOOP_CROSSFADE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Crossfade"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Crossfade"),
+        ),
+        Sampler.SUSTAIN_LOOP_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Detune"),
+        ),
+        Sampler.SUSTAIN_LOOP_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/End"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/End"),
+        ),
+        Sampler.SUSTAIN_LOOP_MODE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Mode"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Mode"),
+        ),
+        Sampler.SUSTAIN_LOOP_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Start"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Start"),
+        ),
+        Sampler.TIME: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time",
+            ),
+        ),
+        Sampler.TRANSIENT_ENVELOPE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientEnvelope",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientEnvelope",
+            ),
+        ),
+        Sampler.TRANSIENT_LOOP_MODE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientLoopMode",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientLoopMode",
+            ),
+        ),
+        Sampler.TRANSIENT_RESOLUTION: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientResolution",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientResolution",
+            ),
+        ),
+        Sampler.TUNE_SCALE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/TuneScale"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/TuneScale"),
+        ),
+        Sampler.VELOCITY_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMax"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMax",
+            ),
+        ),
+        Sampler.VELOCITY_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMin"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMin",
+            ),
+        ),
+        Sampler.VELOCITY_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Max"),
+        ),
+        Sampler.VELOCITY_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Min"),
+        ),
+        Sampler.WARP_MODE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/WarpMode",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/WarpMode",
+            ),
+        ),
+    },
     Saturator: {},
     Scale: {},
     Shifter: {},
-    Simpler: {},
+    Simpler: {
+        Simpler.COMPLEX_PRO_ENVELOPE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProEnvelope",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProEnvelope",
+            ),
+        ),
+        Simpler.COMPLEX_PRO_FORMANTS: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/ComplexProFormants",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/ComplexProFormants",
+            ),
+        ),
+        Simpler.DENOMINATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Denominator",
+            ),
+        ),
+        Simpler.FIXED: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Fixed",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Fixed",
+            ),
+        ),
+        Simpler.FIXED_DENOMINATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedDenominator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedDenominator",
+            ),
+        ),
+        Simpler.FIXED_NUMERATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/FixedNumerator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/FixedNumerator",
+            ),
+        ),
+        Simpler.FLUCTUATION_TEXTURE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/FluctuationTexture",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/FluctuationTexture",
+            ),
+        ),
+        Simpler.GRANULARITY_TEXTURE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTexture",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTexture",
+            ),
+        ),
+        Simpler.GRANULARITY_TONES: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/GranularityTones",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/GranularityTones",
+            ),
+        ),
+        Simpler.HAS_USER_ONSETS: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/Onsets/HasUserOnsets",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/Onsets/HasUserOnsets",
+            ),
+        ),
+        Simpler.IS_ACTIVE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/IsActive"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/IsActive"),
+        ),
+        Simpler.IS_WARPED: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/IsWarped",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/IsWarped",
+            ),
+        ),
+        Simpler.KEY_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMax"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMax"),
+        ),
+        Simpler.KEY_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/CrossfadeMin"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/CrossfadeMin"),
+        ),
+        Simpler.KEY_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Max"),
+        ),
+        Simpler.KEY_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/KeyRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/KeyRange/Min"),
+        ),
+        Simpler.LINK: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Link"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Link"),
+        ),
+        Simpler.MULTI_SAMPLE_PART_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Detune"),
+        ),
+        Simpler.MULTI_SAMPLE_PART_PANORAMA: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Panorama"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Panorama"),
+        ),
+        Simpler.MULTI_SAMPLE_PART_SAMPLE_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleStart"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleStart"),
+        ),
+        Simpler.MULTI_SAMPLE_PART_VOLUME: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Volume"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Volume"),
+        ),
+        Simpler.NAME: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Name"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Name"),
+        ),
+        Simpler.NTOLES: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/Ntoles",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/Ntoles",
+            ),
+        ),
+        Simpler.NUMERATOR: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Numerator",
+            ),
+        ),
+        Simpler.RELEASE_LOOP_CROSSFADE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Crossfade"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Crossfade"),
+        ),
+        Simpler.RELEASE_LOOP_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Detune"),
+        ),
+        Simpler.RELEASE_LOOP_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/End"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/End"),
+        ),
+        Simpler.RELEASE_LOOP_MODE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Mode"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Mode"),
+        ),
+        Simpler.RELEASE_LOOP_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/ReleaseLoop/Start"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/ReleaseLoop/Start"),
+        ),
+        Simpler.ROOT_KEY: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/RootKey"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/RootKey"),
+        ),
+        Simpler.SAMPLE_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleEnd"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleEnd"),
+        ),
+        Simpler.SELECTOR_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMax"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMax",
+            ),
+        ),
+        Simpler.SELECTOR_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/CrossfadeMin"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/CrossfadeMin",
+            ),
+        ),
+        Simpler.SELECTOR_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Max"),
+        ),
+        Simpler.SELECTOR_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SelectorRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SelectorRange/Min"),
+        ),
+        Simpler.SLICING_THRESHOLD: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SlicingThreshold"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SlicingThreshold"),
+        ),
+        Simpler.SNAP_TO_GRID: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/BeatGrid/SnapToGrid",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/BeatGrid/SnapToGrid",
+            ),
+        ),
+        Simpler.SOLO: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/Solo"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/Solo"),
+        ),
+        Simpler.SUSTAIN_LOOP_CROSSFADE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Crossfade"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Crossfade"),
+        ),
+        Simpler.SUSTAIN_LOOP_DETUNE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Detune"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Detune"),
+        ),
+        Simpler.SUSTAIN_LOOP_END: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/End"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/End"),
+        ),
+        Simpler.SUSTAIN_LOOP_MODE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Mode"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Mode"),
+        ),
+        Simpler.SUSTAIN_LOOP_START: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SustainLoop/Start"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SustainLoop/Start"),
+        ),
+        Simpler.TIME: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TimeSignature/TimeSignatures/RemoteableTimeSignature/Time",
+            ),
+        ),
+        Simpler.TRANSIENT_ENVELOPE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientEnvelope",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientEnvelope",
+            ),
+        ),
+        Simpler.TRANSIENT_LOOP_MODE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientLoopMode",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientLoopMode",
+            ),
+        ),
+        Simpler.TRANSIENT_RESOLUTION: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/TransientResolution",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/TransientResolution",
+            ),
+        ),
+        Simpler.TUNE_SCALE: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/TuneScale"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/TuneScale"),
+        ),
+        Simpler.VELOCITY_RANGE_CROSSFADE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMax"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMax",
+            ),
+        ),
+        Simpler.VELOCITY_RANGE_CROSSFADE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/CrossfadeMin"),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/CrossfadeMin",
+            ),
+        ),
+        Simpler.VELOCITY_RANGE_MAX: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Max"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Max"),
+        ),
+        Simpler.VELOCITY_RANGE_MIN: (
+            ((10, 0, 1), "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/VelocityRange/Min"),
+            ((0, 0, 0), "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/VelocityRange/Min"),
+        ),
+        Simpler.WARP_MODE: (
+            (
+                (10, 0, 1),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[@Id='{index}']/SampleWarpProperties/WarpMode",
+            ),
+            (
+                (0, 0, 0),
+                "Player/MultiSampleMap/SampleParts/MultiSamplePart[{index_position}]/SampleWarpProperties/WarpMode",
+            ),
+        ),
+    },
     SimpleDelay: {},
     SpectralResonator: {},
     SpectralTime: {},

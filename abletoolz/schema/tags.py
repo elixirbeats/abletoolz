@@ -8,8 +8,8 @@ listed by hand, and live in :mod:`abletoolz.schema.devices`.
 A member's value is the tag exactly as Live writes it, so a member goes
 anywhere a string does: ``element.find(Tag.DEVICE_CHAIN)``. :func:`path`
 joins members into a path both ``Element.find`` and ``elements.get_element``
-read. A tag Live renamed across versions has a member per spelling, and
-``schema.tag`` picks the one a set's version uses.
+read. A tag Live renamed across versions has a member per spelling; a
+setting's renames are resolved by :mod:`abletoolz.schema.settings`.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ class Tag(enum.StrEnum):
     # The document.
     ABLETON = "Ableton"
     LIVE_SET = "LiveSet"
+    TRANSPORT = "Transport"
     NEXT_POINTEE_ID = "NextPointeeId"
     POINTEE = "Pointee"
     POINTEE_ID = "PointeeId"

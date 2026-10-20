@@ -626,21 +626,39 @@ def record(
     setting.add(value, version, indices, is_parameter, spelled, owner)
 
 
+def positional(placeholder: str) -> str:
+    """``{index}`` -> ``{index_position}``: the 1-based position ElementTree's ``Tag[n]`` takes."""
+    return f"{{{placeholder[1:-1]}_position}}"
+
+
 def collapse_path(
-    spelled: str, canonical: str, tally: ObjectTally, max_indices: list[int]
+    spelled: str, canonical: str, tally: ObjectTally, max_indices: list[int], *, as_spelled: bool
 ) -> tuple[str, list[int], bool]:
-    """Rewrite ``spelled`` the way ``canonical``'s list segments resolve; see :func:`collapse_singletons`."""
+    """Rewrite one path the way ``canonical``'s list segments resolve; see :func:`collapse_singletons`.
+
+    ``as_spelled`` says whether the result is a spelling Live wrote (a list
+    written without ids is addressed by position) or the setting's name (always
+    the ``[@Id=...]`` form).
+    """
     segments: list[str] = []
     kept: list[int] = []
     original_prefix = ""
     position = 0
     id_less = False
     for segment, spelled_segment in zip(canonical.split("/"), spelled.split("/"), strict=True):
-        id_less = id_less or f"{original_prefix}{segment}[@Id='{placeholder_for(position)}']" in tally.id_lists
+        id_listed = f"{original_prefix}{segment}[@Id='{placeholder_for(position)}']"
         original = original_prefix + segment
         original_prefix = original + "/"
         if PLACEHOLDER_RE.search(segment) is None:
-            segments.append(spelled_segment)
+            if id_listed in tally.id_lists:
+                # A list written without ids: the same list as the Id'd one, by position.
+                id_less = True
+                placeholder = placeholder_for(len(kept))
+                suffix = f"[{positional(placeholder)}]" if as_spelled else f"[@Id='{placeholder}']"
+                segments.append(spelled_segment + suffix)
+                kept.append(0)
+            else:
+                segments.append(spelled_segment)
             continue
         is_id = segment.endswith("']")
         if is_id and original not in tally.id_lists:
@@ -659,27 +677,36 @@ def collapse_singletons(tally: ObjectTally) -> None:
     ``SimplerAuxEnvelope``); the scan templates every ``Id`` element, and only
     the ones the corpus shows repeating stay lists.
 
-    The same list written without ids (Simpler and Sampler parts before Live
-    9.7) cannot be reached through an ``[@Id=...]`` path; those paths move to
-    ``id_less`` and stay out of the module.
+    The same list written without ids -- automation lanes and sends before Live
+    10, Simpler and Sampler parts before 9.7 -- is the same setting at an older
+    spelling, addressed by position (``AutomationLane[{index_position}]``), and
+    joins the Id'd setting. An id-less setting with no Id'd counterpart is a
+    setting only those versions had; it moves to ``id_less`` and stays out of
+    the module.
     """
     collapsed: dict[str, SettingTally] = {}
+    id_less_settings: list[tuple[str, SettingTally]] = []
     for path, setting in tally.settings.items():
-        new_path, kept, id_less = collapse_path(path, path, tally, setting.max_indices)
+        new_path, kept, id_less = collapse_path(path, path, tally, setting.max_indices, as_spelled=False)
         spellings: dict[str, Range] = {}
         for spelled, seen in setting.spellings.items():
-            new_spelled = collapse_path(spelled, path, tally, setting.max_indices)[0]
+            new_spelled = collapse_path(spelled, path, tally, setting.max_indices, as_spelled=True)[0]
             spellings[new_spelled] = widen_range(spellings.get(new_spelled), seen) or seen
         setting.spellings = spellings
         setting.max_indices = kept
         if id_less:
-            tally.id_less[new_path] = setting
+            id_less_settings.append((new_path, setting))
             continue
         mine = collapsed.get(new_path)
         if mine is None:
             collapsed[new_path] = setting
         else:
             mine.merge(setting)
+    for new_path, setting in id_less_settings:
+        if new_path in collapsed:
+            collapsed[new_path].merge(setting)
+        else:
+            tally.id_less[new_path] = setting
     tally.settings = collapsed
 
 

@@ -70,16 +70,19 @@ class Track(enum.StrEnum):
     AUDIO_OUTPUT_ROUTING_TARGET = "DeviceChain/AudioOutputRouting/Target"
     # value, str, 37375 seen, Live 9.0.1-12.4.15
     AUDIO_OUTPUT_ROUTING_UPPER_DISPLAY_STRING = "DeviceChain/AudioOutputRouting/UpperDisplayString"
-    # value, bool, 40286 seen, Live 10.0.1-12.4.15, {index} <= 10
+    # value, bool, 40915 seen, Live 9.0.1-12.4.15, {index} <= 10
+    # was DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/IsContentSelected in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     # was DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/IsContentSelected in Live 10.0.1-10.1.30  # noqa: E501 - the path alone is that long
     AUTOMATION_LANE_IS_CONTENT_SELECTED_IN_DOCUMENT = (
         "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/IsContentSelectedInDocument"
     )
-    # value, int, 40286 seen, Live 10.0.1-12.4.15, {index} <= 10
+    # value, int, 40915 seen, Live 9.0.1-12.4.15, {index} <= 10
+    # was DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/SelectedDevice in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     AUTOMATION_LANE_SELECTED_DEVICE = (
         "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/SelectedDevice"
     )
-    # value, int, 40286 seen, Live 10.0.1-12.4.15, {index} <= 10
+    # value, int, 40915 seen, Live 9.0.1-12.4.15, {index} <= 10
+    # was DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/SelectedEnvelope in Live 9.0.1-9.6.0  # noqa: E501 - the path alone is that long
     AUTOMATION_LANE_SELECTED_ENVELOPE = (
         "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/SelectedEnvelope"
     )
@@ -121,7 +124,8 @@ class Track(enum.StrEnum):
     KEEP_RECORD_MONITORING_LATENCY = "DeviceChain/MainSequencer/KeepRecordMonitoringLatency"
     # value, int (one value seen), 1092 seen, Live 12.1.5-12.4.15
     KEY_NOTE_TARGET = "ControllerLayoutCustomization/KeyNoteTarget"
-    # value, int, 40286 seen, Live 10.0.1-12.4.15, {index} <= 10
+    # value, int, 40915 seen, Live 9.0.1-12.4.15, {index} <= 10
+    # was DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/LaneHeight in Live 9.0.1-9.6.0
     LANE_HEIGHT = "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/LaneHeight"
     # value, int, 30196 seen, Live 9.0.1-12.4.15
     LAST_SELECTED_CLIP_ENVELOPE_INDEX = "DeviceChain/MainSequencer/LastSelectedClipEnvelopeIndex"
@@ -227,7 +231,8 @@ class Track(enum.StrEnum):
 class Mixer(enum.StrEnum):
     """Settings of a track's mixer; relative to ``DeviceChain/Mixer`` of the track."""
 
-    # value, bool, 84099 seen, Live 10.0.1-11.3.43, {index} <= 7
+    # value, bool, 84811 seen, Live 9.0.1-11.3.43, {index} <= 7
+    # was Sends/TrackSendHolder[{index_position}]/Active in Live 9.0.1-9.6.0
     ACTIVE = "Sends/TrackSendHolder[@Id='{index}']/Active"
     # value, str (one value seen), 37375 seen, Live 9.0.1-12.4.15
     ANNOTATION = "Annotation"
@@ -259,7 +264,8 @@ class Mixer(enum.StrEnum):
     PAN = "Pan"
     # value, int (one value seen), 36769 seen, Live 10.0.1-12.4.15
     PAN_MODE = "PanMode"
-    # parameter, float (seen as float, int), 88669 seen, Live 10.0.1-12.4.15, {index} <= 7
+    # parameter, float (seen as float, int), 89381 seen, Live 9.0.1-12.4.15, {index} <= 7
+    # was Sends/TrackSendHolder[{index_position}]/Send in Live 9.0.1-9.6.0
     SEND = "Sends/TrackSendHolder[@Id='{index}']/Send"
     # value, bool, 37375 seen, Live 9.0.1-12.4.15
     SHOULD_SHOW_PRESET_NAME = "ShouldShowPresetName"
@@ -846,9 +852,9 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Track.AUDIO_OUTPUT_ROUTING_MPE_SETTINGS_ZONE_TYPE: (11, 1, 5),
         Track.AUDIO_OUTPUT_ROUTING_TARGET: (9, 0, 1),
         Track.AUDIO_OUTPUT_ROUTING_UPPER_DISPLAY_STRING: (9, 0, 1),
-        Track.AUTOMATION_LANE_IS_CONTENT_SELECTED_IN_DOCUMENT: (10, 0, 1),
-        Track.AUTOMATION_LANE_SELECTED_DEVICE: (10, 0, 1),
-        Track.AUTOMATION_LANE_SELECTED_ENVELOPE: (10, 0, 1),
+        Track.AUTOMATION_LANE_IS_CONTENT_SELECTED_IN_DOCUMENT: (9, 0, 1),
+        Track.AUTOMATION_LANE_SELECTED_DEVICE: (9, 0, 1),
+        Track.AUTOMATION_LANE_SELECTED_ENVELOPE: (9, 0, 1),
         Track.BREAKOUT_IS_EXPANDED: (12, 1, 5),
         Track.COLOR: (9, 0, 1),
         Track.CONTROLLER_LAYOUT_REMOTEABLE: (12, 1, 5),
@@ -867,7 +873,7 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Track.IS_VALUE_SAMPLE_BASED: (9, 0, 1),
         Track.KEEP_RECORD_MONITORING_LATENCY: (12, 1, 5),
         Track.KEY_NOTE_TARGET: (12, 1, 5),
-        Track.LANE_HEIGHT: (10, 0, 1),
+        Track.LANE_HEIGHT: (9, 0, 1),
         Track.LAST_SELECTED_CLIP_ENVELOPE_INDEX: (9, 0, 1),
         Track.LAST_SELECTED_TIMEABLE_INDEX: (9, 0, 1),
         Track.LINKED_TRACK_GROUP_ID: (11, 0, 0),
@@ -919,7 +925,7 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Track.VELOCITY_DETAIL: (9, 0, 1),
     },
     Mixer: {
-        Mixer.ACTIVE: (10, 0, 1),
+        Mixer.ACTIVE: (9, 0, 1),
         Mixer.ANNOTATION: (9, 0, 1),
         Mixer.BREAKOUT_IS_EXPANDED: (12, 1, 5),
         Mixer.CROSS_FADE: (9, 0, 1),
@@ -935,7 +941,7 @@ FIRST_SEEN: dict[type[enum.StrEnum], dict[enum.StrEnum, Version]] = {
         Mixer.ON: (9, 0, 1),
         Mixer.PAN: (9, 0, 1),
         Mixer.PAN_MODE: (10, 0, 1),
-        Mixer.SEND: (10, 0, 1),
+        Mixer.SEND: (9, 0, 1),
         Mixer.SHOULD_SHOW_PRESET_NAME: (9, 0, 1),
         Mixer.SOLO_SINK: (9, 0, 1),
         Mixer.SPEAKER: (9, 0, 1),
@@ -1078,7 +1084,22 @@ OLDER_PATHS: dict[type[enum.StrEnum], dict[enum.StrEnum, tuple[tuple[Version, st
                 (11, 0, 0),
                 "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/IsContentSelectedInDocument",
             ),
-            ((0, 0, 0), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/IsContentSelected"),
+            ((10, 0, 1), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/IsContentSelected"),
+            (
+                (0, 0, 0),
+                "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/IsContentSelected",
+            ),
+        ),
+        Track.AUTOMATION_LANE_SELECTED_DEVICE: (
+            ((10, 0, 1), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/SelectedDevice"),
+            ((0, 0, 0), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/SelectedDevice"),
+        ),
+        Track.AUTOMATION_LANE_SELECTED_ENVELOPE: (
+            ((10, 0, 1), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/SelectedEnvelope"),
+            (
+                (0, 0, 0),
+                "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/SelectedEnvelope",
+            ),
         ),
         Track.COLOR: (
             ((11, 0, 0), "Color"),
@@ -1088,12 +1109,24 @@ OLDER_PATHS: dict[type[enum.StrEnum], dict[enum.StrEnum, tuple[tuple[Version, st
             ((11, 0, 0), "IsContentSelectedInDocument"),
             ((0, 0, 0), "IsContentSelected"),
         ),
+        Track.LANE_HEIGHT: (
+            ((10, 0, 1), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[@Id='{index}']/LaneHeight"),
+            ((0, 0, 0), "DeviceChain/AutomationLanes/AutomationLanes/AutomationLane[{index_position}]/LaneHeight"),
+        ),
         Track.RE_WIRE_DEVICE_MIDI_TARGET_ID: (
             ((12, 0, 0), "ReWireDeviceMidiTargetId"),
             ((0, 0, 0), "ReWireSlaveMidiTargetId"),
         ),
     },
     Mixer: {
+        Mixer.ACTIVE: (
+            ((10, 0, 1), "Sends/TrackSendHolder[@Id='{index}']/Active"),
+            ((0, 0, 0), "Sends/TrackSendHolder[{index_position}]/Active"),
+        ),
+        Mixer.SEND: (
+            ((10, 0, 1), "Sends/TrackSendHolder[@Id='{index}']/Send"),
+            ((0, 0, 0), "Sends/TrackSendHolder[{index_position}]/Send"),
+        ),
         Mixer.VIEW_STATE_SESSION_TRACK_WIDTH: (
             ((12, 0, 0), "ViewStateSessionTrackWidth"),
             ((0, 0, 0), "ViewStateSesstionTrackWidth"),

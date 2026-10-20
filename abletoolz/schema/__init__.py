@@ -1,41 +1,17 @@
-"""Version-aware XML tag names.
+"""The names in Live's XML, and how they change between Live versions.
 
-Ableton renames tags across versions; every rename lives in this one table so
-feature code asks for the logical name and never hardcodes a spelling. Only
-renames that feature code touches get entries — the full census of known
-renames is doc/VERSION_DIFFS.md.
+``Tag`` and ``Attr`` (:mod:`abletoolz.schema.tags`) name the document's
+structure. The settings of every object -- each native device
+(:mod:`abletoolz.schema.devices`), tracks, mixers, clips and the transport
+(:mod:`abletoolz.schema.objects`) -- are generated enums measured from real
+sets, and :mod:`abletoolz.schema.settings` resolves a member against the
+version of the set it is used in. Every rename Live made to a setting lives in
+those generated tables; the full census of known renames is
+doc/VERSION_DIFFS.md.
 """
 
 from __future__ import annotations
 
 from abletoolz.schema.tags import Attr, Tag, path
 
-__all__ = ["Attr", "Tag", "path", "tag"]
-
-# Logical name -> (min_version, tag) entries, newest first, floor entry last.
-_TAGS: dict[str, tuple[tuple[tuple[int, int, int], str], ...]] = {
-    # Live 12 renamed the master track.
-    "master_track": (
-        ((12, 0, 0), "MainTrack"),
-        ((0, 0, 0), "MasterTrack"),
-    ),
-    # Live 12 fixed the historical 'Sesstion' typo.
-    "track_width": (
-        ((12, 0, 0), "ViewStateSessionTrackWidth"),
-        ((0, 0, 0), "ViewStateSesstionTrackWidth"),
-    ),
-    # Live 11.0 renamed ColorIndex to Color (11.0.0 itself already uses Color).
-    "color": (
-        ((11, 0, 0), "Color"),
-        ((0, 0, 0), "ColorIndex"),
-    ),
-}
-
-
-def tag(name: str, version: tuple[int, int, int]) -> str:
-    """Return the XML tag for logical ``name`` in a set saved by ``version``."""
-    entries = _TAGS[name]
-    for min_version, tag_name in entries:
-        if version >= min_version:
-            return tag_name
-    return entries[-1][1]
+__all__ = ["Attr", "Tag", "path"]

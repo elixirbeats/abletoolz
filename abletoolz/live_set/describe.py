@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
 # Live's own track tags, mapped to the schema's short names. MasterTrack is
-# pre-12, MainTrack 12+ (schema.tag("master_track", ...)); both mean "main".
+# pre-12, MainTrack 12+ (schema.objects.OWNER_SPELLINGS); both mean "main".
 _TRACK_TYPE: dict[str, str] = {
     Tag.MIDI_TRACK: "midi",
     Tag.AUDIO_TRACK: "audio",

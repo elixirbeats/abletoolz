@@ -1,4 +1,4 @@
-"""Tempo and arrangement-length queries."""
+"""The set's transport: its own settings, tempo and arrangement length."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ import logging
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz import schema
 from abletoolz.elements import get_element
 from abletoolz.errors import SetError
-from abletoolz.schema import Attr, Tag, path
+from abletoolz.live_set.settings import Setting, find, resolve
+from abletoolz.schema import Attr, Tag, objects, path
+from abletoolz.schema.objects import Mixer
 from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
@@ -45,24 +46,31 @@ class Transport:
     def _root(self) -> ET.Element:
         return self._set.root
 
+    def setting(self, member: objects.Transport) -> Setting:
+        """One of the set's transport settings: ``setting(Transport.LOOP_ON)``."""
+        return resolve(self._element(), member, self.version, label="Transport")
+
+    def find_setting(self, member: objects.Transport) -> Setting | None:
+        """:meth:`setting`, or None where this set's transport has no such setting."""
+        return find(self._element(), member, self.version, label="Transport")
+
+    def _element(self) -> ET.Element:
+        return get_element(self._root, path(Tag.LIVE_SET, Tag.TRANSPORT))
+
     def bpm(self) -> float:
-        """Master/main track tempo."""
-        master = schema.tag("master_track", self.version)
-        manual = path(Tag.LIVE_SET, master, Tag.DEVICE_CHAIN, Tag.MIXER, Tag.TEMPO, Tag.MANUAL)
-        automation = path(
-            Tag.LIVE_SET,
-            master,
-            Tag.DEVICE_CHAIN,
-            Tag.MIXER,
-            Tag.TEMPO,
-            Tag.ARRANGER_AUTOMATION,
-            Tag.EVENTS,
-            Tag.FLOAT_EVENT,
-        )
+        """The main track's tempo."""
+        main = self._set.tracks.main()
         if self.version >= (9, 7, 0):
-            bpm_value = get_element(self._root, manual, attribute=Attr.VALUE, silent_error=True)
+            tempo = main.find_setting(Mixer.TEMPO)
+            bpm_value = None if tempo is None else tempo.raw
         else:
-            bpm_value = get_element(self._root, automation, attribute=Attr.VALUE)
+            # Before 9.7 the tempo a set plays at is its first tempo automation
+            # event, not the Manual value: a difference of meaning, read by hand.
+            bpm_value = get_element(
+                main.track_root,
+                path(Tag.DEVICE_CHAIN, Tag.MIXER, Tag.TEMPO, Tag.ARRANGER_AUTOMATION, Tag.EVENTS, Tag.FLOAT_EVENT),
+                attribute=Attr.VALUE,
+            )
         if bpm_value is None:
             raise SetError("Couldn't find BPM in set XML")
         self._set.bpm = round(float(bpm_value), 6)

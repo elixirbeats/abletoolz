@@ -2,22 +2,31 @@
 
 from __future__ import annotations
 
+import enum
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz import schema
 from abletoolz.ansi import RST, G, R
 from abletoolz.elements import get_element
+from abletoolz.errors import ElementNotFound
 from abletoolz.live_set import colors, sections
+from abletoolz.live_set.settings import Setting, every, find, resolve
 from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.objects import OWNER_SPELLINGS, Clip, Mixer, Track
 from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
 logger = logging.getLogger(__name__)
+
+# The main track's element, newest name first.
+MAIN_TRACK_TAGS: tuple[str, ...] = (
+    Tag.MAIN_TRACK,
+    *(old for old, new in OWNER_SPELLINGS.items() if new == Tag.MAIN_TRACK),
+)
 
 # fmt: off
 STEREO_OUTPUTS: dict[int, dict[str, str]] = {
@@ -36,15 +45,14 @@ STEREO_OUTPUTS: dict[int, dict[str, str]] = {
 
 
 class AbletonTrack:
-    """Single track object."""
+    """Single track object: a track in the set, the main track or the cue track."""
 
     def __init__(self, track_root: ET.Element, version: Version) -> None:
         """Parse one track element of a set saved by ``version``."""
         self.track_root = track_root
         self.type = track_root.tag
-        self.name = get_element(track_root, path(Tag.NAME, Tag.USER_NAME), attribute=Attr.VALUE)
-        if not self.name:
-            self.name = get_element(track_root, path(Tag.NAME, Tag.EFFECTIVE_NAME), attribute=Attr.VALUE)
+        self.version = version
+        self.name = self.setting(Track.USER_NAME).raw or self.setting(Track.EFFECTIVE_NAME).raw
         self.id = track_root.get(Attr.ID)
         # Some group and return tracks leave out three things Live writes on
         # every track, and each one used to take the whole set down. Measured
@@ -54,32 +62,19 @@ class AbletonTrack:
         # third-party generator wrote, and no Live-written set in
         # the library omits any of them -- but absent is unset, not malformed,
         # whoever wrote the file.
-        self.group_id = get_element(track_root, Tag.TRACK_GROUP_ID, attribute=Attr.VALUE, silent_error=True)
-        self.width = get_element(
-            track_root,
-            path(Tag.DEVICE_CHAIN, Tag.MIXER, schema.tag("track_width", version)),
-            attribute=Attr.VALUE,
-            silent_error=True,
-        )
-        # Lane height in arrangement view will be automation lane 0
-        self.height = get_element(
-            track_root,
-            path(Tag.DEVICE_CHAIN, Tag.AUTOMATION_LANES, Tag.AUTOMATION_LANES, Tag.AUTOMATION_LANE, Tag.LANE_HEIGHT),
-            attribute=Attr.VALUE,
-            silent_error=True,
-        )
-        self.color_element = schema.tag("color", version)
-        self.unfolded = get_element(
-            track_root, Tag.TRACK_UNFOLDED, attribute=Attr.VALUE, silent_error=True
-        )  # Ableton 10
+        self.group_id = self._raw(Track.TRACK_GROUP_ID)
+        self.width = self._raw(Mixer.VIEW_STATE_SESSION_TRACK_WIDTH)
+        # Lane height in arrangement view is the first automation lane's.
+        lanes = self.every(Track.LANE_HEIGHT)
+        self.height = lanes[0].raw if lanes else None
+        self.unfolded = self._raw(Track.TRACK_UNFOLDED)
         if not self.unfolded:
-            # Ableton 9/8. A track with neither element has no fold state to
+            # Live 9 and 8 kept the inverse on the mixer, which is a change of
+            # meaning rather than of spelling, so it is read here and not
+            # resolved as one setting. A track with neither has no fold state to
             # read -- the same 44 return tracks, which have no automation lanes
             # to fold in the first place -- and an unfoldable track is unfolded.
-            folded = get_element(
-                track_root, path(Tag.DEVICE_CHAIN, Tag.MIXER, Tag.IS_FOLDED), attribute=Attr.VALUE, silent_error=True
-            )
-            self.unfolded = "false" if folded == "true" else "true"
+            self.unfolded = "false" if self._raw(Mixer.IS_FOLDED) == "true" else "true"
 
     def __str__(self) -> str:
         """Plain track summary; colorized rendering lives in console."""
@@ -89,20 +84,54 @@ class AbletonTrack:
             f"Height {self.height or '-':>3}, Unfolded: {self.unfolded}"
         )
 
+    def _owner(self, member: enum.StrEnum) -> ET.Element | None:
+        """The element ``member`` is relative to: the track, or its mixer."""
+        if isinstance(member, Track):
+            return self.track_root
+        if isinstance(member, Mixer):
+            return self.track_root.find(path(Tag.DEVICE_CHAIN, Tag.MIXER))
+        raise TypeError(f"{type(member).__name__}.{member.name} is not a Track or Mixer setting")
+
+    def setting(self, member: enum.StrEnum, **indices: int) -> Setting:
+        """A setting of this track or of its mixer: ``setting(Track.COLOR)``, ``setting(Mixer.VOLUME)``.
+
+        One in a list (an automation lane, a send) takes its position:
+        ``setting(Mixer.SEND, index=0)``.
+        """
+        owner = self._owner(member)
+        if owner is None:
+            raise ElementNotFound(f"{self.type} {self.id} has no mixer")
+        return resolve(owner, member, self.version, indices, owner_tag=self.type, label=self.type)
+
+    def find_setting(self, member: enum.StrEnum, **indices: int) -> Setting | None:
+        """:meth:`setting`, or None where this track has no such setting."""
+        owner = self._owner(member)
+        if owner is None:
+            return None
+        return find(owner, member, self.version, indices, owner_tag=self.type, label=self.type)
+
+    def every(self, member: enum.StrEnum) -> list[Setting]:
+        """``member`` at every position of its list: every automation lane, every send."""
+        owner = self._owner(member)
+        return [] if owner is None else every(owner, member, self.version, owner_tag=self.type)
+
+    def _raw(self, member: enum.StrEnum) -> str | None:
+        setting = self.find_setting(member)
+        return None if setting is None else setting.raw
+
     @property
     def color(self) -> int:
-        """Return color index, -1 when the element is missing."""
-        if (clr := self.track_root.find(self.color_element)) is not None:
-            return int(clr.get(Attr.VALUE, 0))
-        return -1
+        """Return color index, -1 when the track has none."""
+        color = self._raw(Track.COLOR)
+        return -1 if color is None else int(color)
 
     @color.setter
     def color(self, value: int) -> None:
         """Set color for track."""
         if not 0 <= value <= 69:
             raise ValueError("Color index must be within 0 - 69")
-        if (clr_element := self.track_root.find(self.color_element)) is not None:
-            clr_element.set(Attr.VALUE, str(value))
+        if (setting := self.find_setting(Track.COLOR)) is not None:
+            setting.set(value)
 
     def clips_clipview(self) -> Iterator[ET.Element]:
         """Iterate through all the clips in the clip view."""
@@ -121,17 +150,24 @@ class AbletonTrack:
             return
         yield from events.clips()
 
-    def clip_clipview_colors(self) -> Iterator[ET.Element]:
-        """Yield clipview color elements from current track."""
-        for clip in self.clips_clipview():
-            if (color_element := clip.find(f".//{self.color_element}")) is not None:
-                yield color_element
+    def _session_clips(self) -> Iterator[ET.Element]:
+        for slot in sections.session_slots(self.track_root):
+            value = slot.find(path(Tag.CLIP_SLOT, Tag.VALUE))
+            if value is not None:
+                yield from value
 
-    def clip_arangement_colors(self) -> Iterator[ET.Element]:
-        """Yield arrangement color elements from current track."""
-        for clip in self.clips_arrangement():
-            if (color_element := clip.find(f".//{self.color_element}")) is not None:
-                yield color_element
+    def _clip_colors(self, clips: Iterable[ET.Element]) -> Iterator[Setting]:
+        for clip in clips:
+            if (color := find(clip, Clip.COLOR, self.version)) is not None:
+                yield color
+
+    def clip_clipview_colors(self) -> Iterator[Setting]:
+        """The color of every session clip on this track."""
+        return self._clip_colors(self._session_clips())
+
+    def clip_arangement_colors(self) -> Iterator[Setting]:
+        """The color of every arrangement clip on this track."""
+        return self._clip_colors(self.clips_arrangement())
 
 
 class Tracks:
@@ -150,98 +186,113 @@ class Tracks:
         return self._set.root
 
     def load(self) -> list[AbletonTrack]:
-        """Parse all tracks, cached."""
+        """Parse all tracks, cached: the set's own, returns included, main and cue left out."""
         if self._loaded is None:
             tracks_element = get_element(self._root, path(Tag.LIVE_SET, Tag.TRACKS), silent_error=False)
             self._loaded = [AbletonTrack(track, self.version) for track in tracks_element]
         return self._loaded
 
+    def main(self) -> AbletonTrack:
+        """The main track, ``MainTrack`` or, before Live 12, ``MasterTrack``."""
+        for tag in MAIN_TRACK_TAGS:
+            if (element := self._root.find(path(Tag.LIVE_SET, tag))) is not None:
+                return AbletonTrack(element, self.version)
+        raise ElementNotFound("the set has no main track")
+
+    def cue(self) -> AbletonTrack | None:
+        """The cue (pre-hear) track; some sets carry none."""
+        element = self._root.find(path(Tag.LIVE_SET, Tag.PRE_HEAR_TRACK))
+        return None if element is None else AbletonTrack(element, self.version)
+
+    def walk(self, *, cue: bool = False) -> list[AbletonTrack]:
+        """Every track, then the main track, then the cue track when ``cue`` asks for it."""
+        tracks = [*self.load(), self.main()]
+        if cue and (cue_track := self.cue()) is not None:
+            tracks.append(cue_track)
+        return tracks
+
     def set_heights(self, height: int) -> int:
         """Set every arrangement lane height; returns elements changed."""
         height = min(425, (max(17, height)))  # Clamp to valid range.
-        elements = list(self._root.iter(Tag.LANE_HEIGHT))
-        for el in elements:
-            el.set(Attr.VALUE, str(height))
+        lanes = [lane for track in self.walk(cue=True) for lane in track.every(Track.LANE_HEIGHT)]
+        for lane in lanes:
+            lane.set(height)
         logger.info("%sSet track heights to %s.", G, height)
-        return len(elements)
+        return len(lanes)
 
     def set_widths(self, width: int) -> int:
         """Set every clip-view track width; returns elements changed."""
         width = min(264, (max(17, width)))  # Clamp to valid range.
-        elements = list(self._root.iter(schema.tag("track_width", self.version)))
-        for el in elements:
-            el.set(Attr.VALUE, str(width))
-        logger.info("%sSet track widths to %s.", G, width)
-        return len(elements)
-
-    def _group_fold_elements(self) -> list[ET.Element]:
-        """Group-track collapse flags. Distinct from TrackUnfolded: IsFolded on the
-        group's own mixer is what collapses the group, and it reads inverted."""
-        return [
-            is_folded
-            for group in self._root.findall(path(Tag.LIVE_SET, Tag.TRACKS, Tag.GROUP_TRACK))
-            if (is_folded := group.find(path(Tag.DEVICE_CHAIN, Tag.MIXER, Tag.IS_FOLDED))) is not None
+        widths = [
+            setting
+            for track in self.walk(cue=True)
+            if (setting := track.find_setting(Mixer.VIEW_STATE_SESSION_TRACK_WIDTH)) is not None
         ]
+        for setting in widths:
+            setting.set(width)
+        logger.info("%sSet track widths to %s.", G, width)
+        return len(widths)
+
+    def _fold_settings(self) -> tuple[list[Setting], list[Setting]]:
+        """Every track's ``TrackUnfolded``, and every group's collapse flag.
+
+        A group collapses through ``IsFolded`` on its own mixer, which reads
+        inverted and is distinct from ``TrackUnfolded``.
+        """
+        unfolded = [
+            setting
+            for track in self.walk(cue=True)
+            if (setting := track.find_setting(Track.TRACK_UNFOLDED)) is not None
+        ]
+        group_folds = [
+            setting
+            for track in self.load()
+            if track.type == Tag.GROUP_TRACK and (setting := track.find_setting(Mixer.IS_FOLDED)) is not None
+        ]
+        return unfolded, group_folds
 
     def fold(self) -> int:
         """Fold all tracks and collapse group tracks; returns elements changed."""
-        elements = list(self._root.iter(Tag.TRACK_UNFOLDED))
-        for el in elements:
-            el.set(Attr.VALUE, "false")
-        group_folds = self._group_fold_elements()
-        for el in group_folds:
-            el.set(Attr.VALUE, "true")
+        unfolded, group_folds = self._fold_settings()
+        for setting in unfolded:
+            setting.set(False)
+        for setting in group_folds:
+            setting.set(True)
         logger.info("%sFolded all tracks.", G)
-        return len(elements) + len(group_folds)
+        return len(unfolded) + len(group_folds)
 
     def unfold(self) -> int:
         """Unfold all tracks and expand group tracks; returns elements changed."""
-        elements = list(self._root.iter(Tag.TRACK_UNFOLDED))
-        for el in elements:
-            el.set(Attr.VALUE, "true")
-        group_folds = self._group_fold_elements()
-        for el in group_folds:
-            el.set(Attr.VALUE, "false")
+        unfolded, group_folds = self._fold_settings()
+        for setting in unfolded:
+            setting.set(True)
+        for setting in group_folds:
+            setting.set(False)
         logger.info("%sUnfolded all tracks.", G)
-        return len(elements) + len(group_folds)
+        return len(unfolded) + len(group_folds)
 
     def set_audio_output(self, output_number: int, element_string: str) -> None:
-        """Route the master or cue track to a stereo output pair."""
+        """Route the main or cue track to a stereo output pair."""
         if output_number not in STEREO_OUTPUTS:
             raise ValueError(f"{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}")
-        if element_string == Tag.MASTER_TRACK:
-            element_string = schema.tag("master_track", self.version)
+        track = self.main() if element_string in MAIN_TRACK_TAGS else self.cue()
         # Some sets carry no cue track at all (seen in real 10.1 sets); nothing to route.
-        if self._root.find(path(Tag.LIVE_SET, element_string)) is None:
+        if track is None:
             logger.warning("%sSet has no %s, skipping audio output routing.", R, element_string)
             return
         output_obj = STEREO_OUTPUTS[output_number]
-        out_target_element = get_element(
-            self._root,
-            path(Tag.LIVE_SET, element_string, Tag.DEVICE_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.TARGET),
-            silent_error=True,
-        )
-        if not isinstance(out_target_element, ET.Element):
-            out_target_element = get_element(  # ableton 8 sets use "MasterChain" for master track.
-                self._root,
-                path(Tag.LIVE_SET, element_string, Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.TARGET),
-            )
-            lower_display_string_element = get_element(
-                self._root,
-                path(
-                    Tag.LIVE_SET, element_string, Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.LOWER_DISPLAY_STRING
-                ),
-            )
+        target = track.find_setting(Track.AUDIO_OUTPUT_ROUTING_TARGET)
+        label = track.find_setting(Track.AUDIO_OUTPUT_ROUTING_LOWER_DISPLAY_STRING)
+        if target is not None and label is not None:
+            target.set(output_obj["target"])
+            label.set(output_obj["lower_display_string"])
         else:
-            lower_display_string_element = get_element(
-                self._root,
-                path(
-                    Tag.LIVE_SET, element_string, Tag.DEVICE_CHAIN, Tag.AUDIO_OUTPUT_ROUTING, Tag.LOWER_DISPLAY_STRING
-                ),
-            )
-        out_target_element.set(Attr.VALUE, output_obj["target"])
-        lower_display_string_element.set(Attr.VALUE, output_obj["lower_display_string"])
-        logger.info("%sSet %s to %s", G, element_string, output_obj["lower_display_string"])
+            # Live 8 kept the main track's routing on MasterChain, older than any
+            # set the census read, so it is addressed by hand.
+            routing = get_element(track.track_root, path(Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING))
+            get_element(routing, Tag.TARGET).set(Attr.VALUE, output_obj["target"])
+            get_element(routing, Tag.LOWER_DISPLAY_STRING).set(Attr.VALUE, output_obj["lower_display_string"])
+        logger.info("%sSet %s to %s", G, track.type, output_obj["lower_display_string"])
 
     def gradient(self) -> None:
         """Make a rough gradient across tracks and their clips using built in colors."""
@@ -251,10 +302,10 @@ class Tracks:
 
             clipview_clr_elements = list(track.clip_clipview_colors())
             clip_view_gradient = colors.create_gradient_ableton(len(clipview_clr_elements), starting_index=clr_ind)
-            for sub_ind, clip_clr_ele in zip(clip_view_gradient, clipview_clr_elements, strict=False):
-                clip_clr_ele.set(Attr.VALUE, str(sub_ind))
+            for sub_ind, clip_color in zip(clip_view_gradient, clipview_clr_elements, strict=False):
+                clip_color.set(sub_ind)
 
             arangement_clr_elements = list(track.clip_arangement_colors())
             clip_view_gradient = colors.create_gradient_ableton(len(arangement_clr_elements), starting_index=clr_ind)
-            for sub_ind, clip_clr_ele in zip(clip_view_gradient, arangement_clr_elements, strict=False):
-                clip_clr_ele.set(Attr.VALUE, str(sub_ind))
+            for sub_ind, clip_color in zip(clip_view_gradient, arangement_clr_elements, strict=False):
+                clip_color.set(sub_ind)
