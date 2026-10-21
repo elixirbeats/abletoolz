@@ -92,6 +92,7 @@ class RepairStatus(enum.StrEnum):
     UNSUPPORTED_PAIR = "unsupported_pair"
     SET_TOO_OLD_FOR_TARGET = "set_too_old_for_target"
     INCOMPLETE_DEVICE = "incomplete_device"
+    PARAMETER_TRANSLATION_REQUIRED = "parameter_translation_required"
     MAPPED_NOT_BROKEN = "mapped_not_broken"
     OK = "ok"
 
@@ -165,6 +166,10 @@ class RepairReport:
     @property
     def incomplete_device_count(self) -> int:
         return len(self.by_status(RepairStatus.INCOMPLETE_DEVICE))
+
+    @property
+    def parameter_translation_required_count(self) -> int:
+        return len(self.by_status(RepairStatus.PARAMETER_TRANSLATION_REQUIRED))
 
     @property
     def mapped_not_broken_count(self) -> int:
@@ -259,6 +264,38 @@ def _suggestion_with_state(source_name: str, target_name: str) -> str:
 # -- whole set --------------------------------------------------------------
 
 
+def parameter_translation_required(
+    info: ET.Element,
+    owner: ET.Element | None,
+    referenced_ids: frozenset[str],
+) -> bool:
+    """Whether changing plugin format needs a mapper for saved control IDs.
+
+    ``owner`` is the surrounding PluginDevice. ``referenced_ids`` contains the
+    document's PointeeId values, including references outside that device.
+    """
+    if owner is None or owner.tag != "PluginDevice":
+        return True
+    if any(len(settings) for settings in info.findall("Preset/*/ParameterSettings")):
+        return True
+    parameters = owner.find("ParameterList")
+    if parameters is None:
+        return False
+    if parameters.find(".//KeyMidi") is not None:
+        return True
+    targets: set[str] = set()
+    for parameter in parameters:
+        parameter_id = parameter.find("ParameterId")
+        if parameter_id is None or parameter_id.get("Value") != "-1":
+            return True
+        targets.update(
+            element.attrib["Id"]
+            for element in parameter.iter()
+            if element.tag in ("AutomationTarget", "ModulationTarget") and "Id" in element.attrib
+        )
+    return not targets.isdisjoint(referenced_ids)
+
+
 def repair_set(
     live_set: AbletonSet,
     *,
@@ -285,13 +322,18 @@ def repair_set(
 
     Devices ``loadable`` accepts are never touched, whether or not they are
     mapped: repair fixes what is broken and leaves working devices alone. The
-    caller saves.
+    caller saves. Configured, mapped or referenced controls require an explicit
+    parameter translation before their plugin format can change.
     """
     table: dict[str, ConfiguredTarget] = dict(KNOWN_TRANSLATIONS)
     table.update(targets or {})
     version = live_set.version_tuple
     known_names = uid_lookup.names() if uid_lookup is not None else frozenset[str]()
     actions: list[DeviceRepair] = []
+    parents = {child: parent for parent in live_set.root.iter() for child in parent}
+    referenced_ids = frozenset(
+        element.attrib["Value"] for element in live_set.root.iter("PointeeId") if "Value" in element.attrib
+    )
 
     for info, source in device_infos(live_set):
         name = read_identity(info).name
@@ -337,9 +379,7 @@ def repair_set(
             )
             continue
 
-        # Last, because it is the only refusal a user can act on today: the
-        # others need a translator or a plugin, this one needs the set opened in
-        # Live and saved.
+        # A schema mismatch makes the entire document invalid.
         if not set_supports(configured.to_format, version):
             actions.append(
                 DeviceRepair(
@@ -357,6 +397,20 @@ def repair_set(
         if target is None:
             actions.append(
                 DeviceRepair(track, source, name, RepairStatus.BROKEN_NO_UID, configured.to_format, configured.name)
+            )
+            continue
+
+        owner = parents.get(parents[info]) if info in parents else None
+        if source is not target.to_format and parameter_translation_required(info, owner, referenced_ids):
+            actions.append(
+                DeviceRepair(
+                    track,
+                    source,
+                    name,
+                    RepairStatus.PARAMETER_TRANSLATION_REQUIRED,
+                    target.to_format,
+                    target.name,
+                )
             )
             continue
 

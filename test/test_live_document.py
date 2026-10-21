@@ -61,6 +61,12 @@ def test_bytes_that_are_not_a_document_say_so(data: bytes) -> None:
         live_document.parse(data)
 
 
+@pytest.mark.parametrize("data", [b"\x1f\x8b\x08\0", gzip.compress(b"<Ableton/>")[:-5]])
+def test_truncated_gzip_uses_the_document_error_contract(data: bytes) -> None:
+    with pytest.raises(FormatError, match="corrupt or truncated gzip"):
+        live_document.parse(data)
+
+
 def test_a_read_error_names_the_file(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "broken.alc"
     path.write_bytes(b"nope")

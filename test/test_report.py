@@ -9,6 +9,7 @@ it, not a gap between two fixes.
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 from collections import Counter
 from typing import Any
@@ -16,6 +17,7 @@ from typing import Any
 import pytest
 
 from abletoolz import cli
+from abletoolz.formats import live_document
 from abletoolz.live_set import plugins
 from abletoolz.plugins import PluginKind, repair
 from abletoolz.plugins.config import AbletoolzConfig
@@ -212,6 +214,40 @@ def test_an_unmapped_broken_device_is_a_refusal_too(monkeypatch: pytest.MonkeyPa
     reasons = document["totals"]["refusals_by_reason"]
     assert reasons["broken_unmapped"] >= 1
     assert {refusal["device"] for refusal in document["sets"][0]["refusals"]} >= {"Effectrix"}
+
+
+def test_configured_controls_are_a_reported_refusal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    copy = copy_set(tmp_path, "11.3.42", "configured.als")
+    root = live_document.read(copy)
+    info = next(
+        element
+        for element in root.iter("VstPluginInfo")
+        if (name := element.find("PlugName")) is not None and name.get("Value") == "Serum_x64"
+    )
+    parents = {child: parent for parent in root.iter() for child in parent}
+    parameter_id = parents[parents[info]].find("ParameterList/PluginFloatParameter/ParameterId")
+    assert parameter_id is not None
+    parameter_id.set("Value", "0")
+    copy.write_bytes(live_document.encode(root))
+    before = copy.read_bytes()
+    caplog.set_level(logging.INFO)
+    assert run_cli(monkeypatch, str(copy), "--repair-plugins") == 0
+
+    document = read_report(tmp_path)
+    record = document["sets"][0]
+    assert not record["changed"]
+    refused = [refusal for refusal in record["refusals"] if refusal["reason"] == "parameter_translation_required"]
+    assert len(refused) == 1
+    assert refused[0]["device"] == "Serum_x64"
+    assert refused[0]["target_format"] == "vst3"
+    assert refused[0]["target_name"] == "Serum"
+    assert document["totals"]["refusals_by_reason"]["parameter_translation_required"] == 1
+    assert document["totals"]["fixes"] == 0
+    assert record["plugins_missing"]["Serum_x64"] == 1
+    assert "A parameter translation is required" in caplog.text
+    assert copy.read_bytes() == before
 
 
 # -- where it goes -----------------------------------------------------------

@@ -42,6 +42,7 @@ REFUSALS = (
     RepairStatus.UNSUPPORTED_PAIR,
     RepairStatus.SET_TOO_OLD_FOR_TARGET,
     RepairStatus.INCOMPLETE_DEVICE,
+    RepairStatus.PARAMETER_TRANSLATION_REQUIRED,
 )
 
 

@@ -135,7 +135,7 @@ def test_fold_and_unfold_tracks(key: str) -> None:
     assert len(folded) == EXPECTED[key]["track_unfolded_count"]
     assert folded and all(value == "false" for value in folded)
     group_folds = [
-        group.find("DeviceChain/Mixer/IsFolded").get("Value")
+        get_element(group, "DeviceChain/Mixer/IsFolded").get("Value")
         for group in ableton_set.root.findall("LiveSet/Tracks/GroupTrack")
         if group.find("DeviceChain/Mixer/IsFolded") is not None
     ]
@@ -144,7 +144,7 @@ def test_fold_and_unfold_tracks(key: str) -> None:
     ableton_set.tracks.unfold()
     assert all(el.get("Value") == "true" for el in ableton_set.root.iter("TrackUnfolded"))
     assert all(
-        group.find("DeviceChain/Mixer/IsFolded").get("Value") == "false"
+        get_element(group, "DeviceChain/Mixer/IsFolded").get("Value") == "false"
         for group in ableton_set.root.findall("LiveSet/Tracks/GroupTrack")
         if group.find("DeviceChain/Mixer/IsFolded") is not None
     )
@@ -191,14 +191,15 @@ def test_a_vst3_target_lands_only_where_the_schema_declares_vst3(key: str) -> No
     Below the measured floor the answer must be a refusal and an untouched file:
     a set whose schema never declared ``Vst3PluginInfo`` is rejected by Live
     outright once one is written into it, so the whole document is at stake, not
-    the one device. At or above the floor the same mapping has to still work.
+    the one device. At or above the floor, configured controls require a
+    parameter translation and unassigned placeholders permit the conversion.
     """
     ableton_set = make_set(key)
     version = tuple(EXPECTED[key]["version"])
     names = {get_element(info, "PlugName", attribute="Value") for info in ableton_set.root.iter("VstPluginInfo")}
     if not names:
         pytest.skip(f"{key} carries no VST2 devices to map")
-    before = [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")]
+    before = [(info, ET.tostring(info)) for info in ableton_set.root.iter("VstPluginInfo")]
 
     report = repair_set(
         ableton_set,
@@ -206,12 +207,25 @@ def test_a_vst3_target_lands_only_where_the_schema_declares_vst3(key: str) -> No
         loadable=lambda _info: False,
     )
     if set_supports(PluginKind.VST3, version):
-        assert report.fixed_count == len(before)
+        configured_devices = {
+            "10.1.18": 8,
+            "10.1.30": 3,
+            "11.0.0": 4,
+            "11.0.12": 9,
+            "11.3.42": 0,
+            "12.2.6": 1,
+            "12.4.5b": 2,
+        }
+        assert report.parameter_translation_required_count == configured_devices[key]
+        assert report.fixed_count + report.parameter_translation_required_count == len(before)
         assert report.set_too_old_count == 0
+        assert all(ET.tostring(info) == original for info, original in before if info.tag == "VstPluginInfo")
     else:
         assert report.set_too_old_count == len(before)
         assert report.fixed_count == 0
-        assert [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")] == before
+        assert [ET.tostring(info) for info in ableton_set.root.iter("VstPluginInfo")] == [
+            original for _info, original in before
+        ]
         assert not list(ableton_set.root.iter("Vst3PluginInfo"))
 
 

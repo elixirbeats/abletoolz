@@ -526,6 +526,62 @@ def test_a_broken_mapped_device_is_fixed() -> None:
     assert vst3_names(live_set) >= {"Serum"}
 
 
+@pytest.mark.parametrize(
+    "control",
+    ["configured", "missing_id", "midi", "automation_reference", "modulation_reference", "preset_settings"],
+)
+def test_format_repair_refuses_controls_without_a_parameter_translation(control: str) -> None:
+    live_set = make_set("11.3.42")
+    info = vst2_info(live_set, "Serum_x64")
+    parents = {child: parent for parent in live_set.root.iter() for child in parent}
+    owner = parents[parents[info]]
+    parameter = get_element(owner, "ParameterList/PluginFloatParameter")
+    parameter_id = get_element(parameter, "ParameterId")
+    assert parameter_id.get("Value") == "-1"
+    match control:
+        case "configured":
+            parameter_id.set("Value", "0")
+        case "missing_id":
+            parameter.remove(parameter_id)
+        case "midi":
+            ET.SubElement(get_element(parameter, "ParameterValue"), "KeyMidi")
+        case "automation_reference" | "modulation_reference":
+            target_tag = "AutomationTarget" if control == "automation_reference" else "ModulationTarget"
+            target_id = get_element(parameter, f"ParameterValue/{target_tag}").get("Id")
+            assert target_id is not None
+            envelope = ET.SubElement(live_set.root, "AutomationEnvelope")
+            ET.SubElement(envelope, "PointeeId", Value=target_id)
+        case "preset_settings":
+            ET.SubElement(get_element(info, "Preset/VstPreset/ParameterSettings"), "Parameter")
+    before = ET.tostring(live_set.root)
+    report = repair_set(
+        live_set,
+        uid_lookup=UidLookup(),
+        loadable=lambda element: read_identity(element).name != "Serum_x64",
+    )
+    action = only(report, "Serum_x64")
+    assert action.status is RepairStatus.PARAMETER_TRANSLATION_REQUIRED
+    assert action.target_name == "Serum"
+    assert action.target_format is PluginKind.VST3
+    assert action.state is None
+    assert report.parameter_translation_required_count == 1
+    assert report.fixed_count == 0
+    assert ET.tostring(live_set.root) == before
+
+
+def test_format_repair_keeps_unassigned_unreferenced_placeholders() -> None:
+    live_set = make_set("11.3.42")
+    info = vst2_info(live_set, "Serum_x64")
+    parents = {child: parent for parent in live_set.root.iter() for child in parent}
+    parameters = get_element(parents[parents[info]], "ParameterList")
+    assert all(element.get("Value") == "-1" for element in parameters.iter("ParameterId"))
+    ET.SubElement(live_set.root, "PointeeId", Value="unrelated-target")
+    before = ET.tostring(parameters)
+    report = repair_set(live_set, uid_lookup=UidLookup(), loadable=nothing_loads)
+    assert only(report, "Serum_x64").status is RepairStatus.FIXED
+    assert ET.tostring(parameters) == before
+
+
 def test_a_broken_unmapped_device_is_reported_and_left_alone() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Effectrix")
@@ -618,6 +674,9 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     loadable_names = {"EchoBoy", "RatshackReverb2 x64"}
     # A device only ever written down as a stub.
     make_stub(vst2_info(live_set, "Sonalksis MaxLimit"))
+    parents = {child: parent for parent in live_set.root.iter() for child in parent}
+    safe_device = parents[parents[vst2_info(live_set, "Crystallizer")]]
+    get_element(safe_device, "ParameterList").clear()
 
     def loadable(info: ET.Element) -> bool:
         return read_identity(info).name in loadable_names
@@ -631,6 +690,7 @@ def test_every_status_is_reachable_in_one_pass() -> None:
             "Sonalksis MaxLimit": TranslationTarget(PluginKind.VST3, "MaxLimit", OTHER_FIELDS),
             # A pair with no translator: the user said it, abletoolz cannot do it.
             "CamelCrusher": TranslationTarget(PluginKind.AU, "CamelCrusher", OTHER_FIELDS),
+            "FabFilter Pro-L.64": TranslationTarget(PluginKind.VST3, "Pro-L 2", OTHER_FIELDS),
         },
         uid_lookup=UidLookup((UidSource("test", {"EchoBoy": OTHER_FIELDS, "Pro-R": SERUM_FIELDS}),)),
         loadable=loadable,
@@ -642,6 +702,7 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     assert statuses["CamelCrusher"] is RepairStatus.UNSUPPORTED_PAIR
     assert statuses["EchoBoy"] is RepairStatus.MAPPED_NOT_BROKEN
     assert statuses["RatshackReverb2 x64"] is RepairStatus.OK
+    assert statuses["FabFilter Pro-L.64"] is RepairStatus.PARAMETER_TRANSLATION_REQUIRED
     assert set(statuses.values()) == set(RepairStatus) - {RepairStatus.SET_TOO_OLD_FOR_TARGET}
     # A VST3 device whose name a class id source knows becomes a suggestion too.
     assert any(line.startswith('"Pro-R": {to: vst3, name: "Pro-R"}') for line in report.suggestions)
@@ -747,19 +808,18 @@ def test_a_stub_device_is_reported_rather_than_translated() -> None:
 
 
 def test_a_stub_device_does_not_stop_the_devices_around_it() -> None:
-    live_set = make_set("10.1.18")
-    make_stub(vst2_info(live_set, "Crystallizer"))
+    live_set = make_set("11.3.42")
+    make_stub(vst2_info(live_set, "Serum_x64"))
     report = repair_set(
         live_set,
         targets={
-            "Crystallizer": TranslationTarget(PluginKind.VST3, "Crystallizer", OTHER_FIELDS),
-            "EchoBoy": TranslationTarget(PluginKind.VST3, "EchoBoy", SERUM_FIELDS),
+            "Effectrix": TranslationTarget(PluginKind.VST3, "Effectrix", OTHER_FIELDS),
         },
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
-    assert only(report, "Crystallizer").status is RepairStatus.INCOMPLETE_DEVICE
-    assert only(report, "EchoBoy").status is RepairStatus.FIXED
+    assert only(report, "Serum_x64").status is RepairStatus.INCOMPLETE_DEVICE
+    assert only(report, "Effectrix").status is RepairStatus.FIXED
 
 
 def test_translating_a_stub_on_purpose_refuses_loudly() -> None:

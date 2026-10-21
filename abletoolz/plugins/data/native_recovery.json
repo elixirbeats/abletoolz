@@ -1,0 +1,713 @@
+[
+  {
+    "id": "dubstation-15-native-x64",
+    "source_names": [
+      "DubStation_15 x64.64",
+      "DubStation_15.64"
+    ],
+    "unique_id": 1095001141,
+    "parameter_count": 11,
+    "program_count": 20,
+    "preset_type": "FBCh",
+    "states": [
+      {
+        "sha256": "0c5968803a7cb5aacd068ca97bb4703a330bfe302a7c4e4dd9dd0902eceb0e02",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "0f3690452df4867c6b34a063d1deda40b7b716ba8b9f807555d0fc72c1aa7206",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "12b2ed3eae34e3b37360b1b3140af2099bab293ab7f549a031c08ef8cf2a08ba",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "33255fbcd69e59b95747c9ef19ce39c0a1c18217b6cf253378db00ac787f442f",
+        "program_numbers": [
+          5
+        ]
+      },
+      {
+        "sha256": "347edc8702a72cdbae0c1e4b10b2e396256f49357d8720a030c2ffc4ebfcb2c8",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "4357de5581cadfaf5300e336e503e5557e1ee01b9221300c61a89ddb6c51e0f4",
+        "program_numbers": [
+          13
+        ]
+      },
+      {
+        "sha256": "5cebdb6c0eced58e2294d48f1d4b2995697cff5d66203bad1ef9d08791b0499f",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "65455174adc731c1eafdda16a352425a0151a945d668f8b58e8eed767ffce040",
+        "program_numbers": [
+          12
+        ]
+      },
+      {
+        "sha256": "85735b8e20045ae6b9f514df80a5a4d74430561671ec9b8b43d6487da05e1498",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "97c183ded697480a38f7da5c8cfb98f2dee1a242a3f1e774d922c50674d66874",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "9b695e6cd34b1fd6fab154e83d3bf33cdf5bbac9b69741eb67992efd469a845e",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "ab74f082f93b3b9aabba1eef4ffa8f6d6f27d1e5e2b3a63f53518f0aca981dc0",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "bbfd7503785124140390b2ed5b5e18e8e75a82bc0bc2b0f4eb96f9b812033210",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "bd247ed7b9508972b9de1b2fdf61040ecc214eaa498d2d17d7f12bf5105b10f7",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "c642a6130cef30e1ada5fc4a69d16913c40d7033e170c791d132d32c5bacada4",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "c9497190d3bd27a68e3b3e9c562b3aa762752e775288e764644eae6e8523c33b",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "c9c9d68af007d61e461a2febf47ce75e6b589efeb3666905334c5414951b3e74",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "d9030e5aeffb0a40a281973a1b25bb5d93f7fbe6bae7def39cdf39a2322f0502",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e9728849f6eb6a66ff212ba88dd0161823e436e1fc35662bbb5d8363568eb11c",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "eaa9652c5c664842fc256696382ffd72ac3d0ddcece2e5fdd0adc2a6b4ac309c",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "ef69c6fb1c66a51ae0c002ce8eff185e51897c7ba49f0ea0ab9905728b7a4bb1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "f2e868986f739fb9beaff6bb7113f2d616e20a78c07e38e316bf00a7a09a475d",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "fbfbbecd140087a5e41f3a80e7af33fcb157e807ebf95273e375cd9241c6775c",
+        "program_numbers": [
+          0,
+          5
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "DubStation_15 x64.dll",
+        "name": "DubStation_15 x64",
+        "sha256": "ff930678c7a5c1a096f4a78c52f02ec8a73263548a1c3a7c053e32549732de7a"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "satson-channel-native-x64",
+    "source_names": [
+      "SatsonChannel.64"
+    ],
+    "unique_id": 1398883121,
+    "parameter_count": 10,
+    "program_count": 6,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "5e2daeed49296fa8daf06f22f254177fab24c8c0bed70eaaf228c76bdd93adc1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "6c6153ea11ba8ee8ab7b841db911068f2fa7591d23e49d2a61e6458ba1ddfdd1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "7e01b239a8d74981108dfea72534729742dc3ffc477320df5d2e1db464388da1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "86889c135e8e0f926d6bce8c2f72d9209f022c9710dca9174860fff231f91d56",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "8ded74e4ad334839d0ec26c1af55f0d6c3d950b17937521020efd7032a085495",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "b9574c12a2d63e0996c908601d8592378917c05bee7830f710be7923a6e968ce",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "c29561dbf4e962a065e3b551a61cdb42c93c44acda1ee31783ef93b27c49f29a",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "SatsonChannel_x64.dll",
+        "name": "SatsonChannel_x64",
+        "sha256": "b5975c12d8eea43f283ae61336b8cd08dfcff4ab372012cc018d24937d0b89b0"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "satson-buss-native-x64",
+    "source_names": [
+      "SatsonBuss.64"
+    ],
+    "unique_id": 1398882933,
+    "parameter_count": 5,
+    "program_count": 6,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "4e85c2379b67cac6e2f437694b7418851385b1638037549cecc174976e1b9370",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "SatsonBuss_x64.dll",
+        "name": "SatsonBuss_x64",
+        "sha256": "072f7d875283b19e3ec705e58cb88bd4926311140cd352678bd9cc562edceb18"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "ratshack-reverb2-native-x64",
+    "source_names": [
+      "RatshackReverb2 x64.64",
+      "RatshackReverb2.64"
+    ],
+    "unique_id": 1095004790,
+    "parameter_count": 6,
+    "program_count": 5,
+    "preset_type": "FBCh",
+    "states": [
+      {
+        "sha256": "08346150a0ced3297cb9ec272ec79dc26a4c6489633a0d839fd3c96efd9db2b8",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "852d6385248b00f121177fbaa2cc63801a3d0a1d06bb1dd5873232fac8c202a2",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "8fd101c2d0cf592cf44b5d33491babd12d07f86b4c74805e23a5af8f8b6b4350",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "9d0a9374375b10b9465780e6fb383f0f5496309aacbaa6fead7a3b204164f8c1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "a53d5998198fd7c2b37f04a07474dd29dcc08632cbea0c7f68adc48bb85a51d9",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "dac916f7966cd8396b74b3782b64b189671ecda535346bf1fef484852624e682",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "RatshackReverb2 x64.dll",
+        "name": "RatshackReverb2 x64",
+        "sha256": "0639a6196f88941ab491b22da6f7fc9ab4e3e5879e7cd6c6b9f70e0704ce37cb"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "permut8-native-x64",
+    "source_names": [
+      "Permut8.64"
+    ],
+    "unique_id": 1316311154,
+    "parameter_count": 21,
+    "program_count": 30,
+    "preset_type": "FBCh",
+    "states": [
+      {
+        "sha256": "41378782ce7d0f85fda6ee98b94652356014830846da54ed5b86b23d1cc21ea9",
+        "program_numbers": [
+          12
+        ]
+      },
+      {
+        "sha256": "a6e7325af887e2a53f008c1b20fb3ab7e401af8465345b1b4dfb1ffe8843853c",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e8e71861f82e59854ce44283644b714e9f71d5680acc122924de3cf120a6f2aa",
+        "program_numbers": [
+          0,
+          14
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "Permut8.dll",
+        "name": "Permut8",
+        "sha256": "af32955b9bf20bb47b014ec895b886d8409264fc07435123a2a8f24ce6e15add"
+      }
+    ],
+    "state_evidence": "program_float_preservation",
+    "notes": "Native x64 preserves 30 program names and 540 float32 words; selected program controls verified at native indices 3..20. Global controls 0..2 and 32-byte trailer are outside the bank-core checks. Original x86 audio equivalence unmeasured."
+  },
+  {
+    "id": "fabfilter-pro-mb-native-x64",
+    "source_names": [
+      "FabFilter Pro-MB x64.64",
+      "FabFilter Pro-MB.64"
+    ],
+    "unique_id": 1179667810,
+    "parameter_count": 150,
+    "program_count": 1,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "0888091c9fe5da7fb185bc1153621006f285ec73662dac61c283abe9bdc29937",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "0ba13406b430ed54d96bf8f911ecad42672a735324489dc431cb3b95ac621882",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "1174e96796a83113343a2e45df7cb152605e1b33b951500aa88e2be8c6c59463",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "13d2f6bd97df83d1e61740c44a1f5f42d9f10dc8e8cc76c76d6c590a42bdbdf1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "24f47541d2091cb49cfbba36477881daafa9e404406fdd4a86a97dd7b15ff5ff",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "2847df871d897c48bd78ab0a4792b2e499b2a8d028b93de652894d4309b40fcd",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "2baf536352396dd097d0f24cd4405d6387f1a4bfc6d797a32f057ab891449888",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "2e1a2219743865635f04ce72567b3ab25bbcd772c75cb41667e262b587b108e9",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "310653586217d5ea390597e9cbb39d18378df41cb9cf17180a847bbcace4392b",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "3888abed3cd8fb8ff042b330c078e20ed9e99be2bedb5bb07444e155f3ae7d2f",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "3e10937e63c1f5b776b4edab2b3e634d3c2b18f2f49d05d64f37a5b18c84e017",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "3f502bf602a77626d9fb2304600535e2bc914bfc764e0ff01235df151a55e776",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "475860fb4bbc1dc9de1d5ef737862d358fc7e83504168775a6668b0a59867f7f",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "49380a3fa25a93ea92a65508d322ee5557ae2d07f558176d67ade37cbb6f3c8d",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "598972f3609557f7c6c6fc2f6b3fa7cc46b28da3d3874083583ea7b0470240d4",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "8e7afef13a194cece2f1e66a8e23505c878df96eef1e4c4afa97182bc0df84d8",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "b763bcb82a09d767b514809b1d85b4ca640eba2b808a9a4e8315d9f3c0cffc0a",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "d30f2d96def7bf74269228744e25c18a2b7d434acc2116c30b03690628eccb97",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e5d8435683c122a2707b68f0bba7033c6d793d1345bd19b7c15f0d6429681441",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e714f586300428516804a42f1c9b0734b6d083b428ad915163986e607d87d3a8",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "fa246bccc2a3c8809e640f7eca0cf48edb50aa4909a3c2865c0c7190493966ae",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "FabFilter Pro-MB x64.dll",
+        "name": "FabFilter Pro-MB x64",
+        "sha256": "fbd3ab2dd799708aa52f763a62c381a82271930b0eef9e68006bf1cf28e0f199"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "fabfilter-pro-g-native-x64",
+    "source_names": [
+      "FabFilter Pro-G x64.64",
+      "FabFilter Pro-G.64"
+    ],
+    "unique_id": 1179666290,
+    "parameter_count": 35,
+    "program_count": 1,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "206ac90efd006c6562d1f267e3419fc7db476d9f54e2fc77617d5a6f3ad801b6",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "41de836a0a7cb0c5e92662ca6adb42c1794acd4b1ef746d4da7fc7f69110c886",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "4ed7e44c36efe9154914c858ec6a3841ce7a876e01afd45d81d30a006b2db9d5",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "6697f50f7eb6306dee300c9a199eac2189cb0858cd5e60d057d8da31e9953dce",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "6fcd863efacd7ffd529676a55ffc9e5741461867085cc9f5bded80e8efb908df",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "8d66378e92d22247f96b503516a66a0171bb5ae27edaced8204cd91f3758e4c1",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "8fabed7feac6467836803a1cee543dd98ad609c319774ed1de0b587ec0b05e54",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e7b9f89398ae17f8159e8d6f3890819958398c2a514f3d258591fedf09350c59",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "fdc9f339bc65e8217d25300a078597d1de0b7a98c2036c7504e7f52fde8238a6",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "FabFilter Pro-G x64.dll",
+        "name": "FabFilter Pro-G x64",
+        "sha256": "a94cbccd447ef43aef02e2aa7d2c0ce6427f6a441b54854ead8a0c9349c1c1c4"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "fabfilter-timeless2-native-x64",
+    "source_names": [
+      "FabFilter Timeless 2.64"
+    ],
+    "unique_id": 1179938163,
+    "parameter_count": 705,
+    "program_count": 1,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "17482741b46c5cfa7da1fb4cf76ce1ceea55242c94b0c6f2cd483ca289e48c8a",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "3707bd9e29b5b6ad948dae0bc6f37352d8ce575bcda35860934288ddaf8bf44f",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "7c6a6c381e59bb26abaa0b8de2c73fb39f1c472fcb813ca03741bfa84d4f9b69",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "81590898ca84c1dd8e787e0188b0fde930d20c9aa7a87194283d28692399cdea",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "85224ebf7267412c91713e56f6ff2a334b36ce115982a11bb351dd7a2fe3b6ab",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "bca6a33a4b7e5890cb63a71baba989f8653e6d57bfb8d373c9b58ff2440d39d3",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "dee3e4c1f189ac1b8e7df041ee29fca4a11d269589b481be6c7bfa290f48217e",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "e5b1828156ed7a3da1a9b65cc6c7892d0a72c66c018df8d9c8be2c2133a72423",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "FabFilter Timeless 2.dll",
+        "name": "FabFilter Timeless 2",
+        "sha256": "295db65d6ebca8f80f259fc0c479d567a4af87eb6081288867ec043fae388bd3"
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native x64 target preserves the measured source banks. ALS program selection verified through the public VST2 host. Original x86 DSP/audio equivalence has not been measured."
+  },
+  {
+    "id": "valhalla-shimmer-native-x64",
+    "source_names": [
+      "ValhallaShimmer.64"
+    ],
+    "unique_id": 1936223602,
+    "parameter_count": 12,
+    "program_count": 8,
+    "preset_type": "FBCh",
+    "states": [
+      {
+        "sha256": "1e95521d5b9811db6522f67de53413c4a5608e39d63f7a5a888e0a42e3a30903",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "3cf84ace75532dd7ab8f1b1e9ec3c5832bffc1b9b62633b3f2de891fd5d71d69",
+        "program_numbers": [
+          4
+        ]
+      },
+      {
+        "sha256": "71ad5b482811dd0e03306ec4ea18cb44b2fee27976be79734bf1a9efae59f97b",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "9ed179c41d25b29c4c8a7a377e49f70df72a6adc5c2ebeb122c681fcda61578d",
+        "program_numbers": [
+          5
+        ]
+      },
+      {
+        "sha256": "a1fbc9ee0a4236871c3c8be980d9e60bf9810877cba9a57517f81e7111a4d61f",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "a23f9ee00e52d878bab4127600e75c00799e04210284ef565ae59cb11f1f8c59",
+        "program_numbers": [
+          0
+        ]
+      },
+      {
+        "sha256": "cb01aafc162e33aa578646d322fd26a758ec135761d0a3ade575fabd94259013",
+        "program_numbers": [
+          2
+        ]
+      },
+      {
+        "sha256": "cbad974bdcc6360950d790f7107e15aa1624fe951ddeeae845ce5f065f53431d",
+        "program_numbers": [
+          0
+        ]
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "ValhallaShimmer_x64.dll",
+        "name": "ValhallaShimmer_x64",
+        "sha256": "76ed6a1ef415d4980823e4caaf8811268caa971cf94474298e2a0a60d139ae99"
+      }
+    ],
+    "state_evidence": "numeric_state_preservation",
+    "notes": "All 12 saved parameter float32 words and other numeric XML fields survive native x64 load and explicit program selection; decimal spelling normalizes. Outer ALS and embedded program selections agree. Original x86 audio equivalence unmeasured."
+  }
+]

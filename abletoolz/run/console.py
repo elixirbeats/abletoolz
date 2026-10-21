@@ -263,6 +263,19 @@ def render_repair(report: RepairReport) -> None:
             action.target_format,
             action.target_name,
         )
+    for action in report.by_status(RepairStatus.PARAMETER_TRANSLATION_REQUIRED):
+        logger.warning(
+            "%s%s[%s] %s%s%s has configured, mapped or referenced controls."
+            " A parameter translation is required before replacing it with %s %s.",
+            R,
+            C,
+            action.track,
+            Y,
+            action.source_name,
+            R,
+            action.target_format,
+            action.target_name,
+        )
     for action in report.by_status(RepairStatus.MAPPED_NOT_BROKEN):
         logger.info(
             "%s%s[%s] %s%s%s still loads, so it was left alone.",
@@ -283,6 +296,7 @@ def render_repair(report: RepairReport) -> None:
         + report.unsupported_pair_count
         + report.set_too_old_count
         + report.incomplete_device_count
+        + report.parameter_translation_required_count
     )
     color = G if not broken_left else Y
     logger.info(

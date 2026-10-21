@@ -10,12 +10,13 @@ It can:
 - Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your ableton sets.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
 - Validate all plugins in a set are installed.
+- Recover verified wrapped plugins to native versions in new set copies. `plugins routes` shows the available recovery paths.
 - Analyze plugin state with plugin-specific parsers, and fix what they understand — like sample paths inside a plugin's saved state that no longer exist on disk. `--list-parsers` shows what's registered.
 - Fold/Unfold all tracks, and/or set track height and widths.
 - Dump the XML of the set, in case you want to dissect how they are structured or contribute to this project : )
 
 It also:
-- Moves your original set files to a backup folder before writing any changes, so you are never at risk of losing anything.
+- Moves your original set files to a backup folder when saving with `--save`. The copy-writing commands require a new output path.
 - Supports both Windows and MacOS created sets.
 - Works on sets from Ableton 8.2 through Live 12, including current Live 12 betas (not every command works with the oldest versions).
 - Preserves the original set modification time.
@@ -137,6 +138,38 @@ Track type   AudioTrack, Name     3-Bass, Id   15, Group id   -1, Color  43, Wid
 Track type  ReturnTrack, Name   A-Reverb, Id    2, Group id   -1, Color  60, Width 120, Height  68, Unfolded: true
 ```
 
+### Plugin recovery copies
+
+`plugins` checks measured recovery paths for old wrapped VST2 devices and writes repaired copies without
+opening Live. Start by listing the routes, then inspect a set before writing:
+
+```powershell
+abletoolz plugins routes
+abletoolz plugins plan "song.als"
+abletoolz plugins repair "song.als" --output "sandbox/song recovered.als"
+```
+
+For a collection, pass a folder and use `--output-dir`. Copies retain paths relative to that input folder.
+If any planned output already exists, the batch stops before writing. Folders named `backup`, `Backup`
+or `abletoolz_backup` are skipped.
+
+```powershell
+abletoolz plugins repair "D:/sets" --output-dir "D:/sandbox/recovered"
+```
+
+Add `--plugin-dir "D:/VstPlugins"` to search only that folder and its subfolders; repeat it for multiple
+folders. Without it, the commands search the standard installation folders. Use, for example,
+`abletoolz plugins plan "song.als" --json` for structured results.
+
+The commands automatically match binaries and saved bank/program combinations against bundled verification
+records. The report explains unavailable targets and unresolved devices. Supported replacements retain the saved bank,
+selected program, configured controls and automation; other devices stay unchanged. Each copy gets a report
+beside it, such as `song recovered.als.recovery.json`, describing the replacements and their verification limits.
+
+These commands preserve the document version and all stored media references. Samples are not copied
+or relocated, so a sandbox copy may still need its original project assets. Native state readback does
+not establish sound equivalence with the missing original plugin.
+
 ### Plugin parsers (experimental)
 
 Plugin state inside a set is an opaque buffer per plugin; parsers teach abletoolz specific formats.
@@ -159,6 +192,9 @@ so nothing is guessed.
 `--repair-plugins` Replace the plugin devices Live can no longer load with what your mappings say they
 become, keeping the patch they were saved with. A device that still loads is left alone, and a broken device
 with no mapping is reported by name rather than guessed at. Use with `-s` to write changes.
+
+Format changes also require a control-index mapper when configured controls or automation are present.
+Without one, the device is reported as requiring parameter translation and is left unchanged.
 
 There is no format to choose on the command line, because the mapping says which way each plugin goes:
 

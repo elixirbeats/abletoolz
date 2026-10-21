@@ -22,6 +22,8 @@ from __future__ import annotations
 import gzip
 import os
 import pathlib
+import tempfile
+import zlib
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats.errors import FormatError
@@ -58,7 +60,10 @@ def parse(data: bytes) -> ET.Element:
     if magic == PRE_8_2_MAGIC:
         raise Pre82DocumentError("a document from before Live 8.2, which is not supported")
     if magic == GZIP_MAGIC:
-        xml = gzip.decompress(data)
+        try:
+            xml = gzip.decompress(data)
+        except (gzip.BadGzipFile, EOFError, zlib.error) as error:
+            raise FormatError("corrupt or truncated gzip Live document") from error
     elif magic == XML_MAGIC:
         xml = data
     else:
@@ -93,3 +98,18 @@ def write(path: pathlib.Path, document: bytes) -> None:
     tmp_path = path.with_name(path.name + ".tmp")
     tmp_path.write_bytes(document)
     os.replace(tmp_path, path)
+
+
+def write_new(path: pathlib.Path, document: bytes) -> None:
+    """Publish a complete new file atomically, refusing an existing destination."""
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    staging = pathlib.Path(temporary)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(document)
+            output.flush()
+            os.fsync(output.fileno())
+        # A hard link publishes the completed bytes without replacing a raced destination.
+        os.link(staging, path)
+    finally:
+        staging.unlink(missing_ok=True)

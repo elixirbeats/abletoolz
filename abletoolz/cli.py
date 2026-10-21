@@ -27,6 +27,7 @@ from abletoolz.plugins import (
     render_targets_yaml,
     survey_machine,
 )
+from abletoolz.plugins.commands import run_plugin_commands
 from abletoolz.plugins.identity import plugin_db
 from abletoolz.run import console, meta, report
 from abletoolz.samples import database
@@ -125,7 +126,11 @@ def is_valid_dir_path(path: str) -> str:
 
 def parse_arguments() -> argparse.Namespace:
     """Get command line arguments."""
-    parser = argparse.ArgumentParser(description=f"abletoolz {__version__}", add_help=True)
+    parser = argparse.ArgumentParser(
+        description=f"abletoolz {__version__}",
+        add_help=True,
+        epilog="Native plugin recovery: abletoolz plugins {routes,plan,repair} --help",
+    )
 
     # Input arguments.
     parser.add_argument(
@@ -740,6 +745,8 @@ def process(args: argparse.Namespace) -> int:
 
 def main() -> None:
     """Entry point to cli."""
+    if sys.argv[1:2] == ["plugins"]:
+        sys.exit(run_plugin_commands(sys.argv[2:]))
     args = parse_arguments()
 
     logging.getLogger("colormath").setLevel(logging.WARNING)
