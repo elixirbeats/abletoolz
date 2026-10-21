@@ -32,6 +32,7 @@ from abletoolz.plugins.container.format_translation import ConfiguredTarget
 from abletoolz.plugins.container.upgrade_rules import get_upgrade
 from abletoolz.plugins.identity.plugin_db import load_plugin_db
 from abletoolz.plugins.identity.uid_sources import UidLookup
+from abletoolz.plugins.migration import MigrationResult, Vst2Migration, apply_vst2_migration
 from abletoolz.plugins.repair import RepairReport, default_oracle, repair_set
 from abletoolz.samples.database import DatabaseT
 from abletoolz.schema import Attr, Tag, path
@@ -554,6 +555,16 @@ class Plugins:
                     logger.info("%sFixed plugin: %s", G, plugin.plugin_name)
                     fixed.append(DeviceStateFix(self.track_name(vst_element), plugin.plugin_name))
         return fixed
+
+    def migrate_vst2(self, device: int, migration: Vst2Migration) -> MigrationResult:
+        """Apply a prepared native chunk and installed identity; caller saves.
+
+        Configured plugin parameters require a separate translation. This
+        operation refuses them rather than retaining obsolete parameter IDs.
+        """
+        result = apply_vst2_migration(self._root, device, migration)
+        self._parent_map = None
+        return result
 
     def upgrade(self) -> list[DeviceUpgrade]:
         """Upgrade plugin references using rules from config.
