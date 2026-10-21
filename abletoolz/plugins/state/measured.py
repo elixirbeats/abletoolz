@@ -98,6 +98,7 @@ UNMEASURED = MeasuredState(StateRung.UNKNOWN, (StateEvidence.UNKNOWN,))
 _MEASURED_ON = datetime.date(2026, 8, 10)
 _HOSTED_ON = datetime.date(2026, 8, 13)
 _RE_ENCODED_ON = datetime.date(2026, 8, 15)
+_RECOVERED_PRO_Q2 = MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime.date(2026, 10, 20))
 
 
 def _heard(rung: StateRung, *also: StateEvidence) -> MeasuredState:
@@ -148,7 +149,9 @@ MEASURED_STATE: dict[str, MeasuredState] = {
     # load at all, so converting it is the only way its patch comes back.
     "FabFilter Pro-Q": _hosted(StateRung.RE_ENCODE, StateEvidence.EAR),
     "FabFilter Pro-Q.64": _hosted(StateRung.RE_ENCODE, StateEvidence.EAR),
-    "FabFilter Pro-Q 2 x64": _hosted(StateRung.RE_ENCODE),
+    "FabFilter Pro-Q 2 x64": _RECOVERED_PRO_Q2,
+    "FabFilter Pro-Q 2": _RECOVERED_PRO_Q2,
+    "FabFilter Pro-Q 2.64": _RECOVERED_PRO_Q2,
     "FabFilter Timeless 2": _hosted(StateRung.RE_ENCODE),
     "FabFilter Saturn": _hosted(StateRung.RE_ENCODE),
     # Pro-C 1 is the second product with a re-encode written for it, and the

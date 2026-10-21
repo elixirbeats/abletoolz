@@ -2,11 +2,11 @@
 
 The fourth state rung: nobody migrates the patch for you, so someone has to
 parse the source format and write the target's. This is that parser and that
-serializer, for Pro-Q 1 to Pro-Q 3 and for Pro-C 1 to Pro-C 2.
+serializer, for Pro-Q 1 and 2 to Pro-Q 3 and for Pro-C 1 to Pro-C 2.
 
 Two chunk generations
 ---------------------
-The older products -- Pro-Q 1, Pro-C 1 and 2, Pro-L 1, Pro-R, Pro-G, Pro-MB,
+The older products -- Pro-Q 1 and 2, Pro-C 1 and 2, Pro-L 1, Pro-R, Pro-G, Pro-MB,
 Micro, Saturn 1, Timeless 2, Volcano 2 -- expose no chunk of their own. What an
 ``.als`` stores for them is therefore the host's own stored-parameter bank,
 which is nothing to do with FabFilter and lives in
@@ -611,6 +611,89 @@ def pro_q1_to_pro_q3(payload: bytes) -> bytes:
 PRO_Q1_TO_PRO_Q3 = "fabfilter-q1-to-q3"
 
 register_custom_state(PRO_Q1_TO_PRO_Q3, pro_q1_to_pro_q3)
+
+
+PRO_Q2_PARAMETERS = 191
+PRO_Q2_BAND_SLOTS = 7
+
+
+def _q2_setting(value: float, count: int) -> int:
+    return math.floor(value * (count - 1) + 0.5)
+
+
+def pro_q2_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
+    """Convert a measured Pro-Q 2 bank, refusing unresolved monitoring modes.
+
+    Source enumeration and sweeps use the recovered native x64 Pro-Q 2 DLL.
+    Thirteen wrapped-device buffers restored all 191 source floats unchanged.
+    Left/right placement becomes mid/side when the source Channel Mode is on;
+    Pro-Q 3 stores that choice per band and for the output pan. The source's
+    pan text still says left/right; stereo renders confirm the coupled mode.
+    Automation indices need a separate map.
+    """
+    if len(bank) != PRO_Q2_PARAMETERS:
+        raise StateTransformError(f"a Pro-Q 2 bank has {PRO_Q2_PARAMETERS} parameters, not {len(bank)}")
+    if any(not math.isfinite(value) or not 0 <= value <= 1 for value in bank):
+        raise StateTransformError("Pro-Q 2 parameters must be finite normalized values between 0 and 1")
+    for index, name in ((176, "Auto Gain"), (179, "Analyzer Side-chain"), (188, "Solo Band"), (190, "Ex Auto Gain")):
+        if bank[index] != 0:
+            raise StateTransformError(f"Pro-Q 2 {name} conversion is unresolved; refusing a changed mode")
+
+    parameters = list(PRO_Q3_DEFAULT_PARAMETERS)
+    mid_side = _q2_setting(bank[170], 2)
+    for band in range(PRO_Q3_BANDS):
+        source = bank[band * PRO_Q2_BAND_SLOTS : (band + 1) * PRO_Q2_BAND_SLOTS]
+        target = band * PRO_Q3_BAND_SLOTS
+        state = _q2_setting(source[0], 3)
+        placement = _q2_setting(source[6], 3)
+        parameters[target + Q3BandField.USED] = float(state != 2)
+        parameters[target + Q3BandField.ENABLED] = float(state != 0)
+        parameters[target + Q3BandField.FREQUENCY] = min(
+            math.log2(10.0) + source[1] * math.log2(3000.0), PRO_Q3_MAX_FREQUENCY_LOG2
+        )
+        parameters[target + Q3BandField.GAIN] = 60.0 * source[2] - 30.0
+        parameters[target + Q3BandField.Q] = source[3]
+        parameters[target + Q3BandField.SHAPE] = float(_q2_setting(source[4], 8))
+        parameters[target + Q3BandField.SLOPE] = float(_q2_setting(source[5], 9))
+        parameters[target + Q3BandField.PLACEMENT] = float(placement + 3 if mid_side and placement < 2 else placement)
+
+    for source_index, target_index, count in (
+        (168, 312, 3),
+        (169, 313, 5),
+        (174, 318, 2),
+        (175, 319, 2),
+        (177, 321, 2),
+        (178, 322, 2),
+        (180, 324, 3),
+        (181, 325, 4),
+        (182, 326, 5),
+        (183, 327, 5),
+        (184, 328, 2),
+        (185, 330, 2),
+        (186, 331, 4),
+        (187, 332, 2),
+    ):
+        parameters[target_index] = float(_q2_setting(bank[source_index], count))
+    parameters[314] = bank[171] * 2.0
+    parameters[315] = bank[172] * 2.0 - 1.0
+    parameters[316] = bank[173] * 2.0 - 1.0
+    parameters[317] = float(mid_side)
+    parameters[333] = bank[189] * 40.0 - 20.0
+    return tuple(parameters)
+
+
+def pro_q2_to_pro_q3(payload: bytes) -> bytes:
+    """Re-encode a Pro-Q 2 VST2 bank as a Pro-Q 3 processor state."""
+    bank = LegacyBank.parse(payload)
+    return FfbsState(
+        version=PRO_Q3_STATE_VERSION,
+        parameters=pro_q2_to_pro_q3_parameters(bank.parameters),
+        tail=FABFILTER_PROCESSOR_TRAILER,
+    ).encode()
+
+
+PRO_Q2_TO_PRO_Q3 = "fabfilter-q2-to-q3"
+register_custom_state(PRO_Q2_TO_PRO_Q3, pro_q2_to_pro_q3)
 
 
 # Pro-C 2 is the product the derivation was proved on: 46 parameters, every
