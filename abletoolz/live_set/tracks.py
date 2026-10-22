@@ -44,6 +44,18 @@ STEREO_OUTPUTS: dict[int, dict[str, str]] = {
 # fmt: on
 
 
+def display_name(track: ET.Element, version: Version) -> str | None:
+    """A track's name as Live shows it: the one the user typed, else the effective one.
+
+    None for a track that carries neither, which no Live-written set has.
+    """
+    for member in (Track.USER_NAME, Track.EFFECTIVE_NAME):
+        setting = find(track, member, version, {}, owner_tag=track.tag, label=track.tag)
+        if setting is not None and setting.raw:
+            return setting.raw
+    return None
+
+
 class AbletonTrack:
     """Single track object: a track in the set, the main track or the cue track."""
 
@@ -52,7 +64,8 @@ class AbletonTrack:
         self.track_root = track_root
         self.type = track_root.tag
         self.version = version
-        self.name = self.setting(Track.USER_NAME).raw or self.setting(Track.EFFECTIVE_NAME).raw
+        # A track with neither name is refused the way every missing setting is.
+        self.name = display_name(track_root, version) or self.setting(Track.EFFECTIVE_NAME).raw
         self.id = track_root.get(Attr.ID)
         # Some group and return tracks leave out three things Live writes on
         # every track, and each one used to take the whole set down. Measured

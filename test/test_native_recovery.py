@@ -29,11 +29,21 @@ from abletoolz.plugins.recovery_routes import (
     resolve_recovery_targets,
 )
 
+SKELETONS = Path(__file__).parent / "version_fixtures" / "skeletons"
+
 
 def element(root: ET.Element, path: str) -> ET.Element:
     found = root.find(path)
     assert found is not None, path
     return found
+
+
+def test_a_plan_names_the_main_track_a_device_sits_on() -> None:
+    """A Live 12 set calls its master track MainTrack, and a plan used to lose the device's place."""
+    source = SKELETONS / "12.2.6.als"
+    main = element(live_document.read(source), ".//MainTrack/Name/EffectiveName").get("Value")
+    plan = plan_recovery(source, ())
+    assert plan.devices[0].track == main
 
 
 def fixture(tmp_path: Path, *, old: bool = False) -> tuple[Path, RecoveryRoute, RecoveryTarget]:

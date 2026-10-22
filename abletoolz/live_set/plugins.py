@@ -17,7 +17,7 @@ from xml.etree import ElementTree as ET
 from abletoolz.ansi import RST, C, G, Y
 from abletoolz.elements import get_element
 from abletoolz.formats.path_data import SetOperatingSystem
-from abletoolz.live_set.tracks import AbletonTrack
+from abletoolz.live_set.tracks import display_name
 from abletoolz.machine import default_au_component_dirs, default_live_database_dir, default_vst_dirs, read_plist
 from abletoolz.plugins import (
     AbletoolzConfig,
@@ -43,8 +43,6 @@ if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
 logger = logging.getLogger(__name__)
-
-_TRACK_TYPES = {Tag.AUDIO_TRACK, Tag.MIDI_TRACK, Tag.RETURN_TRACK, Tag.MASTER_TRACK, Tag.MAIN_TRACK, Tag.GROUP_TRACK}
 
 
 # -- VST3 resolution --------------------------------------------------------
@@ -271,7 +269,7 @@ class Plugins:
     def __init__(self, live_set: AbletonSet) -> None:
         self._set = live_set
         self.found_vst_dirs: list[pathlib.Path] = []
-        self._parent_map: dict[ET.Element, ET.Element] | None = None
+        self._document: PluginDevices | None = None
         self._vst3_index: dict[str, pathlib.Path] | None = None
         self._vst3_index_dirs: tuple[pathlib.Path, ...] = ()
         self._vst3_search_cache: dict[str, pathlib.Path | None] = {}
@@ -333,23 +331,22 @@ class Plugins:
         """Whether this Mac has an Audio Unit registered under an exact identity."""
         return identifier is not None and audio_component_registered(identifier)
 
+    def _devices(self) -> PluginDevices:
+        """The set's plugin devices, read once; dropped by anything that moves elements."""
+        if self._document is None:
+            self._document = PluginDevices(self._root)
+        return self._document
+
     def containing_track(self, element: ET.Element) -> ET.Element | None:
         """The track element holding ``element``, or None when it sits outside every track."""
-        if self._parent_map is None:
-            self._parent_map = {c: p for p in self._root.iter() for c in p}
-        current: ET.Element | None = element
-        while current is not None:
-            if current.tag in _TRACK_TYPES:
-                return current
-            current = self._parent_map.get(current)
-        return None
+        return self._devices().track_of(element)
 
     def track_name(self, element: ET.Element) -> str:
         """Name of the track holding ``element``; the track type when unnamed, '?' outside one."""
         track = self.containing_track(element)
         if track is None:
             return "?"
-        return AbletonTrack(track, self.version).name or track.tag
+        return display_name(track, self.version) or track.tag
 
     def _find_track_for_element(self, element: ET.Element) -> str:
         """Find which track contains a given element by searching parent map."""
@@ -365,7 +362,7 @@ class Plugins:
         """Resolve every plugin reference in the set against disk."""
         self.found_vst_dirs.extend(vst_dirs)
         refs: list[PluginRef] = []
-        for device in PluginDevices(self._root):
+        for device in self._devices():
             track_loc = self._find_track_for_element(device.info)
             identity, reference = device.identity, device.reference
             if device.kind is PluginKind.VST:
@@ -481,7 +478,7 @@ class Plugins:
         operation refuses them rather than retaining obsolete parameter IDs.
         """
         result = apply_vst2_migration(self._root, device, migration)
-        self._parent_map = None
+        self._document = None
         return result
 
     def upgrade(self) -> list[DeviceUpgrade]:

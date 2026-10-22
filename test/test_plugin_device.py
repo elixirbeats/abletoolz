@@ -234,6 +234,22 @@ def test_bound_mapped_and_referenced_parameters_are_in_use() -> None:
     assert device.controls.in_use
 
 
+def test_a_device_on_the_main_track_names_its_track() -> None:
+    """Live 12 calls the master track MainTrack; the walk has to know both names."""
+    devices = PluginDevices(load("12.2.6"))
+    device = next(iter(devices))
+    track = device.track
+    assert track is not None and track.tag == "MainTrack"
+    assert devices.track_of(devices.root) is None
+
+
+@pytest.mark.parametrize("key", KEYS)
+def test_every_fixture_device_sits_on_a_track(key: str) -> None:
+    for device in PluginDevices(load(key)):
+        track = device.track
+        assert track is not None and track.tag.endswith("Track")
+
+
 def test_an_audio_unit_is_owned_by_its_own_device_element() -> None:
     device = next(iter(PluginDevices(load("11.3.41"))))
     assert device.owner is not None and device.owner.tag == "AuPluginDevice"

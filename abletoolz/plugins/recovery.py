@@ -6,12 +6,13 @@ import copy
 import enum
 import hashlib
 import pathlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from abletoolz.formats import hex_text, live_document, path_data
+from abletoolz.live_set.tracks import display_name
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind
 from abletoolz.plugins.container.format_translation import TranslationTarget, translate_device
 from abletoolz.plugins.recovery_routes import (
@@ -25,6 +26,7 @@ from abletoolz.plugins.recovery_routes import (
 )
 from abletoolz.plugins.repair import needs_parameter_mapper
 from abletoolz.plugins.state import ConstantControllerState
+from abletoolz.schema import Attr
 
 
 class RecoveryError(ValueError):
@@ -181,31 +183,17 @@ def _validate_device(device: PluginDevice, target: RecoveryTarget) -> tuple[str,
     return _digest(raw), program
 
 
-def _location(info: ET.Element, parents: Mapping[ET.Element, ET.Element]) -> tuple[str | None, str | None]:
-    track = None
-    device = None
-    current = parents.get(info)
-    while current is not None:
-        if current.tag == "PluginDevice" and device is None:
-            device = current.get("Id")
-        if current.tag in ("AudioTrack", "MidiTrack", "GroupTrack", "ReturnTrack", "MasterTrack"):
-            name = current.find("Name/EffectiveName")
-            track = name.get("Value") if name is not None else current.tag
-            break
-        current = parents.get(current)
-    return track, device
-
-
 def _device_plan(device: PluginDevice, targets: Sequence[RecoveryTarget]) -> DeviceRecovery:
     info = device.info
     assert device.document is not None and device.ordinal is not None  # read through PluginDevices
     name = device.identity.name or ""
-    track, plugin_device = _location(info, device.document.parents)
+    track = device.track
+    owner = device.owner
     base = DeviceRecovery(
         device=device.ordinal,
         source_name=name,
-        track=track,
-        plugin_device_id=plugin_device,
+        track=None if track is None else display_name(track, device.document.version) or track.tag,
+        plugin_device_id=None if owner is None else owner.get(Attr.ID),
         status=RecoveryStatus.NOT_APPLICABLE,
         reason="No wrapped VST2 reference to recover",
     )

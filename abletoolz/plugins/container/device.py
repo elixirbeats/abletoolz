@@ -83,6 +83,10 @@ _AU_EFFECTS = frozenset(int.from_bytes(code, "big") for code in (b"aufx", b"aumf
 # The device element that owns a PluginDesc, per format.
 _OWNER_TAGS = frozenset({Tag.PLUGIN_DEVICE, Tag.AU_PLUGIN_DEVICE})
 _UNASSIGNED_PARAMETER = -1
+# Every element a device chain can hang off. MainTrack is Live 12's MasterTrack.
+_TRACK_TAGS = frozenset(
+    {Tag.AUDIO_TRACK, Tag.MIDI_TRACK, Tag.GROUP_TRACK, Tag.RETURN_TRACK, Tag.MASTER_TRACK, Tag.MAIN_TRACK}
+)
 
 
 def is_info(element: ET.Element) -> bool:
@@ -482,6 +486,11 @@ class PluginDevice:
         return owner if owner is not None and owner.tag in _OWNER_TAGS else None
 
     @property
+    def track(self) -> ET.Element | None:
+        """The track this device sits on, or None for a device outside every track."""
+        return self._document().track_of(self.info)
+
+    @property
     def controls(self) -> Controls:
         owner = self.owner
         parameters = None if owner is None else owner.find(Tag.PARAMETER_LIST)
@@ -656,6 +665,16 @@ class PluginDevices:
         return frozenset(
             element.attrib[Attr.VALUE] for element in self.root.iter(Tag.POINTEE_ID) if Attr.VALUE in element.attrib
         )
+
+    def track_of(self, element: ET.Element) -> ET.Element | None:
+        """The track element holding ``element``, of any kind, or None outside every track."""
+        parents = self.parents
+        current: ET.Element | None = element
+        while current is not None:
+            if current.tag in _TRACK_TAGS:
+                return current
+            current = parents.get(current)
+        return None
 
     @functools.cached_property
     def version(self) -> Version:
