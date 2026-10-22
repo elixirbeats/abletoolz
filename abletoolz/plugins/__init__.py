@@ -8,10 +8,13 @@ migration and conversion between plugins:
   a dll or a bundle without loading it, ``uid_sources`` finds the VST3 class id
   a translation needs, and ``mapping`` drafts the user's what-becomes-what
   table.
-* **container** -- how is a device of one format rewritten as another?
-  ``format_translation`` rewrites the format-specific info element in place;
-  ``upgrade_rules`` is the older path, swapping the plugin file a device points
-  at by explicit filename rule.
+* **container** -- what XML shape does Ableton write for a plugin device, and
+  how does it change? ``container.device`` reads any format's info element
+  into one description of the plugin device, writes a change back in place in
+  the same format, or rebuilds the element as another format;
+  ``format_translation`` is the recipe that says what a device becomes and
+  the one step that applies it; ``upgrade_rules`` swaps the plugin file a
+  device points at by explicit filename rule.
 * **state** -- how is a patch represented, and how can its values be read,
   changed or written for a target? The ``state`` package keeps codecs and
   transforms independent of a set repair. Answers sit on a ladder, cheapest

@@ -40,7 +40,7 @@ another domain's internals.
 | `devices.py` | domain | device chain inventory per track, grafting a chain from a donor set into a target, and `walk()` over every device of a kind (racks included) to read or write its settings |
 | `tracks.py` | domain | every track, the main and cue tracks included, and their settings and their mixers' through `setting()`; view state, fold state, colors, routing |
 | `samples.py` / `sample_ref.py` | domain | sample references, missing-file checks, relinking; `sample_ref` holds the per-version path shapes |
-| `plugins.py` | domain | VST2/VST3/AU references and whether this machine can load them |
+| `plugins.py` | domain | the set's plugin devices, read through `abletoolz.plugins.container.device`, and whether this machine can load them |
 | `transport.py` | domain | the transport's settings, tempo and timeline length |
 | `sections.py` | mechanics | where clips live on a timeline: the `Events` lists, session slots, spans, straddle rules, automation envelope segments, and the corpus measurements behind all of it |
 | `xml_edit.py` | mechanics | the set-global Pointee id space, indentation, number formatting, remote bindings |
