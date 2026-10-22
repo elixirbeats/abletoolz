@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict
 
 from abletoolz.elements import search_element
 from abletoolz.formats import hex_text
+from abletoolz.plugins.container.device import PluginDevice, PluginKind, is_info
 from abletoolz.schema import Attr, Tag
 
 if TYPE_CHECKING:
@@ -34,17 +35,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-class PluginKind(enum.StrEnum):
-    """A plugin format, as a set stores it.
-
-    Lives here rather than beside the set-scanning code because format is what
-    every parser and every format translation is keyed on.
-    """
-
-    VST = "vst"
-    VST3 = "vst3"
-    AU = "au"
+__all__ = ["BufferFormat", "PluginAnalysis", "PluginData", "PluginKind", "PluginParser", "SampleContainerParser"]
 
 
 class BufferFormat(enum.Enum):
@@ -104,7 +95,6 @@ class PluginData(BaseModel):
     plugin_name: str
     file_name: str | None = None
     unique_id: int | None = None
-    program_number: int | None = None
 
     # Path info (new format has Path element, old has Dir/Data)
     path: pathlib.Path | None = None
@@ -119,40 +109,31 @@ class PluginData(BaseModel):
 
     @classmethod
     def from_element(cls, root: ET.Element) -> PluginData:
-        """Parse PluginData from VstPluginInfo or AuPluginInfo element."""
-        # Try new format first (Path element with Value attribute)
-        path_element = root.find(f".//{Tag.PATH}")
+        """Parse PluginData from a PluginDesc, or from the info element inside one."""
+        info = root if is_info(root) else next((child for child in root if is_info(child)), None)
+        if info is None:
+            raise ValueError(f"{root.tag} holds no plugin info element")
+        device = PluginDevice(info)
+        identity, reference = device.identity, device.reference
+        path_element = info.find(Tag.PATH)
         path_str = path_element.get(Attr.VALUE) if path_element is not None else None
-        path = pathlib.Path(path_str) if path_str else None
-
-        # Old format: Dir/Data with hex-encoded path
-        dir_element = root.find(f".//{Tag.DIR}")
-        data = dir_element.findtext(Tag.DATA) if dir_element is not None else None
-
-        # Get names
-        file_name = search_element(root, Tag.FILE_NAME, Attr.VALUE)
-        plugin_name = search_element(root, Tag.PLUG_NAME, Attr.VALUE) or file_name or "<unknown>"
-
-        # Unique ID
-        unique_id_str = search_element(root, Tag.UNIQUE_ID, Attr.VALUE)
-        unique_id = int(unique_id_str) if unique_id_str and unique_id_str.isdigit() else None
-        program_number_str = search_element(root, "ProgramNumber", Attr.VALUE)
-        program_number = int(program_number_str) if program_number_str is not None else None
-
-        # Buffer element (contains plugin state)
-        buffer_element = search_element(root, Tag.BUFFER)
-
-        return cls(
-            plugin_name=plugin_name,
-            file_name=file_name,
-            unique_id=unique_id,
-            program_number=program_number,
-            path=path,
+        dir_element = info.find(Tag.DIR)
+        plugin = cls(
+            plugin_name=identity.name or reference.file_name or "<unknown>",
+            file_name=reference.file_name,
+            unique_id=identity.unique_id,
+            path=pathlib.Path(path_str) if path_str else None,
             path_element=path_element,
-            data=data,
-            buffer_element=buffer_element,
-            _root_element=root,
+            data=dir_element.findtext(Tag.DATA) if dir_element is not None else None,
+            buffer_element=search_element(info, Tag.BUFFER),
         )
+        # A private attribute: pydantic drops it from the constructor, so it is set here.
+        plugin._root_element = info
+        return plugin
+
+    @property
+    def program_number(self) -> int | None:
+        return None if self._root_element is None else PluginDevice(self._root_element).preset.program_number
 
     def decode_buffer(self) -> str:
         """Decode Buffer hex to raw string (often JSON for modern plugins)."""
@@ -180,18 +161,17 @@ class PluginData(BaseModel):
 
     def decode_state[T: EncodableState](self, decoder: Callable[[bytes], T]) -> T:
         """Decode an explicitly chosen state format; retain ``program_number`` for bank selection."""
+        if self._root_element is not None:
+            return PluginDevice(self._root_element).decode_state(decoder)
         if self.buffer_element is None:
             raise ValueError("Plugin has no saved Buffer to decode")
         return decoder(self.get_buffer_raw_bytes())
 
     def set_state_model(self, state: EncodableState) -> None:
         """Encode completely before changing the Buffer; identity and program selection stay separate."""
-        if self.buffer_element is None:
+        if self._root_element is None:
             raise ValueError("Plugin has no saved Buffer to update")
-        raw = state.encode()
-        if type(raw) is not bytes:
-            raise ValueError("State encoder must return bytes")
-        self.set_buffer_from_bytes(raw)
+        PluginDevice(self._root_element).set_state_model(state)
 
     def detect_buffer_format(self) -> BufferFormat:
         """Attempt to auto-detect the buffer format.
@@ -298,11 +278,9 @@ class PluginData(BaseModel):
         :meth:`set_buffer_from_string`, which would mangle any byte that is not
         valid UTF-8 on the way out.
         """
-        if self.buffer_element is None:
+        if self.buffer_element is None or self._root_element is None:
             return
-        existing_text = self.buffer_element.text or ""
-        levels = hex_text.depth(existing_text) if existing_text.strip() else 14
-        self.buffer_element.text = hex_text.encode(data, levels)
+        PluginDevice(self._root_element).set_state(data)
 
     def set_buffer_from_string(self, data: str) -> None:
         """Encode string back into Buffer as hex with original indentation."""

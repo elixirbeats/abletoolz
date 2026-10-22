@@ -40,13 +40,14 @@ another domain's internals.
 | `devices.py` | domain | device chain inventory per track, grafting a chain from a donor set into a target, and `walk()` over every device of a kind (racks included) to read or write its settings |
 | `tracks.py` | domain | every track, the main and cue tracks included, and their settings and their mixers' through `setting()`; view state, fold state, colors, routing |
 | `samples.py` / `sample_ref.py` | domain | sample references, missing-file checks, relinking; `sample_ref` holds the per-version path shapes |
-| `plugins.py` | domain | VST2/VST3/AU references and whether this machine can load them |
+| `plugins.py` | domain | the set's plugin devices, read through `abletoolz.plugins.container.device`, and whether this machine can load them |
+| `save_as.py` | domain | a copy of the set an older Live release opens: that release's root attributes, its spellings, the attributes its schema always writes, and a report of everything newer than it, by track |
 | `transport.py` | domain | the transport's settings, tempo and timeline length |
 | `sections.py` | mechanics | where clips live on a timeline: the `Events` lists, session slots, spans, straddle rules, automation envelope segments, and the corpus measurements behind all of it |
 | `xml_edit.py` | mechanics | the set-global Pointee id space, indentation, number formatting, remote bindings |
 | `persistence.py` | mechanics | loading and saving through `formats.live_document`, backup naming, file times |
 | `settings.py` | mechanics | the one place a settings member meets the XML: resolves it for the set's version, fills list positions, and reports the path it landed on |
-| `schema/` (package root) | mechanics | Live's names as StrEnums: `Tag` and `Attr` for document structure; generated settings enums for every native device (`devices`) and for tracks, mixers, clips and the transport (`objects`), with the version each setting appeared in and every earlier spelling; `settings.path_for` turns a member and a version into a path |
+| `schema/` (package root) | mechanics | Live's names as StrEnums: `Tag` and `Attr` for document structure; generated settings enums for every native device (`devices`) and for tracks, mixers, clips and the transport (`objects`), with the version each setting appeared in and every earlier spelling; `settings.path_for` turns a member and a version into a path; `structure` holds each release's root attributes and the grammar of what it writes |
 
 ## The rules the package is built on
 

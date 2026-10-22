@@ -23,7 +23,8 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.errors import ElementNotFound, SetError
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugins.container.format_translation import TranslationTarget, set_supports
+from abletoolz.plugins.container.device import set_supports
+from abletoolz.plugins.container.format_translation import Recipe
 from abletoolz.plugins.parsers.base import PluginKind
 from abletoolz.plugins.repair import repair_set
 
@@ -203,7 +204,7 @@ def test_a_vst3_target_lands_only_where_the_schema_declares_vst3(key: str) -> No
 
     report = repair_set(
         ableton_set,
-        targets={name: TranslationTarget(PluginKind.VST3, name, (1, 2, 3, 4)) for name in names},
+        targets={name: Recipe(PluginKind.VST3, name, (1, 2, 3, 4)) for name in names},
         loadable=lambda _info: False,
     )
     if set_supports(PluginKind.VST3, version):

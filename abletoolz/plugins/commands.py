@@ -29,7 +29,9 @@ class RecoveryResult(BaseModel):
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="abletoolz plugins", description="Recover measured native plugin references.")
+    parser = argparse.ArgumentParser(
+        prog="abletoolz plugins", description="Recover plugin references and prepared native states."
+    )
     verbs = parser.add_subparsers(dest="command", required=True)
     for name, help_text in (
         ("routes", "List verified recovery routes and available native binaries"),
@@ -45,6 +47,13 @@ def _parser() -> argparse.ArgumentParser:
             help="Search only these plugin folders instead of the installed defaults; repeatable",
         )
         command.add_argument("--json", action="store_true", help="Print the complete result as JSON")
+        command.add_argument(
+            "--prepared",
+            action="append",
+            type=pathlib.Path,
+            metavar="MANIFEST.json",
+            help="Include an explicit prepared VST3 conversion manifest; repeatable; no plugin execution",
+        )
         if name != "routes":
             command.add_argument("srcs", nargs="+", type=pathlib.Path, metavar="SET_OR_DIR")
         if name == "repair":
@@ -160,7 +169,7 @@ def run_plugin_commands(argv: Sequence[str]) -> int:
         if len(args.srcs) != 1 or not args.srcs[0].is_file():
             parser.error("--output takes one explicit input file; use --output-dir for folders or batches")
     try:
-        routes = load_recovery_routes()
+        routes = load_recovery_routes() if args.prepared is None else load_recovery_routes(args.prepared)
         targets = resolve_recovery_targets(routes, args.plugin_dir)
         if args.command == "routes":
             if args.json:

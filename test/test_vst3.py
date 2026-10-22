@@ -17,6 +17,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.live_set import AbletonSet, plugins
+from abletoolz.plugins.container.device import PluginDevice
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 
@@ -258,9 +259,11 @@ def test_scan_searches_when_stored_path_is_gone(monkeypatch: pytest.MonkeyPatch,
     assert refs[0].alternative == bundle
 
 
-def test_parse_vst3_element_name_and_path() -> None:
-    plugins_domain = make_set("10.1.18").plugins
+def test_a_vst3_info_element_reads_its_name_and_stored_path() -> None:
     element = ET.fromstring('<Vst3PluginInfo><Name Value="Pro-R" /><Path Value="C:/x/Pro-R.vst3" /></Vst3PluginInfo>')
-    assert plugins_domain.parse_vst3_element(element) == ("Pro-R", pathlib.Path("C:/x/Pro-R.vst3"))
-    bare = ET.fromstring('<Vst3PluginInfo><Name Value="Pro-R" /></Vst3PluginInfo>')
-    assert plugins_domain.parse_vst3_element(bare) == ("Pro-R", None)
+    device = PluginDevice(element)
+    assert device.identity.name == "Pro-R"
+    assert device.reference.path == pathlib.Path("C:/x/Pro-R.vst3")
+    bare = PluginDevice(ET.fromstring('<Vst3PluginInfo><Name Value="Pro-R" /></Vst3PluginInfo>'))
+    assert bare.identity.name == "Pro-R"
+    assert bare.reference.path is None

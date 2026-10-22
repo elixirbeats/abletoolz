@@ -34,6 +34,7 @@ XML_MAGIC = b"<?"
 
 XML_HEADER = b'<?xml version="1.0" encoding="UTF-8"?>\n'
 XML_FOOTER = b"\n"
+LIVE_DOCUMENT_SUFFIXES = frozenset({".als", ".alc", ".adv", ".adg", ".agr"})
 
 # What Live's header carries: best compression (extra flags 2), no timestamp, and
 # OS 255. zlib stamps the OS it was built for (3 on Linux, 19 on macOS), so the
@@ -46,6 +47,47 @@ _OS_UNKNOWN = 0xFF
 
 class Pre82DocumentError(FormatError):
     """A document from before Live 8.2, which is not gzip and not XML."""
+
+
+class DocumentValidationError(FormatError):
+    """Well-formed XML that violates a known Live loader requirement."""
+
+
+def validate(root: ET.Element) -> None:
+    """Check known loader requirements before serialization or publication."""
+    for clip in root.iter("AudioClip"):
+        markers = clip.find("WarpMarkers")
+        if markers is None or markers.find("WarpMarker") is None:
+            name = clip.find("Name")
+            label = name.get("Value", "unnamed") if name is not None else "unnamed"
+            raise DocumentValidationError(
+                f"AudioClip {label!r} (Id={clip.get('Id', '?')}): Empty warp marker array. "
+                "Keep WarpMarkers populated even when IsWarped is false."
+            )
+
+
+def validate_routing(root: ET.Element) -> None:
+    """Check routing direction tokens when authoring a playable document.
+
+    Redacted fixture documents remain readable and round-trip through the
+    container API. Their routing placeholders must be replaced before audition.
+    """
+    for kind, direction in [
+        ("AudioInputRouting", "AudioIn"),
+        ("AudioOutputRouting", "AudioOut"),
+        ("MidiInputRouting", "MidiIn"),
+        ("MidiOutputRouting", "MidiOut"),
+    ]:
+        for route in root.iter(kind):
+            target = route.find("Target")
+            if target is None:
+                continue
+            value = target.get("Value", "")
+            if not value.startswith(direction + "/"):
+                raise DocumentValidationError(
+                    f"{kind}: invalid routing target {value!r}; expected {direction}/... . "
+                    "Replace redacted fixture routing with native Live routing."
+                )
 
 
 def to_xml_bytes(root: ET.Element) -> bytes:
@@ -75,6 +117,7 @@ def parse(data: bytes) -> ET.Element:
 
 def encode(root: ET.Element) -> bytes:
     """The document compressed the way Live writes it."""
+    validate(root)
     data = bytearray(gzip.compress(to_xml_bytes(root), compresslevel=_COMPRESSLEVEL, mtime=_MTIME))
     data[_OS_OFFSET] = _OS_UNKNOWN
     return bytes(data)
@@ -95,13 +138,17 @@ def write(path: pathlib.Path, document: bytes) -> None:
     serializes before touching the disk does not compress a large set twice. An
     interrupted write leaves the old file or none, never half of the new one.
     """
+    validate(parse(document))
     tmp_path = path.with_name(path.name + ".tmp")
     tmp_path.write_bytes(document)
     os.replace(tmp_path, path)
 
 
 def write_new(path: pathlib.Path, document: bytes) -> None:
-    """Publish a complete new file atomically, refusing an existing destination."""
+    """Publish a new file atomically, checking Live documents before touching disk."""
+    # Recovery also uses this atomic publisher for JSON reports.
+    if path.suffix.lower() in LIVE_DOCUMENT_SUFFIXES:
+        validate(parse(document))
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     staging = pathlib.Path(temporary)
     try:

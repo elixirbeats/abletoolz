@@ -22,11 +22,12 @@ from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.container.format_translation import (
-    NamedTarget,
-    TranslationTarget,
+    NamedRecipe,
+    Recipe,
+    apply_recipe,
     parse_config_targets,
-    translate_device,
 )
 from abletoolz.plugins.state import (
     _CUSTOM_TRANSFORMS as REGISTRY,
@@ -260,7 +261,7 @@ def test_every_vst3_preset_pairs_one_processor_state_with_one_controller_state(s
 def test_a_config_entry_may_name_a_registered_transform(registry: None) -> None:
     register_custom_state("shout", _shout)
     parsed = parse_config_targets({"Old Thing": {"name": "New Thing", "state": "custom:shout"}})
-    assert parsed == {"Old Thing": NamedTarget(PluginKind.VST3, "New Thing", CustomState("shout"))}
+    assert parsed == {"Old Thing": NamedRecipe(PluginKind.VST3, "New Thing", CustomState("shout"))}
 
 
 def test_a_config_entry_naming_an_unregistered_transform_fails_to_load(registry: None) -> None:
@@ -282,8 +283,8 @@ def test_a_custom_transform_reaches_a_translated_device(registry: None) -> None:
     buffer = get_element(preset, "Buffer")
     buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
-    target = TranslationTarget(PluginKind.VST3, "New Thing", (1, 2, 3, 4), CustomState("shout"))
-    translate_device(info, target)
+    target = Recipe(PluginKind.VST3, "New Thing", (1, 2, 3, 4), CustomState("shout"))
+    apply_recipe(PluginDevice(info), target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
     assert state.text is not None
@@ -346,11 +347,19 @@ def test_a_named_controller_state_reaches_a_translated_device() -> None:
     buffer = get_element(preset, "Buffer")
     buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
-    target = TranslationTarget(
-        PluginKind.VST3, "Pro-C 2", (1, 2, 3, 4), StateTransform.VERBATIM, FABFILTER_CONSTANT_CONTROLLER
-    )
-    translate_device(info, target)
+    target = Recipe(PluginKind.VST3, "Pro-C 2", (1, 2, 3, 4), StateTransform.VERBATIM, FABFILTER_CONSTANT_CONTROLLER)
+    apply_recipe(PluginDevice(info), target)
 
     controller = get_element(info, "Preset.Vst3Preset.ControllerState")
     assert controller.text is not None
     assert hex_text.decode(controller.text) == FABFILTER_CONTROLLER_TRAILER
+
+
+def test_a_prepared_state_replaces_whatever_the_source_held() -> None:
+    """A route's prepared bytes are a policy like any other, and they ignore the source."""
+    from abletoolz.plugins.state import PreparedBytes
+
+    rewrite = state_bytes(PreparedBytes(b"native"))
+    assert rewrite is not None
+    assert rewrite(b"anything") == b"native"
+    assert rewrite(b"") == b"native"

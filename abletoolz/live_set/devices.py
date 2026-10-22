@@ -51,7 +51,7 @@ from abletoolz.live_set.xml_edit import (
     strip_remote_bindings,
     tab_depth,
 )
-from abletoolz.plugins import PluginData
+from abletoolz.plugins.container.device import PluginDevice, PluginKind, is_info
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.devices import SETTINGS_OF, Device
 from abletoolz.schema.versioning import Version
@@ -286,19 +286,14 @@ class Devices:
     def _display_name(self, element: ET.Element) -> str:
         """A native device is its own tag; a hosted one names itself inside PluginDesc.
 
-        Each format keeps the name in a different child, and every fixture
-        carries exactly one of the three, so the readers in ``plugins.py`` and
-        ``abletoolz.plugins`` do the parsing rather than a fourth copy of it.
+        The plugin device reader does the parsing, whichever format is inside.
         """
-        vst3_element = element.find(path(Tag.PLUGIN_DESC, Tag.VST3_PLUGIN_INFO))
-        if vst3_element is not None:
-            name, _ = self._set.plugins.parse_vst3_element(vst3_element)
-            return name or element.tag
-        au_element = element.find(path(Tag.PLUGIN_DESC, Tag.AU_PLUGIN_INFO))
-        if au_element is not None:
-            name, _, _ = self._set.plugins.parse_au_element(au_element)
-            return name or element.tag
-        vst_element = element.find(path(Tag.PLUGIN_DESC, Tag.VST_PLUGIN_INFO))
-        if vst_element is not None:
-            return PluginData.from_element(vst_element).plugin_name
-        return element.tag
+        plugin_desc = element.find(Tag.PLUGIN_DESC)
+        info = None if plugin_desc is None else next((child for child in plugin_desc if is_info(child)), None)
+        if info is None:
+            return element.tag
+        device = PluginDevice(info)
+        name = device.identity.name
+        if device.kind is PluginKind.VST:
+            return name or device.reference.file_name or "<unknown>"
+        return name or element.tag

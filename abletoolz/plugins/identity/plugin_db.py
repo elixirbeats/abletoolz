@@ -49,7 +49,7 @@ import pydantic
 
 from abletoolz.machine import DEFAULT_PLUGIN_DB_PATH, default_live_database_dir, default_vst_dirs
 from abletoolz.plugins.config import AbletoolzConfig
-from abletoolz.plugins.container.format_translation import UidFields
+from abletoolz.plugins.container.device import UidFields
 from abletoolz.plugins.identity.binaries import scan_plugin_dirs
 from abletoolz.plugins.identity.uid_sources import (
     DatabasePlugin,

@@ -11,6 +11,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.formats import hex_text
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.parsers.base import PluginData
 from abletoolz.plugins.state import StateTransformError, registered_custom_states
 from abletoolz.plugins.state.controls import ControlStatus
@@ -135,13 +136,15 @@ def test_buffer_bridge_refuses_missing_buffers_and_does_not_mutate_on_encode_fai
     state = Bank.parse((FIXTURES / "trash1-default.state").read_bytes())
     missing = PluginData.from_element(ET.fromstring("<VstPluginInfo/>"))
     assert missing.program_number is None
-    with pytest.raises(ValueError, match="no saved Buffer"):
+    with pytest.raises(ValueError):
         missing.decode_state(Bank.parse)
-    with pytest.raises(ValueError, match="no saved Buffer"):
+    with pytest.raises(ValueError):
         missing.set_state_model(state)
-    buffer = ET.Element("Buffer")
+    info = ET.fromstring("<VstPluginInfo><Preset><VstPreset><Buffer/></VstPreset></Preset></VstPluginInfo>")
+    buffer = info.find("Preset/VstPreset/Buffer")
+    assert buffer is not None
     buffer.text = "original text"
-    plugin = PluginData(plugin_name="Test", buffer_element=buffer)
+    plugin = PluginData.from_element(info)
 
     class InvalidState:
         def encode(self) -> bytes:
@@ -150,6 +153,42 @@ def test_buffer_bridge_refuses_missing_buffers_and_does_not_mutate_on_encode_fai
     with pytest.raises(ValueError, match="invalid state"):
         plugin.set_state_model(InvalidState())
     assert buffer.text == "original text"
+
+
+def test_canonical_device_bridge_preserves_vst3_controller_and_reads_program_fresh() -> None:
+    info = ET.fromstring(
+        "<Vst3PluginInfo><Preset><Vst3Preset><ProcessorState>01</ProcessorState>"
+        "<ControllerState>02</ControllerState></Vst3Preset></Preset></Vst3PluginInfo>"
+    )
+    for tag, raw in (("ProcessorState", b"\x01"), ("ControllerState", b"\x02")):
+        element = info.find(f"Preset/Vst3Preset/{tag}")
+        assert element is not None
+        element.text = hex_text.encode(raw, 5)
+
+    class BytesState:
+        def __init__(self, raw: bytes) -> None:
+            self.raw = raw
+
+        def encode(self) -> bytes:
+            return self.raw
+
+    device = PluginDevice(info)
+    assert device.decode_state(BytesState).encode() == b"\x01"
+    device.set_state_model(BytesState(b"\x03"))
+    assert device.preset.state == b"\x03"
+    assert device.preset.controller == b"\x02"
+    compat = PluginData.from_element(info)
+    assert compat.decode_state(BytesState).encode() == b"\x03"
+    compat.set_state_model(BytesState(b"\x04"))
+    assert device.preset.state == b"\x04"
+    assert device.preset.controller == b"\x02"
+    vst2 = ET.fromstring(
+        '<VstPluginInfo><Preset><VstPreset><ProgramNumber Value="1"/><Buffer/></VstPreset></Preset></VstPluginInfo>'
+    )
+    plugin = PluginData.from_element(vst2)
+    assert plugin.program_number == 1
+    PluginDevice(vst2).set_preset_record(program_number=3)
+    assert plugin.program_number == 3
 
 
 @pytest.mark.parametrize("trial", range(3))

@@ -137,6 +137,8 @@ class Tag(enum.StrEnum):
     # Hosted plugins.
     PLUGIN_DEVICE = "PluginDevice"
     AU_PLUGIN_DEVICE = "AuPluginDevice"
+    PARAMETER_LIST = "ParameterList"
+    PARAMETER_ID = "ParameterId"
     PLUGIN_DESC = "PluginDesc"
     VST_PLUGIN_INFO = "VstPluginInfo"
     VST3_PLUGIN_INFO = "Vst3PluginInfo"
@@ -146,6 +148,9 @@ class Tag(enum.StrEnum):
     FILE_NAME = "FileName"
     UNIQUE_ID = "UniqueId"
     CATEGORY = "Category"
+    NUMBER_OF_PARAMETERS = "NumberOfParameters"
+    NUMBER_OF_PROGRAMS = "NumberOfPrograms"
+    FLAGS = "Flags"
     DEVICE_TYPE = "DeviceType"
     UID = "Uid"
     WIN_POS_X = "WinPosX"
@@ -160,10 +165,16 @@ class Tag(enum.StrEnum):
     PRESET = "Preset"
     VST_PRESET = "VstPreset"
     VST3_PRESET = "Vst3Preset"
+    AU_PRESET = "AuPreset"
     BUFFER = "Buffer"
     PROCESSOR_STATE = "ProcessorState"
     CONTROLLER_STATE = "ControllerState"
     PRESET_REF = "PresetRef"
+    # A VST2 preset's own record of the plugin: its container type and counts.
+    TYPE = "Type"
+    PROGRAM_COUNT = "ProgramCount"
+    PARAMETER_COUNT = "ParameterCount"
+    PROGRAM_NUMBER = "ProgramNumber"
 
     # A plugin preset's own settings, shared by VstPreset and Vst3Preset.
     OVERWRITE_PROTECTION_NUMBER = "OverwriteProtectionNumber"
@@ -186,6 +197,7 @@ class Attr(enum.StrEnum):
     VALUE = "Value"
     ID = "Id"
     CREATOR = "Creator"
+    MINOR_VERSION = "MinorVersion"
     DIR = "Dir"
 
     # Clip events: warp markers and MIDI notes.

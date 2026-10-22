@@ -63,26 +63,29 @@ does not meet that contract.
 
 ## The Ableton boundary
 
-`PluginData` owns the hex-encoded XML Buffer. Its `decode_state` takes an explicit
-decoder; `set_state_model` finishes encoding before changing the XML. Neither
-method guesses the plugin format, changes its identity or rewrites automation.
+`PluginDevice` owns the preset's state through the existing format adapters. Its
+`decode_state` takes an explicit decoder; `set_state_model` finishes encoding
+before changing the XML. Neither method guesses the plugin format, changes its
+identity or rewrites automation. VST3 controller bytes are kept alongside the
+processor state and are preserved by a processor-only model edit. The older
+`PluginData` API delegates model reads and writes to this same device boundary.
 A VST2 chunk and a VST3 processor/controller pair require their respective
 codecs and container adapters.
 
-For example, with `plugin` parsed from the intended VST2 info element:
+For example, with `device` selected from `PluginDevices(document_root)`:
 
 ```python
 from abletoolz.plugins.state.izotope_trash import Bank
 
-bank = plugin.decode_state(Bank.parse)
-program = plugin.program_number
+bank = device.decode_state(Bank.parse)
+program = device.preset.program_number
 if program is None:
     raise ValueError("Select the saved bank program explicitly")
 
 settings = bank.program(program).settings
 frequency_hz = settings.value("PreFilter: Node 1 Freq")
 edited = bank.with_values(program, {"PreFilter: Node 1 Freq": 823.25})
-plugin.set_state_model(edited)
+device.set_state_model(edited)
 ```
 
 The caller retains the ALS `ProgramNumber` explicitly. It is zero-based, as is

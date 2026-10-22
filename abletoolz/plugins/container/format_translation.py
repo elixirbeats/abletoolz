@@ -6,19 +6,17 @@ Live 12.4.5: the ``PluginDevice`` wrapper around ``PluginDesc`` is byte for byte
 the same whichever format is inside, so a translation is entirely local to the
 info element.
 
-Two pieces of knowledge make that possible, and they are kept apart:
-
-* per format, how to read an info element into a neutral :class:`PluginIdentity`
-  (what plugin, is it an instrument) -- ``_READERS``;
-* per ordered format pair, how to rewrite one info element into the other --
-  ``_TRANSLATIONS``.
-
-Only ``(vst, vst3)`` is implemented today, because that is the pair whose output
-has been loaded in Live and listened to. Another pair is another entry in
-``_TRANSLATIONS`` plus a reader; nothing in the dispatch names a format.
+Reading an info element, and rebuilding one as another format, is
+:mod:`abletoolz.plugins.container.device`'s job. What this module adds is
+the recipe -- what a device becomes: the target format and identity, the
+state policy its patch crosses under, the controller policy a VST3 target
+needs -- and the one step that applies it: read the device, carry its patch
+across, write the target. A new target format is a writer in the device
+module, not a pair here; VST3 is the one written today, because that is the
+output that has been loaded in Live and listened to.
 
 What the target format cannot infer from the source is supplied by a
-:class:`TranslationTarget`: VST3 identifies a plugin by a class id that appears
+:class:`Recipe`: VST3 identifies a plugin by a class id that appears
 nowhere in a VST2 device, so it has to come from somewhere else. The
 :data:`KNOWN_TRANSLATIONS` seed table is one place; every other one is
 :mod:`abletoolz.plugins.identity.uid_sources`.
@@ -27,47 +25,30 @@ nowhere in a VST2 device, so it has to come from somewhere else. The
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Protocol
-from xml.etree import ElementTree as ET
+from typing import Protocol
 
 import pydantic
 
-from abletoolz.elements import get_element
-from abletoolz.formats import hex_text
-from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.container.device import PluginDevice, PluginKind, UidFields, has_writer
 from abletoolz.plugins.state import (
     NO_CONTROLLER_STATE,
     ControllerState,
     CustomState,
+    PreparedBytes,
     StatePolicy,
     StateTransform,
     parse_controller_state,
     parse_state,
     state_bytes,
 )
-from abletoolz.schema import Attr, Tag, path
-from abletoolz.schema.versioning import MIN_SUPPORTED, Version
-
-if TYPE_CHECKING:
-    from abletoolz.live_set.document import AbletonSet
-type UidFields = tuple[int, int, int, int]
 
 
 class IncompleteDevice(ValueError):
-    """A device the set describes too thinly to rewrite. See :func:`is_translatable`."""
-
-
-# The element a PluginDesc holds for each format.
-INFO_TAGS: dict[PluginKind, str] = {
-    PluginKind.VST: Tag.VST_PLUGIN_INFO,
-    PluginKind.VST3: Tag.VST3_PLUGIN_INFO,
-    PluginKind.AU: Tag.AU_PLUGIN_INFO,
-}
+    """A device the set describes too thinly to rewrite. See :attr:`PluginDevice.complete`."""
 
 
 @dataclasses.dataclass(frozen=True)
-class TranslationTarget:
+class Recipe:
     """What one plugin becomes in another format.
 
     ``uid_fields`` is the target format's identity: for VST3 the four signed
@@ -79,6 +60,12 @@ class TranslationTarget:
     about it means the empty element Live writes for a plugin that keeps none.
     That is right for the plugins measured to write none and wrong for the rest,
     which is why it is declared per target rather than assumed.
+
+    ``from_format`` says which devices the recipe is for. A stored name belongs
+    to one format -- a VST2's PlugName, a VST3's display name -- and the same
+    name can mean a different plugin in another, so a recipe applies only to
+    devices of its own source format. VST2 is the default, which is what every
+    entry written before the field existed meant.
     """
 
     to_format: PluginKind
@@ -86,16 +73,17 @@ class TranslationTarget:
     uid_fields: UidFields
     state_transform: StatePolicy = StateTransform.VERBATIM
     controller_state: ControllerState = NO_CONTROLLER_STATE
+    from_format: PluginKind = PluginKind.VST
 
 
 @dataclasses.dataclass(frozen=True)
-class NamedTarget:
+class NamedRecipe:
     """A target known by display name only, whose class id is still to be found.
 
     What a config entry means when it gives a ``name`` and no ``uid``: the user
     knows which VST3 they want, and the class id is a machine fact
     :mod:`abletoolz.plugins.identity.uid_sources` can look up. Kept apart from
-    :class:`TranslationTarget` so nothing can reach ``translate_device`` without
+    :class:`Recipe` so nothing can reach ``apply_recipe`` without
     a class id in hand.
     """
 
@@ -103,10 +91,11 @@ class NamedTarget:
     name: str
     state_transform: StatePolicy = StateTransform.VERBATIM
     controller_state: ControllerState = NO_CONTROLLER_STATE
+    from_format: PluginKind = PluginKind.VST
 
 
 # What a mapping table may hold: an identity, or a name still to be resolved.
-type ConfiguredTarget = TranslationTarget | NamedTarget
+type ConfiguredRecipe = Recipe | NamedRecipe
 
 
 class UidResolver(Protocol):
@@ -119,37 +108,25 @@ class UidResolver(Protocol):
     def resolve(self, name: str) -> UidFields | None: ...
 
 
-def resolve_target(target: ConfiguredTarget, uid_lookup: UidResolver | None) -> TranslationTarget | None:
+def resolve_recipe(target: ConfiguredRecipe, uid_lookup: UidResolver | None) -> Recipe | None:
     """Give a configured target its class id, or answer None when none is known."""
-    if isinstance(target, TranslationTarget):
+    if isinstance(target, Recipe):
         return target
     fields = None if uid_lookup is None else uid_lookup.resolve(target.name)
     if fields is None:
         return None
-    return TranslationTarget(target.to_format, target.name, fields, target.state_transform, target.controller_state)
-
-
-@dataclasses.dataclass(frozen=True)
-class PluginIdentity:
-    """What a set says about one plugin device, in format-neutral terms.
-
-    ``is_instrument`` is None when the set does not say -- see
-    :func:`is_translatable`. A device is still perfectly identifiable then; it
-    just cannot be rewritten as another format.
-    """
-
-    format: PluginKind
-    name: str
-    is_instrument: bool | None
+    return Recipe(
+        target.to_format, target.name, fields, target.state_transform, target.controller_state, target.from_format
+    )
 
 
 def _vst3(
     name: str,
     uid_fields: UidFields,
     state_transform: StatePolicy = StateTransform.VERBATIM,
-) -> TranslationTarget:
+) -> Recipe:
     """Seed-table shorthand for a VST3 target."""
-    return TranslationTarget(PluginKind.VST3, name, uid_fields, state_transform)
+    return Recipe(PluginKind.VST3, name, uid_fields, state_transform)
 
 
 # Keyed by the VST2 PlugName a set stores. Measured 2026-08-10 against installed
@@ -158,7 +135,7 @@ def _vst3(
 # "FabFilter Pro-Q 3" is measured only: its class id is cross-checked by
 # test_format_translation against a VST3 instance in the 10.1.3 fixture, but no
 # translated device has been listened to.
-KNOWN_TRANSLATIONS: dict[str, TranslationTarget] = {
+KNOWN_TRANSLATIONS: dict[str, Recipe] = {
     "Serum_x64": _vst3("Serum", (1448301656, 1718835315, 1701999981, 0)),
     "Ghz Tupe 3": _vst3("Ghz Tupe 3", (1448301652, 1345542247, 1752834164, 1970300192)),
     "Serato Sample": _vst3("Serato Sample", (1448301651, 1836084339, 1701994868, 1864397665)),
@@ -198,6 +175,8 @@ class TargetConfig(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
+    # ``from`` is a keyword, so the field is spelled ``from_`` here and ``from`` in the file.
+    from_: PluginKind = pydantic.Field(default=PluginKind.VST, alias="from")
     to: PluginKind = PluginKind.VST3
     name: str
     uid: tuple[int, int, int, int] | None = None
@@ -232,301 +211,68 @@ class TargetConfig(pydantic.BaseModel):
             return StateTransform.KILOHEARTS
         return StateTransform.VERBATIM
 
-    def target(self, source_name: str) -> ConfiguredTarget:
+    def target(self, source_name: str) -> ConfiguredRecipe:
         """The mapping entry, resolved if it carries a class id and named if not."""
         transform = self.state_for(source_name)
         controller = NO_CONTROLLER_STATE if self.controller is None else parse_controller_state(self.controller)
         if self.uid is None:
-            return NamedTarget(self.to, self.name, transform, controller)
-        return TranslationTarget(self.to, self.name, self.uid, transform, controller)
+            return NamedRecipe(self.to, self.name, transform, controller, self.from_)
+        return Recipe(self.to, self.name, self.uid, transform, controller, self.from_)
 
 
-def parse_config_targets(raw: object) -> dict[str, ConfiguredTarget]:
+def parse_config_targets(raw: object) -> dict[str, ConfiguredRecipe]:
     """Build targets from the ``plugin_translation.targets`` mapping in config.yaml."""
     targets = pydantic.TypeAdapter(dict[str, TargetConfig]).validate_python(raw)
     return {source_name: entry.target(source_name) for source_name, entry in targets.items()}
 
 
-# -- identity ---------------------------------------------------------------
+# -- applying a recipe ------------------------------------------------------
 
 
-def _read_vst2(info: ET.Element) -> PluginIdentity:
-    """VST2 keeps its file-derived name in PlugName; Category 2 means instrument.
+def carried_state(source: bytes, policy: StatePolicy) -> bytes:
+    """The preset bytes a device carries across under ``policy``.
 
-    A stub device has no Category at all and the set says nothing about what the
-    plugin is -- the name is still there, which is the half repair needs to
-    report it.
+    A device saved without a patch stays without one -- there is nothing to
+    reframe or re-encode -- unless the policy brings bytes of its own.
     """
-    category = info.find(Tag.CATEGORY)
-    return PluginIdentity(
-        format=PluginKind.VST,
-        name=get_element(info, Tag.PLUG_NAME, attribute=Attr.VALUE),
-        is_instrument=None if category is None else category.get(Attr.VALUE) == "2",
-    )
-
-
-def _read_vst3(info: ET.Element) -> PluginIdentity:
-    """VST3 keeps its display name in Name; DeviceType 1 means instrument."""
-    return PluginIdentity(
-        format=PluginKind.VST3,
-        name=get_element(info, Tag.NAME, attribute=Attr.VALUE),
-        is_instrument=get_element(info, Tag.DEVICE_TYPE, attribute=Attr.VALUE) == "1",
-    )
-
-
-_READERS: dict[PluginKind, Callable[[ET.Element], PluginIdentity]] = {
-    PluginKind.VST: _read_vst2,
-    PluginKind.VST3: _read_vst3,
-}
-
-_KIND_BY_TAG: dict[str, PluginKind] = {INFO_TAGS[kind]: kind for kind in _READERS}
-
-
-def read_identity(info: ET.Element) -> PluginIdentity:
-    """Read any supported plugin info element into format-neutral terms."""
-    return _READERS[_KIND_BY_TAG[info.tag]](info)
-
-
-# What a VST2 info element has to carry before it can become anything else: the
-# Category that decides DeviceType, and the preset block that becomes the
-# Vst3Preset. Measured over 811 sets: 54 devices in 11 of them carry a stub
-# instead -- Dir, FileName, PlugName, UniqueId and sometimes Preset, nothing
-# more. Every one of those 11 sets is the output of a third-party set generator
-# and no set Live wrote carries the shape. Nothing in that stub says
-# what the device is, so nothing here will invent it.
-_REQUIRED_FIELDS: dict[PluginKind, tuple[str, ...]] = {
-    PluginKind.VST: (Tag.CATEGORY, path(Tag.PRESET, Tag.VST_PRESET)),
-    PluginKind.VST3: (),
-}
-
-
-def is_translatable(info: ET.Element) -> bool:
-    """Whether this device carries what rewriting it into another format needs."""
-    return all(info.find(path) is not None for path in _REQUIRED_FIELDS[_KIND_BY_TAG[info.tag]])
-
-
-# The oldest set each format's info element may be written into.
-#
-# A set's XML is schema-versioned by its root element, and Live reads a tag as a
-# class only if the schema that version declared knows the name. So writing a
-# Vst3PluginInfo into a set Live 9 saved does not produce a set with a VST3
-# device in it -- it produces a file Live will not open at all:
-#
-#     ... is corrupt and cannot be loaded.
-#     (Unknown class 'Vst3PluginInfo' encountered (at line 19371, column 25))
-#
-# Measured 2026-08-13 on Live 12.4.5b, opening a 9.0.1 set (MinorVersion
-# 9.0_305) whose Pro-Q 1 devices had been translated to Pro-Q 3. The floor comes
-# from the library, by document schema: MinorVersion 9.0_305 (9 sets), 9.5_326
-# (10), 9.5_327 (22) and 10.0_370 (61) carry no Vst3PluginInfo between them,
-# while 10.0_377 -- the schema Live 10.1 writes -- carries 129 across 23 sets.
-# By Creator the same line falls between 10.0.6 and 10.1.
-_FORMAT_FLOORS: dict[PluginKind, Version] = {
-    PluginKind.VST: MIN_SUPPORTED,
-    PluginKind.VST3: (10, 1, 0),
-    PluginKind.AU: MIN_SUPPORTED,
-}
-
-
-def set_supports(kind: PluginKind, version: Version) -> bool:
-    """Whether a set saved by ``version`` may hold ``kind``'s info element.
-
-    Identity and state are beside the point when the answer is no: the container
-    is invalid for the document, and Live rejects the whole file rather than the
-    one device.
-    """
-    return version >= _FORMAT_FLOORS[kind]
-
-
-# -- shaping ----------------------------------------------------------------
-# Live pretty-prints with tabs, so an element added without matching its
-# siblings makes the file stop looking like Live's own.
-
-
-def _inner_indent(parent: ET.Element) -> str | None:
-    """The whitespace Live writes before each child of ``parent``."""
-    text = parent.text
-    return text if text is not None and not text.strip() else None
-
-
-def _rebuild(parent: ET.Element, order: tuple[str, ...], closing: str | None) -> None:
-    """Keep only ``order``'s tags, in ``order``, indented the way Live writes them.
-
-    ``closing`` is the indentation before the parent's own closing tag, which
-    has to be read off the last child before anything is appended.
-
-    Dropping by keep-list rather than by a list of unwanted tags is what makes
-    one rule cover every Live version: a set from Live 10 carries Dir/FileName
-    and no NumAudioInputs, Live 12 the other way round, and the result each time
-    is exactly the element that version of Live writes for a VST3.
-    """
-    inner = _inner_indent(parent)
-    kept = {child.tag: child for child in parent}
-    children = [kept[tag] for tag in order if tag in kept]
-    for child in children:
-        child.tail = inner
-    children[-1].tail = closing
-    parent[:] = children
-
-
-def _uid_element(fields: UidFields, indent: str | None) -> ET.Element:
-    """Live's Uid block, indented for a parent whose children sit at ``indent``."""
-    uid: ET.Element = ET.Element(Tag.UID)
-    uid.text = None if indent is None else indent + "\t"
-    for index, value in enumerate(fields):
-        field = ET.SubElement(uid, f"Fields.{index}", {Attr.VALUE: str(value)})
-        field.tail = uid.text
-    uid[-1].tail = indent
-    return uid
-
-
-# -- state ------------------------------------------------------------------
-# What the bytes become is :mod:`abletoolz.plugins.state`'s knowledge;
-# here is only where they sit in the file.
-
-
-def _state_payload(element: ET.Element) -> bytes:
-    """The bytes a state element holds, or none at all for a device saved without a patch."""
-    return hex_text.decode(element.text)
-
-
-def _transform_state(element: ET.Element, policy: StatePolicy) -> None:
-    """Rewrite a state element's hex blob in place, keeping Live's hex line width."""
     rewrite = state_bytes(policy)
-    if rewrite is None:
-        return
-    text = element.text
-    if text is None or not text.strip():
-        return
-    element.text = hex_text.encode(rewrite(hex_text.decode(text)), hex_text.depth(text))
+    if rewrite is None or (not source and not isinstance(policy, PreparedBytes)):
+        return source
+    return rewrite(source)
 
 
-def _controller_element(controller: ControllerState, source: bytes, indent: str | None) -> ET.Element:
-    """The ControllerState Live writes beside every ProcessorState.
+def apply_recipe(device: PluginDevice, target: Recipe) -> None:
+    """Rewrite ``device`` as ``target`` says: read it, carry its patch across, write the target format.
 
-    Measured over 150 sets: there is exactly one of these per ``ProcessorState``
-    -- 917 pairs out of 917 in a second sample -- and whether it holds anything
-    is a fact about the plugin. It is built from what the *source* device saved
-    rather than from what the processor half became, because for the products
-    that populate it the two are halves of the same saved chunk.
-
-    A device saved with no patch at all has nothing to build one out of, and
-    gets the empty element that says so.
+    The controller half of a VST3 preset is built from what the *source*
+    device saved rather than from what the processor half becomes, because for
+    the products that populate it the two are halves of the same saved chunk
+    (measured over 150 sets: exactly one ControllerState per ProcessorState,
+    917 pairs out of 917). A device saved with no patch has nothing to build
+    one out of, and gets the empty element that says so -- unless its bytes
+    are prepared, which carry their own controller half with them.
     """
-    element: ET.Element = ET.Element(Tag.CONTROLLER_STATE)
-    payload = controller.build(source) if source else None
-    if payload:
-        levels = 0 if indent is None else indent.count("\t") + 1
-        element.text = hex_text.encode(payload, levels)
-    return element
+    if device.kind is not target.from_format:
+        raise ValueError(f"a recipe for {target.from_format.value} devices cannot rewrite a {device.kind.value} device")
+    identity, preset = device.identity, device.preset
+    if identity.is_instrument is None:
+        raise IncompleteDevice(f"{identity.name} is a stub device: the set never says what it is")
+    source = preset.state
+    prepared = isinstance(target.state_transform, PreparedBytes)
+    controller = target.controller_state.build(source) if source or prepared else None
+    device.rewrite(
+        target.to_format,
+        dataclasses.replace(identity, kind=target.to_format, name=target.name, uid_fields=target.uid_fields),
+        dataclasses.replace(preset, state=carried_state(source, target.state_transform), controller=controller),
+    )
 
 
-# -- vst2 to vst3 -----------------------------------------------------------
+def can_rewrite(source: PluginKind, to: PluginKind) -> bool:
+    """Whether a device of ``source`` can be rewritten as ``to`` at all.
 
-# Everything a Vst3PluginInfo holds, in the order Live writes it. What a VST2
-# device carries beyond this -- Path, PlugName, UniqueId, Inputs, Outputs,
-# NumberOfParameters, NumberOfPrograms, Flags, Version, VstVersion,
-# IsShellClient, Category, plus the Dir/FileName/LastPresetFolder of older sets
-# -- has no VST3 counterpart and goes. Verified against the Vst3PluginInfo
-# elements in the Live 10.1.3 and 11.3.42 fixtures, which are this list minus
-# whatever that version of Live did not write yet.
-_VST3_INFO_ORDER = (
-    Tag.WIN_POS_X,
-    Tag.WIN_POS_Y,
-    Tag.NUM_AUDIO_INPUTS,
-    Tag.NUM_AUDIO_OUTPUTS,
-    Tag.IS_PLACEHOLDER_DEVICE,
-    Tag.PRESET,
-    Tag.NAME,
-    Tag.UID,
-    Tag.DEVICE_TYPE,
-)
-
-# Same for the preset. The 13 tags up to ParametersListWrapperLomId are the ones
-# both formats share untouched; Type, ProgramCount, ParameterCount,
-# ProgramNumber, PluginVersion, UniqueId and ByteOrder are VST2-only and go.
-_VST3_PRESET_ORDER = (
-    Tag.OVERWRITE_PROTECTION_NUMBER,
-    Tag.MPE_ENABLED,
-    Tag.MPE_SETTINGS,
-    Tag.PARAMETER_SETTINGS,
-    Tag.IS_ON,
-    Tag.POWER_MACRO_CONTROL_INDEX,
-    Tag.POWER_MACRO_MAPPING_RANGE,
-    Tag.IS_FOLDED,
-    Tag.STORED_ALL_PARAMETERS,
-    Tag.DEVICE_LOM_ID,
-    Tag.DEVICE_VIEW_LOM_ID,
-    Tag.IS_ON_LOM_ID,
-    Tag.PARAMETERS_LIST_WRAPPER_LOM_ID,
-    Tag.UID,
-    Tag.DEVICE_TYPE,
-    Tag.PROCESSOR_STATE,
-    Tag.CONTROLLER_STATE,
-    Tag.NAME,
-    Tag.PRESET_REF,
-)
-
-
-def _translate_vst2_to_vst3(info: ET.Element, target: TranslationTarget) -> None:
-    """Rewrite a VstPluginInfo element into the Vst3PluginInfo Live writes."""
-    is_instrument = _read_vst2(info).is_instrument
-    if is_instrument is None:
-        raise IncompleteDevice(f"{read_identity(info).name} is a stub device: the set never says what it is")
-    device_type = "1" if is_instrument else "2"
-    info_closing = info[-1].tail
-
-    preset = get_element(info, path(Tag.PRESET, Tag.VST_PRESET))
-    preset_closing = preset[-1].tail
-    preset.tag = Tag.VST3_PRESET
-    state = get_element(preset, Tag.BUFFER)
-    state.tag = Tag.PROCESSOR_STATE
-    # Read before the rewrite: the controller half is built from what the VST2
-    # device saved, not from what the processor half is about to become.
-    source = _state_payload(state)
-    _transform_state(state, target.state_transform)
-    preset.append(_uid_element(target.uid_fields, _inner_indent(preset)))
-    preset.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
-    preset.append(_controller_element(target.controller_state, source, _inner_indent(preset)))
-    _rebuild(preset, _VST3_PRESET_ORDER, preset_closing)
-
-    info.append(ET.Element(Tag.NAME, {Attr.VALUE: target.name}))
-    info.append(_uid_element(target.uid_fields, _inner_indent(info)))
-    info.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
-    _rebuild(info, _VST3_INFO_ORDER, info_closing)
-    info.tag = INFO_TAGS[PluginKind.VST3]
-
-
-_TRANSLATIONS: dict[tuple[PluginKind, PluginKind], Callable[[ET.Element, TranslationTarget], None]] = {
-    (PluginKind.VST, PluginKind.VST3): _translate_vst2_to_vst3,
-}
-
-
-def translate_device(info: ET.Element, target: TranslationTarget) -> None:
-    """Rewrite one plugin info element into ``target``'s format, in place."""
-    _TRANSLATIONS[(_KIND_BY_TAG[info.tag], target.to_format)](info, target)
-
-
-def has_translator(source: PluginKind, to: PluginKind) -> bool:
-    """Whether this ordered format pair can be translated at all.
-
-    Direction comes from the mapping entry, so an entry may name a pair nothing
-    here implements -- today anything but ``(vst, vst3)``. That is a fact to
-    report, not an error: the entry is the user's statement of intent, and the
-    missing half is a translator nobody has written yet.
+    Direction comes from the mapping entry, so an entry may name a format
+    nothing can write yet. That is a fact to report, not an error: the entry
+    is the user's statement of intent, and the missing half is a writer nobody
+    has measured yet.
     """
-    return (source, to) in _TRANSLATIONS
-
-
-def device_infos(live_set: AbletonSet) -> list[tuple[ET.Element, PluginKind]]:
-    """Every plugin device in a set this module can read, with its format.
-
-    Snapshotted before anything is rewritten, on purpose: translating a device
-    changes its tag, and a live iteration would meet the result again as a
-    device of the target format and report it twice.
-    """
-    found: list[tuple[ET.Element, PluginKind]] = []
-    for plugin_desc in live_set.root.iter(Tag.PLUGIN_DESC):
-        for kind in _READERS:
-            found.extend((info, kind) for info in plugin_desc.iter(INFO_TAGS[kind]))
-    return found
+    return source is not to and has_writer(to)

@@ -1,4 +1,9 @@
-"""What happens to a plugin's saved patch when its container changes.
+"""Reusable plugin state codecs and source-to-target transforms.
+
+State can be inspected or edited on its own, reused in a newer version, or
+translated into another plugin through an explicit mapping. Container changes
+and set repair are consumers of this knowledge. Knowing a binary layout does
+not by itself establish control semantics or a valid transform.
 
 The third axis of the plugin transform model -- container, identity, state --
 and the only hard one. Container and identity are
@@ -42,7 +47,7 @@ A VST3 preset holds two blobs, not one, and the second is a per-plugin fact
 rather than a formality. :class:`ControllerState` and its three shapes --
 :class:`NoControllerState`, :class:`ConstantControllerState`, and the
 FFBS-generation form in :mod:`abletoolz.plugins.state.fabfilter` -- are what a
-:class:`~abletoolz.plugins.container.format_translation.TranslationTarget` declares
+:class:`~abletoolz.plugins.container.format_translation.Recipe` declares
 about it.
 
 Where the rest of the axis lives
@@ -136,8 +141,23 @@ class CustomState:
         return f"{CUSTOM_PREFIX}{self.name}"
 
 
-# What a mapping entry may say about state.
-type StatePolicy = StateTransform | CustomState
+@dataclasses.dataclass(frozen=True)
+class PreparedBytes:
+    """A patch converted outside abletoolz and read back by the target plugin.
+
+    These bytes replace whatever the source device saved, even nothing. No
+    config entry can name them; a recovery route's manifest carries them, with
+    the hash that binds them to the one patch they were derived from.
+    """
+
+    processor: bytes
+
+    def __str__(self) -> str:
+        return "prepared"
+
+
+# What a mapping entry may say about state, plus the one shape a route supplies.
+type StatePolicy = StateTransform | CustomState | PreparedBytes
 
 
 # -- the registry -----------------------------------------------------------
@@ -216,6 +236,8 @@ def state_bytes(policy: StatePolicy) -> StateBytes | None:
     """The byte rewrite ``policy`` asks for, or None when the bytes go across as they are."""
     if isinstance(policy, CustomState):
         return custom_state(policy.name)
+    if isinstance(policy, PreparedBytes):
+        return lambda _source: policy.processor
     return _BUILT_IN_TRANSFORMS.get(policy)
 
 

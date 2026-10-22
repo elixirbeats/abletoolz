@@ -709,5 +709,245 @@
     ],
     "state_evidence": "numeric_state_preservation",
     "notes": "All 12 saved parameter float32 words and other numeric XML fields survive native x64 load and explicit program selection; decimal spelling normalizes. Outer ALS and embedded program selections agree. Original x86 audio equivalence unmeasured."
+  },
+  {
+    "id": "fabfilter-saturn-native-x64",
+    "source_names": [
+      "FabFilter Saturn x64.64",
+      "FabFilter Saturn.64"
+    ],
+    "unique_id": 1179869556,
+    "parameter_count": 899,
+    "program_count": 1,
+    "preset_type": "FxBk",
+    "states": [
+      {
+        "sha256": "0b766b5e198120f398107a11d3024c1c16f592a30ab9e2a98d21bbc24177ba32",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "17bb42e7fe7ec7965e60ccf04803c17927eaeae2a30254d1c3403179407e2ed3",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "1c0903950a79b62036907d9c29236b989cc6b5437429786fef722d10a07c4c85",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "1de6d66143c5208bbf2dd77aae63539c37cf42a4a34860d0d7cd0042257cdf35",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "a6df4c78d53948f10b8007f4a901536582d4856dc0d56dbe7c0684615468aca9",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "b52aed891181cc3619d9e58cbedbc7b3f6b48bbf0946b8e118e0106c236b19b4",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "d54a38e355d48d3496276dfb6d2ff60c7ab5570b50fd45f8272e61cc13de2703",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "FabFilter Saturn x64.dll",
+        "name": "FabFilter Saturn x64",
+        "sha256": "b1ed525adddcd550c0cebbe8d09085478485516a1a83432109cadef79a6a370a",
+        "format": "vst",
+        "uid_fields": null
+      }
+    ],
+    "state_evidence": "byte_exact_bank",
+    "notes": "Pinned native Saturn 1 x64 restores every measured named float bank byte-exact through public VST2 parameter/program APIs; all 899 saved float32 words and program 0 verified per bank. Counts and public indices match. This is same-product Saturn 1 recovery, not Saturn 2 conversion. Original x86 DSP/audio equivalence is unmeasured.",
+    "state_mode": "reference"
+  },
+  {
+    "id": "effectrix-native-x64",
+    "source_names": [
+      "Effectrix.64"
+    ],
+    "unique_id": 1935828326,
+    "parameter_count": 117,
+    "program_count": 64,
+    "preset_type": "FBCh",
+    "states": [
+      {
+        "sha256": "12314685105f7712c36ba88d07ef1947cddf99a9e0a442d6f604667b7eb73c0a",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "13b42ebf3764b3d8e20c5fb662dedf75778f128e4f9625f676d5c3fb59a675cf",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "4e0680ee9903efbef1d15c3a1e27909eb421ef05a28f61e4a47a2528a597db21",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "4fc94c77f9f68f993c9471dcbff1189c847b998a9f3f9bea2f1226da68ccc842",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "5a06930d1805c8c320468166c5fe9a31741c1e3a2d9d41f61e5af136314cc746",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "65f2c30013db6dab1b7269b1e065e28694fd3b7f7dc3150e0d0882269b16ec50",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "675018ada4f3aaad2349e501e784079e5492f164315c741c79a22b4bf39aa1a8",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "6774c96096af1107aa1f75aaf47f57b2bae4eb39d2b8735ac33f05e8c4f29342",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "929d4abab6f8b3b78dd18bf371646601d1c59c2b8889819c9688078e4666d08d",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "92c8c6c0ec98404a462f6ef9e8ac870ffa6afe0f9638d9649fa7c5db1c9a84a9",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "9a167b1fdb050c723d79a43777ccc52fd9148a56b8b6c667d754ef66cf8d9075",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "9ab9790e5151382376e4b40615d390c1eeccc22cde4dda8e1969f1f3f75d9956",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "9dc9f4ddab7890db956acb32a6ec255d25d53adf40e8da64b0e77cc8654249ac",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "a243d34bdfa095b8bfbc856c36630f50950117fd766d2f154fe838e20b4a8e3f",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "a3e876bba45c6303fc50056f9a80fd55d38d93f2477297b5469ba30ad6257632",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "a7e4233de1184d0c98331957cb45393103a929e3b23394475e0c39c4fcbdb682",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "cfdfdd05c1d91bff97e49474ab2a38155013af07306aa249bc032c0126a3c07c",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "eaf32395a4080eb0e5380a74d7c697b3a4cb79bd2cccf8261144da9972a56f8f",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "f00cbfd92fd3942d9ad8d9fa62699033f118f55cec91d8f86dae4254d28bb8ab",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      },
+      {
+        "sha256": "fed8ba6f78c21c8c217e20998d7ff66afae0b600fbf7fd96a1da4c28e410b0d8",
+        "program_numbers": [
+          0
+        ],
+        "prepared": null
+      }
+    ],
+    "targets": [
+      {
+        "file_name": "Effectrix.dll",
+        "name": "Effectrix",
+        "sha256": "6ac4743afaf0acc4428a56f7ea43c7ad820fe35de42873067cbbf4006c3ee177",
+        "format": "vst",
+        "uid_fields": null,
+        "parameter_count": 117,
+        "program_count": 128
+      }
+    ],
+    "state_evidence": "legacy_reader_retention",
+    "notes": "Recovery of twenty measured legacy banks with native reference and program-capacity metadata repair. Fresh public VST2 hosts preserve all 116 scalar getter float32 words and all 245 saved field IDs after every scalar differs from its source value. The native version 3 reader emits version 9: 212 payloads remain byte-exact; 30 envelope payloads retain all grid and name bytes while converting 1002 to 1003 and removing one old header word; MouseArea, Tempo and PatternKeys retain all six values and append zero. All 15 stored program names and footer selection fields survive; footer version 16 becomes 22, old host-name text becomes a terminal marker, and engine tempo/sample-rate header values normalize. Native program capacity is 128 versus the source's 64; NumberOfPrograms and Preset/ProgramCount become 128; raw bank, selected program, public control indices and all other saved data remain unchanged. Active program 0 is independently verified. Two source banks are deliberately excluded because the minimal public host consistently rewrites one scalar while DawDreamer retains it: 13fdb0f545f70084907a8a51de96ec26529ec455e97f43bd46461eba3ae1351b, 932eb3447927ce173a76d8a7bb8f9a473323fc6ede71dd47cdaba66f1624407d. Original-generation DSP and Live loading remain unverified. The measured corpus has no configured, mapped or referenced controls or stored parameter settings; recovery must refuse those bindings until a source-index map is measured.",
+    "state_mode": "reference_with_program_capacity"
   }
 ]
