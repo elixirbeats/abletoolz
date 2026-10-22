@@ -1,8 +1,8 @@
-"""Measure Live's XML vocabulary across a corpus of sets; write schema/devices.py and schema/objects.py.
+"""Measure Live's XML vocabulary across a corpus of sets; write schema/devices.py, objects.py and structure.py.
 
 Run from the abletoolz checkout::
 
-    uv run python scripts/gen_vocab.py --corpus DIR [--skip DIR ...]        # writes both modules
+    uv run python scripts/gen_vocab.py --corpus DIR [--skip DIR ...]        # writes the three modules
     uv run python scripts/gen_vocab.py --corpus DIR --sample 20 --dry-run  # time a 20-set sample
 
 Every .als under ``--corpus`` is scanned except folders named ``backup`` or
@@ -34,8 +34,14 @@ each one stops at. Renames are found two ways: a tag rename declared in
 contradicts it), and two paths that read the same word for word once Live's
 separators are ignored (``SideChainEq/Gain`` became ``SideChainEq_Gain``).
 
-The raw census goes to ``--json``; the modules go to ``--devices-out`` and
-``--objects-out``. Neither module holds a set name, a path or a value from a set.
+The same pass measures each release's document structure for
+``schema/structure.py``: the root attributes it wrote, and for every tag the
+children and attributes it carries, with the first and last release each was
+seen in and which ones every element of the tag carries per schema.
+
+The raw census goes to ``--json``; the modules go to ``--devices-out``,
+``--objects-out`` and ``--structure-out``. No module holds a set name or a path;
+structure.py holds the most common value of an attribute some schema always writes.
 """
 
 from __future__ import annotations
@@ -94,6 +100,7 @@ GENERATED_NAME = re.compile(r"jukeblocks|jukebox", re.IGNORECASE)
 FIXTURE_GLOB = "test/version_fixtures/skeletons/*.als"
 DEVICES_OUT = REPO_ROOT / "abletoolz" / "schema" / "devices.py"
 OBJECTS_OUT = REPO_ROOT / "abletoolz" / "schema" / "objects.py"
+STRUCTURE_OUT = REPO_ROOT / "abletoolz" / "schema" / "structure.py"
 PRE_82_MAGIC = b"\xab\x1e"
 ZERO: Version = (0, 0, 0)
 
@@ -459,6 +466,128 @@ class ObjectTally:
                 mine.merge(tally)
 
 
+type Pair = tuple[str, str]
+type Header = tuple[tuple[str, str], ...]
+
+# Attribute orders kept per tag; one order is the norm, a handful covers every variant.
+ORDER_CAP = 4
+
+
+@dataclass(slots=True)
+class GrammarTally:
+    """Which children and attributes each element carries, in the sets of one Live version."""
+
+    instances: Counter[str] = field(default_factory=Counter)
+    # (parent, child): parents holding at least one such child.
+    children: Counter[Pair] = field(default_factory=Counter)
+    # (tag, attribute): elements carrying the attribute.
+    attributes: Counter[Pair] = field(default_factory=Counter)
+    values: dict[Pair, Counter[str]] = field(default_factory=dict)
+    orders: dict[str, Counter[tuple[str, ...]]] = field(default_factory=dict)
+    headers: Counter[Header] = field(default_factory=Counter)
+    # (device tag, kind): one vote per device found, from its preset's browser folder,
+    # the chain it sits in, or its place beside the chain's instrument.
+    kinds: Counter[Pair] = field(default_factory=Counter)
+    sets: int = 0
+
+    def merge(self, other: GrammarTally) -> None:
+        self.instances.update(other.instances)
+        self.children.update(other.children)
+        self.attributes.update(other.attributes)
+        for pair, values in other.values.items():
+            _capped_update(self.values.setdefault(pair, Counter()), values, DISTINCT_CAP)
+        for tag, orders in other.orders.items():
+            _capped_update(self.orders.setdefault(tag, Counter()), orders, ORDER_CAP)
+        self.headers.update(other.headers)
+        self.kinds.update(other.kinds)
+        self.sets += other.sets
+
+
+def _capped_update[K](mine: Counter[K], theirs: Counter[K], cap: int) -> None:
+    for key, count in theirs.items():
+        if key in mine or len(mine) < cap:
+            mine[key] += count
+
+
+def grammar_tag(tag: str) -> str:
+    """A tag as the grammar counts it: numbered tags (``ControllerTargets.12``) fold into one."""
+    match = NUMBERED.match(tag)
+    return tag if match is None else f"{match['stem']}.{{n}}"
+
+
+# What a device chain can hold, by the element that owns it. A MIDI track's chain and
+# an instrument or drum rack's chain hold all three kinds in Live's order: MIDI
+# effects, the instrument, audio effects.
+CHAIN_KINDS = {
+    "AudioTrack": "audio_effect",
+    "ReturnTrack": "audio_effect",
+    "GroupTrack": "audio_effect",
+    "MasterTrack": "audio_effect",
+    "MainTrack": "audio_effect",
+    "AudioEffectBranch": "audio_effect",
+    "MidiEffectBranch": "midi_effect",
+    "MidiTrack": "mixed",
+    "InstrumentBranch": "mixed",
+    "DrumBranch": "mixed",
+}
+
+
+PRESET_FOLDER = re.compile(r"^Devices/(Audio Effects|Instruments|MIDI Effects)/", re.IGNORECASE)
+FOLDER_KINDS = {"audio effects": "audio_effect", "instruments": "instrument", "midi effects": "midi_effect"}
+INSTRUMENT_TAGS = frozenset({"InstrumentGroupDevice", "DrumGroupDevice"})
+
+
+def preset_kind(device: ET.Element) -> str | None:
+    """The browser folder of the preset a device was last loaded from, when Live recorded one."""
+    path = device.find("LastPresetRef//RelativePath")
+    match = None if path is None else PRESET_FOLDER.match(path.get("Value", ""))
+    return None if match is None else FOLDER_KINDS[match[1].lower()]
+
+
+def chain_votes(devices: list[ET.Element], kind: str) -> list[str | None]:
+    """Each device's kind as its chain shows it: by the chain alone, or by its place beside the instrument."""
+    if kind != "mixed":
+        return [kind] * len(devices)
+    own = [preset_kind(device) or ("instrument" if device.tag in INSTRUMENT_TAGS else None) for device in devices]
+    if "instrument" not in own:
+        return own
+    anchor = own.index("instrument")
+    return [own[i] or ("midi_effect" if i < anchor else "audio_effect") for i in range(len(devices))]
+
+
+def chain_kind(devices: ET.Element, parents: dict[ET.Element, ET.Element]) -> str | None:
+    owner = parents.get(devices)
+    while owner is not None and owner.tag not in CHAIN_KINDS:
+        owner = parents.get(owner)
+    return None if owner is None else CHAIN_KINDS[owner.tag]
+
+
+def census_grammar(root: ET.Element) -> GrammarTally:
+    """Every element of one set: its children's tags, its attributes, their values and order."""
+    grammar = GrammarTally(sets=1)
+    grammar.headers[tuple(root.attrib.items())] += 1
+    for element in root.iter():
+        tag = grammar_tag(element.tag)
+        grammar.instances[tag] += 1
+        for child_tag in {grammar_tag(child.tag) for child in element}:
+            grammar.children[tag, child_tag] += 1
+        if not element.attrib:
+            continue
+        for name, value in element.attrib.items():
+            grammar.attributes[tag, name] += 1
+            _capped_update(grammar.values.setdefault((tag, name), Counter()), Counter({value: 1}), DISTINCT_CAP)
+        _capped_update(grammar.orders.setdefault(tag, Counter()), Counter({tuple(element.attrib): 1}), ORDER_CAP)
+    parents = {child: parent for parent in root.iter() for child in parent}
+    for devices in root.iter("Devices"):
+        kind = chain_kind(devices, parents)
+        if kind is not None:
+            chain = list(devices)
+            for device, vote in zip(chain, chain_votes(chain, kind), strict=True):
+                if vote is not None:
+                    grammar.kinds[device.tag, vote] += 1
+    return grammar
+
+
 @dataclass(slots=True)
 class SetResult:
     """What one set contributed, or why it was skipped."""
@@ -466,6 +595,7 @@ class SetResult:
     version: Version | None = None
     devices: dict[str, ObjectTally] = field(default_factory=dict)
     objects: dict[str, ObjectTally] = field(default_factory=dict)
+    grammar: GrammarTally | None = None
     skip_reason: str | None = None
 
 
@@ -478,6 +608,8 @@ class Census:
     versions: Counter[str] = field(default_factory=Counter)
     devices: dict[str, ObjectTally] = field(default_factory=dict)
     objects: dict[str, ObjectTally] = field(default_factory=dict)
+    # The document structure, per Live version.
+    grammar: dict[Version, GrammarTally] = field(default_factory=dict)
 
     def merge(self, result: SetResult) -> None:
         if result.skip_reason is not None:
@@ -486,6 +618,11 @@ class Census:
         assert result.version is not None
         self.sets_scanned += 1
         self.versions[f"{result.version[0]}.{result.version[1]}"] += 1
+        if result.grammar is not None:
+            if result.version in self.grammar:
+                self.grammar[result.version].merge(result.grammar)
+            else:
+                self.grammar[result.version] = result.grammar
         for mine, theirs in ((self.devices, result.devices), (self.objects, result.objects)):
             for key, tally in theirs.items():
                 if key in mine:
@@ -773,7 +910,7 @@ def scan_set(path: Path) -> SetResult:
     except ValueError:
         return SetResult(skip_reason="unparseable Creator")
 
-    result = SetResult(version=version)
+    result = SetResult(version=version, grammar=census_grammar(root))
     for devices in root.iter("Devices"):
         for device in devices:
             tally = result.devices.get(device.tag)
@@ -1434,6 +1571,238 @@ def emit_objects(census: Census) -> str:
     return "\n".join(lines)
 
 
+# --------------------------------------------------------------------------- structure
+
+STRUCTURE_DOC = """\"\"\"Live's document structure per Live release, measured from real sets.
+
+GENERATED by scripts/gen_vocab.py; do not edit by hand. Regenerate from the abletoolz
+checkout with ``uv run python scripts/gen_vocab.py --corpus DIR``.
+
+Census: {sets} sets saved by Live {low} to {high}.
+
+A set's schema is the pair of numbers on its root element, ``MinorVersion`` and
+``SchemaChangeCount``; several releases share one. These tables say which
+elements and attributes each release writes, so a set can be written in an
+older release's schema (:mod:`abletoolz.live_set.save_as`). Tags are counted
+the way the grammar folds them: a numbered tag (``ControllerTargets.12``) is
+``ControllerTargets.{{n}}``.
+
+* ``RELEASES``: the root attributes each Live release wrote, and ``SETS`` how
+  many sets of the corpus it wrote.
+* ``NEWER_CHILDREN`` / ``NEWER_ATTRIBUTES``: a child or attribute first seen
+  after its parent was, with the release it first appeared in. Anything not
+  listed is as old as its parent.
+* ``GONE_CHILDREN`` / ``GONE_ATTRIBUTES``: last seen before its parent's last
+  release. Weak evidence: missing from the newest sets can be chance.
+* ``REQUIRED_ATTRIBUTES`` / ``REQUIRED_CHILDREN``: per schema, the ones on every
+  element of a tag where another schema leaves them off. ``FILL_VALUES`` holds
+  each required attribute's most common value and ``ATTRIBUTE_ORDER`` the order
+  the schema writes that tag's attributes in.
+* ``DEVICE_KINDS``: whether each device is an audio effect, a MIDI effect or an
+  instrument, from the chains it was found in.
+* ``TAG_RENAMES``: tags Live renamed, by old spelling, with the release that
+  writes the new one, and ``RENAMED_HELD`` what each old spelling held.
+\"\"\"
+"""
+
+# Elements of a tag a schema must hold before "on every one of them" counts as required.
+REQUIRED_EVIDENCE = 3
+BETA_CREATOR = re.compile(r"\db\d")
+
+type Schema = tuple[str, int | None]
+
+
+def schema_of(header: Header) -> Schema:
+    attributes = dict(header)
+    count = attributes.get("SchemaChangeCount")
+    return attributes["MinorVersion"], None if count is None else int(count)
+
+
+def release_header(tally: GrammarTally) -> Header:
+    """The root attributes a release wrote: its most common, a release build's over a beta's."""
+    ranked = sorted(
+        tally.headers.items(),
+        key=lambda item: (BETA_CREATOR.search(dict(item[0]).get("Creator", "")) is not None, -item[1]),
+    )
+    return ranked[0][0]
+
+
+def spans[K](tallies: dict[Version, GrammarTally], counts: Callable[[GrammarTally], Counter[K]]) -> dict[K, Range]:
+    found: dict[K, Range] = {}
+    for version, tally in tallies.items():
+        for key in counts(tally):
+            found[key] = widen_range(found.get(key), (version, version)) or (version, version)
+    return found
+
+
+def required(tally: GrammarTally, counts: Counter[Pair]) -> set[Pair]:
+    """The pairs present on every element of their tag, where the tag is common enough to say so."""
+    return {
+        pair
+        for pair, count in counts.items()
+        if count == tally.instances[pair[0]] and tally.instances[pair[0]] >= REQUIRED_EVIDENCE
+    }
+
+
+def variable(per_schema: dict[Schema, GrammarTally], picked: dict[Schema, set[Pair]]) -> set[Pair]:
+    """Pairs required in one schema and left off somewhere in another that holds enough of the tag."""
+    every = set().union(*picked.values())
+    return {
+        pair
+        for pair in every
+        if any(
+            pair not in picked[schema] and tally.instances[pair[0]] >= REQUIRED_EVIDENCE
+            for schema, tally in per_schema.items()
+        )
+    }
+
+
+def nested_literal(name: str, annotation: str, doc: str, table: dict[str, dict[str, str]]) -> list[str]:
+    body = []
+    for outer in sorted(table):
+        inner = ", ".join(f"{key!r}: {value}" for key, value in sorted(table[outer].items()))
+        body.append(f"    {outer!r}: {{{inner}}},")
+    return [f"{name}: {annotation} = {{", *body, "}", f'"""{doc}"""', ""]
+
+
+def by_tag(pairs: dict[Pair, str]) -> dict[str, dict[str, str]]:
+    table: dict[str, dict[str, str]] = {}
+    for (tag, name), value in pairs.items():
+        table.setdefault(tag, {})[name] = value
+    return table
+
+
+def emit_structure(census: Census) -> str:
+    tallies = census.grammar
+    releases = sorted(tallies)
+    headers = {version: release_header(tallies[version]) for version in releases}
+    per_schema: dict[Schema, GrammarTally] = {}
+    for version in releases:
+        per_schema.setdefault(schema_of(headers[version]), GrammarTally()).merge(tallies[version])
+
+    tag_spans = spans(tallies, lambda tally: tally.instances)
+    lines = module_header(
+        STRUCTURE_DOC.format(sets=census.sets_scanned, low=version_text(releases[0]), high=version_text(releases[-1]))
+    )
+    del lines[lines.index("import enum") : lines.index("import enum") + 2]
+    lines += ["", "type Schema = tuple[str, int | None]", '"""``MinorVersion`` and ``SchemaChangeCount``."""', ""]
+    lines += ["RELEASES: dict[Version, tuple[tuple[str, str], ...]] = {"]
+    lines += [f"    {version_literal(version)}: {headers[version]!r}," for version in releases]
+    lines += ["}", '"""The root attributes each release wrote, in its order."""', ""]
+    lines += ["SETS: dict[Version, int] = {"]
+    lines += [f"    {version_literal(version)}: {tallies[version].sets}," for version in releases]
+    lines += ["}", '"""How many sets of the corpus each release wrote."""', ""]
+
+    for kind, counts in (("CHILDREN", lambda t: t.children), ("ATTRIBUTES", lambda t: t.attributes)):
+        found = spans(tallies, counts)
+        newer = {pair: version_literal(seen[0]) for pair, seen in found.items() if seen[0] > tag_spans[pair[0]][0]}
+        gone = {pair: version_literal(seen[1]) for pair, seen in found.items() if seen[1] < tag_spans[pair[0]][1]}
+        noun = "child" if kind == "CHILDREN" else "attribute"
+        lines += nested_literal(
+            f"NEWER_{kind}",
+            "dict[str, dict[str, Version]]",
+            f"Parent tag -> {noun} -> the release it first appeared in, where that is after the parent's first.",
+            by_tag(newer),
+        )
+        lines += nested_literal(
+            f"GONE_{kind}",
+            "dict[str, dict[str, Version]]",
+            f"Parent tag -> {noun} -> the last release it was seen in, where that is before the parent's last.",
+            by_tag(gone),
+        )
+
+    picked_attributes = {schema: required(tally, tally.attributes) for schema, tally in per_schema.items()}
+    picked_children = {schema: required(tally, tally.children) for schema, tally in per_schema.items()}
+    varying_attributes = variable(per_schema, picked_attributes)
+    varying_children = variable(per_schema, picked_children)
+    schemas = sorted(per_schema, key=lambda schema: min(v for v in releases if schema_of(headers[v]) == schema))
+
+    def per_schema_table(name: str, picked: dict[Schema, set[Pair]], varying: set[Pair], doc: str) -> list[str]:
+        out = [f"{name}: dict[Schema, dict[str, tuple[str, ...]]] = {{"]
+        for schema in schemas:
+            table: dict[str, list[str]] = {}
+            for tag, child in sorted(picked[schema] & varying):
+                table.setdefault(tag, []).append(child)
+            if table:
+                out.append(f"    {schema!r}: {{")
+                out += [f"        {tag!r}: {tuple(names)!r}," for tag, names in table.items()]
+                out.append("    },")
+        return [*out, "}", f'"""{doc}"""', ""]
+
+    lines += per_schema_table(
+        "REQUIRED_ATTRIBUTES",
+        picked_attributes,
+        varying_attributes,
+        "Per schema: tag -> the attributes on every one of its elements, where another schema leaves them off.",
+    )
+    lines += per_schema_table(
+        "REQUIRED_CHILDREN",
+        picked_children,
+        varying_children,
+        "Per schema: tag -> the children under every one of its elements, where another schema leaves them off.",
+    )
+    every_values: dict[Pair, Counter[str]] = {}
+    for tally in per_schema.values():
+        for pair in varying_attributes:
+            if pair in tally.values:
+                every_values.setdefault(pair, Counter()).update(tally.values[pair])
+    fills = {pair: repr(values.most_common(1)[0][0]) for pair, values in every_values.items()}
+    lines += nested_literal(
+        "FILL_VALUES",
+        "dict[str, dict[str, str]]",
+        "Tag -> required attribute -> the value the corpus holds there most often.",
+        by_tag(fills),
+    )
+    lines += ["ATTRIBUTE_ORDER: dict[Schema, dict[str, tuple[str, ...]]] = {"]
+    for schema in schemas:
+        tags = sorted({tag for tag, _ in picked_attributes[schema] & varying_attributes})
+        if tags:
+            lines.append(f"    {schema!r}: {{")
+            lines += [f"        {tag!r}: {per_schema[schema].orders[tag].most_common(1)[0][0]!r}," for tag in tags]
+            lines.append("    },")
+    lines += ["}", '"""Per schema: tag -> the attribute order it writes, for the tags with required attributes."""', ""]
+    votes: Counter[Pair] = Counter()
+    for tally in tallies.values():
+        votes.update(tally.kinds)
+    kinds = {
+        device: max(("audio_effect", "instrument", "midi_effect"), key=lambda kind: votes[device, kind])
+        for device in sorted({device for device, _ in votes})
+    }
+    lines += ["DEVICE_KINDS: dict[str, str] = {"]
+    lines += [f"    {device!r}: {kind!r}," for device, kind in kinds.items()]
+    lines += [
+        "}",
+        '"""Device tag -> ``audio_effect``, ``midi_effect`` or ``instrument``, by majority over every one found."""',
+        "",
+    ]
+    # The main track's MasterTrack became MainTrack in Live 12.
+    renames = {**RENAMES, **{old: (new, (12, 0, 0)) for old, new in OWNER_SPELLINGS.items()}}
+    # A renamed element arrives with everything it carries, so nothing in it looks newer
+    # than it; what its old spelling held is the measure instead.
+    child_spans = spans(tallies, lambda tally: tally.children)
+    attribute_spans = spans(tallies, lambda tally: tally.attributes)
+    lines += ["RENAMED_HELD: dict[str, tuple[dict[str, Version], dict[str, Version]]] = {"]
+    for old_tag in sorted(renames):
+        held = [
+            {name: seen[0] for (parent, name), seen in found.items() if parent == old_tag}
+            for found in (child_spans, attribute_spans)
+        ]
+        rendered = [
+            "{" + ", ".join(f"{name!r}: {version_literal(first)}" for name, first in sorted(table.items())) + "}"
+            for table in held
+        ]
+        lines.append(f"    {old_tag!r}: ({rendered[0]}, {rendered[1]}),")
+    lines += [
+        "}",
+        '"""Old tag -> the children and the attributes it held, each with the release it first appeared in."""',
+        "",
+    ]
+    lines += ["TAG_RENAMES: dict[str, tuple[str, Version]] = {"]
+    lines += [f"    {old!r}: ({new!r}, {version_literal(since)})," for old, (new, since) in sorted(renames.items())]
+    lines += ["}", '"""Old tag -> the new tag and the first release that writes it."""', ""]
+    return "\n".join(lines)
+
+
 def write_module(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
     ruff = [sys.executable, "-m", "ruff", "format", "--quiet", str(path)]
@@ -1451,6 +1820,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument("--json", type=Path, help="write the raw census here")
     parser.add_argument("--devices-out", type=Path, default=DEVICES_OUT)
     parser.add_argument("--objects-out", type=Path, default=OBJECTS_OUT)
+    parser.add_argument("--structure-out", type=Path, default=STRUCTURE_OUT)
     parser.add_argument("--dry-run", action="store_true", help="census only, do not write the modules")
     args = parser.parse_args(None if argv is None else list(argv))
 
@@ -1468,6 +1838,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     print(f"{len(census.devices)} device tags, {sum(d.count for d in census.devices.values())} devices")
     for name, tally in sorted(census.objects.items()):
         print(f"{name}: {tally.count} seen, {len(tally.settings)} settings")
+    print(f"structure: {len(census.grammar)} releases")
     print(f"elapsed {elapsed:.1f}s")
     if args.sample:
         print(f"extrapolated full run: {elapsed / len(paths) * total:.0f}s")
@@ -1478,6 +1849,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     if not args.dry_run:
         write_module(args.devices_out, emit_devices(census))
         write_module(args.objects_out, emit_objects(census))
+        write_module(args.structure_out, emit_structure(census))
 
 
 if __name__ == "__main__":
