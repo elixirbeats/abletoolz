@@ -27,6 +27,7 @@ nowhere in a VST2 device, so it has to come from somewhere else. The
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 from xml.etree import ElementTree as ET
@@ -328,14 +329,21 @@ _FORMAT_FLOORS: dict[PluginKind, Version] = {
 }
 
 
-def set_supports(kind: PluginKind, version: Version) -> bool:
+def set_supports(kind: PluginKind, version: Version, *, minor_version: str | None = None) -> bool:
     """Whether a set saved by ``version`` may hold ``kind``'s info element.
 
     Identity and state are beside the point when the answer is no: the container
     is invalid for the document, and Live rejects the whole file rather than the
     one device.
     """
-    return version >= _FORMAT_FLOORS[kind]
+    if version < _FORMAT_FLOORS[kind]:
+        return False
+    if kind is PluginKind.VST3 and minor_version is not None:
+        schema = re.fullmatch(r"(\d+)\.(\d+)_(\d+)", minor_version)
+        if schema is None:
+            return False
+        return tuple(int(part) for part in schema.groups()) >= (10, 0, 377)
+    return True
 
 
 # -- shaping ----------------------------------------------------------------

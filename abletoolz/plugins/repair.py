@@ -380,7 +380,7 @@ def repair_set(
             continue
 
         # A schema mismatch makes the entire document invalid.
-        if not set_supports(configured.to_format, version):
+        if not set_supports(configured.to_format, version, minor_version=live_set.root.get("MinorVersion", "")):
             actions.append(
                 DeviceRepair(
                     track,

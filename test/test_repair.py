@@ -582,6 +582,15 @@ def test_format_repair_keeps_unassigned_unreferenced_placeholders() -> None:
     assert ET.tostring(parameters) == before
 
 
+def test_newer_creator_does_not_override_an_older_document_schema() -> None:
+    live_set = make_set("11.3.42")
+    live_set.root.set("MinorVersion", "10.0_370")
+    before = ET.tostring(live_set.root)
+    report = repair_set(live_set, uid_lookup=UidLookup(), loadable=nothing_loads)
+    assert only(report, "Serum_x64").status is RepairStatus.SET_TOO_OLD_FOR_TARGET
+    assert ET.tostring(live_set.root) == before
+
+
 def test_a_broken_unmapped_device_is_reported_and_left_alone() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Effectrix")
