@@ -47,6 +47,11 @@ about it.
 
 Where the rest of the axis lives
 --------------------------------
+``model`` holds named, typed saved-field maps and lossless edits. ``controls``
+holds measured knob bindings and curves. Vendor codecs compose those models
+with their own framing and version guards. Neither a codec nor a control map
+registers a conversion: that remains an explicit source-to-target policy here.
+
 The containers behind the seam are one module per *family* rather than one per
 vendor, because a container is almost never a vendor's invention; the two vendor
 modules hold only what really is theirs.

@@ -1,0 +1,2386 @@
+{
+  "schema": "abletoolz.trash1-layout/1",
+  "source_sha256": "ec1e66d15ce7b611148260681da68444de51299fe75d0a9ef416d3cd504e38c9",
+  "vst2_uid": 1767527473,
+  "program_count": 16,
+  "state_length_word": 1117,
+  "magic": 3812113,
+  "revision": 21,
+  "fields": [
+    {
+      "id": 0,
+      "name": "Global: Filter Graph Item 0",
+      "encoding": "uint32_le",
+      "byte_offset": 16,
+      "element_id": 0,
+      "parameter_id": 2
+    },
+    {
+      "id": 1,
+      "name": "Global: Filter Graph Item 1",
+      "encoding": "uint32_le",
+      "byte_offset": 20,
+      "element_id": 0,
+      "parameter_id": 3
+    },
+    {
+      "id": 2,
+      "name": "Global: Filter Graph Item 2",
+      "encoding": "uint32_le",
+      "byte_offset": 24,
+      "element_id": 0,
+      "parameter_id": 4
+    },
+    {
+      "id": 3,
+      "name": "Global: Filter Graph Item 3",
+      "encoding": "uint32_le",
+      "byte_offset": 28,
+      "element_id": 0,
+      "parameter_id": 5
+    },
+    {
+      "id": 4,
+      "name": "Global: Filter Graph Item 4",
+      "encoding": "uint32_le",
+      "byte_offset": 32,
+      "element_id": 0,
+      "parameter_id": 6
+    },
+    {
+      "id": 5,
+      "name": "Global: Filter Graph Item 5",
+      "encoding": "uint32_le",
+      "byte_offset": 36,
+      "element_id": 0,
+      "parameter_id": 7
+    },
+    {
+      "id": 6,
+      "name": "Global: Filter Graph Item 6",
+      "encoding": "uint32_le",
+      "byte_offset": 40,
+      "element_id": 0,
+      "parameter_id": 8
+    },
+    {
+      "id": 7,
+      "name": "Global: Filter Graph Item 7",
+      "encoding": "uint32_le",
+      "byte_offset": 44,
+      "element_id": 0,
+      "parameter_id": 9
+    },
+    {
+      "id": 8,
+      "name": "Global: Filter Graph Item 8",
+      "encoding": "uint32_le",
+      "byte_offset": 48,
+      "element_id": 0,
+      "parameter_id": 10
+    },
+    {
+      "id": 9,
+      "name": "Global: Filter Graph Item 9",
+      "encoding": "uint32_le",
+      "byte_offset": 52,
+      "element_id": 0,
+      "parameter_id": 11
+    },
+    {
+      "id": 10,
+      "name": "Level Meter Enable",
+      "encoding": "bool8",
+      "byte_offset": 64,
+      "element_id": 2,
+      "parameter_id": 0
+    },
+    {
+      "id": 11,
+      "name": "Level Meter Show Peak Hold",
+      "encoding": "bool8",
+      "byte_offset": 65,
+      "element_id": 2,
+      "parameter_id": 1
+    },
+    {
+      "id": 12,
+      "name": "Level Meter Type",
+      "encoding": "uint32_le",
+      "byte_offset": 66,
+      "element_id": 2,
+      "parameter_id": 0
+    },
+    {
+      "id": 13,
+      "name": "Level Meter RMS Time",
+      "encoding": "uint32_le",
+      "byte_offset": 70,
+      "element_id": 2,
+      "parameter_id": 1
+    },
+    {
+      "id": 14,
+      "name": "Level Meter Peak Hold Time",
+      "encoding": "uint32_le",
+      "byte_offset": 74,
+      "element_id": 2,
+      "parameter_id": 2
+    },
+    {
+      "id": 15,
+      "name": "Level Meter Readout Type",
+      "encoding": "uint32_le",
+      "byte_offset": 78,
+      "element_id": 2,
+      "parameter_id": 3
+    },
+    {
+      "id": 16,
+      "name": "Spectrum Show Musical Units",
+      "encoding": "bool8",
+      "byte_offset": 86,
+      "element_id": 3,
+      "parameter_id": 0
+    },
+    {
+      "id": 17,
+      "name": "Spectrum Show Hz/dB Readout",
+      "encoding": "bool8",
+      "byte_offset": 87,
+      "element_id": 3,
+      "parameter_id": 1
+    },
+    {
+      "id": 18,
+      "name": "Spectrum Enable PreFilter Spectrum",
+      "encoding": "bool8",
+      "byte_offset": 88,
+      "element_id": 3,
+      "parameter_id": 2
+    },
+    {
+      "id": 19,
+      "name": "Spectrum Enable PostFilter Spectrum",
+      "encoding": "bool8",
+      "byte_offset": 89,
+      "element_id": 3,
+      "parameter_id": 3
+    },
+    {
+      "id": 20,
+      "name": "Spectrum Enable Delay Spectrum",
+      "encoding": "bool8",
+      "byte_offset": 90,
+      "element_id": 3,
+      "parameter_id": 4
+    },
+    {
+      "id": 21,
+      "name": "Spectrum Enable Mini-Spectrum",
+      "encoding": "bool8",
+      "byte_offset": 91,
+      "element_id": 3,
+      "parameter_id": 5
+    },
+    {
+      "id": 22,
+      "name": "Spectrum Show Mini-Spectrum Slider Handles",
+      "encoding": "bool8",
+      "byte_offset": 92,
+      "element_id": 3,
+      "parameter_id": 6
+    },
+    {
+      "id": 23,
+      "name": "Spectrum Show Peak Hold",
+      "encoding": "bool8",
+      "byte_offset": 97,
+      "element_id": 4,
+      "parameter_id": 0
+    },
+    {
+      "id": 24,
+      "name": "Spectrum Type",
+      "encoding": "uint32_le",
+      "byte_offset": 98,
+      "element_id": 4,
+      "parameter_id": 0
+    },
+    {
+      "id": 25,
+      "name": "Spectrum Average Window Size",
+      "encoding": "uint32_le",
+      "byte_offset": 102,
+      "element_id": 4,
+      "parameter_id": 1
+    },
+    {
+      "id": 26,
+      "name": "Spectrum Peak Hold Time",
+      "encoding": "uint32_le",
+      "byte_offset": 106,
+      "element_id": 4,
+      "parameter_id": 2
+    },
+    {
+      "id": 27,
+      "name": "Spectrum Window Size",
+      "encoding": "uint32_le",
+      "byte_offset": 110,
+      "element_id": 4,
+      "parameter_id": 3
+    },
+    {
+      "id": 28,
+      "name": "Spectrum Overlap",
+      "encoding": "uint32_le",
+      "byte_offset": 114,
+      "element_id": 4,
+      "parameter_id": 4
+    },
+    {
+      "id": 29,
+      "name": "Spectrum Window Type",
+      "encoding": "uint32_le",
+      "byte_offset": 118,
+      "element_id": 4,
+      "parameter_id": 5
+    },
+    {
+      "id": 30,
+      "name": "Bypass Gain",
+      "encoding": "float32_le",
+      "byte_offset": 126,
+      "element_id": 5,
+      "parameter_id": 0
+    },
+    {
+      "id": 31,
+      "name": "Gain: Input Left",
+      "encoding": "float32_le",
+      "byte_offset": 130,
+      "element_id": 5,
+      "parameter_id": 1
+    },
+    {
+      "id": 32,
+      "name": "Gain: Input Right",
+      "encoding": "float32_le",
+      "byte_offset": 134,
+      "element_id": 5,
+      "parameter_id": 2
+    },
+    {
+      "id": 33,
+      "name": "Gain: Output Left",
+      "encoding": "float32_le",
+      "byte_offset": 138,
+      "element_id": 5,
+      "parameter_id": 3
+    },
+    {
+      "id": 34,
+      "name": "Gain: Output Right",
+      "encoding": "float32_le",
+      "byte_offset": 142,
+      "element_id": 5,
+      "parameter_id": 4
+    },
+    {
+      "id": 35,
+      "name": "Input Gain Slider Lock",
+      "encoding": "bool8",
+      "byte_offset": 146,
+      "element_id": 5,
+      "parameter_id": 0
+    },
+    {
+      "id": 36,
+      "name": "Output Gain Slider Lock",
+      "encoding": "bool8",
+      "byte_offset": 147,
+      "element_id": 5,
+      "parameter_id": 1
+    },
+    {
+      "id": 37,
+      "name": "PreFilter: Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 152,
+      "element_id": 6,
+      "parameter_id": 0
+    },
+    {
+      "id": 38,
+      "name": "PreFilter: Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 156,
+      "element_id": 6,
+      "parameter_id": 1
+    },
+    {
+      "id": 39,
+      "name": "PreFilter: Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 160,
+      "element_id": 6,
+      "parameter_id": 2
+    },
+    {
+      "id": 40,
+      "name": "PreFilter: Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 164,
+      "element_id": 6,
+      "parameter_id": 3
+    },
+    {
+      "id": 41,
+      "name": "PreFilter: Node 1 Target Freq",
+      "encoding": "float32_le",
+      "byte_offset": 168,
+      "element_id": 6,
+      "parameter_id": 4
+    },
+    {
+      "id": 42,
+      "name": "PreFilter: Node 1 Target Gain",
+      "encoding": "float32_le",
+      "byte_offset": 172,
+      "element_id": 6,
+      "parameter_id": 5
+    },
+    {
+      "id": 43,
+      "name": "PreFilter: Node 1 Target Q",
+      "encoding": "float32_le",
+      "byte_offset": 176,
+      "element_id": 6,
+      "parameter_id": 6
+    },
+    {
+      "id": 44,
+      "name": "PreFilter: Node 1 Target Res",
+      "encoding": "float32_le",
+      "byte_offset": 180,
+      "element_id": 6,
+      "parameter_id": 7
+    },
+    {
+      "id": 45,
+      "name": "PreFilter: Node 1 Env. Thresh.",
+      "encoding": "float32_le",
+      "byte_offset": 184,
+      "element_id": 6,
+      "parameter_id": 8
+    },
+    {
+      "id": 46,
+      "name": "PreFilter: Node 1 Env. Attack",
+      "encoding": "float32_le",
+      "byte_offset": 188,
+      "element_id": 6,
+      "parameter_id": 9
+    },
+    {
+      "id": 47,
+      "name": "PreFilter: Node 1 Env. Release",
+      "encoding": "float32_le",
+      "byte_offset": 192,
+      "element_id": 6,
+      "parameter_id": 10
+    },
+    {
+      "id": 48,
+      "name": "PreFilter: Node 1 LFO Period",
+      "encoding": "float32_le",
+      "byte_offset": 196,
+      "element_id": 6,
+      "parameter_id": 11
+    },
+    {
+      "id": 49,
+      "name": "PreFilter: Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 200,
+      "element_id": 6,
+      "parameter_id": 12
+    },
+    {
+      "id": 50,
+      "name": "PreFilter: Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 204,
+      "element_id": 6,
+      "parameter_id": 13
+    },
+    {
+      "id": 51,
+      "name": "PreFilter: Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 208,
+      "element_id": 6,
+      "parameter_id": 14
+    },
+    {
+      "id": 52,
+      "name": "PreFilter: Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 212,
+      "element_id": 6,
+      "parameter_id": 15
+    },
+    {
+      "id": 53,
+      "name": "PreFilter: Node 2 Target Freq",
+      "encoding": "float32_le",
+      "byte_offset": 216,
+      "element_id": 6,
+      "parameter_id": 16
+    },
+    {
+      "id": 54,
+      "name": "PreFilter: Node 2 Target Gain",
+      "encoding": "float32_le",
+      "byte_offset": 220,
+      "element_id": 6,
+      "parameter_id": 17
+    },
+    {
+      "id": 55,
+      "name": "PreFilter: Node 2 Target Q",
+      "encoding": "float32_le",
+      "byte_offset": 224,
+      "element_id": 6,
+      "parameter_id": 18
+    },
+    {
+      "id": 56,
+      "name": "PreFilter: Node 2 Target Res",
+      "encoding": "float32_le",
+      "byte_offset": 228,
+      "element_id": 6,
+      "parameter_id": 19
+    },
+    {
+      "id": 57,
+      "name": "PreFilter: Node 2 Env. Thresh.",
+      "encoding": "float32_le",
+      "byte_offset": 232,
+      "element_id": 6,
+      "parameter_id": 20
+    },
+    {
+      "id": 58,
+      "name": "PreFilter: Node 2 Env. Attack",
+      "encoding": "float32_le",
+      "byte_offset": 236,
+      "element_id": 6,
+      "parameter_id": 21
+    },
+    {
+      "id": 59,
+      "name": "PreFilter: Node 2 Env. Release",
+      "encoding": "float32_le",
+      "byte_offset": 240,
+      "element_id": 6,
+      "parameter_id": 22
+    },
+    {
+      "id": 60,
+      "name": "PreFilter: Node 2 LFO Period",
+      "encoding": "float32_le",
+      "byte_offset": 244,
+      "element_id": 6,
+      "parameter_id": 23
+    },
+    {
+      "id": 61,
+      "name": "PreFilter: Node 3 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 248,
+      "element_id": 6,
+      "parameter_id": 24
+    },
+    {
+      "id": 62,
+      "name": "PreFilter: Node 3 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 252,
+      "element_id": 6,
+      "parameter_id": 25
+    },
+    {
+      "id": 63,
+      "name": "PreFilter: Node 3 Q",
+      "encoding": "float32_le",
+      "byte_offset": 256,
+      "element_id": 6,
+      "parameter_id": 26
+    },
+    {
+      "id": 64,
+      "name": "PreFilter: Node 3 Res",
+      "encoding": "float32_le",
+      "byte_offset": 260,
+      "element_id": 6,
+      "parameter_id": 27
+    },
+    {
+      "id": 65,
+      "name": "PreFilter: Node 3 Target Freq",
+      "encoding": "float32_le",
+      "byte_offset": 264,
+      "element_id": 6,
+      "parameter_id": 28
+    },
+    {
+      "id": 66,
+      "name": "PreFilter: Node 3 Target Gain",
+      "encoding": "float32_le",
+      "byte_offset": 268,
+      "element_id": 6,
+      "parameter_id": 29
+    },
+    {
+      "id": 67,
+      "name": "PreFilter: Node 3 Target Q",
+      "encoding": "float32_le",
+      "byte_offset": 272,
+      "element_id": 6,
+      "parameter_id": 30
+    },
+    {
+      "id": 68,
+      "name": "PreFilter: Node 3 Target Res",
+      "encoding": "float32_le",
+      "byte_offset": 276,
+      "element_id": 6,
+      "parameter_id": 31
+    },
+    {
+      "id": 69,
+      "name": "PreFilter: Node 3 Env. Thresh.",
+      "encoding": "float32_le",
+      "byte_offset": 280,
+      "element_id": 6,
+      "parameter_id": 32
+    },
+    {
+      "id": 70,
+      "name": "PreFilter: Node 3 Env. Attack",
+      "encoding": "float32_le",
+      "byte_offset": 284,
+      "element_id": 6,
+      "parameter_id": 33
+    },
+    {
+      "id": 71,
+      "name": "PreFilter: Node 3 Env. Release",
+      "encoding": "float32_le",
+      "byte_offset": 288,
+      "element_id": 6,
+      "parameter_id": 34
+    },
+    {
+      "id": 72,
+      "name": "PreFilter: Node 3 LFO Period",
+      "encoding": "float32_le",
+      "byte_offset": 292,
+      "element_id": 6,
+      "parameter_id": 35
+    },
+    {
+      "id": 73,
+      "name": "PreFilter: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 296,
+      "element_id": 6,
+      "parameter_id": 0
+    },
+    {
+      "id": 74,
+      "name": "PreFilter: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 297,
+      "element_id": 6,
+      "parameter_id": 1
+    },
+    {
+      "id": 75,
+      "name": "PreFilter: LFO Slider Tempo",
+      "encoding": "bool8",
+      "byte_offset": 298,
+      "element_id": 6,
+      "parameter_id": 2
+    },
+    {
+      "id": 76,
+      "name": "PreFilter: LFO Slider Snap",
+      "encoding": "bool8",
+      "byte_offset": 299,
+      "element_id": 6,
+      "parameter_id": 3
+    },
+    {
+      "id": 77,
+      "name": "PreFilter: Filter RMS Time",
+      "encoding": "uint32_le",
+      "byte_offset": 300,
+      "element_id": 6,
+      "parameter_id": 0
+    },
+    {
+      "id": 78,
+      "name": "PreFilter: Filter Type 1",
+      "encoding": "uint32_le",
+      "byte_offset": 304,
+      "element_id": 6,
+      "parameter_id": 1
+    },
+    {
+      "id": 79,
+      "name": "PreFilter: Trigger Type 1",
+      "encoding": "uint32_le",
+      "byte_offset": 308,
+      "element_id": 6,
+      "parameter_id": 2
+    },
+    {
+      "id": 80,
+      "name": "PreFilter: LFO Type 1",
+      "encoding": "uint32_le",
+      "byte_offset": 312,
+      "element_id": 6,
+      "parameter_id": 3
+    },
+    {
+      "id": 81,
+      "name": "PreFilter: Filter Type 2",
+      "encoding": "uint32_le",
+      "byte_offset": 316,
+      "element_id": 6,
+      "parameter_id": 4
+    },
+    {
+      "id": 82,
+      "name": "PreFilter: Trigger Type 2",
+      "encoding": "uint32_le",
+      "byte_offset": 320,
+      "element_id": 6,
+      "parameter_id": 5
+    },
+    {
+      "id": 83,
+      "name": "PreFilter: LFO Type 2",
+      "encoding": "uint32_le",
+      "byte_offset": 324,
+      "element_id": 6,
+      "parameter_id": 6
+    },
+    {
+      "id": 84,
+      "name": "PreFilter: Filter Type 3",
+      "encoding": "uint32_le",
+      "byte_offset": 328,
+      "element_id": 6,
+      "parameter_id": 7
+    },
+    {
+      "id": 85,
+      "name": "PreFilter: Trigger Type 3",
+      "encoding": "uint32_le",
+      "byte_offset": 332,
+      "element_id": 6,
+      "parameter_id": 8
+    },
+    {
+      "id": 86,
+      "name": "PreFilter: LFO Type 3",
+      "encoding": "uint32_le",
+      "byte_offset": 336,
+      "element_id": 6,
+      "parameter_id": 9
+    },
+    {
+      "id": 87,
+      "name": "CrossOver: Cutoff 1",
+      "encoding": "float32_le",
+      "byte_offset": 344,
+      "element_id": 7,
+      "parameter_id": 0
+    },
+    {
+      "id": 88,
+      "name": "CrossOver: Cutoff 2",
+      "encoding": "float32_le",
+      "byte_offset": 348,
+      "element_id": 7,
+      "parameter_id": 1
+    },
+    {
+      "id": 89,
+      "name": "CrossOver: Cutoff 3",
+      "encoding": "float32_le",
+      "byte_offset": 352,
+      "element_id": 7,
+      "parameter_id": 2
+    },
+    {
+      "id": 90,
+      "name": "CrossOver: Band 1 Bypass",
+      "encoding": "bool8",
+      "byte_offset": 356,
+      "element_id": 7,
+      "parameter_id": 0
+    },
+    {
+      "id": 91,
+      "name": "CrossOver: Band 1 Mute",
+      "encoding": "bool8",
+      "byte_offset": 357,
+      "element_id": 7,
+      "parameter_id": 1
+    },
+    {
+      "id": 92,
+      "name": "CrossOver: Band 2 Bypass",
+      "encoding": "bool8",
+      "byte_offset": 358,
+      "element_id": 7,
+      "parameter_id": 2
+    },
+    {
+      "id": 93,
+      "name": "CrossOver: Band 2 Mute",
+      "encoding": "bool8",
+      "byte_offset": 359,
+      "element_id": 7,
+      "parameter_id": 3
+    },
+    {
+      "id": 94,
+      "name": "CrossOver: Band 3 Bypass",
+      "encoding": "bool8",
+      "byte_offset": 360,
+      "element_id": 7,
+      "parameter_id": 4
+    },
+    {
+      "id": 95,
+      "name": "CrossOver: Band 3 Mute",
+      "encoding": "bool8",
+      "byte_offset": 361,
+      "element_id": 7,
+      "parameter_id": 5
+    },
+    {
+      "id": 96,
+      "name": "CrossOver: Band 4 Bypass",
+      "encoding": "bool8",
+      "byte_offset": 362,
+      "element_id": 7,
+      "parameter_id": 6
+    },
+    {
+      "id": 97,
+      "name": "CrossOver: Band 4 Mute",
+      "encoding": "bool8",
+      "byte_offset": 363,
+      "element_id": 7,
+      "parameter_id": 7
+    },
+    {
+      "id": 98,
+      "name": "CrossOver: Number of Bands",
+      "encoding": "uint32_le",
+      "byte_offset": 364,
+      "element_id": 7,
+      "parameter_id": 0
+    },
+    {
+      "id": 99,
+      "name": "Trash: Band 1 First Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 372,
+      "element_id": 8,
+      "parameter_id": 0
+    },
+    {
+      "id": 100,
+      "name": "Trash: Band 2 First Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 376,
+      "element_id": 8,
+      "parameter_id": 1
+    },
+    {
+      "id": 101,
+      "name": "Trash: Band 3 First Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 380,
+      "element_id": 8,
+      "parameter_id": 2
+    },
+    {
+      "id": 102,
+      "name": "Trash: Band 4 First Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 384,
+      "element_id": 8,
+      "parameter_id": 3
+    },
+    {
+      "id": 103,
+      "name": "Trash: First Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 388,
+      "element_id": 8,
+      "parameter_id": 4
+    },
+    {
+      "id": 104,
+      "name": "Trash: Band 1 Second Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 392,
+      "element_id": 8,
+      "parameter_id": 5
+    },
+    {
+      "id": 105,
+      "name": "Trash: Band 2 Second Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 396,
+      "element_id": 8,
+      "parameter_id": 6
+    },
+    {
+      "id": 106,
+      "name": "Trash: Band 3 Second Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 400,
+      "element_id": 8,
+      "parameter_id": 7
+    },
+    {
+      "id": 107,
+      "name": "Trash: Band 4 Second Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 404,
+      "element_id": 8,
+      "parameter_id": 8
+    },
+    {
+      "id": 108,
+      "name": "Trash: Second Input Gain",
+      "encoding": "float32_le",
+      "byte_offset": 408,
+      "element_id": 8,
+      "parameter_id": 9
+    },
+    {
+      "id": 109,
+      "name": "Trash: Band 1 First Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 412,
+      "element_id": 8,
+      "parameter_id": 10
+    },
+    {
+      "id": 110,
+      "name": "Trash: Band 2 First Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 416,
+      "element_id": 8,
+      "parameter_id": 11
+    },
+    {
+      "id": 111,
+      "name": "Trash: Band 3 First Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 420,
+      "element_id": 8,
+      "parameter_id": 12
+    },
+    {
+      "id": 112,
+      "name": "Trash: Band 4 First Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 424,
+      "element_id": 8,
+      "parameter_id": 13
+    },
+    {
+      "id": 113,
+      "name": "Trash: First Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 428,
+      "element_id": 8,
+      "parameter_id": 14
+    },
+    {
+      "id": 114,
+      "name": "Trash: Band 1 Second Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 432,
+      "element_id": 8,
+      "parameter_id": 15
+    },
+    {
+      "id": 115,
+      "name": "Trash: Band 2 Second Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 436,
+      "element_id": 8,
+      "parameter_id": 16
+    },
+    {
+      "id": 116,
+      "name": "Trash: Band 3 Second Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 440,
+      "element_id": 8,
+      "parameter_id": 17
+    },
+    {
+      "id": 117,
+      "name": "Trash: Band 4 Second Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 444,
+      "element_id": 8,
+      "parameter_id": 18
+    },
+    {
+      "id": 118,
+      "name": "Trash: Second Overdrive",
+      "encoding": "float32_le",
+      "byte_offset": 448,
+      "element_id": 8,
+      "parameter_id": 19
+    },
+    {
+      "id": 119,
+      "name": "Trash: Band 1 First Trash",
+      "encoding": "float32_le",
+      "byte_offset": 452,
+      "element_id": 8,
+      "parameter_id": 20
+    },
+    {
+      "id": 120,
+      "name": "Trash: Band 2 First Trash",
+      "encoding": "float32_le",
+      "byte_offset": 456,
+      "element_id": 8,
+      "parameter_id": 21
+    },
+    {
+      "id": 121,
+      "name": "Trash: Band 3 First Trash",
+      "encoding": "float32_le",
+      "byte_offset": 460,
+      "element_id": 8,
+      "parameter_id": 22
+    },
+    {
+      "id": 122,
+      "name": "Trash: Band 4 First Trash",
+      "encoding": "float32_le",
+      "byte_offset": 464,
+      "element_id": 8,
+      "parameter_id": 23
+    },
+    {
+      "id": 123,
+      "name": "Trash: First Trash",
+      "encoding": "float32_le",
+      "byte_offset": 468,
+      "element_id": 8,
+      "parameter_id": 24
+    },
+    {
+      "id": 124,
+      "name": "Trash: Band 1 Second Trash",
+      "encoding": "float32_le",
+      "byte_offset": 472,
+      "element_id": 8,
+      "parameter_id": 25
+    },
+    {
+      "id": 125,
+      "name": "Trash: Band 2 Second Trash",
+      "encoding": "float32_le",
+      "byte_offset": 476,
+      "element_id": 8,
+      "parameter_id": 26
+    },
+    {
+      "id": 126,
+      "name": "Trash: Band 3 Second Trash",
+      "encoding": "float32_le",
+      "byte_offset": 480,
+      "element_id": 8,
+      "parameter_id": 27
+    },
+    {
+      "id": 127,
+      "name": "Trash: Band 4 Second Trash",
+      "encoding": "float32_le",
+      "byte_offset": 484,
+      "element_id": 8,
+      "parameter_id": 28
+    },
+    {
+      "id": 128,
+      "name": "Trash: Second Trash",
+      "encoding": "float32_le",
+      "byte_offset": 488,
+      "element_id": 8,
+      "parameter_id": 29
+    },
+    {
+      "id": 129,
+      "name": "Trash: Band 1 First Mix",
+      "encoding": "float32_le",
+      "byte_offset": 492,
+      "element_id": 8,
+      "parameter_id": 30
+    },
+    {
+      "id": 130,
+      "name": "Trash: Band 2 First Mix",
+      "encoding": "float32_le",
+      "byte_offset": 496,
+      "element_id": 8,
+      "parameter_id": 31
+    },
+    {
+      "id": 131,
+      "name": "Trash: Band 3 First Mix",
+      "encoding": "float32_le",
+      "byte_offset": 500,
+      "element_id": 8,
+      "parameter_id": 32
+    },
+    {
+      "id": 132,
+      "name": "Trash: Band 4 First Mix",
+      "encoding": "float32_le",
+      "byte_offset": 504,
+      "element_id": 8,
+      "parameter_id": 33
+    },
+    {
+      "id": 133,
+      "name": "Trash: First Mix",
+      "encoding": "float32_le",
+      "byte_offset": 508,
+      "element_id": 8,
+      "parameter_id": 34
+    },
+    {
+      "id": 134,
+      "name": "Trash: Band 1 Second Mix",
+      "encoding": "float32_le",
+      "byte_offset": 512,
+      "element_id": 8,
+      "parameter_id": 35
+    },
+    {
+      "id": 135,
+      "name": "Trash: Band 2 Second Mix",
+      "encoding": "float32_le",
+      "byte_offset": 516,
+      "element_id": 8,
+      "parameter_id": 36
+    },
+    {
+      "id": 136,
+      "name": "Trash: Band 3 Second Mix",
+      "encoding": "float32_le",
+      "byte_offset": 520,
+      "element_id": 8,
+      "parameter_id": 37
+    },
+    {
+      "id": 137,
+      "name": "Trash: Band 4 Second Mix",
+      "encoding": "float32_le",
+      "byte_offset": 524,
+      "element_id": 8,
+      "parameter_id": 38
+    },
+    {
+      "id": 138,
+      "name": "Trash: Second Mix",
+      "encoding": "float32_le",
+      "byte_offset": 528,
+      "element_id": 8,
+      "parameter_id": 39
+    },
+    {
+      "id": 139,
+      "name": "Trash: Band 1 First Gain",
+      "encoding": "float32_le",
+      "byte_offset": 532,
+      "element_id": 8,
+      "parameter_id": 40
+    },
+    {
+      "id": 140,
+      "name": "Trash: Band 2 First Gain",
+      "encoding": "float32_le",
+      "byte_offset": 536,
+      "element_id": 8,
+      "parameter_id": 41
+    },
+    {
+      "id": 141,
+      "name": "Trash: Band 3 First Gain",
+      "encoding": "float32_le",
+      "byte_offset": 540,
+      "element_id": 8,
+      "parameter_id": 42
+    },
+    {
+      "id": 142,
+      "name": "Trash: Band 4 First Gain",
+      "encoding": "float32_le",
+      "byte_offset": 544,
+      "element_id": 8,
+      "parameter_id": 43
+    },
+    {
+      "id": 143,
+      "name": "Trash: First Gain",
+      "encoding": "float32_le",
+      "byte_offset": 548,
+      "element_id": 8,
+      "parameter_id": 44
+    },
+    {
+      "id": 144,
+      "name": "Trash: Band 1 Second Gain",
+      "encoding": "float32_le",
+      "byte_offset": 552,
+      "element_id": 8,
+      "parameter_id": 45
+    },
+    {
+      "id": 145,
+      "name": "Trash: Band 2 Second Gain",
+      "encoding": "float32_le",
+      "byte_offset": 556,
+      "element_id": 8,
+      "parameter_id": 46
+    },
+    {
+      "id": 146,
+      "name": "Trash: Band 3 Second Gain",
+      "encoding": "float32_le",
+      "byte_offset": 560,
+      "element_id": 8,
+      "parameter_id": 47
+    },
+    {
+      "id": 147,
+      "name": "Trash: Band 4 Second Gain",
+      "encoding": "float32_le",
+      "byte_offset": 564,
+      "element_id": 8,
+      "parameter_id": 48
+    },
+    {
+      "id": 148,
+      "name": "Trash: Second Gain",
+      "encoding": "float32_le",
+      "byte_offset": 568,
+      "element_id": 8,
+      "parameter_id": 49
+    },
+    {
+      "id": 149,
+      "name": "Trash: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 572,
+      "element_id": 8,
+      "parameter_id": 0
+    },
+    {
+      "id": 150,
+      "name": "Trash: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 573,
+      "element_id": 8,
+      "parameter_id": 1
+    },
+    {
+      "id": 151,
+      "name": "Trash: Multi-Band",
+      "encoding": "bool8",
+      "byte_offset": 574,
+      "element_id": 8,
+      "parameter_id": 2
+    },
+    {
+      "id": 152,
+      "name": "Trash: Multi-Rate",
+      "encoding": "bool8",
+      "byte_offset": 575,
+      "element_id": 8,
+      "parameter_id": 3
+    },
+    {
+      "id": 153,
+      "name": "Trash: Band 1 First Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 576,
+      "element_id": 8,
+      "parameter_id": 0
+    },
+    {
+      "id": 154,
+      "name": "Trash: Band 2 First Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 580,
+      "element_id": 8,
+      "parameter_id": 1
+    },
+    {
+      "id": 155,
+      "name": "Trash: Band 3 First Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 584,
+      "element_id": 8,
+      "parameter_id": 2
+    },
+    {
+      "id": 156,
+      "name": "Trash: Band 4 First Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 588,
+      "element_id": 8,
+      "parameter_id": 3
+    },
+    {
+      "id": 157,
+      "name": "Trash: First Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 592,
+      "element_id": 8,
+      "parameter_id": 4
+    },
+    {
+      "id": 158,
+      "name": "Trash: Band 1 Second Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 596,
+      "element_id": 8,
+      "parameter_id": 5
+    },
+    {
+      "id": 159,
+      "name": "Trash: Band 2 Second Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 600,
+      "element_id": 8,
+      "parameter_id": 6
+    },
+    {
+      "id": 160,
+      "name": "Trash: Band 3 Second Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 604,
+      "element_id": 8,
+      "parameter_id": 7
+    },
+    {
+      "id": 161,
+      "name": "Trash: Band 4 Second Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 608,
+      "element_id": 8,
+      "parameter_id": 8
+    },
+    {
+      "id": 162,
+      "name": "Trash: Second Algorithm",
+      "encoding": "uint32_le",
+      "byte_offset": 612,
+      "element_id": 8,
+      "parameter_id": 9
+    },
+    {
+      "id": 163,
+      "name": "PostFilter: Band 1 Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 620,
+      "element_id": 9,
+      "parameter_id": 0
+    },
+    {
+      "id": 164,
+      "name": "PostFilter: Band 1 Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 624,
+      "element_id": 9,
+      "parameter_id": 1
+    },
+    {
+      "id": 165,
+      "name": "PostFilter: Band 1 Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 628,
+      "element_id": 9,
+      "parameter_id": 2
+    },
+    {
+      "id": 166,
+      "name": "PostFilter: Band 1 Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 632,
+      "element_id": 9,
+      "parameter_id": 3
+    },
+    {
+      "id": 167,
+      "name": "PostFilter: Band 1 Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 636,
+      "element_id": 9,
+      "parameter_id": 4
+    },
+    {
+      "id": 168,
+      "name": "PostFilter: Band 1 Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 640,
+      "element_id": 9,
+      "parameter_id": 5
+    },
+    {
+      "id": 169,
+      "name": "PostFilter: Band 1 Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 644,
+      "element_id": 9,
+      "parameter_id": 6
+    },
+    {
+      "id": 170,
+      "name": "PostFilter: Band 1 Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 648,
+      "element_id": 9,
+      "parameter_id": 7
+    },
+    {
+      "id": 171,
+      "name": "PostFilter: Band 2 Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 652,
+      "element_id": 9,
+      "parameter_id": 8
+    },
+    {
+      "id": 172,
+      "name": "PostFilter: Band 2 Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 656,
+      "element_id": 9,
+      "parameter_id": 9
+    },
+    {
+      "id": 173,
+      "name": "PostFilter: Band 2 Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 660,
+      "element_id": 9,
+      "parameter_id": 10
+    },
+    {
+      "id": 174,
+      "name": "PostFilter: Band 2 Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 664,
+      "element_id": 9,
+      "parameter_id": 11
+    },
+    {
+      "id": 175,
+      "name": "PostFilter: Band 2 Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 668,
+      "element_id": 9,
+      "parameter_id": 12
+    },
+    {
+      "id": 176,
+      "name": "PostFilter: Band 2 Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 672,
+      "element_id": 9,
+      "parameter_id": 13
+    },
+    {
+      "id": 177,
+      "name": "PostFilter: Band 2 Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 676,
+      "element_id": 9,
+      "parameter_id": 14
+    },
+    {
+      "id": 178,
+      "name": "PostFilter: Band 2 Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 680,
+      "element_id": 9,
+      "parameter_id": 15
+    },
+    {
+      "id": 179,
+      "name": "PostFilter: Band 3 Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 684,
+      "element_id": 9,
+      "parameter_id": 16
+    },
+    {
+      "id": 180,
+      "name": "PostFilter: Band 3 Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 688,
+      "element_id": 9,
+      "parameter_id": 17
+    },
+    {
+      "id": 181,
+      "name": "PostFilter: Band 3 Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 692,
+      "element_id": 9,
+      "parameter_id": 18
+    },
+    {
+      "id": 182,
+      "name": "PostFilter: Band 3 Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 696,
+      "element_id": 9,
+      "parameter_id": 19
+    },
+    {
+      "id": 183,
+      "name": "PostFilter: Band 3 Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 700,
+      "element_id": 9,
+      "parameter_id": 20
+    },
+    {
+      "id": 184,
+      "name": "PostFilter: Band 3 Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 704,
+      "element_id": 9,
+      "parameter_id": 21
+    },
+    {
+      "id": 185,
+      "name": "PostFilter: Band 3 Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 708,
+      "element_id": 9,
+      "parameter_id": 22
+    },
+    {
+      "id": 186,
+      "name": "PostFilter: Band 3 Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 712,
+      "element_id": 9,
+      "parameter_id": 23
+    },
+    {
+      "id": 187,
+      "name": "PostFilter: Band 4 Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 716,
+      "element_id": 9,
+      "parameter_id": 24
+    },
+    {
+      "id": 188,
+      "name": "PostFilter: Band 4 Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 720,
+      "element_id": 9,
+      "parameter_id": 25
+    },
+    {
+      "id": 189,
+      "name": "PostFilter: Band 4 Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 724,
+      "element_id": 9,
+      "parameter_id": 26
+    },
+    {
+      "id": 190,
+      "name": "PostFilter: Band 4 Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 728,
+      "element_id": 9,
+      "parameter_id": 27
+    },
+    {
+      "id": 191,
+      "name": "PostFilter: Band 4 Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 732,
+      "element_id": 9,
+      "parameter_id": 28
+    },
+    {
+      "id": 192,
+      "name": "PostFilter: Band 4 Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 736,
+      "element_id": 9,
+      "parameter_id": 29
+    },
+    {
+      "id": 193,
+      "name": "PostFilter: Band 4 Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 740,
+      "element_id": 9,
+      "parameter_id": 30
+    },
+    {
+      "id": 194,
+      "name": "PostFilter: Band 4 Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 744,
+      "element_id": 9,
+      "parameter_id": 31
+    },
+    {
+      "id": 195,
+      "name": "PostFilter: Node 1 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 748,
+      "element_id": 9,
+      "parameter_id": 32
+    },
+    {
+      "id": 196,
+      "name": "PostFilter: Node 1 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 752,
+      "element_id": 9,
+      "parameter_id": 33
+    },
+    {
+      "id": 197,
+      "name": "PostFilter: Node 1 Q",
+      "encoding": "float32_le",
+      "byte_offset": 756,
+      "element_id": 9,
+      "parameter_id": 34
+    },
+    {
+      "id": 198,
+      "name": "PostFilter: Node 1 Res",
+      "encoding": "float32_le",
+      "byte_offset": 760,
+      "element_id": 9,
+      "parameter_id": 35
+    },
+    {
+      "id": 199,
+      "name": "PostFilter: Node 2 Freq",
+      "encoding": "float32_le",
+      "byte_offset": 764,
+      "element_id": 9,
+      "parameter_id": 36
+    },
+    {
+      "id": 200,
+      "name": "PostFilter: Node 2 Gain",
+      "encoding": "float32_le",
+      "byte_offset": 768,
+      "element_id": 9,
+      "parameter_id": 37
+    },
+    {
+      "id": 201,
+      "name": "PostFilter: Node 2 Q",
+      "encoding": "float32_le",
+      "byte_offset": 772,
+      "element_id": 9,
+      "parameter_id": 38
+    },
+    {
+      "id": 202,
+      "name": "PostFilter: Node 2 Res",
+      "encoding": "float32_le",
+      "byte_offset": 776,
+      "element_id": 9,
+      "parameter_id": 39
+    },
+    {
+      "id": 203,
+      "name": "PostFilter: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 780,
+      "element_id": 9,
+      "parameter_id": 0
+    },
+    {
+      "id": 204,
+      "name": "PostFilter: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 781,
+      "element_id": 9,
+      "parameter_id": 1
+    },
+    {
+      "id": 205,
+      "name": "PostFilter: Multi-Band",
+      "encoding": "bool8",
+      "byte_offset": 782,
+      "element_id": 9,
+      "parameter_id": 2
+    },
+    {
+      "id": 206,
+      "name": "PostFilter: Band 1 Node 1 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 783,
+      "element_id": 9,
+      "parameter_id": 0
+    },
+    {
+      "id": 207,
+      "name": "PostFilter: Band 1 Node 2 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 787,
+      "element_id": 9,
+      "parameter_id": 1
+    },
+    {
+      "id": 208,
+      "name": "PostFilter: Band 2 Node 1 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 791,
+      "element_id": 9,
+      "parameter_id": 2
+    },
+    {
+      "id": 209,
+      "name": "PostFilter: Band 2 Node 2 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 795,
+      "element_id": 9,
+      "parameter_id": 3
+    },
+    {
+      "id": 210,
+      "name": "PostFilter: Band 3 Node 1 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 799,
+      "element_id": 9,
+      "parameter_id": 4
+    },
+    {
+      "id": 211,
+      "name": "PostFilter: Band 3 Node 2 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 803,
+      "element_id": 9,
+      "parameter_id": 5
+    },
+    {
+      "id": 212,
+      "name": "PostFilter: Band 4 Node 1 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 807,
+      "element_id": 9,
+      "parameter_id": 6
+    },
+    {
+      "id": 213,
+      "name": "PostFilter: Band 4 Node 2 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 811,
+      "element_id": 9,
+      "parameter_id": 7
+    },
+    {
+      "id": 214,
+      "name": "PostFilter: Node 1 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 815,
+      "element_id": 9,
+      "parameter_id": 8
+    },
+    {
+      "id": 215,
+      "name": "PostFilter: Node 2 Type",
+      "encoding": "uint32_le",
+      "byte_offset": 819,
+      "element_id": 9,
+      "parameter_id": 9
+    },
+    {
+      "id": 216,
+      "name": "BoxModel: Gain Input",
+      "encoding": "float32_le",
+      "byte_offset": 827,
+      "element_id": 10,
+      "parameter_id": 0
+    },
+    {
+      "id": 217,
+      "name": "BoxModel: Gain Ouput",
+      "encoding": "float32_le",
+      "byte_offset": 831,
+      "element_id": 10,
+      "parameter_id": 1
+    },
+    {
+      "id": 218,
+      "name": "BoxModel: Mix Percent",
+      "encoding": "float32_le",
+      "byte_offset": 835,
+      "element_id": 10,
+      "parameter_id": 2
+    },
+    {
+      "id": 219,
+      "name": "BoxModel: Separation",
+      "encoding": "float32_le",
+      "byte_offset": 839,
+      "element_id": 10,
+      "parameter_id": 3
+    },
+    {
+      "id": 220,
+      "name": "BoxModel: Spread",
+      "encoding": "float32_le",
+      "byte_offset": 843,
+      "element_id": 10,
+      "parameter_id": 4
+    },
+    {
+      "id": 221,
+      "name": "BoxModel: Trim Level",
+      "encoding": "float32_le",
+      "byte_offset": 847,
+      "element_id": 10,
+      "parameter_id": 5
+    },
+    {
+      "id": 222,
+      "name": "BoxModel: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 851,
+      "element_id": 10,
+      "parameter_id": 0
+    },
+    {
+      "id": 223,
+      "name": "BoxModel: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 852,
+      "element_id": 10,
+      "parameter_id": 1
+    },
+    {
+      "id": 224,
+      "name": "BoxModel: Low Latency Mode",
+      "encoding": "bool8",
+      "byte_offset": 853,
+      "element_id": 10,
+      "parameter_id": 2
+    },
+    {
+      "id": 225,
+      "name": "BoxModel: Model",
+      "encoding": "uint32_le",
+      "byte_offset": 854,
+      "element_id": 10,
+      "parameter_id": 0
+    },
+    {
+      "id": 226,
+      "name": "BoxModel: Mic Type",
+      "encoding": "uint32_le",
+      "byte_offset": 858,
+      "element_id": 10,
+      "parameter_id": 1
+    },
+    {
+      "id": 227,
+      "name": "Buzz: Dry Out Percent",
+      "encoding": "float32_le",
+      "byte_offset": 866,
+      "element_id": 11,
+      "parameter_id": 0
+    },
+    {
+      "id": 228,
+      "name": "Buzz: Wet Out Percent",
+      "encoding": "float32_le",
+      "byte_offset": 870,
+      "element_id": 11,
+      "parameter_id": 1
+    },
+    {
+      "id": 229,
+      "name": "Buzz: Low Cutoff",
+      "encoding": "float32_le",
+      "byte_offset": 874,
+      "element_id": 11,
+      "parameter_id": 2
+    },
+    {
+      "id": 230,
+      "name": "Buzz: Low Q",
+      "encoding": "float32_le",
+      "byte_offset": 878,
+      "element_id": 11,
+      "parameter_id": 3
+    },
+    {
+      "id": 231,
+      "name": "Buzz: High Cutoff",
+      "encoding": "float32_le",
+      "byte_offset": 882,
+      "element_id": 11,
+      "parameter_id": 4
+    },
+    {
+      "id": 232,
+      "name": "Buzz: High Q",
+      "encoding": "float32_le",
+      "byte_offset": 886,
+      "element_id": 11,
+      "parameter_id": 5
+    },
+    {
+      "id": 233,
+      "name": "Buzz: Delay",
+      "encoding": "float32_le",
+      "byte_offset": 890,
+      "element_id": 11,
+      "parameter_id": 6
+    },
+    {
+      "id": 234,
+      "name": "Buzz: Feedback Percent",
+      "encoding": "float32_le",
+      "byte_offset": 894,
+      "element_id": 11,
+      "parameter_id": 7
+    },
+    {
+      "id": 235,
+      "name": "Buzz: Trash",
+      "encoding": "float32_le",
+      "byte_offset": 898,
+      "element_id": 11,
+      "parameter_id": 8
+    },
+    {
+      "id": 236,
+      "name": "Buzz: Spread",
+      "encoding": "float32_le",
+      "byte_offset": 902,
+      "element_id": 11,
+      "parameter_id": 9
+    },
+    {
+      "id": 237,
+      "name": "Buzz: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 906,
+      "element_id": 11,
+      "parameter_id": 0
+    },
+    {
+      "id": 238,
+      "name": "Buzz: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 907,
+      "element_id": 11,
+      "parameter_id": 1
+    },
+    {
+      "id": 239,
+      "name": "Buzz: Delay Slider Tempo",
+      "encoding": "bool8",
+      "byte_offset": 908,
+      "element_id": 11,
+      "parameter_id": 2
+    },
+    {
+      "id": 240,
+      "name": "Buzz: Delay Slider Snap",
+      "encoding": "bool8",
+      "byte_offset": 909,
+      "element_id": 11,
+      "parameter_id": 3
+    },
+    {
+      "id": 241,
+      "name": "Buzz: Distortion Mode",
+      "encoding": "uint32_le",
+      "byte_offset": 910,
+      "element_id": 11,
+      "parameter_id": 0
+    },
+    {
+      "id": 242,
+      "name": "Squash: Band 1 Comp Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 918,
+      "element_id": 12,
+      "parameter_id": 0
+    },
+    {
+      "id": 243,
+      "name": "Squash: Band 1 Comp Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 922,
+      "element_id": 12,
+      "parameter_id": 1
+    },
+    {
+      "id": 244,
+      "name": "Squash: Band 1 Comp Attack",
+      "encoding": "float32_le",
+      "byte_offset": 926,
+      "element_id": 12,
+      "parameter_id": 2
+    },
+    {
+      "id": 245,
+      "name": "Squash: Band 1 Comp Release",
+      "encoding": "float32_le",
+      "byte_offset": 930,
+      "element_id": 12,
+      "parameter_id": 3
+    },
+    {
+      "id": 246,
+      "name": "Squash: Band 1 Gate Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 934,
+      "element_id": 12,
+      "parameter_id": 4
+    },
+    {
+      "id": 247,
+      "name": "Squash: Band 1 Gate Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 938,
+      "element_id": 12,
+      "parameter_id": 5
+    },
+    {
+      "id": 248,
+      "name": "Squash: Band 1 Gate Attack",
+      "encoding": "float32_le",
+      "byte_offset": 942,
+      "element_id": 12,
+      "parameter_id": 6
+    },
+    {
+      "id": 249,
+      "name": "Squash: Band 1 Gate Release",
+      "encoding": "float32_le",
+      "byte_offset": 946,
+      "element_id": 12,
+      "parameter_id": 7
+    },
+    {
+      "id": 250,
+      "name": "Squash: Band 1 Band Gain",
+      "encoding": "float32_le",
+      "byte_offset": 950,
+      "element_id": 12,
+      "parameter_id": 8
+    },
+    {
+      "id": 251,
+      "name": "Squash: Band 2 Comp Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 954,
+      "element_id": 12,
+      "parameter_id": 9
+    },
+    {
+      "id": 252,
+      "name": "Squash: Band 2 Comp Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 958,
+      "element_id": 12,
+      "parameter_id": 10
+    },
+    {
+      "id": 253,
+      "name": "Squash: Band 2 Comp Attack",
+      "encoding": "float32_le",
+      "byte_offset": 962,
+      "element_id": 12,
+      "parameter_id": 11
+    },
+    {
+      "id": 254,
+      "name": "Squash: Band 2 Comp Release",
+      "encoding": "float32_le",
+      "byte_offset": 966,
+      "element_id": 12,
+      "parameter_id": 12
+    },
+    {
+      "id": 255,
+      "name": "Squash: Band 2 Gate Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 970,
+      "element_id": 12,
+      "parameter_id": 13
+    },
+    {
+      "id": 256,
+      "name": "Squash: Band 2 Gate Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 974,
+      "element_id": 12,
+      "parameter_id": 14
+    },
+    {
+      "id": 257,
+      "name": "Squash: Band 2 Gate Attack",
+      "encoding": "float32_le",
+      "byte_offset": 978,
+      "element_id": 12,
+      "parameter_id": 15
+    },
+    {
+      "id": 258,
+      "name": "Squash: Band 2 Gate Release",
+      "encoding": "float32_le",
+      "byte_offset": 982,
+      "element_id": 12,
+      "parameter_id": 16
+    },
+    {
+      "id": 259,
+      "name": "Squash: Band 2 Band Gain",
+      "encoding": "float32_le",
+      "byte_offset": 986,
+      "element_id": 12,
+      "parameter_id": 17
+    },
+    {
+      "id": 260,
+      "name": "Squash: Band 3 Comp Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 990,
+      "element_id": 12,
+      "parameter_id": 18
+    },
+    {
+      "id": 261,
+      "name": "Squash: Band 3 Comp Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 994,
+      "element_id": 12,
+      "parameter_id": 19
+    },
+    {
+      "id": 262,
+      "name": "Squash: Band 3 Comp Attack",
+      "encoding": "float32_le",
+      "byte_offset": 998,
+      "element_id": 12,
+      "parameter_id": 20
+    },
+    {
+      "id": 263,
+      "name": "Squash: Band 3 Comp Release",
+      "encoding": "float32_le",
+      "byte_offset": 1002,
+      "element_id": 12,
+      "parameter_id": 21
+    },
+    {
+      "id": 264,
+      "name": "Squash: Band 3 Gate Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 1006,
+      "element_id": 12,
+      "parameter_id": 22
+    },
+    {
+      "id": 265,
+      "name": "Squash: Band 3 Gate Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 1010,
+      "element_id": 12,
+      "parameter_id": 23
+    },
+    {
+      "id": 266,
+      "name": "Squash: Band 3 Gate Attack",
+      "encoding": "float32_le",
+      "byte_offset": 1014,
+      "element_id": 12,
+      "parameter_id": 24
+    },
+    {
+      "id": 267,
+      "name": "Squash: Band 3 Gate Release",
+      "encoding": "float32_le",
+      "byte_offset": 1018,
+      "element_id": 12,
+      "parameter_id": 25
+    },
+    {
+      "id": 268,
+      "name": "Squash: Band 3 Band Gain",
+      "encoding": "float32_le",
+      "byte_offset": 1022,
+      "element_id": 12,
+      "parameter_id": 26
+    },
+    {
+      "id": 269,
+      "name": "Squash: Band 4 Comp Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 1026,
+      "element_id": 12,
+      "parameter_id": 27
+    },
+    {
+      "id": 270,
+      "name": "Squash: Band 4 Comp Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 1030,
+      "element_id": 12,
+      "parameter_id": 28
+    },
+    {
+      "id": 271,
+      "name": "Squash: Band 4 Comp Attack",
+      "encoding": "float32_le",
+      "byte_offset": 1034,
+      "element_id": 12,
+      "parameter_id": 29
+    },
+    {
+      "id": 272,
+      "name": "Squash: Band 4 Comp Release",
+      "encoding": "float32_le",
+      "byte_offset": 1038,
+      "element_id": 12,
+      "parameter_id": 30
+    },
+    {
+      "id": 273,
+      "name": "Squash: Band 4 Gate Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 1042,
+      "element_id": 12,
+      "parameter_id": 31
+    },
+    {
+      "id": 274,
+      "name": "Squash: Band 4 Gate Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 1046,
+      "element_id": 12,
+      "parameter_id": 32
+    },
+    {
+      "id": 275,
+      "name": "Squash: Band 4 Gate Attack",
+      "encoding": "float32_le",
+      "byte_offset": 1050,
+      "element_id": 12,
+      "parameter_id": 33
+    },
+    {
+      "id": 276,
+      "name": "Squash: Band 4 Gate Release",
+      "encoding": "float32_le",
+      "byte_offset": 1054,
+      "element_id": 12,
+      "parameter_id": 34
+    },
+    {
+      "id": 277,
+      "name": "Squash: Band 4 Band Gain",
+      "encoding": "float32_le",
+      "byte_offset": 1058,
+      "element_id": 12,
+      "parameter_id": 35
+    },
+    {
+      "id": 278,
+      "name": "Squash: Comp Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 1062,
+      "element_id": 12,
+      "parameter_id": 36
+    },
+    {
+      "id": 279,
+      "name": "Squash: Comp Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 1066,
+      "element_id": 12,
+      "parameter_id": 37
+    },
+    {
+      "id": 280,
+      "name": "Squash: Comp Attack",
+      "encoding": "float32_le",
+      "byte_offset": 1070,
+      "element_id": 12,
+      "parameter_id": 38
+    },
+    {
+      "id": 281,
+      "name": "Squash: Comp Release",
+      "encoding": "float32_le",
+      "byte_offset": 1074,
+      "element_id": 12,
+      "parameter_id": 39
+    },
+    {
+      "id": 282,
+      "name": "Squash: Gate Threshold",
+      "encoding": "float32_le",
+      "byte_offset": 1078,
+      "element_id": 12,
+      "parameter_id": 40
+    },
+    {
+      "id": 283,
+      "name": "Squash: Gate Ratio",
+      "encoding": "float32_le",
+      "byte_offset": 1082,
+      "element_id": 12,
+      "parameter_id": 41
+    },
+    {
+      "id": 284,
+      "name": "Squash: Gate Attack",
+      "encoding": "float32_le",
+      "byte_offset": 1086,
+      "element_id": 12,
+      "parameter_id": 42
+    },
+    {
+      "id": 285,
+      "name": "Squash: Gate Release",
+      "encoding": "float32_le",
+      "byte_offset": 1090,
+      "element_id": 12,
+      "parameter_id": 43
+    },
+    {
+      "id": 286,
+      "name": "Squash: Band Gain",
+      "encoding": "float32_le",
+      "byte_offset": 1094,
+      "element_id": 12,
+      "parameter_id": 44
+    },
+    {
+      "id": 287,
+      "name": "Squash: Bypass",
+      "encoding": "bool8",
+      "byte_offset": 1098,
+      "element_id": 12,
+      "parameter_id": 0
+    },
+    {
+      "id": 288,
+      "name": "Squash: Solo Mute",
+      "encoding": "bool8",
+      "byte_offset": 1099,
+      "element_id": 12,
+      "parameter_id": 1
+    },
+    {
+      "id": 289,
+      "name": "Squash: Multi-Band",
+      "encoding": "bool8",
+      "byte_offset": 1100,
+      "element_id": 12,
+      "parameter_id": 2
+    },
+    {
+      "id": 290,
+      "name": "Squash: Enable Histogram",
+      "encoding": "bool8",
+      "byte_offset": 1101,
+      "element_id": 12,
+      "parameter_id": 3
+    },
+    {
+      "id": 291,
+      "name": "Squash: Enable Gain Reduction Meter",
+      "encoding": "bool8",
+      "byte_offset": 1102,
+      "element_id": 12,
+      "parameter_id": 4
+    },
+    {
+      "id": 292,
+      "name": "Squash: Gain Reduction Meter Peak Hold",
+      "encoding": "bool8",
+      "byte_offset": 1103,
+      "element_id": 12,
+      "parameter_id": 5
+    },
+    {
+      "id": 293,
+      "name": "Squash: Enable Curve Level Meter",
+      "encoding": "bool8",
+      "byte_offset": 1104,
+      "element_id": 12,
+      "parameter_id": 6
+    },
+    {
+      "id": 294,
+      "name": "Squash: Gain Reduction Meter Source",
+      "encoding": "uint32_le",
+      "byte_offset": 1105,
+      "element_id": 12,
+      "parameter_id": 0
+    },
+    {
+      "id": 295,
+      "name": "Squash: Gain Reduction Meter Peak Hold Time",
+      "encoding": "uint32_le",
+      "byte_offset": 1109,
+      "element_id": 12,
+      "parameter_id": 1
+    }
+  ],
+  "evidence": {
+    "runtime_descriptor_sha256": "7e5f33ccd1d846d1541d49c232941982bfb215d0b4ddf92d7b123c2cca99cf41",
+    "table_rva": 3538136,
+    "record_stride": 24,
+    "REA_typed_accessor_evidence": "ev_af085e71e5c1995c3186ffc14f1997b0f8eb0dbf98e5186aad199e17b6b13729",
+    "scope": "Serialized field structure; public control curves and cross-version semantics are separate"
+  }
+}

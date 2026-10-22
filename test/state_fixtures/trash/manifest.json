@@ -1,0 +1,242 @@
+{
+  "scope": "Retained native receipts; fixtures are replay evidence, not fresh plugin execution or audio comparisons. Source paths are provenance only.",
+  "files": [
+    {
+      "file": "trash1-default.state",
+      "sha256": "631912e1309fef91cfab942535aecef53e39c534cc0f59ad22a0c0376fe3f188",
+      "source": "unfinished_sandbox\\format_translation\\mapping_next_20261022\\trash\\source_native\\capture\\baseline.state",
+      "role": "Native x86 source default bank"
+    },
+    {
+      "file": "trash2-default.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "source": "unfinished_sandbox\\format_translation\\mapping_next_20261022\\trash\\capture\\baseline.state",
+      "role": "Native x64 target VST2 default chunk"
+    },
+    {
+      "file": "trash2-reference0.state",
+      "sha256": "7d8cfed4ae26f3840d64ab11335b4f598bed3a4cc2f73dda053334e33c943f60",
+      "source": "unfinished_sandbox\\format_translation\\mapping_next_20261022\\trash\\target_reference0\\baseline.state",
+      "role": "Native setters; expected complete target chunk",
+      "controls": [
+        [
+          0,
+          0.204
+        ],
+        [
+          4,
+          0.752
+        ],
+        [
+          9,
+          0.55
+        ],
+        [
+          11,
+          0.824
+        ],
+        [
+          13,
+          0.211
+        ],
+        [
+          14,
+          0.348
+        ],
+        [
+          17,
+          0.759
+        ],
+        [
+          18,
+          0.896
+        ],
+        [
+          19,
+          0.146
+        ],
+        [
+          118,
+          0.404
+        ],
+        [
+          120,
+          0.678
+        ],
+        [
+          122,
+          0.065
+        ],
+        [
+          123,
+          0.202
+        ],
+        [
+          124,
+          0.339
+        ],
+        [
+          125,
+          0.476
+        ],
+        [
+          128,
+          0.887
+        ]
+      ],
+      "native_receipt_sha256": "0844905b551f1b234c72e1f1c77731d61b0e3c4ed9e26c0a23d661bbd54e93b4"
+    },
+    {
+      "file": "trash2-reference1.state",
+      "sha256": "e85345a5616ee72d0a85983e2a1e80583a9fb7248e7093515f56a18111df7b2c",
+      "source": "unfinished_sandbox\\format_translation\\mapping_next_20261022\\trash\\target_reference1\\baseline.state",
+      "role": "Native setters; expected complete target chunk",
+      "controls": [
+        [
+          0,
+          0.443
+        ],
+        [
+          4,
+          0.104
+        ],
+        [
+          9,
+          0.789
+        ],
+        [
+          11,
+          0.176
+        ],
+        [
+          13,
+          0.45
+        ],
+        [
+          14,
+          0.587
+        ],
+        [
+          17,
+          0.111
+        ],
+        [
+          18,
+          0.248
+        ],
+        [
+          19,
+          0.385
+        ],
+        [
+          118,
+          0.643
+        ],
+        [
+          120,
+          0.917
+        ],
+        [
+          122,
+          0.304
+        ],
+        [
+          123,
+          0.441
+        ],
+        [
+          124,
+          0.578
+        ],
+        [
+          125,
+          0.715
+        ],
+        [
+          128,
+          0.239
+        ]
+      ],
+      "native_receipt_sha256": "3e9bae9d2cad162c68f477960ded396808ed01c3e8048ec2fed70614b653d30e"
+    },
+    {
+      "file": "trash2-reference2.state",
+      "sha256": "adfbd10fc50c8093c277aeee4ad2653180e916d61008ea012390f141834e0fc6",
+      "source": "unfinished_sandbox\\format_translation\\mapping_next_20261022\\trash\\target_reference2\\baseline.state",
+      "role": "Native setters; expected complete target chunk",
+      "controls": [
+        [
+          0,
+          0.682
+        ],
+        [
+          4,
+          0.343
+        ],
+        [
+          9,
+          0.141
+        ],
+        [
+          11,
+          0.415
+        ],
+        [
+          13,
+          0.689
+        ],
+        [
+          14,
+          0.826
+        ],
+        [
+          17,
+          0.35
+        ],
+        [
+          18,
+          0.487
+        ],
+        [
+          19,
+          0.624
+        ],
+        [
+          118,
+          0.882
+        ],
+        [
+          120,
+          0.269
+        ],
+        [
+          122,
+          0.543
+        ],
+        [
+          123,
+          0.68
+        ],
+        [
+          124,
+          0.817
+        ],
+        [
+          125,
+          0.067
+        ],
+        [
+          128,
+          0.478
+        ]
+      ],
+      "native_receipt_sha256": "fff3580629b57656b08d59b874697fe18d7095167ad6b2b7f0b8622b93d7cfd9"
+    },
+    {
+      "file": "trash1-mixed-revisions.state",
+      "sha256": "e921cd053bd0d5b467f540cf6fee4b5ab78c1796103355661fbbc02ec83fd787",
+      "source_set_sha256": "b85d10e0d76fc0b7fb00ca59f4e4812ad8b97ad3bd87edd799c0fe02498bc982",
+      "role": "Historical ALS-extracted source bank with revision21 and revision22 records"
+    }
+  ]
+}

@@ -1,0 +1,3319 @@
+{
+  "source_sha256": "ec1e66d15ce7b611148260681da68444de51299fe75d0a9ef416d3cd504e38c9",
+  "evidence_sha256": "219e4fe2841a0cdb6b084a3f1ce9d4ddc3a128a6bcccc01970e87893a55a6941",
+  "scope": "Program0, revision21, captured default locks/modes. Joint full-vector results are NOT exact; do not promote the failed whole vectors.; coarse samples are observed, never interpolated. Native status applies only to independent checked inputs, not every sample or arbitrary normalized value. Hidden controls and physical enums need their own evidence.",
+  "positions": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "controls": [
+    {
+      "index": 0,
+      "name": "Global: Bypass",
+      "unit": "",
+      "fields": [],
+      "status": "no_saved_change_in_sweep"
+    },
+    {
+      "index": 1,
+      "name": "Gain: Input Left",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 31,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        },
+        {
+          "field_id": 32,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 2,
+      "name": "Gain: Input Right",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 31,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        },
+        {
+          "field_id": 32,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 3,
+      "name": "Gain: Output Left",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 33,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        },
+        {
+          "field_id": 34,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 4,
+      "name": "Gain: Output Right",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 33,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        },
+        {
+          "field_id": 34,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 5,
+      "name": "PreFilter: Node 1 Freq",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 37,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 6,
+      "name": "PreFilter: Node 1 Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 38,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 7,
+      "name": "PreFilter: Node 1 Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 39,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 8,
+      "name": "PreFilter: Node 1 Res",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 40,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 9,
+      "name": "PreFilter: Node 1 Tgt F",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 41,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 10,
+      "name": "PreFilter: Node 1 Tgt G",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 42,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 11,
+      "name": "PreFilter: Node 1 Tgt Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 43,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 12,
+      "name": "PreFilter: Node 1 Tgt R",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 44,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 13,
+      "name": "PreFilter: Node 2 Freq",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 49,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 14,
+      "name": "PreFilter: Node 2 Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 50,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 15,
+      "name": "PreFilter: Node 2 Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 51,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 16,
+      "name": "PreFilter: Node 2 Res",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 52,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 17,
+      "name": "PreFilter: Node 2 Tgt F",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 53,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 18,
+      "name": "PreFilter: Node 2 Tgt G",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 54,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 19,
+      "name": "PreFilter: Node 2 Tgt Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 55,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 20,
+      "name": "PreFilter: Node 2 Tgt R",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 56,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 21,
+      "name": "PreFilter: Node 3 Freq",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 61,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 22,
+      "name": "PreFilter: Node 3 Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 62,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 23,
+      "name": "PreFilter: Node 3 Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 63,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 24,
+      "name": "PreFilter: Node 3 Res",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 64,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 25,
+      "name": "PreFilter: Node 3 Tgt F",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 65,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 26,
+      "name": "PreFilter: Node 3 Tgt G",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 66,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 27,
+      "name": "PreFilter: Node 3 Tgt Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 67,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 28,
+      "name": "PreFilter: Node 3 Tgt R",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 68,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 29,
+      "name": "CrossOver: Cutoff 1",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 87,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 30,
+      "name": "CrossOver: Cutoff 2",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 88,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 31,
+      "name": "CrossOver: Cutoff 3",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 89,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 32,
+      "name": "Trash: Band 1 1st In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 99,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 33,
+      "name": "Trash: Band 2 1st In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 100,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 34,
+      "name": "Trash: Band 3 1st In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 101,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 35,
+      "name": "Trash: Band 4 1st In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 102,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 36,
+      "name": "Trash: First Input Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 103,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 37,
+      "name": "Trash: Band 1 2nd In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 104,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 38,
+      "name": "Trash: Band 2 2nd In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 105,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 39,
+      "name": "Trash: Band 3 2nd In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 106,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 40,
+      "name": "Trash: Band 4 2nd In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 107,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 41,
+      "name": "Trash: 2nd In Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 108,
+          "values": [
+            -30.0,
+            -17.5,
+            -5.0,
+            7.5,
+            20.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 42,
+      "name": "Trash: Band 1 1st OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 109,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 43,
+      "name": "Trash: Band 2 1st OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 110,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 44,
+      "name": "Trash: Band 3 1st OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 111,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 45,
+      "name": "Trash: Band 4 1st OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 112,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 46,
+      "name": "Trash: First Overdrive",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 113,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 47,
+      "name": "Trash: Band 1 2nd OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 114,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 48,
+      "name": "Trash: Band 2 2nd OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 115,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 49,
+      "name": "Trash: Band 3 2nd OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 116,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 50,
+      "name": "Trash: Band 4 2nd OvrDr",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 117,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 51,
+      "name": "Trash: Second Overdrive",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 118,
+          "values": [
+            0.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 52,
+      "name": "Trash: Band 1 1st Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 119,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 53,
+      "name": "Trash: Band 2 1st Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 120,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 54,
+      "name": "Trash: Band 3 1st Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 121,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 55,
+      "name": "Trash: Band 4 1st Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 122,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 56,
+      "name": "Trash: First Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 123,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 57,
+      "name": "Trash: Band 1 2nd Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 124,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 58,
+      "name": "Trash: Band 2 2nd Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 125,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 59,
+      "name": "Trash: Band 3 2nd Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 126,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 60,
+      "name": "Trash: Band 4 2nd Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 127,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 61,
+      "name": "Trash: Second Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 128,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 62,
+      "name": "Trash: Band 1 First Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 129,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 63,
+      "name": "Trash: Band 2 First Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 130,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 64,
+      "name": "Trash: Band 3 First Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 131,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 65,
+      "name": "Trash: Band 4 First Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 132,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 66,
+      "name": "Trash: First Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 133,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 67,
+      "name": "Trash: Band 1 2nd Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 134,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 68,
+      "name": "Trash: Band 2 2nd Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 135,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 69,
+      "name": "Trash: Band 3 2nd Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 136,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 70,
+      "name": "Trash: Band 4 2nd Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 137,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 71,
+      "name": "Trash: Second Mix",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 138,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 72,
+      "name": "Trash: Band 1 1st Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 139,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 73,
+      "name": "Trash: Band 2 1st Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 140,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 74,
+      "name": "Trash: Band 3 1st Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 141,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 75,
+      "name": "Trash: Band 4 1st Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 142,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 76,
+      "name": "Trash: First Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 143,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 77,
+      "name": "Trash: Band 1 2nd Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 144,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 78,
+      "name": "Trash: Band 2 2nd Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 145,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 79,
+      "name": "Trash: Band 3 2nd Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 146,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 80,
+      "name": "Trash: Band 4 2nd Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 147,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 81,
+      "name": "Trash: Second Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 148,
+          "values": [
+            -40.0,
+            -27.5,
+            -15.0,
+            -2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 82,
+      "name": "PostFilter: Band 1 LCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 163,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 83,
+      "name": "PostFilter: Band 1 LCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 164,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 84,
+      "name": "PostFilter: Band 1 LCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 165,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 85,
+      "name": "PostFilter: Band 1 LCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 166,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 86,
+      "name": "PostFilter: Band 1 HCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 167,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 87,
+      "name": "PostFilter: Band 1 HCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 168,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 88,
+      "name": "PostFilter: Band 1 HCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 169,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 89,
+      "name": "PostFilter: Band 1 HCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 170,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 90,
+      "name": "PostFilter: Band 2 LCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 171,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 91,
+      "name": "PostFilter: Band 2 LCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 172,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 92,
+      "name": "PostFilter: Band 2 LCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 173,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 93,
+      "name": "PostFilter: Band 2 LCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 174,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 94,
+      "name": "PostFilter: Band 2 HCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 175,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 95,
+      "name": "PostFilter: Band 2 HCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 176,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 96,
+      "name": "PostFilter: Band 2 HCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 177,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 97,
+      "name": "PostFilter: Band 2 HCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 178,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 98,
+      "name": "PostFilter: Band 3 LCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 179,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 99,
+      "name": "PostFilter: Band 3 LCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 180,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 100,
+      "name": "PostFilter: Band 3 LCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 181,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 101,
+      "name": "PostFilter: Band 3 LCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 182,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 102,
+      "name": "PostFilter: Band 3 HCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 183,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 103,
+      "name": "PostFilter: Band 3 HCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 184,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 104,
+      "name": "PostFilter: Band 3 HCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 185,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 105,
+      "name": "PostFilter: Band 3 HCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 186,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 106,
+      "name": "PostFilter: Band 4 LCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 187,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 107,
+      "name": "PostFilter: Band 4 LCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 188,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 108,
+      "name": "PostFilter: Band 4 LCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 189,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 109,
+      "name": "PostFilter: Band 4 LCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 190,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 110,
+      "name": "PostFilter: Band 4 HCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 191,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 111,
+      "name": "PostFilter: Band 4 HCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 192,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 112,
+      "name": "PostFilter: Band 4 HCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 193,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 113,
+      "name": "PostFilter: Band 4 HCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 194,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 114,
+      "name": "PostFilter: LCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 195,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 115,
+      "name": "PostFilter: LCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 196,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 116,
+      "name": "PostFilter: LCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 197,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 117,
+      "name": "PostFilter: LCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 198,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 118,
+      "name": "PostFilter: HCF",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 199,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 119,
+      "name": "PostFilter: HCG",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 200,
+          "values": [
+            -30.0,
+            -15.0,
+            0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 120,
+      "name": "PostFilter: HCQ",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 201,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 121,
+      "name": "PostFilter: HCR",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 202,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 122,
+      "name": "BoxModel: Gain Input",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 216,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 123,
+      "name": "BoxModel: Gain Ouput",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 217,
+          "values": [
+            -20.0,
+            -12.5,
+            -5.0,
+            2.5,
+            10.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 124,
+      "name": "BoxModel: Mix Percent",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 218,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 125,
+      "name": "BoxModel: Separation",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 219,
+          "values": [
+            -30.0,
+            -15.0,
+            -0.0,
+            15.0,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 126,
+      "name": "BoxModel: Spread",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 220,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 127,
+      "name": "Buzz: Dry Out Percent",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 227,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 128,
+      "name": "Buzz: Wet Out Percent",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 228,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 129,
+      "name": "Buzz: Low Cutoff",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 229,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 130,
+      "name": "BUZ: Low Cut Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 230,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 131,
+      "name": "Buzz: High Cutoff",
+      "unit": "Hz",
+      "fields": [
+        {
+          "field_id": 231,
+          "values": [
+            20.0,
+            5015.0,
+            10010.0,
+            15005.0,
+            20000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 132,
+      "name": "BUZ: High Cut Q",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 232,
+          "values": [
+            0.20000000298023224,
+            3.1500000953674316,
+            6.099999904632568,
+            9.050000190734863,
+            12.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 133,
+      "name": "Buzz: Delay",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 233,
+          "values": [
+            40.0,
+            530.0,
+            1020.0,
+            1510.0,
+            2000.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 134,
+      "name": "Buzz: Feedback Percent",
+      "unit": "%",
+      "fields": [
+        {
+          "field_id": 234,
+          "values": [
+            0.0,
+            25.0,
+            50.0,
+            75.0,
+            100.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 135,
+      "name": "Buzz: Trash",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 235,
+          "values": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 136,
+      "name": "Buzz: Spread",
+      "unit": "",
+      "fields": [
+        {
+          "field_id": 236,
+          "values": [
+            0.0,
+            0.5,
+            1.0,
+            1.5,
+            2.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 137,
+      "name": "Squash: Band 1 Comp Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 242,
+          "values": [
+            -60.0,
+            -45.0,
+            -30.0,
+            -15.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 138,
+      "name": "Squash: Band 1 Comp Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 243,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 139,
+      "name": "Squash: Band 1 Comp At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 244,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 140,
+      "name": "Squash: Band 1 Comp Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 245,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 141,
+      "name": "Squash: Band 1 Gate Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 246,
+          "values": [
+            -80.0,
+            -60.0,
+            -40.0,
+            -20.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 142,
+      "name": "Squash: Band 1 Gate Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 247,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 143,
+      "name": "Squash: Band 1 Gate At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 248,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 144,
+      "name": "Squash: Band 1 Gate Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 249,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 145,
+      "name": "Squash: Band 1 Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 250,
+          "values": [
+            -20.0,
+            -7.5,
+            5.0,
+            17.5,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 146,
+      "name": "Squash: Band 2 Comp Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 251,
+          "values": [
+            -60.0,
+            -45.0,
+            -30.0,
+            -15.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 147,
+      "name": "Squash: Band 2 Comp Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 252,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 148,
+      "name": "Squash: Band 2 Comp At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 253,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 149,
+      "name": "Squash: Band 2 Comp Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 254,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 150,
+      "name": "Squash: Band 2 Gate Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 255,
+          "values": [
+            -80.0,
+            -60.0,
+            -40.0,
+            -20.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "rounding_unresolved"
+    },
+    {
+      "index": 151,
+      "name": "Squash: Band 2 Gate Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 256,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 152,
+      "name": "Squash: Band 2 Gate At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 257,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 153,
+      "name": "Squash: Band 2 Gate Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 258,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 154,
+      "name": "Squash: Band 2 Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 259,
+          "values": [
+            -20.0,
+            -7.5,
+            5.0,
+            17.5,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 155,
+      "name": "Squash: Band 3 Comp Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 260,
+          "values": [
+            -60.0,
+            -45.0,
+            -30.0,
+            -15.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 156,
+      "name": "Squash: Band 3 Comp Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 261,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 157,
+      "name": "Squash: Band 3 Comp At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 262,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 158,
+      "name": "Squash: Band 3 Comp Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 263,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 159,
+      "name": "Squash: Band 3 Gate Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 264,
+          "values": [
+            -80.0,
+            -60.0,
+            -40.0,
+            -20.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 160,
+      "name": "Squash: Band 3 Gate Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 265,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 161,
+      "name": "Squash: Band 3 Gate At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 266,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 162,
+      "name": "Squash: Band 3 Gate Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 267,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 163,
+      "name": "Squash: Band 3 Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 268,
+          "values": [
+            -20.0,
+            -7.5,
+            5.0,
+            17.5,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 164,
+      "name": "Squash: Band 4 Comp Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 269,
+          "values": [
+            -60.0,
+            -45.0,
+            -30.0,
+            -15.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 165,
+      "name": "Squash: Band 4 Comp Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 270,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 166,
+      "name": "Squash: Band 4 Comp At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 271,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 167,
+      "name": "Squash: Band 4 Comp Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 272,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 168,
+      "name": "Squash: Band 4 Gate Th",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 273,
+          "values": [
+            -80.0,
+            -60.0,
+            -40.0,
+            -20.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 169,
+      "name": "Squash: Band 4 Gate Ra",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 274,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 170,
+      "name": "Squash: Band 4 Gate At",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 275,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 171,
+      "name": "Squash: Band 4 Gate Re",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 276,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 172,
+      "name": "Squash: Band 4 Gn",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 277,
+          "values": [
+            -20.0,
+            -7.5,
+            5.0,
+            17.5,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 173,
+      "name": "Squash: Comp Threshold",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 278,
+          "values": [
+            -60.0,
+            -45.0,
+            -30.0,
+            -15.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 174,
+      "name": "Squash: Comp Ratio",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 279,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 175,
+      "name": "Squash: Comp Attack",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 280,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 176,
+      "name": "Squash: Comp Release",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 281,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 177,
+      "name": "Squash: Gate Threshold",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 282,
+          "values": [
+            -80.0,
+            -60.0,
+            -40.0,
+            -20.0,
+            0.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 178,
+      "name": "Squash: Gate Ratio",
+      "unit": "x:1",
+      "fields": [
+        {
+          "field_id": 283,
+          "values": [
+            1.0,
+            8.25,
+            15.5,
+            22.75,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 179,
+      "name": "Squash: Gate Attack",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 284,
+          "values": [
+            0.0,
+            125.0,
+            250.0,
+            375.0,
+            500.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 180,
+      "name": "Squash: Gate Release",
+      "unit": "ms",
+      "fields": [
+        {
+          "field_id": 285,
+          "values": [
+            0.0,
+            1250.0,
+            2500.0,
+            3750.0,
+            5000.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    },
+    {
+      "index": 181,
+      "name": "Squash: Band Gain",
+      "unit": "dB",
+      "fields": [
+        {
+          "field_id": 286,
+          "values": [
+            -20.0,
+            -7.5,
+            5.0,
+            17.5,
+            30.0
+          ]
+        }
+      ],
+      "status": "native_checked_at_tested_inputs"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ import json
 import logging
 import pathlib
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
@@ -28,6 +29,7 @@ from abletoolz.formats import hex_text
 from abletoolz.schema import Attr, Tag
 
 if TYPE_CHECKING:
+    from abletoolz.plugins.state.model import EncodableState
     from abletoolz.samples.database import DatabaseT
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,7 @@ class PluginData(BaseModel):
     plugin_name: str
     file_name: str | None = None
     unique_id: int | None = None
+    program_number: int | None = None
 
     # Path info (new format has Path element, old has Dir/Data)
     path: pathlib.Path | None = None
@@ -133,6 +136,8 @@ class PluginData(BaseModel):
         # Unique ID
         unique_id_str = search_element(root, Tag.UNIQUE_ID, Attr.VALUE)
         unique_id = int(unique_id_str) if unique_id_str and unique_id_str.isdigit() else None
+        program_number_str = search_element(root, "ProgramNumber", Attr.VALUE)
+        program_number = int(program_number_str) if program_number_str is not None else None
 
         # Buffer element (contains plugin state)
         buffer_element = search_element(root, Tag.BUFFER)
@@ -141,6 +146,7 @@ class PluginData(BaseModel):
             plugin_name=plugin_name,
             file_name=file_name,
             unique_id=unique_id,
+            program_number=program_number,
             path=path,
             path_element=path_element,
             data=data,
@@ -171,6 +177,21 @@ class PluginData(BaseModel):
         if self.buffer_element is None:
             return b""
         return hex_text.decode(self.buffer_element.text)
+
+    def decode_state[T: EncodableState](self, decoder: Callable[[bytes], T]) -> T:
+        """Decode an explicitly chosen state format; retain ``program_number`` for bank selection."""
+        if self.buffer_element is None:
+            raise ValueError("Plugin has no saved Buffer to decode")
+        return decoder(self.get_buffer_raw_bytes())
+
+    def set_state_model(self, state: EncodableState) -> None:
+        """Encode completely before changing the Buffer; identity and program selection stay separate."""
+        if self.buffer_element is None:
+            raise ValueError("Plugin has no saved Buffer to update")
+        raw = state.encode()
+        if type(raw) is not bytes:
+            raise ValueError("State encoder must return bytes")
+        self.set_buffer_from_bytes(raw)
 
     def detect_buffer_format(self) -> BufferFormat:
         """Attempt to auto-detect the buffer format.
