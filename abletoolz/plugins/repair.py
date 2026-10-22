@@ -61,10 +61,10 @@ from abletoolz.machine import default_live_database_dir
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, set_supports
 from abletoolz.plugins.container.format_translation import (
     KNOWN_TRANSLATIONS,
-    ConfiguredTarget,
+    ConfiguredRecipe,
     apply_recipe,
     can_rewrite,
-    resolve_target,
+    resolve_recipe,
 )
 from abletoolz.plugins.identity.mapping import suggest_target_name, suggestion_line
 from abletoolz.plugins.identity.uid_sources import DatabasePlugin, UidLookup, read_live_databases
@@ -286,7 +286,7 @@ def needs_parameter_mapper(device: PluginDevice) -> bool:
 def repair_set(
     live_set: AbletonSet,
     *,
-    targets: Mapping[str, ConfiguredTarget] | None = None,
+    targets: Mapping[str, ConfiguredRecipe] | None = None,
     uid_lookup: UidLookup | None = None,
     loadable: LoadableOracle,
 ) -> RepairReport:
@@ -312,7 +312,7 @@ def repair_set(
     caller saves. Configured, mapped or referenced controls require an explicit
     parameter translation before their plugin format can change.
     """
-    table: dict[str, ConfiguredTarget] = dict(KNOWN_TRANSLATIONS)
+    table: dict[str, ConfiguredRecipe] = dict(KNOWN_TRANSLATIONS)
     table.update(targets or {})
     version = live_set.version_tuple
     known_names = uid_lookup.names() if uid_lookup is not None else frozenset[str]()
@@ -323,6 +323,9 @@ def repair_set(
         name = device.identity.name or ""
         track = live_set.plugins.track_name(info)
         configured = table.get(name)
+        if configured is not None and configured.from_format is not source:
+            # The same stored name in another format is another plugin's name.
+            configured = None
 
         if loadable(info):
             status = RepairStatus.MAPPED_NOT_BROKEN if configured else RepairStatus.OK
@@ -377,7 +380,7 @@ def repair_set(
             )
             continue
 
-        target = resolve_target(configured, uid_lookup)
+        target = resolve_recipe(configured, uid_lookup)
         if target is None:
             actions.append(
                 DeviceRepair(track, source, name, RepairStatus.BROKEN_NO_UID, configured.to_format, configured.name)

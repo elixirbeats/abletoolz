@@ -348,7 +348,7 @@ class FfbsControllerState:
     """The ``ControllerState`` an FFBS-generation FabFilter VST3 wants.
 
     A :class:`~abletoolz.plugins.state.ControllerState`, so a
-    ``TranslationTarget`` naming one of these products can declare it. What
+    ``Recipe`` naming one of these products can declare it. What
     arrives is whatever that device's VST2 saved, and there are two shapes of
     it, told apart by the product's own editor magic rather than by guessing:
 

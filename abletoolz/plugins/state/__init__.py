@@ -47,7 +47,7 @@ A VST3 preset holds two blobs, not one, and the second is a per-plugin fact
 rather than a formality. :class:`ControllerState` and its three shapes --
 :class:`NoControllerState`, :class:`ConstantControllerState`, and the
 FFBS-generation form in :mod:`abletoolz.plugins.state.fabfilter` -- are what a
-:class:`~abletoolz.plugins.container.format_translation.TranslationTarget` declares
+:class:`~abletoolz.plugins.container.format_translation.Recipe` declares
 about it.
 
 Where the rest of the axis lives

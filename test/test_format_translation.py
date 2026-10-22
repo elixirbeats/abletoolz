@@ -22,7 +22,7 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
 from abletoolz.plugins.container import format_translation as translation
 from abletoolz.plugins.container.device import PluginDevice
-from abletoolz.plugins.container.format_translation import TranslationTarget
+from abletoolz.plugins.container.format_translation import Recipe
 from abletoolz.plugins.identity import uid_sources
 from abletoolz.plugins.state import StateTransform
 from abletoolz.plugins.state.fabfilter import (
@@ -36,18 +36,14 @@ from abletoolz.plugins.state.fxbk import LegacyBank
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
 
 # Ad-hoc targets, so the tests exercise the machinery rather than the seed table.
-EFFECT = TranslationTarget(PluginKind.VST3, "Test Effect", (1, 2, 3, 4))
-INSTRUMENT = TranslationTarget(PluginKind.VST3, "Test Instrument", (-5, 6, -7, 8))
-KILOHEARTS = TranslationTarget(PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS)
+EFFECT = Recipe(PluginKind.VST3, "Test Effect", (1, 2, 3, 4))
+INSTRUMENT = Recipe(PluginKind.VST3, "Test Instrument", (-5, 6, -7, 8))
+KILOHEARTS = Recipe(PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS)
 # A FabF-generation FabFilter: a constant twelve byte controller state, whatever
 # the patch. A legacy bank is all its VST2 ever saved.
-FABF_TARGET = TranslationTarget(
-    PluginKind.VST3, "Pro-C 2", (13, 14, 15, 16), controller_state=FABFILTER_CONSTANT_CONTROLLER
-)
+FABF_TARGET = Recipe(PluginKind.VST3, "Pro-C 2", (13, 14, 15, 16), controller_state=FABFILTER_CONSTANT_CONTROLLER)
 # An FFBS-generation one, whose controller state carries the preset name.
-FFBS_TARGET = TranslationTarget(
-    PluginKind.VST3, "Pro-Q 3", (17, 18, 19, 20), controller_state=FfbsControllerState(b"FQ3p")
-)
+FFBS_TARGET = Recipe(PluginKind.VST3, "Pro-Q 3", (17, 18, 19, 20), controller_state=FfbsControllerState(b"FQ3p"))
 
 
 def legacy_bank(preset_name: str, parameters: int = 8) -> bytes:
@@ -268,9 +264,7 @@ class EchoController:
 def test_the_controller_state_is_built_from_the_source_not_the_rewritten_processor_state() -> None:
     """The two are halves of one saved chunk, so a rewrite of the first must not reach the second."""
     payload = b"PK\x03\x04payload"
-    target = TranslationTarget(
-        PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS, EchoController()
-    )
+    target = Recipe(PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS, EchoController())
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, payload)
@@ -396,11 +390,29 @@ def test_config_targets_are_parsed_into_targets() -> None:
     parsed = translation.parse_config_targets(
         {"Some Plugin.64": {"name": "Some Plugin", "uid": [1, 2, 3, 4], "state": "kilohearts"}}
     )
-    assert parsed == {
-        "Some Plugin.64": TranslationTarget(PluginKind.VST3, "Some Plugin", (1, 2, 3, 4), StateTransform.KILOHEARTS)
-    }
+    assert parsed == {"Some Plugin.64": Recipe(PluginKind.VST3, "Some Plugin", (1, 2, 3, 4), StateTransform.KILOHEARTS)}
 
 
 def test_config_targets_default_to_vst3_and_verbatim() -> None:
     parsed = translation.parse_config_targets({"Old.dll": {"name": "New", "uid": [1, 2, 3, 4]}})
-    assert parsed["Old.dll"] == TranslationTarget(PluginKind.VST3, "New", (1, 2, 3, 4), StateTransform.VERBATIM)
+    assert parsed["Old.dll"] == Recipe(PluginKind.VST3, "New", (1, 2, 3, 4), StateTransform.VERBATIM)
+
+
+def test_a_config_entry_says_which_format_it_is_for() -> None:
+    """A bare entry is for VST2 devices, which is what every entry meant before ``from`` existed."""
+    parsed = translation.parse_config_targets(
+        {
+            "Old": {"name": "New", "uid": [1, 2, 3, 4]},
+            "Decapitator": {"from": "vst3", "to": "vst", "name": "Decapitator"},
+        }
+    )
+    assert parsed["Old"].from_format is PluginKind.VST
+    assert parsed["Decapitator"].from_format is PluginKind.VST3
+    assert parsed["Decapitator"].to_format is PluginKind.VST
+
+
+def test_a_recipe_refuses_a_device_of_another_format() -> None:
+    live_set = make_set("11.3.42")
+    vst3 = next(info for info in live_set.root.iter("Vst3PluginInfo"))
+    with pytest.raises(ValueError, match="cannot rewrite a vst3 device"):
+        translation.apply_recipe(PluginDevice(vst3), EFFECT)

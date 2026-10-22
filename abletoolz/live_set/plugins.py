@@ -28,7 +28,7 @@ from abletoolz.plugins import (
 )
 from abletoolz.plugins.config import load_config
 from abletoolz.plugins.container.device import AuIdentifier, PluginDevices, ReferenceForm
-from abletoolz.plugins.container.format_translation import ConfiguredTarget
+from abletoolz.plugins.container.format_translation import ConfiguredRecipe
 from abletoolz.plugins.container.upgrade_rules import get_upgrade
 from abletoolz.plugins.identity.plugin_db import load_plugin_db
 from abletoolz.plugins.identity.uid_sources import UidLookup
@@ -511,8 +511,8 @@ class Plugins:
     def _configured_targets(
         self,
         config: AbletoolzConfig,
-        targets: Mapping[str, ConfiguredTarget] | None,
-    ) -> dict[str, ConfiguredTarget]:
+        targets: Mapping[str, ConfiguredRecipe] | None,
+    ) -> dict[str, ConfiguredRecipe]:
         """Config's mapping entries with the caller's on top."""
         table = dict(config.plugin_translation_targets)
         table.update(targets or {})
@@ -526,7 +526,7 @@ class Plugins:
         """
         return load_plugin_db(config).uid_lookup()
 
-    def repair(self, *, targets: Mapping[str, ConfiguredTarget] | None = None) -> RepairReport:
+    def repair(self, *, targets: Mapping[str, ConfiguredRecipe] | None = None) -> RepairReport:
         """Replace only the devices this machine cannot load, and only mapped ones.
 
         A device Live can still load is left alone, and a device with no mapping

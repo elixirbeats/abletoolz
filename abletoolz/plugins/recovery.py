@@ -15,7 +15,7 @@ from abletoolz.formats import live_document
 from abletoolz.formats.errors import FormatError
 from abletoolz.live_set.tracks import display_name
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, ReferenceForm
-from abletoolz.plugins.container.format_translation import TranslationTarget, apply_recipe
+from abletoolz.plugins.container.format_translation import Recipe, apply_recipe
 from abletoolz.plugins.recovery_routes import (
     PreparedState,
     RecoveryTarget,
@@ -329,7 +329,7 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
                 processor, controller = prepared[action.device]
                 apply_recipe(
                     device,
-                    TranslationTarget(
+                    Recipe(
                         PluginKind.VST3,
                         action.target_name,
                         action.target_uid_fields,

@@ -16,7 +16,7 @@ module, not a pair here; VST3 is the one written today, because that is the
 output that has been loaded in Live and listened to.
 
 What the target format cannot infer from the source is supplied by a
-:class:`TranslationTarget`: VST3 identifies a plugin by a class id that appears
+:class:`Recipe`: VST3 identifies a plugin by a class id that appears
 nowhere in a VST2 device, so it has to come from somewhere else. The
 :data:`KNOWN_TRANSLATIONS` seed table is one place; every other one is
 :mod:`abletoolz.plugins.identity.uid_sources`.
@@ -48,7 +48,7 @@ class IncompleteDevice(ValueError):
 
 
 @dataclasses.dataclass(frozen=True)
-class TranslationTarget:
+class Recipe:
     """What one plugin becomes in another format.
 
     ``uid_fields`` is the target format's identity: for VST3 the four signed
@@ -60,6 +60,12 @@ class TranslationTarget:
     about it means the empty element Live writes for a plugin that keeps none.
     That is right for the plugins measured to write none and wrong for the rest,
     which is why it is declared per target rather than assumed.
+
+    ``from_format`` says which devices the recipe is for. A stored name belongs
+    to one format -- a VST2's PlugName, a VST3's display name -- and the same
+    name can mean a different plugin in another, so a recipe applies only to
+    devices of its own source format. VST2 is the default, which is what every
+    entry written before the field existed meant.
     """
 
     to_format: PluginKind
@@ -67,16 +73,17 @@ class TranslationTarget:
     uid_fields: UidFields
     state_transform: StatePolicy = StateTransform.VERBATIM
     controller_state: ControllerState = NO_CONTROLLER_STATE
+    from_format: PluginKind = PluginKind.VST
 
 
 @dataclasses.dataclass(frozen=True)
-class NamedTarget:
+class NamedRecipe:
     """A target known by display name only, whose class id is still to be found.
 
     What a config entry means when it gives a ``name`` and no ``uid``: the user
     knows which VST3 they want, and the class id is a machine fact
     :mod:`abletoolz.plugins.identity.uid_sources` can look up. Kept apart from
-    :class:`TranslationTarget` so nothing can reach ``apply_recipe`` without
+    :class:`Recipe` so nothing can reach ``apply_recipe`` without
     a class id in hand.
     """
 
@@ -84,10 +91,11 @@ class NamedTarget:
     name: str
     state_transform: StatePolicy = StateTransform.VERBATIM
     controller_state: ControllerState = NO_CONTROLLER_STATE
+    from_format: PluginKind = PluginKind.VST
 
 
 # What a mapping table may hold: an identity, or a name still to be resolved.
-type ConfiguredTarget = TranslationTarget | NamedTarget
+type ConfiguredRecipe = Recipe | NamedRecipe
 
 
 class UidResolver(Protocol):
@@ -100,23 +108,25 @@ class UidResolver(Protocol):
     def resolve(self, name: str) -> UidFields | None: ...
 
 
-def resolve_target(target: ConfiguredTarget, uid_lookup: UidResolver | None) -> TranslationTarget | None:
+def resolve_recipe(target: ConfiguredRecipe, uid_lookup: UidResolver | None) -> Recipe | None:
     """Give a configured target its class id, or answer None when none is known."""
-    if isinstance(target, TranslationTarget):
+    if isinstance(target, Recipe):
         return target
     fields = None if uid_lookup is None else uid_lookup.resolve(target.name)
     if fields is None:
         return None
-    return TranslationTarget(target.to_format, target.name, fields, target.state_transform, target.controller_state)
+    return Recipe(
+        target.to_format, target.name, fields, target.state_transform, target.controller_state, target.from_format
+    )
 
 
 def _vst3(
     name: str,
     uid_fields: UidFields,
     state_transform: StatePolicy = StateTransform.VERBATIM,
-) -> TranslationTarget:
+) -> Recipe:
     """Seed-table shorthand for a VST3 target."""
-    return TranslationTarget(PluginKind.VST3, name, uid_fields, state_transform)
+    return Recipe(PluginKind.VST3, name, uid_fields, state_transform)
 
 
 # Keyed by the VST2 PlugName a set stores. Measured 2026-08-10 against installed
@@ -125,7 +135,7 @@ def _vst3(
 # "FabFilter Pro-Q 3" is measured only: its class id is cross-checked by
 # test_format_translation against a VST3 instance in the 10.1.3 fixture, but no
 # translated device has been listened to.
-KNOWN_TRANSLATIONS: dict[str, TranslationTarget] = {
+KNOWN_TRANSLATIONS: dict[str, Recipe] = {
     "Serum_x64": _vst3("Serum", (1448301656, 1718835315, 1701999981, 0)),
     "Ghz Tupe 3": _vst3("Ghz Tupe 3", (1448301652, 1345542247, 1752834164, 1970300192)),
     "Serato Sample": _vst3("Serato Sample", (1448301651, 1836084339, 1701994868, 1864397665)),
@@ -165,6 +175,8 @@ class TargetConfig(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
+    # ``from`` is a keyword, so the field is spelled ``from_`` here and ``from`` in the file.
+    from_: PluginKind = pydantic.Field(default=PluginKind.VST, alias="from")
     to: PluginKind = PluginKind.VST3
     name: str
     uid: tuple[int, int, int, int] | None = None
@@ -199,16 +211,16 @@ class TargetConfig(pydantic.BaseModel):
             return StateTransform.KILOHEARTS
         return StateTransform.VERBATIM
 
-    def target(self, source_name: str) -> ConfiguredTarget:
+    def target(self, source_name: str) -> ConfiguredRecipe:
         """The mapping entry, resolved if it carries a class id and named if not."""
         transform = self.state_for(source_name)
         controller = NO_CONTROLLER_STATE if self.controller is None else parse_controller_state(self.controller)
         if self.uid is None:
-            return NamedTarget(self.to, self.name, transform, controller)
-        return TranslationTarget(self.to, self.name, self.uid, transform, controller)
+            return NamedRecipe(self.to, self.name, transform, controller, self.from_)
+        return Recipe(self.to, self.name, self.uid, transform, controller, self.from_)
 
 
-def parse_config_targets(raw: object) -> dict[str, ConfiguredTarget]:
+def parse_config_targets(raw: object) -> dict[str, ConfiguredRecipe]:
     """Build targets from the ``plugin_translation.targets`` mapping in config.yaml."""
     targets = pydantic.TypeAdapter(dict[str, TargetConfig]).validate_python(raw)
     return {source_name: entry.target(source_name) for source_name, entry in targets.items()}
@@ -229,7 +241,7 @@ def carried_state(source: bytes, policy: StatePolicy) -> bytes:
     return rewrite(source)
 
 
-def apply_recipe(device: PluginDevice, target: TranslationTarget) -> None:
+def apply_recipe(device: PluginDevice, target: Recipe) -> None:
     """Rewrite ``device`` as ``target`` says: read it, carry its patch across, write the target format.
 
     The controller half of a VST3 preset is built from what the *source*
@@ -240,6 +252,8 @@ def apply_recipe(device: PluginDevice, target: TranslationTarget) -> None:
     one out of, and gets the empty element that says so -- unless its bytes
     are prepared, which carry their own controller half with them.
     """
+    if device.kind is not target.from_format:
+        raise ValueError(f"a recipe for {target.from_format.value} devices cannot rewrite a {device.kind.value} device")
     identity, preset = device.identity, device.preset
     if identity.is_instrument is None:
         raise IncompleteDevice(f"{identity.name} is a stub device: the set never says what it is")

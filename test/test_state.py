@@ -24,8 +24,8 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
 from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.container.format_translation import (
-    NamedTarget,
-    TranslationTarget,
+    NamedRecipe,
+    Recipe,
     apply_recipe,
     parse_config_targets,
 )
@@ -261,7 +261,7 @@ def test_every_vst3_preset_pairs_one_processor_state_with_one_controller_state(s
 def test_a_config_entry_may_name_a_registered_transform(registry: None) -> None:
     register_custom_state("shout", _shout)
     parsed = parse_config_targets({"Old Thing": {"name": "New Thing", "state": "custom:shout"}})
-    assert parsed == {"Old Thing": NamedTarget(PluginKind.VST3, "New Thing", CustomState("shout"))}
+    assert parsed == {"Old Thing": NamedRecipe(PluginKind.VST3, "New Thing", CustomState("shout"))}
 
 
 def test_a_config_entry_naming_an_unregistered_transform_fails_to_load(registry: None) -> None:
@@ -283,7 +283,7 @@ def test_a_custom_transform_reaches_a_translated_device(registry: None) -> None:
     buffer = get_element(preset, "Buffer")
     buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
-    target = TranslationTarget(PluginKind.VST3, "New Thing", (1, 2, 3, 4), CustomState("shout"))
+    target = Recipe(PluginKind.VST3, "New Thing", (1, 2, 3, 4), CustomState("shout"))
     apply_recipe(PluginDevice(info), target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
@@ -347,9 +347,7 @@ def test_a_named_controller_state_reaches_a_translated_device() -> None:
     buffer = get_element(preset, "Buffer")
     buffer.text = hex_text.encode(b"patch", (preset.text or "").count("\t") + 1)
 
-    target = TranslationTarget(
-        PluginKind.VST3, "Pro-C 2", (1, 2, 3, 4), StateTransform.VERBATIM, FABFILTER_CONSTANT_CONTROLLER
-    )
+    target = Recipe(PluginKind.VST3, "Pro-C 2", (1, 2, 3, 4), StateTransform.VERBATIM, FABFILTER_CONSTANT_CONTROLLER)
     apply_recipe(PluginDevice(info), target)
 
     controller = get_element(info, "Preset.Vst3Preset.ControllerState")

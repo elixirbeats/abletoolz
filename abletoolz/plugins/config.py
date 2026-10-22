@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import yaml
 
-from abletoolz.plugins.container.format_translation import ConfiguredTarget, parse_config_targets
+from abletoolz.plugins.container.format_translation import ConfiguredRecipe, parse_config_targets
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class AbletoolzConfig:
     plugin_upgrade_rules: dict[str, list[str]] = field(default_factory=dict)
     # Extra format-translation targets, merged over the seed table. Keyed by the
     # name the source format stores; see format_translation.TargetConfig.
-    plugin_translation_targets: dict[str, ConfiguredTarget] = field(default_factory=dict)
+    plugin_translation_targets: dict[str, ConfiguredRecipe] = field(default_factory=dict)
     # A probed file of VST3 class ids, consulted when a target names a plugin
     # without giving its uid; see plugins.identity.uid_sources.read_uid_db.
     plugin_translation_uid_db: pathlib.Path | None = None
