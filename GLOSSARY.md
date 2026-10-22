@@ -1,6 +1,6 @@
 # Abletoolz
 
-Abletoolz reads, repairs and writes Ableton Live sets: the set itself (tracks, clips, devices, samples) and the plugin devices inside it. This glossary names the concepts the code and its documents share; where two words exist for one thing, it picks one.
+Abletoolz reads, repairs and writes Ableton Live sets: the set itself (tracks, clips, devices, samples) and the plugin devices inside it. 
 
 ## Plugin devices
 
