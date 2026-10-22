@@ -259,10 +259,12 @@ def test_atomic_new_output_preserves_existing_file_and_unrelated_temp(tmp_path: 
     target = tmp_path / "set.als"
     legacy_temp = tmp_path / "set.als.tmp"
     legacy_temp.write_bytes(b"unrelated")
-    live_document.write_new(target, b"first")
+    first = live_document.encode(ET.Element("Ableton", Test="first"))
+    second = live_document.encode(ET.Element("Ableton", Test="second"))
+    live_document.write_new(target, first)
     with pytest.raises(FileExistsError):
-        live_document.write_new(target, b"second")
-    assert target.read_bytes() == b"first"
+        live_document.write_new(target, second)
+    assert target.read_bytes() == first
     assert legacy_temp.read_bytes() == b"unrelated"
     assert sorted(path.name for path in tmp_path.iterdir()) == ["set.als", "set.als.tmp"]
 
