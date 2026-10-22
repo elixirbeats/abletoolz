@@ -9,7 +9,7 @@ import pytest
 
 from abletoolz.formats import live_document
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.save_as import NewerTarget, UnknownTarget, convert, resolve_target
+from abletoolz.live_set.save_as import IncompleteTarget, NewerTarget, UnknownTarget, convert, resolve_target
 from abletoolz.schema import structure
 from abletoolz.schema.versioning import Version, parse_creator
 
@@ -153,17 +153,68 @@ def test_a_newer_target_is_live_s_job() -> None:
 
 def test_a_set_is_written_beside_itself_and_left_alone(tmp_path: pathlib.Path) -> None:
     source = tmp_path / "song.als"
-    source.write_bytes((SKELETONS / "12.2.6.als").read_bytes())
+    source.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
     live_set = AbletonSet(source)
     live_set.parse()
     live_set.load_version()
 
-    path, report = live_set.save_as(resolve_target("11.3.42"))
+    path, report = live_set.save_as(resolve_target("11.3.41"))
 
-    assert path == tmp_path / "song [Live 11.3.42].als"
-    assert live_document.read(path).get("Creator") == "Ableton Live 11.3.42"
-    assert source.read_bytes() == (SKELETONS / "12.2.6.als").read_bytes()
-    assert live_set.root.get("Creator") == "Ableton Live 12.2.6"
-    assert report.source == (12, 2, 6)
-    again, _ = live_set.save_as(resolve_target("11.3.42"))
-    assert again == tmp_path / "song [Live 11.3.42]__1.als"
+    assert path == tmp_path / "song [Live 11.3.41].als"
+    assert live_document.read(path).get("Creator") == "Ableton Live 11.3.41"
+    assert source.read_bytes() == (SKELETONS / "11.3.42.als").read_bytes()
+    assert live_set.root.get("Creator") == "Ableton Live 11.3.42"
+    assert report.source == (11, 3, 42)
+    again, _ = live_set.save_as(resolve_target("11.3.41"))
+    assert again == tmp_path / "song [Live 11.3.41]__1.als"
+
+
+def test_incomplete_replacement_racks_cannot_be_published(tmp_path: pathlib.Path) -> None:
+    source = tmp_path / "source.als"
+    original = (SKELETONS / "12.2.6.als").read_bytes()
+    source.write_bytes(original)
+    live_set = AbletonSet(source)
+    assert live_set.parse()
+    _with_live_12_device(live_set.root)
+    before = ET.tostring(live_set.root)
+    output = tmp_path / "output"
+    with pytest.raises(IncompleteTarget, match="unresolved required structure") as raised:
+        live_set.save_as(resolve_target("11.3.42"), output)
+    assert "AudioEffectGroupDevice/Pointee" in str(raised.value)
+    assert ("AudioEffectGroupDevice", "Pointee", 1) in raised.value.report.missing
+    assert not output.exists()
+    assert source.read_bytes() == original
+    assert ET.tostring(live_set.root) == before
+
+
+def test_other_unresolved_target_children_also_prevent_publication(tmp_path: pathlib.Path) -> None:
+    source = tmp_path / "source.als"
+    source.write_bytes((SKELETONS / "12.2.6.als").read_bytes())
+    live_set = AbletonSet(source)
+    assert live_set.parse()
+    output = tmp_path / "output"
+    with pytest.raises(IncompleteTarget) as raised:
+        live_set.save_as(resolve_target("11.3.42"), output)
+    assert not raised.value.report.replaced
+    assert raised.value.report.missing
+    assert not output.exists()
+
+
+def test_unmeasured_racks_are_refused_even_when_the_grammar_has_no_required_children(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.als"
+    source.write_bytes((SKELETONS / "12.2.6.als").read_bytes())
+    live_set = AbletonSet(source)
+    assert live_set.parse()
+    _with_live_12_device(live_set.root)
+    target = resolve_target("11.3.42")
+    required = dict(structure.REQUIRED_CHILDREN)
+    required[target.schema] = {}
+    monkeypatch.setattr(structure, "REQUIRED_CHILDREN", required)
+    output = tmp_path / "output"
+    with pytest.raises(IncompleteTarget, match="unmeasured stand-in rack") as raised:
+        live_set.save_as(target, output)
+    assert not raised.value.report.missing
+    assert raised.value.report.replaced
+    assert not output.exists()

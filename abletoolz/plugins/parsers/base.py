@@ -133,7 +133,7 @@ class PluginData(BaseModel):
 
     @property
     def program_number(self) -> int | None:
-        return None if self._root_element is None else PluginDevice(self._root_element).preset.program_number
+        return None if self._root_element is None else PluginDevice(self._root_element).saved_state.program_number
 
     def decode_buffer(self) -> str:
         """Decode Buffer hex to raw string (often JSON for modern plugins)."""

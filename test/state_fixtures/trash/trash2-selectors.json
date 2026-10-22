@@ -1,0 +1,185 @@
+{
+  "scope": "Fresh native load/save acceptance of predicted selectors; inactive multiband selectors have no DSP claim.",
+  "selectors": [
+    {
+      "file": "trash2-selector1000_1.state",
+      "field_id": 1000,
+      "value": 1,
+      "sha256": "be1ed3887687eb648f5502cfaab645fd7e384b5ad3967feecc626e08c8e5a8ad"
+    },
+    {
+      "file": "trash2-selector1000_33.state",
+      "field_id": 1000,
+      "value": 33,
+      "sha256": "c410e29b06cad62d377eabb0e845a0f7ac81accc7d3b890d1047d4badf588bde"
+    },
+    {
+      "file": "trash2-selector1000_51.state",
+      "field_id": 1000,
+      "value": 51,
+      "sha256": "c169326d0eeb1a2f5b20d1001d094189a9bbc47af5ee0d4311bb93c146560e2b"
+    },
+    {
+      "file": "trash2-selector1001_1.state",
+      "field_id": 1001,
+      "value": 1,
+      "sha256": "b1c0b4031d5397f95dbcd32859e576c709ee94de546f51dc97048435424a70a2"
+    },
+    {
+      "file": "trash2-selector1001_33.state",
+      "field_id": 1001,
+      "value": 33,
+      "sha256": "396007ca8975db194ec9a0a98518f86df345df4bfbad90261cee929535650c40"
+    },
+    {
+      "file": "trash2-selector1001_51.state",
+      "field_id": 1001,
+      "value": 51,
+      "sha256": "738b789e3a8e6634581f9c97b9cd92767d2165cc918a773b69b9cdab5fda5a6c"
+    },
+    {
+      "file": "trash2-selector1002_1.state",
+      "field_id": 1002,
+      "value": 1,
+      "sha256": "59034c265d7d59d553a5cb07d8bf6d6d573aad6e5829eb8e663465c304574639"
+    },
+    {
+      "file": "trash2-selector1002_33.state",
+      "field_id": 1002,
+      "value": 33,
+      "sha256": "db35fbcf68d1cc71612d049e26f84c55b9ede84c1ef2c4cd298e5f697756246d"
+    },
+    {
+      "file": "trash2-selector1002_51.state",
+      "field_id": 1002,
+      "value": 51,
+      "sha256": "11d22324c8400efa735233f7dc9fbc15fff099c788075b20d4edd6cf777d4440"
+    },
+    {
+      "file": "trash2-selector1003_1.state",
+      "field_id": 1003,
+      "value": 1,
+      "sha256": "f9872f160cf1e1f3d725221e71aff0d889547abcf1675b14e533bbb1b46c3c5b"
+    },
+    {
+      "file": "trash2-selector1003_33.state",
+      "field_id": 1003,
+      "value": 33,
+      "sha256": "f6a060b7c1c3edea3e9ca622002ae87c463f349b8d63aa3b69cdcbe6b0787d0a"
+    },
+    {
+      "file": "trash2-selector1003_51.state",
+      "field_id": 1003,
+      "value": 51,
+      "sha256": "ebfb8d6ad1c85160d50ac8174533b18b3b7d77773f696295859d4d5a6fa6705e"
+    },
+    {
+      "file": "trash2-selector1004_1.state",
+      "field_id": 1004,
+      "value": 1,
+      "sha256": "fe1869c915f3969b2ec6a0a7905f5a324fc1414fd3efd5311304d5cec1cead1b"
+    },
+    {
+      "file": "trash2-selector1004_33.state",
+      "field_id": 1004,
+      "value": 33,
+      "sha256": "9b439c3096c94d65d41a1726d99f87f55c62c1cba7b0f6d6ab5d4d66fdc74061"
+    },
+    {
+      "file": "trash2-selector1004_51.state",
+      "field_id": 1004,
+      "value": 51,
+      "sha256": "3f48a39c49ec750ebf888d344010e87612e446c1c4210f342d76954829dd962f"
+    },
+    {
+      "file": "trash2-selector1005_1.state",
+      "field_id": 1005,
+      "value": 1,
+      "sha256": "bc51f2d47be11ad09141ed42c019c45575309487c4cfa6337dbd00d618d77a73"
+    },
+    {
+      "file": "trash2-selector1005_33.state",
+      "field_id": 1005,
+      "value": 33,
+      "sha256": "e2c50a52a3595cd6720836171a2a949582ada6106021d23245ae4acca8c03bb8"
+    },
+    {
+      "file": "trash2-selector1005_51.state",
+      "field_id": 1005,
+      "value": 51,
+      "sha256": "646ae9a69a94084f4a52cef79de78d5bb3bd27c68ec90e3edb29deb0e93d9c75"
+    },
+    {
+      "file": "trash2-selector1006_1.state",
+      "field_id": 1006,
+      "value": 1,
+      "sha256": "56c8f77c225cdd2bff73624fee93c33fd0056c2a65862683c211358a8e40ef0a"
+    },
+    {
+      "file": "trash2-selector1006_33.state",
+      "field_id": 1006,
+      "value": 33,
+      "sha256": "81b1b7577b0d456cb96edb547f3d4e2345de86d1bb2ff8455876e73c9a2e1cdb"
+    },
+    {
+      "file": "trash2-selector1006_51.state",
+      "field_id": 1006,
+      "value": 51,
+      "sha256": "cc775a208bf0c0aa468a87ba7ecd955cc2b8b9ce4b7760a30be86b11a026a9f7"
+    },
+    {
+      "file": "trash2-selector1007_1.state",
+      "field_id": 1007,
+      "value": 1,
+      "sha256": "ec0b4525b839cf888e548ba37e6eadcd13b2421b3995f924f760919f39ba3c7b"
+    },
+    {
+      "file": "trash2-selector1007_33.state",
+      "field_id": 1007,
+      "value": 33,
+      "sha256": "37caf111f965fccbb98c5c887b9bb517510ac73deb4dc795a69bed36e1c27a70"
+    },
+    {
+      "file": "trash2-selector1007_51.state",
+      "field_id": 1007,
+      "value": 51,
+      "sha256": "069b3a332b88f061850dee222b61e4437f22dc273adcd04eb394c28a29479729"
+    },
+    {
+      "file": "trash2-selector1008_1.state",
+      "field_id": 1008,
+      "value": 1,
+      "sha256": "fb77f517472a00b0bbcb441c205ed8bb2c50760597b0a825f41fd0e07391d42a"
+    },
+    {
+      "file": "trash2-selector1008_33.state",
+      "field_id": 1008,
+      "value": 33,
+      "sha256": "3640f217d0ffc124828c84866a92563689b7f453a19023d0c7bee1d5dacd7928"
+    },
+    {
+      "file": "trash2-selector1008_51.state",
+      "field_id": 1008,
+      "value": 51,
+      "sha256": "f5364653c161d5b6468ec79297eb14525b871113fe911739a60e544e6c58e09e"
+    },
+    {
+      "file": "trash2-selector1009_1.state",
+      "field_id": 1009,
+      "value": 1,
+      "sha256": "445cf2a90dff6baf518e4ad12f9841bfca128c08ad63dee2d2103ee2a81adb73"
+    },
+    {
+      "file": "trash2-selector1009_33.state",
+      "field_id": 1009,
+      "value": 33,
+      "sha256": "e7dd760970a955beaf7986e59800db83203d2deb8384595b39a011802bd54904"
+    },
+    {
+      "file": "trash2-selector1009_51.state",
+      "field_id": 1009,
+      "value": 51,
+      "sha256": "da777df286195fdb9075b246ecd6a3bccbb006d60adf2f3f9fe5f61acaa179e2"
+    }
+  ]
+}

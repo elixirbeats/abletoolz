@@ -20,7 +20,7 @@ from test_repair import OTHER_CID, SERUM_CID, installed, write_database
 
 from abletoolz import cli
 from abletoolz.plugins.config import AbletoolzConfig
-from abletoolz.plugins.container.format_translation import NamedRecipe, parse_config_targets
+from abletoolz.plugins.container.format_translation import NamedConversionRule, parse_config_targets
 from abletoolz.plugins.identity import mapping, plugin_db
 from abletoolz.plugins.identity.mapping import (
     FUZZY_CUTOFF,
@@ -407,7 +407,7 @@ def test_uncommenting_a_line_is_all_it_takes_to_enable_it() -> None:
     enabled = "\n".join(line.replace("# ", "", 1) if ": {to:" in line else line for line in document.splitlines())
     targets = parse_config_targets(parsed(enabled))
 
-    assert targets["Serum_x64"] == NamedRecipe(PluginKind.VST3, "Serum")
+    assert targets["Serum_x64"] == NamedConversionRule(PluginKind.VST3, "Serum")
     assert "Midnight Compressor" in targets
     assert "Transient Shapr" in targets
 

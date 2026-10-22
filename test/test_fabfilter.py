@@ -22,7 +22,7 @@ from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
 from abletoolz.plugins.container.device import PluginDevice
-from abletoolz.plugins.container.format_translation import Recipe, apply_recipe
+from abletoolz.plugins.container.format_translation import ConversionRule, apply_conversion_rule
 from abletoolz.plugins.state import (
     CustomState,
     StateEvidence,
@@ -424,8 +424,8 @@ def test_a_pro_q1_device_comes_out_of_a_translation_as_a_pro_q3_patch() -> None:
     bank = LegacyBank("Default Setting", q1_bank(with_field(Q1_DEFAULT_BAND, Q1BandField.GAIN, 1.0)))
     get_element(preset, "Buffer").text = hex_text.encode(bank.encode(), (preset.text or "").count("\t") + 1)
 
-    target = Recipe(PluginKind.VST3, "Pro-Q 3", (1, 2, 3, 4), CustomState(PRO_Q1_TO_PRO_Q3))
-    apply_recipe(PluginDevice(info), target)
+    target = ConversionRule(PluginKind.VST3, "Pro-Q 3", (1, 2, 3, 4), CustomState(PRO_Q1_TO_PRO_Q3))
+    apply_conversion_rule(PluginDevice(info), target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
     assert state.text is not None

@@ -22,7 +22,7 @@ from abletoolz.live_set import plugins
 from abletoolz.plugins import PluginKind, repair
 from abletoolz.plugins.config import AbletoolzConfig
 from abletoolz.plugins.container import upgrade_rules
-from abletoolz.plugins.container.format_translation import Recipe
+from abletoolz.plugins.container.format_translation import ConversionRule
 from abletoolz.plugins.identity import plugin_db
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
@@ -188,7 +188,7 @@ def test_a_set_too_old_for_its_target_is_a_refusal_record(
     use_config(
         monkeypatch,
         AbletoolzConfig(
-            plugin_translation_targets={"FabFilter Pro-Q": Recipe(PluginKind.VST3, "Pro-Q 3", SOME_FIELDS)}
+            plugin_translation_targets={"FabFilter Pro-Q": ConversionRule(PluginKind.VST3, "Pro-Q 3", SOME_FIELDS)}
         ),
     )
     copy = copy_set(tmp_path, "9.0.1", "old.als")

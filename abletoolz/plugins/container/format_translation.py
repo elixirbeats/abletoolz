@@ -8,7 +8,7 @@ info element.
 
 Reading an info element, and rebuilding one as another format, is
 :mod:`abletoolz.plugins.container.device`'s job. What this module adds is
-the recipe -- what a device becomes: the target format and identity, the
+the conversion rule -- what a device becomes: the target format and identity, the
 state policy its patch crosses under, the controller policy a VST3 target
 needs -- and the one step that applies it: read the device, carry its patch
 across, write the target. A new target format is a writer in the device
@@ -16,7 +16,7 @@ module, not a pair here; VST3 is the one written today, because that is the
 output that has been loaded in Live and listened to.
 
 What the target format cannot infer from the source is supplied by a
-:class:`Recipe`: VST3 identifies a plugin by a class id that appears
+:class:`ConversionRule`: VST3 identifies a plugin by a class id that appears
 nowhere in a VST2 device, so it has to come from somewhere else. The
 :data:`KNOWN_TRANSLATIONS` seed table is one place; every other one is
 :mod:`abletoolz.plugins.identity.uid_sources`.
@@ -48,7 +48,7 @@ class IncompleteDevice(ValueError):
 
 
 @dataclasses.dataclass(frozen=True)
-class Recipe:
+class ConversionRule:
     """What one plugin becomes in another format.
 
     ``uid_fields`` is the target format's identity: for VST3 the four signed
@@ -61,9 +61,9 @@ class Recipe:
     That is right for the plugins measured to write none and wrong for the rest,
     which is why it is declared per target rather than assumed.
 
-    ``from_format`` says which devices the recipe is for. A stored name belongs
+    ``from_format`` says which devices the conversion rule is for. A stored name belongs
     to one format -- a VST2's PlugName, a VST3's display name -- and the same
-    name can mean a different plugin in another, so a recipe applies only to
+    name can mean a different plugin in another, so a conversion rule applies only to
     devices of its own source format. VST2 is the default, which is what every
     entry written before the field existed meant.
     """
@@ -77,13 +77,13 @@ class Recipe:
 
 
 @dataclasses.dataclass(frozen=True)
-class NamedRecipe:
+class NamedConversionRule:
     """A target known by display name only, whose class id is still to be found.
 
     What a config entry means when it gives a ``name`` and no ``uid``: the user
     knows which VST3 they want, and the class id is a machine fact
     :mod:`abletoolz.plugins.identity.uid_sources` can look up. Kept apart from
-    :class:`Recipe` so nothing can reach ``apply_recipe`` without
+    :class:`ConversionRule` so nothing can reach ``apply_conversion_rule`` without
     a class id in hand.
     """
 
@@ -95,7 +95,7 @@ class NamedRecipe:
 
 
 # What a mapping table may hold: an identity, or a name still to be resolved.
-type ConfiguredRecipe = Recipe | NamedRecipe
+type ConfiguredConversionRule = ConversionRule | NamedConversionRule
 
 
 class UidResolver(Protocol):
@@ -108,14 +108,14 @@ class UidResolver(Protocol):
     def resolve(self, name: str) -> UidFields | None: ...
 
 
-def resolve_recipe(target: ConfiguredRecipe, uid_lookup: UidResolver | None) -> Recipe | None:
+def resolve_conversion_rule(target: ConfiguredConversionRule, uid_lookup: UidResolver | None) -> ConversionRule | None:
     """Give a configured target its class id, or answer None when none is known."""
-    if isinstance(target, Recipe):
+    if isinstance(target, ConversionRule):
         return target
     fields = None if uid_lookup is None else uid_lookup.resolve(target.name)
     if fields is None:
         return None
-    return Recipe(
+    return ConversionRule(
         target.to_format, target.name, fields, target.state_transform, target.controller_state, target.from_format
     )
 
@@ -124,9 +124,9 @@ def _vst3(
     name: str,
     uid_fields: UidFields,
     state_transform: StatePolicy = StateTransform.VERBATIM,
-) -> Recipe:
+) -> ConversionRule:
     """Seed-table shorthand for a VST3 target."""
-    return Recipe(PluginKind.VST3, name, uid_fields, state_transform)
+    return ConversionRule(PluginKind.VST3, name, uid_fields, state_transform)
 
 
 # Keyed by the VST2 PlugName a set stores. Measured 2026-08-10 against installed
@@ -135,7 +135,7 @@ def _vst3(
 # "FabFilter Pro-Q 3" is measured only: its class id is cross-checked by
 # test_format_translation against a VST3 instance in the 10.1.3 fixture, but no
 # translated device has been listened to.
-KNOWN_TRANSLATIONS: dict[str, Recipe] = {
+KNOWN_TRANSLATIONS: dict[str, ConversionRule] = {
     "Serum_x64": _vst3("Serum", (1448301656, 1718835315, 1701999981, 0)),
     "Ghz Tupe 3": _vst3("Ghz Tupe 3", (1448301652, 1345542247, 1752834164, 1970300192)),
     "Serato Sample": _vst3("Serato Sample", (1448301651, 1836084339, 1701994868, 1864397665)),
@@ -211,26 +211,26 @@ class TargetConfig(pydantic.BaseModel):
             return StateTransform.KILOHEARTS
         return StateTransform.VERBATIM
 
-    def target(self, source_name: str) -> ConfiguredRecipe:
+    def target(self, source_name: str) -> ConfiguredConversionRule:
         """The mapping entry, resolved if it carries a class id and named if not."""
         transform = self.state_for(source_name)
         controller = NO_CONTROLLER_STATE if self.controller is None else parse_controller_state(self.controller)
         if self.uid is None:
-            return NamedRecipe(self.to, self.name, transform, controller, self.from_)
-        return Recipe(self.to, self.name, self.uid, transform, controller, self.from_)
+            return NamedConversionRule(self.to, self.name, transform, controller, self.from_)
+        return ConversionRule(self.to, self.name, self.uid, transform, controller, self.from_)
 
 
-def parse_config_targets(raw: object) -> dict[str, ConfiguredRecipe]:
+def parse_config_targets(raw: object) -> dict[str, ConfiguredConversionRule]:
     """Build targets from the ``plugin_translation.targets`` mapping in config.yaml."""
     targets = pydantic.TypeAdapter(dict[str, TargetConfig]).validate_python(raw)
     return {source_name: entry.target(source_name) for source_name, entry in targets.items()}
 
 
-# -- applying a recipe ------------------------------------------------------
+# -- applying a conversion rule ---------------------------------------------
 
 
 def carried_state(source: bytes, policy: StatePolicy) -> bytes:
-    """The preset bytes a device carries across under ``policy``.
+    """The saved-state bytes a device carries across under ``policy``.
 
     A device saved without a patch stays without one -- there is nothing to
     reframe or re-encode -- unless the policy brings bytes of its own.
@@ -241,7 +241,7 @@ def carried_state(source: bytes, policy: StatePolicy) -> bytes:
     return rewrite(source)
 
 
-def apply_recipe(device: PluginDevice, target: Recipe) -> None:
+def apply_conversion_rule(device: PluginDevice, target: ConversionRule) -> None:
     """Rewrite ``device`` as ``target`` says: read it, carry its patch across, write the target format.
 
     The controller half of a VST3 preset is built from what the *source*
@@ -253,8 +253,10 @@ def apply_recipe(device: PluginDevice, target: Recipe) -> None:
     are prepared, which carry their own controller half with them.
     """
     if device.kind is not target.from_format:
-        raise ValueError(f"a recipe for {target.from_format.value} devices cannot rewrite a {device.kind.value} device")
-    identity, preset = device.identity, device.preset
+        raise ValueError(
+            f"a conversion rule for {target.from_format.value} devices cannot rewrite a {device.kind.value} device"
+        )
+    identity, preset = device.identity, device.saved_state
     if identity.is_instrument is None:
         raise IncompleteDevice(f"{identity.name} is a stub device: the set never says what it is")
     source = preset.state
@@ -276,3 +278,11 @@ def can_rewrite(source: PluginKind, to: PluginKind) -> bool:
     has measured yet.
     """
     return source is not to and has_writer(to)
+
+
+# Compatibility for existing configuration code and research scripts.
+Recipe = ConversionRule
+NamedRecipe = NamedConversionRule
+type ConfiguredRecipe = ConfiguredConversionRule
+resolve_recipe = resolve_conversion_rule
+apply_recipe = apply_conversion_rule

@@ -1,6 +1,6 @@
-"""Named saved fields and lossless state editing, independent of a host container.
+"""Open saved-field descriptions and fixed-layout editing, independent of a host.
 
-A map describes storage coordinates, not knob curves or plugin equivalence.
+Byte maps describe storage; fixed-offset maps are one implementation.
 Vendor codecs own framing and revision checks; unmodelled bytes stay intact.
 """
 
@@ -21,9 +21,35 @@ type FieldKey = int | str
 
 
 class EncodableState(Protocol):
-    """A decoded state that can be returned to its original binary format."""
+    """A decoded state that can be returned to its original state format."""
 
     def encode(self) -> bytes: ...
+
+
+class SavedField(Protocol):
+    """A saved-field identity, independent of its format-specific address."""
+
+    @property
+    def id(self) -> int: ...
+
+    @property
+    def name(self) -> str: ...
+
+
+class ByteMap(Protocol):
+    """A storage description with format-specific field locations and encodings.
+
+    Codecs interpret the concrete addresses. Parameter maps only need stable
+    field identities, so they can use new formats without an offset model.
+    """
+
+    @property
+    def format_id(self) -> str: ...
+
+    @property
+    def fields(self) -> tuple[SavedField, ...]: ...
+
+    def field(self, key: FieldKey) -> SavedField: ...
 
 
 class FieldEncoding(enum.StrEnum):
@@ -37,6 +63,23 @@ class FieldEncoding(enum.StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class EnumValue:
+    """A known integer meaning within one saved field's versioned domain."""
+
+    value: int
+    name: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.value) is not int
+            or not 0 <= self.value <= 0xFFFFFFFF
+            or not isinstance(self.name, str)
+            or not self.name.strip()
+        ):
+            raise StateTransformError("Enum values require an unsigned word and a name")
+
+
+@dataclass(frozen=True, slots=True)
 class StateField:
     """A stable saved-field identity; ``id`` is independent of a VST knob index."""
 
@@ -46,6 +89,7 @@ class StateField:
     byte_offset: int
     element_id: int | None = None
     parameter_id: int | None = None
+    choices: tuple[EnumValue, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.id) is not int or self.id < 0 or not self.name:
@@ -54,6 +98,10 @@ class StateField:
             raise StateTransformError("State field encoding must be explicit")
         if type(self.byte_offset) is not int or self.byte_offset < 0:
             raise StateTransformError("State field offset must be nonnegative")
+        if type(self.choices) is not tuple or (self.choices and self.encoding is not FieldEncoding.UINT32_LE):
+            raise StateTransformError("Named choices require an immutable unsigned-word domain")
+        if len({choice.value for choice in self.choices}) != len(self.choices):
+            raise StateTransformError("Duplicate enum value")
 
     def read(self, raw: bytes) -> StateValue:
         if self.byte_offset + self.encoding.size > len(raw):
@@ -77,6 +125,8 @@ class StateField:
         if self.encoding is FieldEncoding.UINT32_LE:
             if type(value) is not int or not 0 <= value <= 0xFFFFFFFF:
                 raise StateTransformError(f"{self.name!r} requires an unsigned 32-bit word")
+            if self.choices and not any(choice.value == value for choice in self.choices):
+                raise StateTransformError(f"{self.name!r} has no mapped meaning for {value}")
             return struct.pack("<I", value)
         if type(value) not in (int, float):
             raise StateTransformError(f"{self.name!r} requires a finite number")
@@ -90,7 +140,7 @@ class StateField:
 
 
 @dataclass(frozen=True, slots=True)
-class StateMap:
+class FixedByteMap:
     """One fixed serialized layout, optionally bounded to a measured template.
 
     ``opaque_sha256`` hashes the complete buffer after zeroing mapped fields.
@@ -104,9 +154,9 @@ class StateMap:
 
     def __post_init__(self) -> None:
         if not self.format_id or type(self.byte_count) is not int or self.byte_count <= 0:
-            raise StateTransformError("State map needs a format identity and positive byte count")
+            raise StateTransformError("Byte map needs a format identity and positive byte count")
         if type(self.fields) is not tuple or not self.fields:
-            raise StateTransformError("State map fields must be a nonempty immutable tuple")
+            raise StateTransformError("Byte map fields must be a nonempty immutable tuple")
         if len({f.id for f in self.fields}) != len(self.fields):
             raise StateTransformError("Duplicate state field ID")
         if len({f.name for f in self.fields}) != len(self.fields):
@@ -146,7 +196,7 @@ class StateMap:
 class MappedState:
     """A typed view of saved values backed by their complete original bytes."""
 
-    map: StateMap
+    map: FixedByteMap
     data: bytes
 
     def __post_init__(self) -> None:
@@ -175,3 +225,7 @@ class MappedState:
 
     def encode(self) -> bytes:
         return self.data
+
+
+# Compatibility for existing codecs and research scripts.
+StateMap = FixedByteMap

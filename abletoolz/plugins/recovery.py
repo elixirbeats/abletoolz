@@ -15,7 +15,7 @@ from abletoolz.formats import live_document
 from abletoolz.formats.errors import FormatError
 from abletoolz.live_set.tracks import display_name
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, ReferenceForm
-from abletoolz.plugins.container.format_translation import Recipe, apply_recipe
+from abletoolz.plugins.container.format_translation import ConversionRule, apply_conversion_rule
 from abletoolz.plugins.recovery_routes import (
     PreparedState,
     RecoveryTarget,
@@ -118,7 +118,7 @@ def _validate_device(device: PluginDevice, target: RecoveryTarget) -> tuple[str,
     route = target.route
     identity, reference = device.identity, device.reference
     try:
-        preset = device.preset
+        preset = device.saved_state
     except (FormatError, ValueError) as error:
         raise RecoveryError("Malformed saved plugin buffer") from error
     if _uid(identity.unique_id) != route.unique_id:
@@ -327,9 +327,9 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
                 if action.target_uid_fields is None:
                     raise RecoveryError("Missing planned VST3 class ID")
                 processor, controller = prepared[action.device]
-                apply_recipe(
+                apply_conversion_rule(
                     device,
-                    Recipe(
+                    ConversionRule(
                         PluginKind.VST3,
                         action.target_name,
                         action.target_uid_fields,
@@ -340,7 +340,7 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
                 continue
             if action.program_capacity_update is not None:
                 device.set_layout(programs=action.program_capacity_update)
-                device.set_preset_record(programs=action.program_capacity_update)
+                device.set_saved_state_record(programs=action.program_capacity_update)
             device.set_reference(action.target_path)
             device.set_name(action.target_name)
         except ValueError as error:

@@ -1,0 +1,194 @@
+[
+  {
+    "value": 0,
+    "name": "<None>"
+  },
+  {
+    "value": 1,
+    "name": "Wrecktifier"
+  },
+  {
+    "value": 2,
+    "name": "Mirror Overdrive"
+  },
+  {
+    "value": 3,
+    "name": "Hard Limits"
+  },
+  {
+    "value": 4,
+    "name": "Straight Fuzz"
+  },
+  {
+    "value": 5,
+    "name": "Positive Fuzz"
+  },
+  {
+    "value": 6,
+    "name": "Negative Fuzz"
+  },
+  {
+    "value": 7,
+    "name": "Smooth Fuzz"
+  },
+  {
+    "value": 8,
+    "name": "Smooth Overdrive"
+  },
+  {
+    "value": 9,
+    "name": "Crungey Grunch"
+  },
+  {
+    "value": 10,
+    "name": "Crunchy Grunge"
+  },
+  {
+    "value": 11,
+    "name": "Clip Control"
+  },
+  {
+    "value": 12,
+    "name": "Delicate Harmonics"
+  },
+  {
+    "value": 13,
+    "name": "Squealer"
+  },
+  {
+    "value": 14,
+    "name": "Hot Tin Roof"
+  },
+  {
+    "value": 15,
+    "name": "Blues Driver"
+  },
+  {
+    "value": 16,
+    "name": "Double Stages"
+  },
+  {
+    "value": 17,
+    "name": "Harmonic Control"
+  },
+  {
+    "value": 18,
+    "name": "Gentle Push"
+  },
+  {
+    "value": 19,
+    "name": "Slight Twist"
+  },
+  {
+    "value": 20,
+    "name": "Cold Solder"
+  },
+  {
+    "value": 21,
+    "name": "Little Popper"
+  },
+  {
+    "value": 22,
+    "name": "Radio Contact"
+  },
+  {
+    "value": 23,
+    "name": "Elastic Trash"
+  },
+  {
+    "value": 24,
+    "name": "Tube Drainer"
+  },
+  {
+    "value": 25,
+    "name": "Tape Saturation"
+  },
+  {
+    "value": 26,
+    "name": "Push Pull"
+  },
+  {
+    "value": 27,
+    "name": "Mild Excitement"
+  },
+  {
+    "value": 28,
+    "name": "Amp Drainer"
+  },
+  {
+    "value": 29,
+    "name": "Nasty Boy"
+  },
+  {
+    "value": 30,
+    "name": "Amperical"
+  },
+  {
+    "value": 31,
+    "name": "Garage Fuzz"
+  },
+  {
+    "value": 32,
+    "name": "Distropia"
+  },
+  {
+    "value": 33,
+    "name": "Ten Inch Spike"
+  },
+  {
+    "value": 34,
+    "name": "Bit Wrench"
+  },
+  {
+    "value": 35,
+    "name": "Cheap Digital"
+  },
+  {
+    "value": 36,
+    "name": "Bit Aliasing"
+  },
+  {
+    "value": 37,
+    "name": "Cracked Actor"
+  },
+  {
+    "value": 38,
+    "name": "Cracked Actress"
+  },
+  {
+    "value": 39,
+    "name": "Rubber Hammer"
+  },
+  {
+    "value": 40,
+    "name": "Faulty Transistor"
+  },
+  {
+    "value": 41,
+    "name": "Bad Breakup"
+  },
+  {
+    "value": 42,
+    "name": "Citrus Pulp"
+  },
+  {
+    "value": 43,
+    "name": "Acid Fuzz"
+  },
+  {
+    "value": 44,
+    "name": "Uncontrolled Static"
+  },
+  {
+    "value": 45,
+    "name": "Stomper"
+  },
+  {
+    "value": 46,
+    "name": "Iron Fuzz"
+  },
+  {
+    "value": 47,
+    "name": "Noise Art"
+  }
+]

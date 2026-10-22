@@ -1,0 +1,40 @@
+{
+  "scope": "Untouched historical source banks and complete Trash2 native readback for the explicit distortion converter. Audio results are separate.",
+  "examples": [
+    {
+      "source": "trash-conversion-01-source.state",
+      "target": "trash-conversion-01-target.state",
+      "source_sha256": "cb2878fe19c585e65ffee811d3a613cfaaeb9358c01af5eb5d2abd0e55f4dcb3",
+      "target_sha256": "94026c39ee2f37560261c807e713739e83ce3db1022cbc4786197decab5d57d5",
+      "program": 0
+    },
+    {
+      "source": "trash-conversion-02-source.state",
+      "target": "trash-conversion-02-target.state",
+      "source_sha256": "84d92f8b0aea678a1617e62f30c8164d3ed1166cac32da8208069ca8d845dc28",
+      "target_sha256": "12ad88f36c7481a63ec03d5ffb82a8689d758dd09d3fc0d919437f201c661965",
+      "program": 0
+    },
+    {
+      "source": "trash-conversion-03-source.state",
+      "target": "trash-conversion-03-target.state",
+      "source_sha256": "a46c44a3552acd129f1c6bc8d46e2503a7a9c08f055f79fb006a997155e6fc29",
+      "target_sha256": "fa5608467884e18030bfbcffa075cbeb0499003e9b1c7da8daa11ec0823ff6ac",
+      "program": 0
+    },
+    {
+      "source": "trash-conversion-04-source.state",
+      "target": "trash-conversion-04-target.state",
+      "source_sha256": "72ccf93c1f5afd7dde5b100ad7cfbe64b479d2b36bd40ae1c1342c4897882264",
+      "target_sha256": "ddd57c6b4164cd08dd6efd0d70ef601162abca2ae4834c8adf8efdab21057e06",
+      "program": 0
+    },
+    {
+      "source": "trash-conversion-05-source.state",
+      "target": "trash-conversion-05-target.state",
+      "source_sha256": "8f2f40e1e147df71eadcd3ce48506eebd6310ad6e1edb081be74cbd3a812a79a",
+      "target_sha256": "857d629462b1dbc0ac24009d630c81af1e30fa9c7894a1ac240f98b236ed7cbd",
+      "program": 0
+    }
+  ]
+}

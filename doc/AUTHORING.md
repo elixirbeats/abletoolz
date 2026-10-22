@@ -41,7 +41,7 @@ another domain's internals.
 | `tracks.py` | domain | every track, the main and cue tracks included, and their settings and their mixers' through `setting()`; view state, fold state, colors, routing |
 | `samples.py` / `sample_ref.py` | domain | sample references, missing-file checks, relinking; `sample_ref` holds the per-version path shapes |
 | `plugins.py` | domain | the set's plugin devices, read through `abletoolz.plugins.container.device`, and whether this machine can load them |
-| `save_as.py` | domain | a copy of the set an older Live release opens: that release's root attributes, its spellings, the attributes its schema always writes, and a report of everything newer than it, by track |
+| `save_as.py` | domain | a conversion preview for an older Live release and its required-structure report; publication refuses unresolved structure |
 | `transport.py` | domain | the transport's settings, tempo and timeline length |
 | `sections.py` | mechanics | where clips live on a timeline: the `Events` lists, session slots, spans, straddle rules, automation envelope segments, and the corpus measurements behind all of it |
 | `xml_edit.py` | mechanics | the set-global Pointee id space, indentation, number formatting, remote bindings |
@@ -116,6 +116,13 @@ Every selector in the document resolves before the first XML edit, so a
 document with one bad op changes nothing. Track selectors resolve by
 identity: two tracks can share a name, so `{"name": ...}` raises on ambiguity
 rather than guessing, and `{"id": ...}` is the unambiguous handle.
+
+`save_as.convert` produces an in-memory preview and a report. Writing through
+`AbletonSet.save_as` requires an empty `report.missing` and no proposed stand-in
+racks, whose native templates have not been measured. Otherwise it raises
+`IncompleteTarget` with the report before creating output files or directories.
+Incomplete replacement racks and other unresolved target-schema children remain
+inspectable in the preview. They cannot be published as completed conversions.
 
 ## What this package does not read yet
 

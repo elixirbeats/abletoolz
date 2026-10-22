@@ -56,6 +56,82 @@ def test_walk_filters_by_kind_and_track() -> None:
     assert list(live_set.devices.walk(Device.SIMPLER, track_name="no such track")) == []
 
 
+def _same_named_main_track() -> tuple[AbletonSet, ET.Element, ET.Element]:
+    live_set = make_set("11.3.42")
+    track = next(t for t in live_set.root.iter("MidiTrack") if t.get("Id") == "12")
+    main = next(live_set.root.iter("MasterTrack"))
+    name = track.find("Name/UserName")
+    assert name is not None
+    name.set("Value", "Master")
+    for root in (track, main):
+        devices = root.find("DeviceChain/DeviceChain/Devices")
+        assert devices is not None
+        eq = ET.SubElement(devices, "Eq8", Id="987654")
+        ET.SubElement(ET.SubElement(eq, "On"), "Manual", Value="true")
+        ET.SubElement(eq, "AdaptiveQ", Value="false")
+    return live_set, track, main
+
+
+def test_an_explicit_track_id_does_not_change_a_same_named_main_track() -> None:
+    live_set, regular, main = _same_named_main_track()
+    untouched_main = ET.tostring(main)
+    document = OpsDocument.model_validate(
+        {
+            "ops": [
+                {
+                    "op": "set_device_setting",
+                    "track": {"id": 12},
+                    "device": "EQ_EIGHT",
+                    "setting": "ADAPTIVE_Q",
+                    "value": True,
+                }
+            ]
+        }
+    )
+    (result,) = apply_ops(live_set, document.ops)
+    assert isinstance(result, SetDeviceSettingResult)
+    assert result.devices == 1
+    value = regular.find("DeviceChain/DeviceChain/Devices/Eq8[@Id='987654']/AdaptiveQ")
+    assert value is not None and value.get("Value") == "true"
+    assert ET.tostring(main) == untouched_main
+
+
+def test_a_same_named_main_track_is_ambiguous_before_any_batch_edit() -> None:
+    live_set, _, _ = _same_named_main_track()
+    before = ET.tostring(live_set.root)
+    document = OpsDocument.model_validate(
+        {
+            "ops": [
+                {"op": "set_device_setting", "device": "EQ_EIGHT", "setting": "ADAPTIVE_Q", "value": True},
+                {
+                    "op": "set_device_setting",
+                    "track": {"name": "Master"},
+                    "device": "EQ_EIGHT",
+                    "setting": "ADAPTIVE_Q",
+                    "value": False,
+                },
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="tracks are named"):
+        apply_ops(live_set, document.ops)
+    assert ET.tostring(live_set.root) == before
+
+
+def test_device_walk_selects_an_owned_track_and_refuses_ambiguous_or_foreign_targets() -> None:
+    live_set, _, main = _same_named_main_track()
+    owned = live_set.tracks.main()
+    (eq,) = live_set.devices.walk(Device.EQ_EIGHT, track=owned)
+    assert eq.device_element is main.find("DeviceChain/DeviceChain/Devices/Eq8[@Id='987654']")
+    with pytest.raises(ValueError, match="tracks are named"):
+        list(live_set.devices.walk(Device.EQ_EIGHT, track_name="Master"))
+    with pytest.raises(ValueError, match="not both"):
+        list(live_set.devices.walk(Device.EQ_EIGHT, track=owned, track_name="Master"))
+    foreign = make_set("11.3.42").tracks.main()
+    with pytest.raises(ValueError, match="does not belong"):
+        list(live_set.devices.walk(Device.EQ_EIGHT, track=foreign))
+
+
 def test_a_sampler_s_volume_reads_as_a_number() -> None:
     (sampler,) = make_set("10.0.1").devices.walk(Device.SAMPLER)
     volume = sampler.setting(Sampler.VOLUME)

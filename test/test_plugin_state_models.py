@@ -4,7 +4,7 @@ import hashlib
 import json
 import struct
 from collections import Counter
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -14,12 +14,51 @@ from abletoolz.formats import hex_text
 from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.parsers.base import PluginData
 from abletoolz.plugins.state import StateTransformError, registered_custom_states
-from abletoolz.plugins.state.controls import ControlStatus
-from abletoolz.plugins.state.izotope_trash import Bank, Program, control_map, state_map
+from abletoolz.plugins.state.controls import FieldSamples, Parameter, ParameterMap, ParameterStatus
+from abletoolz.plugins.state.izotope_trash import Bank, Program, byte_map, parameter_map
 from abletoolz.plugins.state.izotope_trash2 import Trash2State
-from abletoolz.plugins.state.model import FieldEncoding, StateField, StateMap
+from abletoolz.plugins.state.model import ByteMap, FieldEncoding, FieldKey, FixedByteMap, StateField
 
 FIXTURES = Path(__file__).parent / "state_fixtures" / "trash"
+
+
+def test_parameter_map_accepts_a_new_structural_format_without_fixed_offsets() -> None:
+    @dataclass(frozen=True)
+    class RecordField:
+        id: int
+        name: str
+        record: str
+        key: str
+
+    @dataclass(frozen=True)
+    class RecordMap:
+        format_id: str
+        fields: tuple[RecordField, ...]
+
+        def field(self, key: FieldKey) -> RecordField:
+            for field in self.fields:
+                if key == field.id or key == field.name:
+                    return field
+            raise StateTransformError(f"Unknown record field {key!r}")
+
+    storage: ByteMap = RecordMap(
+        "unregistered-vendor/variable-records-v7",
+        (RecordField(41, "Cutoff", "filter-a", "frequency"),),
+    )
+    parameters = ParameterMap(
+        byte_map=storage,
+        parameters=(
+            Parameter(2, "Cutoff", "Hz", (FieldSamples(41, (20.0, 20000.0)),), ParameterStatus.NATIVE_CHECKED),
+        ),
+        positions=(0.0, 1.0),
+        source_sha256="a" * 64,
+        evidence_sha256="b" * 64,
+        scope="Structural-address fixture; only the two captured positions are mapped",
+    )
+    assert parameters.byte_map.field(41).name == "Cutoff"
+    assert parameters.sampled_values(2, 1.0) == {41: 20000.0}
+    with pytest.raises(StateTransformError, match="no measurement"):
+        parameters.sampled_values(2, 0.5)
 
 
 def test_field_maps_refuse_ambiguous_or_out_of_bounds_coordinates() -> None:
@@ -31,11 +70,11 @@ def test_field_maps_refuse_ambiguous_or_out_of_bounds_coordinates() -> None:
         replace(first, id=1, name="Other", byte_offset=6),
     ):
         with pytest.raises(StateTransformError):
-            StateMap("test/layout1", 8, (first, second))
+            FixedByteMap("test/layout1", 8, (first, second))
 
 
 def test_named_batch_edits_are_atomic_and_preserve_unmodelled_and_nan_bytes() -> None:
-    layout = StateMap(
+    layout = FixedByteMap(
         "test/layout1",
         13,
         (
@@ -62,13 +101,13 @@ def test_named_batch_edits_are_atomic_and_preserve_unmodelled_and_nan_bytes() ->
 
 
 def test_original_source_control_map_retains_evidence_gaps_and_coupling() -> None:
-    model = control_map()
-    assert len(model.state_map.fields) == 296
-    assert len(model.controls) == 182
-    assert Counter(c.status for c in model.controls) == {
-        ControlStatus.NATIVE_CHECKED: 167,
-        ControlStatus.ROUNDING_UNRESOLVED: 14,
-        ControlStatus.NO_SAVED_CHANGE: 1,
+    model = parameter_map()
+    assert len(model.byte_map.fields) == 296
+    assert len(model.parameters) == 182
+    assert Counter(c.status for c in model.parameters) == {
+        ParameterStatus.NATIVE_CHECKED: 167,
+        ParameterStatus.ROUNDING_UNRESOLVED: 14,
+        ParameterStatus.NO_SAVED_CHANGE: 1,
     }
     assert model.sampled_values(1, 0.5) == {31: -5.0, 32: -5.0}
     with pytest.raises(StateTransformError, match="no measurement"):
@@ -82,7 +121,7 @@ def test_native_source_fixture_and_model_constructors_preserve_format_guards() -
     raw = (FIXTURES / "trash1-default.state").read_bytes()
     model = Bank.parse(raw)
     assert model.encode() == raw
-    for field in state_map().fields:
+    for field in byte_map().fields:
         model.programs[0].settings.value(field.id)
     with pytest.raises(StateTransformError, match="sixteen"):
         Bank(model.programs[:-1])
@@ -175,19 +214,19 @@ def test_canonical_device_bridge_preserves_vst3_controller_and_reads_program_fre
     device = PluginDevice(info)
     assert device.decode_state(BytesState).encode() == b"\x01"
     device.set_state_model(BytesState(b"\x03"))
-    assert device.preset.state == b"\x03"
-    assert device.preset.controller == b"\x02"
+    assert device.saved_state.state == b"\x03"
+    assert device.saved_state.controller == b"\x02"
     compat = PluginData.from_element(info)
     assert compat.decode_state(BytesState).encode() == b"\x03"
     compat.set_state_model(BytesState(b"\x04"))
-    assert device.preset.state == b"\x04"
-    assert device.preset.controller == b"\x02"
+    assert device.saved_state.state == b"\x04"
+    assert device.saved_state.controller == b"\x02"
     vst2 = ET.fromstring(
         '<VstPluginInfo><Preset><VstPreset><ProgramNumber Value="1"/><Buffer/></VstPreset></Preset></VstPluginInfo>'
     )
     plugin = PluginData.from_element(vst2)
     assert plugin.program_number == 1
-    PluginDevice(vst2).set_preset_record(program_number=3)
+    PluginDevice(vst2).set_saved_state_record(program_number=3)
     assert plugin.program_number == 3
 
 
@@ -200,7 +239,7 @@ def test_library_target_curves_replay_independent_native_reference_chunks(trial:
     assert hashlib.sha256(expected).hexdigest() == record["sha256"]
     controls = {index: value for index, value in record["controls"]}
     baseline = (FIXTURES / "trash2-default.state").read_bytes()
-    model = Trash2State.parse(baseline).with_controls(controls)
+    model = Trash2State.parse(baseline).with_parameters(controls)
     assert model.encode() == expected
     assert Trash2State.parse(expected).encode() == expected
 
@@ -212,8 +251,8 @@ def test_partial_target_map_refuses_another_state_shape_even_at_the_same_length(
     with pytest.raises(StateTransformError, match="opaque template"):
         Trash2State.parse(bytes(changed))
     model = Trash2State.parse(raw)
-    assert model.with_controls({4: 0.5}).settings.value(4) == -67.0
+    assert model.with_parameters({4: 0.5}).settings.value(4) == -67.0
     for index, value in ((5, 0.5), (4, float("nan")), (4, -0.1), (4, 1.1)):
         with pytest.raises(StateTransformError):
-            model.with_controls({index: value})
+            model.with_parameters({index: value})
     assert model.encode() == raw

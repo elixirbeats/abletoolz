@@ -58,6 +58,7 @@ from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
+    from abletoolz.live_set.tracks import AbletonTrack
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -164,7 +165,9 @@ class Devices:
         chains.append(self._track_devices(main.track_root, main.type, main.name))
         return chains
 
-    def walk(self, kind: str | None = None, *, track_name: str | None = None) -> Iterator[DeviceRef]:
+    def walk(
+        self, kind: str | None = None, *, track_name: str | None = None, track: AbletonTrack | None = None
+    ) -> Iterator[DeviceRef]:
         """Every device in the set, racks walked into, optionally only one kind or one track.
 
         ``kind`` is a device tag, which :class:`~abletoolz.schema.devices.Device`
@@ -173,12 +176,23 @@ class Devices:
         rack, so walking each track's whole subtree reaches all of them in
         document order: the rack, then what it holds. The main track comes last
         and the cue track is not walked, as in :meth:`inventory`.
+
+        ``track`` selects an owned track by identity. A name must match at most
+        one track, including the main track; two selectors cannot be combined.
         """
-        tracks = [(track.name, track.track_root) for track in self._set.tracks.walk()]
-        for name, track_root in tracks:
-            if track_name is not None and name != track_name:
-                continue
-            for devices in track_root.iter(Tag.DEVICES):
+        if track is not None and track_name is not None:
+            raise ValueError("Select a track by identity or name, not both")
+        tracks = self._set.tracks.walk()
+        if track is not None:
+            tracks = [owned for owned in tracks if owned.track_root is track.track_root]
+            if not tracks:
+                raise ValueError("Selected track does not belong to this set")
+        elif track_name is not None:
+            tracks = [owned for owned in tracks if owned.name == track_name]
+            if len(tracks) > 1:
+                raise ValueError(f"{len(tracks)} tracks are named {track_name!r}; select a track by identity")
+        for selected in tracks:
+            for devices in selected.track_root.iter(Tag.DEVICES):
                 for element in devices:
                     if kind is None or element.tag == kind:
                         yield self._device_ref(element)

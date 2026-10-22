@@ -12,7 +12,7 @@ migration and conversion between plugins:
   how does it change? ``container.device`` reads any format's info element
   into one description of the plugin device, writes a change back in place in
   the same format, or rebuilds the element as another format;
-  ``format_translation`` is the recipe that says what a device becomes and
+  ``format_translation`` holds conversion rules that say what a device becomes and
   the one step that applies it; ``upgrade_rules`` swaps the plugin file a
   device points at by explicit filename rule.
 * **state** -- how is a patch represented, and how can its values be read,
@@ -23,7 +23,8 @@ migration and conversion between plugins:
   on what evidence: a listen or a vendor declaration settles a conversion,
   anything less leaves it labelled an experiment.
 
-Binary structure maps, control maps and codecs are useful without a migration.
+Plugin maps collect byte maps, parameter maps and other knowledge about one
+plugin/version. Their codecs support inspection and editing independently of a migration.
 A transform binds that knowledge to a specific source and target. A set
 migration also needs container, identity and host-control translation. Repair
 is one use of those capabilities, rather than a label for all of them.

@@ -379,17 +379,14 @@ def _resolve_track_name(live_set: AbletonSet, selector: TrackSelector) -> str:
     disambiguates by number -- not by name -- still can't be aimed safely.
     """
     if isinstance(selector, TrackByName):
-        matches = [track for track in live_set.tracks.load() if track.name == selector.name]
+        matches = [track for track in live_set.tracks.walk() if track.name == selector.name]
         if len(matches) > 1:
             raise ValueError(f"{len(matches)} tracks are named {selector.name!r}; graft_chain resolves by name")
         if matches:
             return selector.name
-        main_name = live_set.devices.inventory()[-1].track_name
-        if main_name == selector.name:
-            return selector.name
         raise ValueError(f"No track named {selector.name!r}")
     track = _resolve_track(live_set, selector)
-    twins = [candidate for candidate in live_set.tracks.load() if candidate.name == track.name]
+    twins = [candidate for candidate in live_set.tracks.walk() if candidate.name == track.name]
     if len(twins) > 1:
         raise ValueError(
             f"{len(twins)} tracks share the name {track.name!r} as track id {selector.id}; "
@@ -597,12 +594,12 @@ def _prepare_set_device_setting(live_set: AbletonSet, op: SetDeviceSettingOp) ->
     if op.setting not in settings.__members__:
         raise ValueError(f"set_device_setting: {settings.__name__} has no setting {op.setting!r}")
     setting = settings[op.setting]
-    track_name = None if op.track is None else _resolve_track_name(live_set, op.track)
+    track = None if op.track is None else _resolve_any_track(live_set, op.track)
     indices = {} if op.index is None else {"index": op.index}
     # Resolving every target and encoding the value now is what makes a bad op fail before any edit.
-    targets = [ref.setting(setting, **indices) for ref in live_set.devices.walk(device, track_name=track_name)]
+    targets = [ref.setting(setting, **indices) for ref in live_set.devices.walk(device, track=track)]
     if not targets:
-        where = "this set" if track_name is None else f"track {track_name!r}"
+        where = "this set" if track is None else f"track {track.name!r}"
         raise ValueError(f"set_device_setting: no {op.device} in {where}")
     text = targets[0].encode(op.value)
 

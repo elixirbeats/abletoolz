@@ -1,0 +1,210 @@
+[
+  {
+    "value": 0,
+    "name": "<None>"
+  },
+  {
+    "value": 1,
+    "name": "Amp Drainer"
+  },
+  {
+    "value": 2,
+    "name": "Amperical"
+  },
+  {
+    "value": 3,
+    "name": "Distropia"
+  },
+  {
+    "value": 4,
+    "name": "Harmonic Control"
+  },
+  {
+    "value": 5,
+    "name": "Mirror Overdrive"
+  },
+  {
+    "value": 6,
+    "name": "Smooth Overdrive"
+  },
+  {
+    "value": 7,
+    "name": "Straight"
+  },
+  {
+    "value": 8,
+    "name": "Ten Inch Spike"
+  },
+  {
+    "value": 9,
+    "name": "Tube Drainer"
+  },
+  {
+    "value": 10,
+    "name": "Smooth"
+  },
+  {
+    "value": 11,
+    "name": "Nasty Boy"
+  },
+  {
+    "value": 12,
+    "name": "Wrecktifier"
+  },
+  {
+    "value": 13,
+    "name": "Hard Limits"
+  },
+  {
+    "value": 14,
+    "name": "Positive"
+  },
+  {
+    "value": 15,
+    "name": "Negative"
+  },
+  {
+    "value": 16,
+    "name": "Crungey Grunch"
+  },
+  {
+    "value": 17,
+    "name": "Crunchy Grunge"
+  },
+  {
+    "value": 18,
+    "name": "Clip Control"
+  },
+  {
+    "value": 19,
+    "name": "Delicate Harmonics"
+  },
+  {
+    "value": 20,
+    "name": "Squealer"
+  },
+  {
+    "value": 21,
+    "name": "Hot Tin Roof"
+  },
+  {
+    "value": 22,
+    "name": "Blues Driver"
+  },
+  {
+    "value": 23,
+    "name": "Double Stages"
+  },
+  {
+    "value": 24,
+    "name": "Gentle Push"
+  },
+  {
+    "value": 25,
+    "name": "Slight Twist"
+  },
+  {
+    "value": 26,
+    "name": "Cold Solder"
+  },
+  {
+    "value": 27,
+    "name": "Little Popper"
+  },
+  {
+    "value": 28,
+    "name": "Radio Contact"
+  },
+  {
+    "value": 29,
+    "name": "Elastic Trash"
+  },
+  {
+    "value": 30,
+    "name": "Tape Saturation"
+  },
+  {
+    "value": 31,
+    "name": "Push Pull"
+  },
+  {
+    "value": 32,
+    "name": "Mild Excitement"
+  },
+  {
+    "value": 33,
+    "name": "Garage"
+  },
+  {
+    "value": 34,
+    "name": "Bit Wrench"
+  },
+  {
+    "value": 35,
+    "name": "Cheap Digital"
+  },
+  {
+    "value": 36,
+    "name": "Cracked Actor"
+  },
+  {
+    "value": 37,
+    "name": "Cracked Actress"
+  },
+  {
+    "value": 38,
+    "name": "Rubber Hammer"
+  },
+  {
+    "value": 39,
+    "name": "Faulty Transistor"
+  },
+  {
+    "value": 40,
+    "name": "Bad Breakup"
+  },
+  {
+    "value": 41,
+    "name": "Citrus Pulp"
+  },
+  {
+    "value": 42,
+    "name": "Acid"
+  },
+  {
+    "value": 43,
+    "name": "Uncontrolled Static"
+  },
+  {
+    "value": 44,
+    "name": "Stomper"
+  },
+  {
+    "value": 45,
+    "name": "Iron"
+  },
+  {
+    "value": 46,
+    "name": "Noise Art"
+  },
+  {
+    "value": 47,
+    "name": "Iris Aliasing"
+  },
+  {
+    "value": 48,
+    "name": "Sine Shaper"
+  },
+  {
+    "value": 49,
+    "name": "Plateau"
+  },
+  {
+    "value": 50,
+    "name": "Hard Chip"
+  },
+  {
+    "value": 51,
+    "name": "Cactus"
+  }
+]

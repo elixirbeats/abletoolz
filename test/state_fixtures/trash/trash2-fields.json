@@ -1,0 +1,509 @@
+{
+  "scope": "Native public setters from baseline; each complete save retained. Saved fields only, no executable normalized-curve claim.",
+  "fields": [
+    {
+      "file": "trash2-p003_0.state",
+      "sha256": "792e1f8451db684fbc7b349870ea4a939a6fab9948eac1e0fb960db4d7cbbbba",
+      "public_index": 3,
+      "requested": 0.271,
+      "display": "False",
+      "field": "GAIN: Input Lock",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p003_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 3,
+      "requested": 0.729,
+      "display": "True",
+      "field": "GAIN: Input Lock",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p008_0.state",
+      "sha256": "384089727f0a9d6bc0128695940870e5d91e1bd077e977e82a6797865d56f313",
+      "public_index": 8,
+      "requested": 0.271,
+      "display": "False",
+      "field": "GAIN: Output Lock",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p008_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 8,
+      "requested": 0.729,
+      "display": "True",
+      "field": "GAIN: Output Lock",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p119_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 119,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Bypass",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p119_1.state",
+      "sha256": "520fbfcbf518f40db5014323b718e78d3c13f24624c581a070dd422bbd3fee75",
+      "public_index": 119,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Bypass",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p121_0.state",
+      "sha256": "d2d76110a7021e1c1dade9074119a8386a919179fd4f6bf761be2c9c4ad74623",
+      "public_index": 121,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg1 Shape Enable",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p121_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 121,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg1 Shape Enable",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p129_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 129,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg1 Log Mode",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p129_1.state",
+      "sha256": "19dbc92403629d1b1bcb12c3eef6634e995455e307f555c4d85f5a8348996002",
+      "public_index": 129,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg1 Log Mode",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p130_0.state",
+      "sha256": "02e33f7f943cc4ac9ec3ba3739e2f72874fc13e8cdf5b6c240ff8c00936170db",
+      "public_index": 130,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg1 DC Offset",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p130_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 130,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg1 DC Offset",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p131_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 131,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg1 Filter Enable",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p131_1.state",
+      "sha256": "6b75be6aff455abeab06995610bb306e231a56e3207e1d4ff691973ffe0b907c",
+      "public_index": 131,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg1 Filter Enable",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p138_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 138,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg2 Enable",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p138_1.state",
+      "sha256": "8adcd1217297f428d5ed854d1e2640f8431648245b8ad7ded805e6b12aaec86b",
+      "public_index": 138,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg2 Enable",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p139_0.state",
+      "sha256": "88fcd51a1a452e1b56bd02e93a623e82e5b65e49eb3852e3b909a80f7656b2bb",
+      "public_index": 139,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg2 Shape Enable",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p139_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 139,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg2 Shape Enable",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p147_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 147,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg2 Log Mode",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p147_1.state",
+      "sha256": "a4cf625b9251ec1be692385c8a9b87ccf8d179fafaeb4e5b8df784ae6feddeb7",
+      "public_index": 147,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg2 Log Mode",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p148_0.state",
+      "sha256": "e6ff28a95f125c674f494436f3b331f8dcdd8f766361b757609aae0735ffc31b",
+      "public_index": 148,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg2 DC Offset",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p148_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 148,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg2 DC Offset",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p149_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 149,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Stg2 Filter Enable",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p149_1.state",
+      "sha256": "a95bd20426fba264ac8de9cd444994be9b9e5834860e895be6625a40b01e77fb",
+      "public_index": 149,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Stg2 Filter Enable",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p156_0.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 156,
+      "requested": 0.271,
+      "display": "False",
+      "field": "TRASH: Enable Multiband",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p156_1.state",
+      "sha256": "95ab1f0292a09c81b0c503b91ed57c853bb001b41002bd6e9be65c76129086e3",
+      "public_index": 156,
+      "requested": 0.729,
+      "display": "True",
+      "field": "TRASH: Enable Multiband",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p308_0.state",
+      "sha256": "f273572eb225ed191eae06ab951781cce31a29465434a144ef7273056fd2f0da",
+      "public_index": 308,
+      "requested": 0.271,
+      "display": "False",
+      "field": "FILT2: Bypass",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p308_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 308,
+      "requested": 0.729,
+      "display": "True",
+      "field": "FILT2: Bypass",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p412_0.state",
+      "sha256": "e8205b891a0821af3454efc2f78b522991d56363314d182dc03ab31673ed6fd1",
+      "public_index": 412,
+      "requested": 0.271,
+      "display": "False",
+      "field": "DYN: Module Bypass",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p412_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 412,
+      "requested": 0.729,
+      "display": "True",
+      "field": "DYN: Module Bypass",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p485_0.state",
+      "sha256": "861a8ab295d3d3d1e33751c5f7d8dd6beaad7bd3c5db5b514aaf8250b8029eb3",
+      "public_index": 485,
+      "requested": 0.271,
+      "display": "False",
+      "field": "CONV: Bypass",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p485_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 485,
+      "requested": 0.729,
+      "display": "True",
+      "field": "CONV: Bypass",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p491_0.state",
+      "sha256": "76318234edfb3747b2cf84e15f63a46cdf06c8a247ccb596a74c7de16dd9d7bd",
+      "public_index": 491,
+      "requested": 0.271,
+      "display": "False",
+      "field": "DLY: Bypass",
+      "physical_value": false
+    },
+    {
+      "file": "trash2-p491_1.state",
+      "sha256": "0c5cbece6015402615208dea7a61df276650f3077be16191c5b324ae14bc4df5",
+      "public_index": 491,
+      "requested": 0.729,
+      "display": "True",
+      "field": "DLY: Bypass",
+      "physical_value": true
+    },
+    {
+      "file": "trash2-p001_0.state",
+      "sha256": "0c1bf7418771cdfe767a1bfc52c16996b9f54023eed90fb571e62a97f3626d5e",
+      "public_index": 1,
+      "requested": 0.271,
+      "display": "-102.27",
+      "field": "GAIN: Input L (unlocked)",
+      "physical_value": -102.26599884033203
+    },
+    {
+      "file": "trash2-p001_1.state",
+      "sha256": "820b4b2ec71c66f78abc46baf6effe544ede9ca7101bcd46459db215b870b822",
+      "public_index": 1,
+      "requested": 0.729,
+      "display": "-31.73",
+      "field": "GAIN: Input L (unlocked)",
+      "physical_value": -31.73400115966797
+    },
+    {
+      "file": "trash2-p002_0.state",
+      "sha256": "178585116c28bfd306571cfdc61caf768a0e35b0bb505cad3c49523c2f44a5ac",
+      "public_index": 2,
+      "requested": 0.271,
+      "display": "-102.27",
+      "field": "GAIN: Input R (unlocked)",
+      "physical_value": -102.26599884033203
+    },
+    {
+      "file": "trash2-p002_1.state",
+      "sha256": "8693e4f89ff7373faf60c4bd1ab8ac26f2c8ddf5e86844d5fbe33d0846a7aae1",
+      "public_index": 2,
+      "requested": 0.729,
+      "display": "-31.73",
+      "field": "GAIN: Input R (unlocked)",
+      "physical_value": -31.73400115966797
+    },
+    {
+      "file": "trash2-p005_0.state",
+      "sha256": "a01287524359e332cfe246cfe50407b18c12509e9c5766612bc3ea809f7fb447",
+      "public_index": 5,
+      "requested": 0.271,
+      "display": "-13.74",
+      "field": "GAIN: Input (locked offset)",
+      "physical_value": -13.739999771118164
+    },
+    {
+      "file": "trash2-p005_1.state",
+      "sha256": "80539b1d2af55e14676022a928e549b7fcddb9afa69eeb1a28099951d0f93a74",
+      "public_index": 5,
+      "requested": 0.729,
+      "display": "13.74",
+      "field": "GAIN: Input (locked offset)",
+      "physical_value": 13.739997863769531
+    },
+    {
+      "file": "trash2-p006_0.state",
+      "sha256": "dd960a77ddd3b6d0a954c65da08302f18cbd4b74dd19155e8dbd31428a3c4fb0",
+      "public_index": 6,
+      "requested": 0.271,
+      "display": "-102.27",
+      "field": "GAIN: Output L (unlocked)",
+      "physical_value": -102.26599884033203
+    },
+    {
+      "file": "trash2-p006_1.state",
+      "sha256": "9448e6f894c7bc2cd5b6672a5bc612ba9075c77c81d9203dfaf75409c69382ca",
+      "public_index": 6,
+      "requested": 0.729,
+      "display": "-31.73",
+      "field": "GAIN: Output L (unlocked)",
+      "physical_value": -31.73400115966797
+    },
+    {
+      "file": "trash2-p007_0.state",
+      "sha256": "0aa0aa05b37696e3c6e40145643f39e151c536b78fa441ebc3dd13c394e3b871",
+      "public_index": 7,
+      "requested": 0.271,
+      "display": "-102.27",
+      "field": "GAIN: Output R (unlocked)",
+      "physical_value": -102.26599884033203
+    },
+    {
+      "file": "trash2-p007_1.state",
+      "sha256": "6d921ccd34e6f2ac7d314bd4a3b8bb4fbce559732a1f985b08a64559a8dca9c6",
+      "public_index": 7,
+      "requested": 0.729,
+      "display": "-31.73",
+      "field": "GAIN: Output R (unlocked)",
+      "physical_value": -31.73400115966797
+    },
+    {
+      "file": "trash2-p010_0.state",
+      "sha256": "43fd1bd509463fa4e90c01e555c8ad14338c9c37cdbc2c3589474e3731b96515",
+      "public_index": 10,
+      "requested": 0.271,
+      "display": "-13.74",
+      "field": "GAIN: Output (locked offset)",
+      "physical_value": -13.739999771118164
+    },
+    {
+      "file": "trash2-p010_1.state",
+      "sha256": "19d712f470043e8c82c754a82aeb4e3ff133383e145b59823032531406616256",
+      "public_index": 10,
+      "requested": 0.729,
+      "display": "13.74",
+      "field": "GAIN: Output (locked offset)",
+      "physical_value": 13.739997863769531
+    },
+    {
+      "file": "trash2-p140_0.state",
+      "sha256": "15c2679c4c2c0e22c8d7c49303aa665901a4d56404858a8a27d8e7e46b5c9bc4",
+      "public_index": 140,
+      "requested": 0.271,
+      "display": "-16.45",
+      "field": "TRASH: Stg2 Pre",
+      "physical_value": -16.450000762939453
+    },
+    {
+      "file": "trash2-p140_1.state",
+      "sha256": "7e1ad5d9bdffc9fabfe87d469c4359e2dc6241924938a749bf4efd86c6556514",
+      "public_index": 140,
+      "requested": 0.729,
+      "display": "6.45",
+      "field": "TRASH: Stg2 Pre",
+      "physical_value": 6.4499969482421875
+    },
+    {
+      "file": "trash2-p141_0.state",
+      "sha256": "8f2b0edbca81f1187367c224a36384157e1ff44089b46d8da489e4f9cd002b9e",
+      "public_index": 141,
+      "requested": 0.271,
+      "display": "2.71",
+      "field": "TRASH: Stg2 Drive",
+      "physical_value": 2.7100000381469727
+    },
+    {
+      "file": "trash2-p141_1.state",
+      "sha256": "7e8eeed42e6dcc6172ec4657410a8c6481eb46d7b32b448e6ea73d709b770e04",
+      "public_index": 141,
+      "requested": 0.729,
+      "display": "7.29",
+      "field": "TRASH: Stg2 Drive",
+      "physical_value": 7.289999961853027
+    },
+    {
+      "file": "trash2-p142_0.state",
+      "sha256": "b9448f741813543b7632991ad5408e61d6f93528e8044d9668ec737c201538a0",
+      "public_index": 142,
+      "requested": 0.271,
+      "display": "0.27",
+      "field": "TRASH: Stg2 Style",
+      "physical_value": 0.2709999978542328
+    },
+    {
+      "file": "trash2-p142_1.state",
+      "sha256": "22ec29bec2c50e706beae4971ff61e4f699fd1531f95fa3f93ea9b6c309c6a03",
+      "public_index": 142,
+      "requested": 0.729,
+      "display": "0.73",
+      "field": "TRASH: Stg2 Style",
+      "physical_value": 0.7289999723434448
+    },
+    {
+      "file": "trash2-p143_0.state",
+      "sha256": "58f7f22c5fd8680c8759f06d251a21df9af03f957ec75d04b77aae880309090b",
+      "public_index": 143,
+      "requested": 0.271,
+      "display": "-26.45",
+      "field": "TRASH: Stg2 Gain",
+      "physical_value": -26.450000762939453
+    },
+    {
+      "file": "trash2-p143_1.state",
+      "sha256": "de245702e66b5681015ce29b226a8fd0d454042eed1beba4cc24480abb7bd2cf",
+      "public_index": 143,
+      "requested": 0.729,
+      "display": "-3.55",
+      "field": "TRASH: Stg2 Gain",
+      "physical_value": -3.5500030517578125
+    },
+    {
+      "file": "trash2-p146_0.state",
+      "sha256": "1d9e9bc9de6d0d6520977ea4eb315f3d5a8903250b5f0d6c7a0730085d8a0776",
+      "public_index": 146,
+      "requested": 0.271,
+      "display": "27.10",
+      "field": "TRASH: Stg2 Mix",
+      "physical_value": 27.100000381469727
+    },
+    {
+      "file": "trash2-p146_1.state",
+      "sha256": "f07e69bb6fdc3262f07f4858d1964df949cf3b4dea4fef5cf36c91ed6229782b",
+      "public_index": 146,
+      "requested": 0.729,
+      "display": "72.90",
+      "field": "TRASH: Stg2 Mix",
+      "physical_value": 72.89999389648438
+    }
+  ]
+}

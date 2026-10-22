@@ -58,7 +58,6 @@ from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
 from abletoolz.live_set.settings import Setting, find, resolve
-from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.live_set.xml_edit import number_value
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.objects import Clip
@@ -452,14 +451,6 @@ def set_clip_length(clip_element: ET.Element, length: float, version: Version) -
         resolve(clip_element, member, version).set(value)
 
 
-def require_events(track: AbletonTrack) -> ArrangementEvents:
-    """A track's arrangement clip list, or a refusal naming why it has none."""
-    events = arrangement_events(track.track_root, track.type, track.version)
-    if events is None:
-        raise ValueError(f"Track {track.name!r} is a {track.type} and holds no arrangement clips")
-    return events
-
-
 def span_occupants(events: ArrangementEvents, start: float, end: float) -> list[ET.Element]:
     """Clips inside ``[start, end)``, raising on any that straddle an edge."""
     occupants: list[ET.Element] = []
@@ -478,11 +469,11 @@ def span_occupants(events: ArrangementEvents, start: float, end: float) -> list[
 
 
 def clear_span(
-    track: AbletonTrack,
     events: ArrangementEvents,
     span: tuple[float, float],
     *,
     replace: bool,
+    track_name: str,
 ) -> None:
     """Empty a destination span, or refuse to land on top of what is already there."""
     occupants = span_occupants(events, *span)
@@ -491,7 +482,7 @@ def clear_span(
     if not replace:
         names = ", ".join(f"{clip_name(clip, events.version)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
         raise ValueError(
-            f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track.name!r} already hold "
+            f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track_name!r} already hold "
             f"{len(occupants)} clip(s): {names}"
         )
     remove_children(events.element, occupants)

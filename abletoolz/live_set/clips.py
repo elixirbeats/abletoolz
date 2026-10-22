@@ -634,7 +634,9 @@ class Clips:
         deletes those clips outright instead; nothing is ever trimmed.
         """
         target = self._resolve_track(track)
-        events = sections.require_events(target)
+        events = sections.arrangement_events(target.track_root, target.type, target.version)
+        if events is None:
+            raise ValueError(f"Track {target.name!r} is a {target.type} and holds no arrangement clips")
         expected = Tag.MIDI_TRACK if isinstance(donor, MidiClipRef) else Tag.AUDIO_TRACK
         if target.type != expected:
             raise ValueError(
@@ -649,7 +651,7 @@ class Clips:
         clone = copy.deepcopy(donor.clip_element)
         sections.move_clip(clone, at, length, self.version)
         span = sections.event_span(clone, self.version)
-        sections.clear_span(target, events, span, replace=replace)
+        sections.clear_span(events, span, replace=replace, track_name=target.name)
 
         shift_indentation(clone, (tab_depth(events.indent) + 1) - (tab_depth(clone.text) - 1))
         renumber_pointee_ids(clone, self._root)

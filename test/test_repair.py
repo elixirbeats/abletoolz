@@ -25,12 +25,12 @@ from abletoolz.plugins import config as config_module
 from abletoolz.plugins.config import AbletoolzConfig
 from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.container.format_translation import (
+    ConversionRule,
     IncompleteDevice,
-    NamedRecipe,
-    Recipe,
-    apply_recipe,
+    NamedConversionRule,
+    apply_conversion_rule,
     parse_config_targets,
-    resolve_recipe,
+    resolve_conversion_rule,
 )
 from abletoolz.plugins.identity import plugin_db, uid_sources
 from abletoolz.plugins.identity.mapping import name_variants, strip_bitness, suggest_target_name
@@ -302,35 +302,37 @@ def test_disagreeing_sources_are_reported_by_name() -> None:
 
 def test_a_target_without_a_uid_is_left_to_be_looked_up() -> None:
     parsed = parse_config_targets({"Serum_x64": {"name": "Serum"}})
-    assert parsed == {"Serum_x64": NamedRecipe(PluginKind.VST3, "Serum", StateTransform.VERBATIM)}
+    assert parsed == {"Serum_x64": NamedConversionRule(PluginKind.VST3, "Serum", StateTransform.VERBATIM)}
 
 
 def test_a_target_with_a_uid_still_parses_whole() -> None:
     parsed = parse_config_targets({"Old.dll": {"name": "New", "uid": [1, 2, 3, 4]}})
-    assert parsed == {"Old.dll": Recipe(PluginKind.VST3, "New", (1, 2, 3, 4))}
+    assert parsed == {"Old.dll": ConversionRule(PluginKind.VST3, "New", (1, 2, 3, 4))}
 
 
 def test_a_kilohearts_source_defaults_to_the_kilohearts_state_transform() -> None:
     """Measured vendor rule: every kHs VST3 wraps the payload its VST2 stores raw."""
     parsed = parse_config_targets({"kHs Stereo": {"name": "kHs Stereo"}})
-    assert parsed["kHs Stereo"] == NamedRecipe(PluginKind.VST3, "kHs Stereo", StateTransform.KILOHEARTS)
+    assert parsed["kHs Stereo"] == NamedConversionRule(PluginKind.VST3, "kHs Stereo", StateTransform.KILOHEARTS)
 
 
 def test_an_explicit_state_overrides_the_kilohearts_default() -> None:
     parsed = parse_config_targets({"kHs Stereo": {"name": "kHs Stereo", "state": "verbatim"}})
-    assert parsed["kHs Stereo"] == NamedRecipe(PluginKind.VST3, "kHs Stereo", StateTransform.VERBATIM)
+    assert parsed["kHs Stereo"] == NamedConversionRule(PluginKind.VST3, "kHs Stereo", StateTransform.VERBATIM)
 
 
 def test_the_kilohearts_default_follows_the_source_name_not_the_target() -> None:
     parsed = parse_config_targets({"Some Other": {"name": "kHs Looking Name"}})
-    assert parsed["Some Other"] == NamedRecipe(PluginKind.VST3, "kHs Looking Name", StateTransform.VERBATIM)
+    assert parsed["Some Other"] == NamedConversionRule(PluginKind.VST3, "kHs Looking Name", StateTransform.VERBATIM)
 
 
 def test_a_named_target_resolves_through_the_lookup() -> None:
     lookup = UidLookup((UidSource("test", {"Serum": SERUM_FIELDS}),))
-    named = NamedRecipe(PluginKind.VST3, "Serum", StateTransform.KILOHEARTS)
-    assert resolve_recipe(named, lookup) == Recipe(PluginKind.VST3, "Serum", SERUM_FIELDS, StateTransform.KILOHEARTS)
-    assert resolve_recipe(named, UidLookup()) is None
+    named = NamedConversionRule(PluginKind.VST3, "Serum", StateTransform.KILOHEARTS)
+    assert resolve_conversion_rule(named, lookup) == ConversionRule(
+        PluginKind.VST3, "Serum", SERUM_FIELDS, StateTransform.KILOHEARTS
+    )
+    assert resolve_conversion_rule(named, UidLookup()) is None
 
 
 def test_uid_db_path_comes_out_of_config(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -342,7 +344,7 @@ def test_uid_db_path_comes_out_of_config(tmp_path: pathlib.Path, monkeypatch: py
     monkeypatch.setattr(config_module, "get_config_path", lambda: path)
     loaded = config_module.load_config()
     assert loaded.plugin_translation_uid_db == pathlib.Path("probed.json")
-    assert loaded.plugin_translation_targets["kHs Thing"] == NamedRecipe(
+    assert loaded.plugin_translation_targets["kHs Thing"] == NamedConversionRule(
         PluginKind.VST3, "kHs Thing", StateTransform.KILOHEARTS
     )
 
@@ -620,7 +622,7 @@ def test_a_mapping_with_no_findable_class_id_is_reported_not_guessed() -> None:
     before = ET.tostring(info)
     report = repair_set(
         live_set,
-        targets={"Effectrix": NamedRecipe(PluginKind.VST3, "Effectrix")},
+        targets={"Effectrix": NamedConversionRule(PluginKind.VST3, "Effectrix")},
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
@@ -637,7 +639,7 @@ def test_a_named_mapping_is_fixed_once_a_source_knows_the_class_id() -> None:
     lookup = UidLookup((UidSource("test", {"Effectrix": OTHER_FIELDS}),))
     report = repair_set(
         live_set,
-        targets={"Effectrix": NamedRecipe(PluginKind.VST3, "Effectrix")},
+        targets={"Effectrix": NamedConversionRule(PluginKind.VST3, "Effectrix")},
         uid_lookup=lookup,
         loadable=nothing_loads,
     )
@@ -690,13 +692,13 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     report = repair_set(
         live_set,
         targets={
-            "EchoBoy": NamedRecipe(PluginKind.VST3, "EchoBoy"),
-            "Crystallizer": Recipe(PluginKind.VST3, "Crystallizer", OTHER_FIELDS),
-            "PhaseMistress": NamedRecipe(PluginKind.VST3, "PhaseMistress"),
-            "Sonalksis MaxLimit": Recipe(PluginKind.VST3, "MaxLimit", OTHER_FIELDS),
+            "EchoBoy": NamedConversionRule(PluginKind.VST3, "EchoBoy"),
+            "Crystallizer": ConversionRule(PluginKind.VST3, "Crystallizer", OTHER_FIELDS),
+            "PhaseMistress": NamedConversionRule(PluginKind.VST3, "PhaseMistress"),
+            "Sonalksis MaxLimit": ConversionRule(PluginKind.VST3, "MaxLimit", OTHER_FIELDS),
             # A pair with no translator: the user said it, abletoolz cannot do it.
-            "CamelCrusher": Recipe(PluginKind.AU, "CamelCrusher", OTHER_FIELDS),
-            "FabFilter Pro-L.64": Recipe(PluginKind.VST3, "Pro-L 2", OTHER_FIELDS),
+            "CamelCrusher": ConversionRule(PluginKind.AU, "CamelCrusher", OTHER_FIELDS),
+            "FabFilter Pro-L.64": ConversionRule(PluginKind.VST3, "Pro-L 2", OTHER_FIELDS),
         },
         uid_lookup=UidLookup((UidSource("test", {"EchoBoy": OTHER_FIELDS, "Pro-R": SERUM_FIELDS}),)),
         loadable=loadable,
@@ -734,7 +736,7 @@ def test_a_pair_with_no_translator_is_reported_rather_than_refused() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Effectrix")
     before = ET.tostring(info)
-    au_target = Recipe(PluginKind.AU, "Test AU", (1, 2, 3, 4))
+    au_target = ConversionRule(PluginKind.AU, "Test AU", (1, 2, 3, 4))
     report = repair_set(live_set, targets={"Effectrix": au_target}, uid_lookup=UidLookup(), loadable=nothing_loads)
     action = only(report, "Effectrix")
     assert action.status is RepairStatus.UNSUPPORTED_PAIR
@@ -751,8 +753,8 @@ def test_the_entry_alone_says_which_way_each_device_goes() -> None:
     report = repair_set(
         live_set,
         targets={
-            "Serum_x64": Recipe(PluginKind.VST3, "Serum", SERUM_FIELDS),
-            "Effectrix": Recipe(PluginKind.AU, "Effectrix AU", OTHER_FIELDS),
+            "Serum_x64": ConversionRule(PluginKind.VST3, "Serum", SERUM_FIELDS),
+            "Effectrix": ConversionRule(PluginKind.AU, "Effectrix AU", OTHER_FIELDS),
         },
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
@@ -819,7 +821,7 @@ def test_a_stub_device_does_not_stop_the_devices_around_it() -> None:
     report = repair_set(
         live_set,
         targets={
-            "Effectrix": Recipe(PluginKind.VST3, "Effectrix", OTHER_FIELDS),
+            "Effectrix": ConversionRule(PluginKind.VST3, "Effectrix", OTHER_FIELDS),
         },
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
@@ -835,7 +837,7 @@ def test_translating_a_stub_on_purpose_refuses_loudly() -> None:
     make_stub(info)
     assert not PluginDevice(info).complete
     with pytest.raises(IncompleteDevice):
-        apply_recipe(PluginDevice(info), Recipe(PluginKind.VST3, "Serum", SERUM_FIELDS))
+        apply_conversion_rule(PluginDevice(info), ConversionRule(PluginKind.VST3, "Serum", SERUM_FIELDS))
 
 
 # -- what a repaired device says about its patch ----------------------------
@@ -859,7 +861,7 @@ def test_a_repaired_device_nobody_has_heard_is_counted_apart() -> None:
     live_set = make_set("11.3.42")
     report = repair_set(
         live_set,
-        targets={"Effectrix": Recipe(PluginKind.VST3, "Effectrix", OTHER_FIELDS)},
+        targets={"Effectrix": ConversionRule(PluginKind.VST3, "Effectrix", OTHER_FIELDS)},
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
@@ -901,7 +903,7 @@ def hermetic(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
 
 def test_plugins_repair_merges_config_and_caller_targets(hermetic: None, monkeypatch: pytest.MonkeyPatch) -> None:
     config = AbletoolzConfig(
-        plugin_translation_targets={"Effectrix": Recipe(PluginKind.VST3, "From Config", OTHER_FIELDS)}
+        plugin_translation_targets={"Effectrix": ConversionRule(PluginKind.VST3, "From Config", OTHER_FIELDS)}
     )
     monkeypatch.setattr(plugins, "load_config", lambda: config)
     live_set = make_set("11.3.42")
@@ -913,11 +915,11 @@ def test_plugins_repair_merges_config_and_caller_targets(hermetic: None, monkeyp
 
 def test_plugins_repair_lets_the_caller_win_over_config(hermetic: None, monkeypatch: pytest.MonkeyPatch) -> None:
     config = AbletoolzConfig(
-        plugin_translation_targets={"Serum_x64": Recipe(PluginKind.VST3, "From Config", OTHER_FIELDS)}
+        plugin_translation_targets={"Serum_x64": ConversionRule(PluginKind.VST3, "From Config", OTHER_FIELDS)}
     )
     monkeypatch.setattr(plugins, "load_config", lambda: config)
     live_set = make_set("11.3.42")
-    explicit = Recipe(PluginKind.VST3, "Explicit", OTHER_FIELDS)
+    explicit = ConversionRule(PluginKind.VST3, "Explicit", OTHER_FIELDS)
     report = live_set.plugins.repair(targets={"Serum_x64": explicit})
     assert only(report, "Serum_x64").target_name == "Explicit"
 
@@ -933,7 +935,7 @@ def test_plugins_repair_resolves_a_named_config_target_through_the_live_database
         [("Serum", f"device:vst3:instr:{SERUM_CID}", installed(tmp_path, "Serum.vst3"), "global", True)],
     )
     monkeypatch.setattr(plugin_db, "default_live_database_dir", lambda: database_dir)
-    config = AbletoolzConfig(plugin_translation_targets={"Serum_x64": NamedRecipe(PluginKind.VST3, "Serum")})
+    config = AbletoolzConfig(plugin_translation_targets={"Serum_x64": NamedConversionRule(PluginKind.VST3, "Serum")})
     monkeypatch.setattr(plugins, "load_config", lambda: config)
 
     live_set = make_set("11.3.42")
@@ -960,7 +962,7 @@ def test_a_vst3_target_is_refused_on_a_set_older_than_vst3() -> None:
     before = [ET.tostring(info) for info in live_set.root.iter("VstPluginInfo")]
     report = repair_set(
         live_set,
-        targets={"FabFilter Pro-Q": Recipe(PluginKind.VST3, "Pro-Q 3", OTHER_FIELDS)},
+        targets={"FabFilter Pro-Q": ConversionRule(PluginKind.VST3, "Pro-Q 3", OTHER_FIELDS)},
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
@@ -978,7 +980,7 @@ def test_a_vst3_target_still_lands_on_a_set_new_enough_to_hold_one() -> None:
     live_set = make_set("11.3.42")
     report = repair_set(
         live_set,
-        targets={"Effectrix": Recipe(PluginKind.VST3, "Effectrix", OTHER_FIELDS)},
+        targets={"Effectrix": ConversionRule(PluginKind.VST3, "Effectrix", OTHER_FIELDS)},
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )
@@ -991,7 +993,7 @@ def test_an_entry_for_another_format_does_not_map_a_same_named_device() -> None:
     live_set = make_set("11.3.42")
     report = repair_set(
         live_set,
-        targets={"Decapitator": Recipe(PluginKind.VST3, "Decapitator", OTHER_FIELDS)},
+        targets={"Decapitator": ConversionRule(PluginKind.VST3, "Decapitator", OTHER_FIELDS)},
         uid_lookup=UidLookup(),
         loadable=nothing_loads,
     )

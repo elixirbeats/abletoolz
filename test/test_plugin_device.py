@@ -44,7 +44,7 @@ def test_every_device_written_back_from_what_was_read_is_byte_identical(key: str
     devices = PluginDevices(root)
     assert len(devices) == count(root)
     for device in devices:
-        identity, reference, preset = device.identity, device.reference, device.preset
+        identity, reference, preset = device.identity, device.reference, device.saved_state
         assert identity.kind is device.kind is kind_of(device.info)
         device.set_state(preset.state)
         if device.kind is PluginKind.VST:
@@ -55,7 +55,7 @@ def test_every_device_written_back_from_what_was_read_is_byte_identical(key: str
             device.set_layout(
                 parameters=identity.parameter_count, programs=identity.program_count, flags=identity.flags
             )
-            device.set_preset_record(
+            device.set_saved_state_record(
                 unique_id=preset.unique_id,
                 parameters=preset.parameter_count,
                 programs=preset.program_count,
@@ -75,7 +75,7 @@ def test_every_device_written_back_from_what_was_read_is_byte_identical(key: str
 def test_every_device_is_read_whole(key: str) -> None:
     """Every fixture device has a name, and the facts its format carries are read."""
     for device in PluginDevices(load(key)):
-        identity, reference, preset = device.identity, device.reference, device.preset
+        identity, reference, preset = device.identity, device.reference, device.saved_state
         assert identity.name
         if device.kind is PluginKind.VST:
             assert identity.is_instrument is not None
@@ -170,13 +170,15 @@ def test_state_is_rewritten_at_the_depth_it_was_read_from() -> None:
     device.set_state(bytes(range(100)))
     assert buffer.text is not None
     assert hex_text.depth(buffer.text) == depth
-    assert device.preset.state == bytes(range(100))
+    assert device.saved_state.state == bytes(range(100))
 
 
 def test_an_empty_state_is_written_at_the_depth_its_position_gives_it() -> None:
     """A device saved without a patch has no hex line to read a depth from."""
     root = load("11.3.42")
-    device = next(device for device in PluginDevices(root) if device.kind is PluginKind.VST and not device.preset.state)
+    device = next(
+        device for device in PluginDevices(root) if device.kind is PluginKind.VST and not device.saved_state.state
+    )
     preset = device.info.find("Preset/VstPreset")
     assert preset is not None and preset.text is not None
     device.set_state(b"\xff")
@@ -205,14 +207,14 @@ def test_rewriting_as_vst3_keeps_the_element_in_place() -> None:
     description = devices.parents[device.info]
     index, indent = list(description).index(device.info), device.info.text
     identity = dataclasses.replace(device.identity, kind=PluginKind.VST3, name="Serum", uid_fields=(1, 2, 3, 4))
-    preset = dataclasses.replace(device.preset, state=b"\x01\x02", controller=b"\x03")
+    preset = dataclasses.replace(device.saved_state, state=b"\x01\x02", controller=b"\x03")
     device.rewrite(PluginKind.VST3, identity, preset)
     assert device.kind is PluginKind.VST3 and device.info.tag == "Vst3PluginInfo"
     assert list(description).index(device.info) == index and device.info.text == indent
     again = PluginDevice(device.info).identity
     assert (again.name, again.uid_fields, again.is_instrument) == ("Serum", (1, 2, 3, 4), identity.is_instrument)
-    assert PluginDevice(device.info).preset.state == b"\x01\x02"
-    assert PluginDevice(device.info).preset.controller == b"\x03"
+    assert PluginDevice(device.info).saved_state.state == b"\x01\x02"
+    assert PluginDevice(device.info).saved_state.controller == b"\x03"
 
 
 def test_only_measured_formats_have_a_writer() -> None:
@@ -220,9 +222,9 @@ def test_only_measured_formats_have_a_writer() -> None:
     assert not has_writer(PluginKind.VST) and not has_writer(PluginKind.AU)
     device = next(device for device in PluginDevices(load("11.3.42")) if device.kind is PluginKind.VST3)
     with pytest.raises(ValueError, match="no writer"):
-        device.rewrite(PluginKind.VST, device.identity, device.preset)
+        device.rewrite(PluginKind.VST, device.identity, device.saved_state)
     with pytest.raises(ValueError, match="already a"):
-        device.rewrite(PluginKind.VST3, device.identity, device.preset)
+        device.rewrite(PluginKind.VST3, device.identity, device.saved_state)
 
 
 # -- controls ---------------------------------------------------------------

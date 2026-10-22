@@ -61,10 +61,10 @@ from abletoolz.machine import default_live_database_dir
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, set_supports
 from abletoolz.plugins.container.format_translation import (
     KNOWN_TRANSLATIONS,
-    ConfiguredRecipe,
-    apply_recipe,
+    ConfiguredConversionRule,
+    apply_conversion_rule,
     can_rewrite,
-    resolve_recipe,
+    resolve_conversion_rule,
 )
 from abletoolz.plugins.identity.mapping import suggest_target_name, suggestion_line
 from abletoolz.plugins.identity.uid_sources import DatabasePlugin, UidLookup, read_live_databases
@@ -280,13 +280,13 @@ def needs_parameter_mapper(device: PluginDevice) -> bool:
     needs a mapper nothing here has yet.
     """
     controls = device.controls
-    return not controls.owner_known or device.preset.has_parameter_settings or controls.in_use
+    return not controls.owner_known or device.saved_state.has_parameter_settings or controls.in_use
 
 
 def repair_set(
     live_set: AbletonSet,
     *,
-    targets: Mapping[str, ConfiguredRecipe] | None = None,
+    targets: Mapping[str, ConfiguredConversionRule] | None = None,
     uid_lookup: UidLookup | None = None,
     loadable: LoadableOracle,
 ) -> RepairReport:
@@ -312,7 +312,7 @@ def repair_set(
     caller saves. Configured, mapped or referenced controls require an explicit
     parameter translation before their plugin format can change.
     """
-    table: dict[str, ConfiguredRecipe] = dict(KNOWN_TRANSLATIONS)
+    table: dict[str, ConfiguredConversionRule] = dict(KNOWN_TRANSLATIONS)
     table.update(targets or {})
     version = live_set.version_tuple
     known_names = uid_lookup.names() if uid_lookup is not None else frozenset[str]()
@@ -380,7 +380,7 @@ def repair_set(
             )
             continue
 
-        target = resolve_recipe(configured, uid_lookup)
+        target = resolve_conversion_rule(configured, uid_lookup)
         if target is None:
             actions.append(
                 DeviceRepair(track, source, name, RepairStatus.BROKEN_NO_UID, configured.to_format, configured.name)
@@ -400,7 +400,7 @@ def repair_set(
             )
             continue
 
-        apply_recipe(device, target)
+        apply_conversion_rule(device, target)
         state = measured_state(name, target.name)
         actions.append(
             DeviceRepair(track, source, name, RepairStatus.FIXED, target.to_format, target.name, None, state)

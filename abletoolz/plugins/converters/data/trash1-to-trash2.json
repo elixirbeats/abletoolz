@@ -1,0 +1,289 @@
+{
+  "scope": "Experimental single-band distortion; final native vector 44100 Hz, physical Drive6.37/Style0.819, seeded probe20261027. Errors are diagnostics at that vector, not a complete-domain quality guarantee.",
+  "source_sha256": "ec1e66d15ce7b611148260681da68444de51299fe75d0a9ef416d3cd504e38c9",
+  "target_engine_sha256": "625fe654b2818cde66c229745f72939e1a2f840359aa8125601d16650093ddc0",
+  "rules": [
+    {
+      "source_id": 0,
+      "target_id": 0,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 8.555006138074808e-08
+    },
+    {
+      "source_id": 1,
+      "target_id": 12,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.1039306448760318
+    },
+    {
+      "source_id": 2,
+      "target_id": 5,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.17956534519957928
+    },
+    {
+      "source_id": 3,
+      "target_id": 13,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.6744370296549804
+    },
+    {
+      "source_id": 4,
+      "target_id": 7,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.034428941300638956
+    },
+    {
+      "source_id": 5,
+      "target_id": 14,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 3.6446481016111276
+    },
+    {
+      "source_id": 6,
+      "target_id": 15,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.9965811380575005
+    },
+    {
+      "source_id": 7,
+      "target_id": 10,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.885058652010593
+    },
+    {
+      "source_id": 8,
+      "target_id": 6,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.5020020807384192e-07
+    },
+    {
+      "source_id": 9,
+      "target_id": 16,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 9.746939254303007e-08
+    },
+    {
+      "source_id": 10,
+      "target_id": 17,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 9.243024188958945e-08
+    },
+    {
+      "source_id": 11,
+      "target_id": 18,
+      "invert_polarity": true,
+      "diagnostic_relative_rms": 0.05538331561968753
+    },
+    {
+      "source_id": 12,
+      "target_id": 19,
+      "invert_polarity": true,
+      "diagnostic_relative_rms": 1.4663902885932832e-06
+    },
+    {
+      "source_id": 13,
+      "target_id": 20,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.5838169506564265e-05
+    },
+    {
+      "source_id": 14,
+      "target_id": 21,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.3078202586406648e-06
+    },
+    {
+      "source_id": 15,
+      "target_id": 22,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.2068260858683705
+    },
+    {
+      "source_id": 16,
+      "target_id": 23,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 8.868495225799949e-08
+    },
+    {
+      "source_id": 17,
+      "target_id": 4,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.9587426111740092
+    },
+    {
+      "source_id": 18,
+      "target_id": 24,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.06442400515360579
+    },
+    {
+      "source_id": 19,
+      "target_id": 25,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.12502748186403592
+    },
+    {
+      "source_id": 20,
+      "target_id": 26,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.7579709121519717e-07
+    },
+    {
+      "source_id": 21,
+      "target_id": 27,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.24246467367085414
+    },
+    {
+      "source_id": 22,
+      "target_id": 28,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 11.54216174898128
+    },
+    {
+      "source_id": 23,
+      "target_id": 29,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.502199119857266e-07
+    },
+    {
+      "source_id": 24,
+      "target_id": 9,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.233246864832974e-07
+    },
+    {
+      "source_id": 25,
+      "target_id": 30,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.2840159460502525
+    },
+    {
+      "source_id": 26,
+      "target_id": 31,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.1239073660504945e-07
+    },
+    {
+      "source_id": 27,
+      "target_id": 32,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.05891448193767396
+    },
+    {
+      "source_id": 28,
+      "target_id": 1,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.0757589694765112e-07
+    },
+    {
+      "source_id": 29,
+      "target_id": 11,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.427522469802668e-07
+    },
+    {
+      "source_id": 30,
+      "target_id": 2,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.0136287368903128e-07
+    },
+    {
+      "source_id": 31,
+      "target_id": 33,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.7524679055331855e-08
+    },
+    {
+      "source_id": 32,
+      "target_id": 3,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.944401684069096e-07
+    },
+    {
+      "source_id": 33,
+      "target_id": 8,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 3.8586420393674186e-08
+    },
+    {
+      "source_id": 34,
+      "target_id": 34,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.9056662631593682
+    },
+    {
+      "source_id": 35,
+      "target_id": 35,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.896648199941546
+    },
+    {
+      "source_id": 37,
+      "target_id": 36,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.1431764060613533e-07
+    },
+    {
+      "source_id": 38,
+      "target_id": 37,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.4958501040409793e-07
+    },
+    {
+      "source_id": 39,
+      "target_id": 38,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.732638959236543e-07
+    },
+    {
+      "source_id": 40,
+      "target_id": 39,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 3.3014080863851936e-07
+    },
+    {
+      "source_id": 41,
+      "target_id": 40,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 2.419348305620318e-07
+    },
+    {
+      "source_id": 42,
+      "target_id": 41,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.1026955958453494e-07
+    },
+    {
+      "source_id": 43,
+      "target_id": 42,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 4.2733739173037907e-07
+    },
+    {
+      "source_id": 44,
+      "target_id": 43,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 6.129262636483675e-07
+    },
+    {
+      "source_id": 45,
+      "target_id": 44,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 7.242917887010525e-08
+    },
+    {
+      "source_id": 46,
+      "target_id": 45,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 1.0327419802834472e-07
+    },
+    {
+      "source_id": 47,
+      "target_id": 46,
+      "invert_polarity": false,
+      "diagnostic_relative_rms": 0.06644254927716672
+    }
+  ]
+}

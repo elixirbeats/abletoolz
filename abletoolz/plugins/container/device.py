@@ -4,12 +4,12 @@ A set stores a hosted plugin as a ``PluginDevice`` wrapping a ``PluginDesc``
 that holds exactly one info element -- ``VstPluginInfo``, ``Vst3PluginInfo``
 or ``AuPluginInfo``. Everything a program can know about the plugin, and
 everything it may change without changing the format, is in that element:
-which plugin it is, which file it points at, and the preset it saved. Each
+which plugin it is, which file it points at, and the state it saved. Each
 format spells those three differently and keeps different extras beside them.
 
 This module is the one place that reads an info element of any kind into the
 same neutral description -- :class:`Identity`, :class:`Reference`,
-:class:`Preset` -- and writes a change back into the element it came from, at
+:class:`SavedState` -- and writes a change back into the element it came from, at
 the indentation Live wrote it with, touching nothing else. One container
 adapter per format does the spelling; nothing outside this module names a
 child of an info element.
@@ -19,7 +19,7 @@ field on the existing element and touches nothing else. Across formats, the
 element is rebuilt from a description in the child order measured for the
 target, in place, so it keeps its position and indentation and every child
 the two formats share. Only bytes are written either way; what the bytes and
-the identity should be is a recipe's decision, made in
+the identity should be is a conversion rule's decision, made in
 :mod:`abletoolz.plugins.container.format_translation`. See ADR 0001.
 
 :class:`PluginDevices` is every plugin device of one document in document
@@ -160,8 +160,8 @@ class Identity:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class Preset:
-    """The patch a plugin device saved.
+class SavedState:
+    """The state and associated metadata a plugin device saved.
 
     ``state`` is empty for a device saved without a patch. ``controller`` is the
     second half a VST3 preset carries and None for the other formats. The
@@ -180,6 +180,10 @@ class Preset:
     program_count: int | None
     program_number: int | None
     has_parameter_settings: bool
+
+
+# Compatibility with the earlier host-state name.
+Preset = SavedState
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -507,7 +511,7 @@ _VST3_PRESET_ORDER = (
 )
 
 
-def _write_vst3(device: PluginDevice, identity: Identity, preset: Preset) -> None:
+def _write_vst3(device: PluginDevice, identity: Identity, preset: SavedState) -> None:
     """Rebuild ``device``'s element as the Vst3PluginInfo Live writes."""
     if identity.name is None or identity.uid_fields is None or identity.is_instrument is None:
         raise ValueError("a VST3 device needs a name, a class id and an instrument-or-effect answer")
@@ -536,7 +540,7 @@ def _write_vst3(device: PluginDevice, identity: Identity, preset: Preset) -> Non
 
 # One per format a device can be rebuilt as. A format missing here is a writer
 # nobody has measured yet, which is a fact to report, not a pair to implement.
-_WRITERS: dict[PluginKind, Callable[[PluginDevice, Identity, Preset], None]] = {
+_WRITERS: dict[PluginKind, Callable[[PluginDevice, Identity, SavedState], None]] = {
     PluginKind.VST3: _write_vst3,
 }
 
@@ -576,16 +580,16 @@ class PluginDevice:
         return _REFERENCE_READERS[self.kind](self.info)
 
     @property
-    def preset(self) -> Preset:
+    def saved_state(self) -> SavedState:
         preset = self._preset()
         if preset is None:
-            return Preset(b"", None, None, None, None, None, None, False)
+            return SavedState(b"", None, None, None, None, None, None, False)
         state = preset.find(_STATE_TAGS[self.kind])
         controller = None
         if self.kind is PluginKind.VST3:
             element = preset.find(Tag.CONTROLLER_STATE)
             controller = None if element is None else hex_text.decode(element.text)
-        return Preset(
+        return SavedState(
             state=b"" if state is None else hex_text.decode(state.text),
             controller=controller,
             type=_int(preset, Tag.TYPE),
@@ -595,6 +599,8 @@ class PluginDevice:
             program_number=_int(preset, Tag.PROGRAM_NUMBER),
             has_parameter_settings=any(len(settings) for settings in preset.findall(Tag.PARAMETER_SETTINGS)),
         )
+
+    preset = saved_state
 
     @property
     def complete(self) -> bool:
@@ -665,7 +671,7 @@ class PluginDevice:
         self._require(_NAME_TAGS[self.kind]).set(Attr.VALUE, name)
 
     def set_unique_id(self, unique_id: int) -> None:
-        """The host's record of a VST2 plugin's unique id. The preset keeps its own; see :meth:`set_preset_record`."""
+        """Set the host's plugin ID; saved-state metadata has its own record."""
         self._only(PluginKind.VST)
         self._require(Tag.UNIQUE_ID).set(Attr.VALUE, str(unique_id))
 
@@ -681,7 +687,7 @@ class PluginDevice:
         if flags is not None:
             self._require(Tag.FLAGS).set(Attr.VALUE, str(flags))
 
-    def set_preset_record(
+    def set_saved_state_record(
         self,
         *,
         unique_id: int | None = None,
@@ -689,10 +695,10 @@ class PluginDevice:
         programs: int | None = None,
         program_number: int | None = None,
     ) -> None:
-        """A VST2 preset's own record of the plugin that wrote it.
+        """A VST2 saved state's own record of the plugin that wrote it.
 
         Kept apart from :meth:`set_unique_id` and :meth:`set_layout` because the
-        two records disagree in real sets (see :class:`Preset`); a policy that
+        two records disagree in real sets (see :class:`SavedState`); a policy that
         means both says so by calling both.
         """
         self._only(PluginKind.VST)
@@ -705,6 +711,8 @@ class PluginDevice:
         ):
             if value is not None:
                 self._require(tag, preset).set(Attr.VALUE, str(value))
+
+    set_preset_record = set_saved_state_record
 
     def set_reference(self, target: pathlib.Path) -> None:
         """Point the device at ``target``, in whichever form the set already spells its file.
@@ -757,7 +765,7 @@ class PluginDevice:
 
     # -- writes, another format --
 
-    def rewrite(self, kind: PluginKind, identity: Identity, preset: Preset) -> None:
+    def rewrite(self, kind: PluginKind, identity: Identity, preset: SavedState) -> None:
         """Rebuild this device as ``kind`` from a description, in place.
 
         ``identity`` and ``preset`` say what the device is and holds afterwards,

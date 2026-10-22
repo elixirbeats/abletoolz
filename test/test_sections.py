@@ -34,11 +34,29 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from abletoolz.formats import live_document
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef
-from abletoolz.live_set.sections import SectionBoundary, SectionMode
+from abletoolz.live_set.sections import SectionBoundary, SectionMode, arrangement_events, clear_span
 
 SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
+
+
+def test_span_mechanics_work_with_xml_without_a_track_domain_object() -> None:
+    root = live_document.read(SKELETONS / "11.0.12.als")
+    track = next(
+        element
+        for element in root.iter("MidiTrack")
+        if element.find("DeviceChain/MainSequencer/ClipTimeable/ArrangerAutomation/Events/MidiClip") is not None
+    )
+    events = arrangement_events(track, "MidiTrack", (11, 0, 12))
+    assert events is not None
+    before = ET.tostring(events.element)
+    with pytest.raises(ValueError, match="track 'Section test'"):
+        clear_span(events, (0.0, 1000000.0), replace=False, track_name="Section test")
+    assert ET.tostring(events.element) == before
+    clear_span(events, (0.0, 1000000.0), replace=True, track_name="Section test")
+    assert not list(events.clips())
 
 
 def make_set(key: str, tmp_path: pathlib.Path) -> AbletonSet:
@@ -237,6 +255,7 @@ def test_place_clip_accepts_a_session_donor(tmp_path: pathlib.Path) -> None:
     ableton_set = make_set("10.0.1", tmp_path)
     donor = next(clip for clip in ableton_set.clips.midi() if clip.location is ClipLocation.SESSION)
     placed = ableton_set.clips.place_clip(donor, track=str(donor.track_name), at=2000.0, length=16.0)
+    assert isinstance(placed, MidiClipRef)
     assert placed.start_time == 2000.0
     assert placed.location is ClipLocation.ARRANGEMENT
     assert [note.pitch for note in placed.notes] == [note.pitch for note in donor.notes]

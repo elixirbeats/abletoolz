@@ -237,6 +237,30 @@
       "sha256": "e921cd053bd0d5b467f540cf6fee4b5ab78c1796103355661fbbc02ec83fd787",
       "source_set_sha256": "b85d10e0d76fc0b7fb00ca59f4e4812ad8b97ad3bd87edd799c0fe02498bc982",
       "role": "Historical ALS-extracted source bank with revision21 and revision22 records"
+    },
+    {
+      "file": "trash2-pre-center.state",
+      "sha256": "a898fcdcefc07835b04a66c869e5a02c0f324513387bd61086023ef56e4572f4",
+      "source": "C:\\repo\\tmp\\abletoolz\\plugin-map-audio-20261022\\pre_gain_conditioned\\native_3.state",
+      "role": "Native VST2 setter at 0.6 after an opposite-value reset; zero-crossing precision holdout",
+      "source_wrapper_sha256": "3ae8596858aaf39bbc1f8f1a48e24ee8191aa4960813b3420dcf6abee55ad687",
+      "binary_sha256": "f5d41f22665691526c988eb09dc6551262143412fe5d8a17078d0abe47d02673"
+    },
+    {
+      "file": "trash2-pre-next.state",
+      "sha256": "c3ba492ed67d84c8417c015453380d82eedd04f600ac352db0eece78e020f4a7",
+      "source": "C:\\repo\\tmp\\abletoolz\\plugin-map-audio-20261022\\pre_gain_conditioned\\native_4.state",
+      "role": "Native VST2 setter at 0.6000001 after an opposite-value reset; adjacent float input holdout",
+      "source_wrapper_sha256": "4c7647c383547018f20e8f304aabdf96a35f2665e45d99b5fe1243845856f5ad",
+      "binary_sha256": "f5d41f22665691526c988eb09dc6551262143412fe5d8a17078d0abe47d02673"
+    },
+    {
+      "file": "trash2-loaded-name.state",
+      "sha256": "c7b988e5e4b8c457c2daa66911988907cca8c0c0294dcd688c9ffb6faa4b590c",
+      "source": "C:\\repo\\tmp\\abletoolz\\plugin-map-audio-20261022\\trash0_mapped\\restored.state",
+      "role": "Native FXB reload populates preset-name metadata outside the editable template; expected guarded refusal",
+      "source_wrapper_sha256": "0d3ab80cc19329600a9968d66f5fb5737794b94645e6c871545b2317b68dd950",
+      "binary_sha256": "f5d41f22665691526c988eb09dc6551262143412fe5d8a17078d0abe47d02673"
     }
   ]
 }

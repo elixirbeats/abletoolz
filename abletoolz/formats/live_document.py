@@ -112,7 +112,10 @@ def parse(data: bytes) -> ET.Element:
         raise FormatError(f"not a Live document: it opens with {magic.hex()}, neither gzip nor XML")
     if not xml:
         raise FormatError("an empty gzip stream: the file is truncated or corrupt")
-    return ET.fromstring(xml)
+    try:
+        return ET.fromstring(xml)
+    except ET.ParseError as error:
+        raise FormatError(f"malformed XML in Live document: {error}") from error
 
 
 def encode(root: ET.Element) -> bytes:

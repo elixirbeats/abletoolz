@@ -74,6 +74,21 @@ def test_a_read_error_names_the_file(tmp_path: pathlib.Path) -> None:
         live_document.read(path)
 
 
+@pytest.mark.parametrize("compressed", [False, True])
+def test_malformed_xml_uses_the_format_error_contract_and_names_its_file(
+    tmp_path: pathlib.Path, compressed: bool
+) -> None:
+    xml = b'<?xml version="1.0"?><Ableton>'
+    data = gzip.compress(xml) if compressed else xml
+    with pytest.raises(FormatError, match="malformed XML") as raised:
+        live_document.parse(data)
+    assert isinstance(raised.value.__cause__, ET.ParseError)
+    path = tmp_path / "malformed.als"
+    path.write_bytes(data)
+    with pytest.raises(FormatError, match="malformed.als.*malformed XML"):
+        live_document.read(path)
+
+
 def test_a_write_leaves_no_temp_file_behind(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "out.als"
     live_document.write(path, live_document.encode(live_document.read(LIVE_WRITTEN[0])))

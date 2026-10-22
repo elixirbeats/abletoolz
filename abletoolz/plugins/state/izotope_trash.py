@@ -17,8 +17,17 @@ from pathlib import Path
 from pydantic import TypeAdapter
 
 from abletoolz.plugins.state import StateTransformError
-from abletoolz.plugins.state.controls import Control, ControlMap
-from abletoolz.plugins.state.model import FieldEncoding, FieldKey, MappedState, StateField, StateMap, StateValue
+from abletoolz.plugins.state.controls import Parameter, ParameterMap
+from abletoolz.plugins.state.model import (
+    EnumValue,
+    FieldEncoding,
+    FieldKey,
+    FixedByteMap,
+    MappedState,
+    StateField,
+    StateValue,
+)
+from abletoolz.plugins.state.plugin_map import PluginMap, StateFormat
 
 MAGIC = 0x003A2B11
 REVISION = 21
@@ -26,10 +35,18 @@ LENGTH = 1117
 PROGRAMS = 16
 MAX_NAME = 4096
 PROGRAM_LENGTHS = {21: 1117, 22: 1121}
+STATE_FORMAT = "izotope.trash1.bank/revisions21-22"
 
 
 # Retained for callers of the first research codec.
 Field = StateField
+
+
+@cache
+def algorithms() -> tuple[EnumValue, ...]:
+    """Names and IDs from the fingerprinted original engine's descriptor table."""
+    path = Path(__file__).with_name("data") / "trash1-algorithms.json"
+    return TypeAdapter(tuple[EnumValue, ...]).validate_json(path.read_bytes(), strict=True)
 
 
 @cache
@@ -64,16 +81,17 @@ def fields() -> tuple[Field, ...]:
             kind = FieldEncoding.UINT32_LE
         else:
             kind = FieldEncoding.BOOL8
-        result.append(Field(ident, name, kind, offset, element, parameter))
+        choices = algorithms() if name.startswith("Trash:") and name.endswith(" Algorithm") else ()
+        result.append(Field(ident, name, kind, offset, element, parameter, choices))
     if [field.id for field in result] != list(range(296)):
         raise ValueError("Incomplete or ambiguous Trash 1 field inventory")
     return tuple(result)
 
 
 @cache
-def state_map() -> StateMap:
+def byte_map() -> FixedByteMap:
     """The complete revision-21 storage map; it makes no version-conversion claim."""
-    return StateMap("izotope.trash1.program/revision21", LENGTH + 4, fields())
+    return FixedByteMap("izotope.trash1.program/revision21", LENGTH + 4, fields())
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,15 +100,20 @@ class _ControlData:
     evidence_sha256: str
     scope: str
     positions: tuple[float, ...]
-    controls: tuple[Control, ...]
+    controls: tuple[Parameter, ...]
 
 
 @cache
-def control_map() -> ControlMap:
+def parameter_map() -> ParameterMap:
     """Public-to-saved bindings with sampled values and bounded native-check status."""
     path = Path(__file__).with_name("data") / "trash1-controls.json"
     data = TypeAdapter(_ControlData).validate_json(path.read_bytes(), strict=True)
-    return ControlMap(state_map(), data.controls, data.positions, data.source_sha256, data.evidence_sha256, data.scope)
+    return ParameterMap(byte_map(), data.controls, data.positions, data.source_sha256, data.evidence_sha256, data.scope)
+
+
+# Compatibility for the original research API.
+state_map = byte_map
+control_map = parameter_map
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +134,7 @@ class Program:
     def settings(self) -> MappedState:
         if self.revision != REVISION:
             raise StateTransformError("Revision 22 fields are unmapped; its complete state is preserved")
-        return state_map().decode(self.state)
+        return byte_map().decode(self.state)
 
     def with_values(self, changes: Mapping[FieldKey, StateValue]) -> Program:
         return replace(self, state=self.settings.with_values(changes).encode())
@@ -152,6 +175,31 @@ class Bank:
         programs = list(self.programs)
         programs[index] = programs[index].with_values(changes)
         return Bank(tuple(programs))
+
+
+@cache
+def plugin_map() -> PluginMap[Bank]:
+    """Bank framing and revision-21 knowledge; revision-22 fields stay opaque."""
+    parameters = parameter_map()
+    return PluginMap(
+        id="izotope.trash1",
+        name="iZotope Trash",
+        version=None,
+        scope="Original VST2 build fingerprint; sixteen-program banks; product release unknown",
+        binary_sha256=(parameters.source_sha256,),
+        formats=(
+            StateFormat(
+                id=STATE_FORMAT,
+                decoder=Bank.parse,
+                scope=(
+                    "Revision-21/22 bank framing is preserved. The byte map addresses each revision-21 program, "
+                    "not absolute bank offsets. Revision-22 fields are opaque. The host retains program selection."
+                ),
+                byte_maps=(byte_map(),),
+                parameter_maps=(parameters,),
+            ),
+        ),
+    )
 
 
 def _program(index: int) -> int:

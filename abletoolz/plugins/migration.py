@@ -67,7 +67,7 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
         raise MigrationError("Expected a PluginDevice around the selected plugin")
     plugin = devices.parents[info]
     try:
-        identity, reference, preset = found.identity, found.reference, found.preset
+        identity, reference, preset = found.identity, found.reference, found.saved_state
     except ValueError as error:
         raise MigrationError(str(error)) from error
     if identity.name != migration.source_name or identity.unique_id != migration.source_unique_id:
@@ -113,7 +113,7 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
         staged.set_name(target.name)
         staged.set_unique_id(target.unique_id)
         staged.set_layout(parameters=target.parameter_count, flags=target.flags)
-        staged.set_preset_record(unique_id=target.unique_id, parameters=target.parameter_count)
+        staged.set_saved_state_record(unique_id=target.unique_id, parameters=target.parameter_count)
         staged.set_state(migration.state)
     except ValueError as error:
         raise MigrationError(str(error)) from error

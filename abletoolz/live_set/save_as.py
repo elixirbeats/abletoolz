@@ -17,7 +17,9 @@ sets (:mod:`abletoolz.schema.structure`); a save to an older release:
 
 Nothing here knows any one feature: what is newer comes from the measured
 grammar, so a new Live release needs a new census, not new code. Every removal
-and replacement is in the report and logged as a warning.
+and replacement is in the preview report and logged as a warning. Publication
+refuses unresolved target-required structure, including incomplete stand-in
+racks, until a measured target shape is available.
 
 Saving to a newer release is Live's job: it opens the set and saves it.
 """
@@ -47,6 +49,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Added",
+    "IncompleteTarget",
     "Moved",
     "NewerTarget",
     "Removed",
@@ -207,8 +210,21 @@ class SaveAsReport:
     """``(parent, child, count)``: children the target writes under every such parent and the set lacks."""
 
 
+class IncompleteTarget(ValueError):
+    """A conversion preview still lacks structure required by its target schema."""
+
+    def __init__(self, report: SaveAsReport) -> None:
+        self.report = report
+        unresolved = [f"{parent}/{child}" for parent, child, _ in report.missing]
+        unresolved.extend(f"{item.rack} (unmeasured stand-in rack)" for item in report.replaced)
+        details = ", ".join(unresolved)
+        super().__init__(
+            f"Cannot write Live {_version_text(report.target.release)}: unresolved required structure: {details}"
+        )
+
+
 def convert(root: ET.Element, source: Version, target: SaveTarget) -> tuple[ET.Element, SaveAsReport]:
-    """A copy of ``root`` written for ``target``, and what changed on the way. ``root`` is not touched."""
+    """Preview a conversion on a copy; ``report.missing`` records what still prevents publication."""
     if target.release > source:
         raise NewerTarget(
             f"the set is from Live {_version_text(source)}; open it in Live {_version_text(target.release)} "
@@ -242,6 +258,8 @@ def write_for(
     The set in memory and the file it came from stay as they were.
     """
     converted, report = convert(live_set.root, live_set.version_tuple, target)
+    if report.missing or report.replaced:
+        raise IncompleteTarget(report)
     document = live_document.encode(converted)
     folder = live_set.path.parent if output_dir is None else output_dir
     folder.mkdir(parents=True, exist_ok=True)

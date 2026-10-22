@@ -47,14 +47,16 @@ A VST3 preset holds two blobs, not one, and the second is a per-plugin fact
 rather than a formality. :class:`ControllerState` and its three shapes --
 :class:`NoControllerState`, :class:`ConstantControllerState`, and the
 FFBS-generation form in :mod:`abletoolz.plugins.state.fabfilter` -- are what a
-:class:`~abletoolz.plugins.container.format_translation.Recipe` declares
+:class:`~abletoolz.plugins.container.format_translation.ConversionRule` declares
 about it.
 
 Where the rest of the axis lives
 --------------------------------
-``model`` holds named, typed saved-field maps and lossless edits. ``controls``
-holds measured knob bindings and curves. Vendor codecs compose those models
-with their own framing and version guards. Neither a codec nor a control map
+``model`` holds fixed-offset byte maps and lossless edits. ``controls``
+holds parameter maps, measured bindings and curves. Vendor codecs compose those models
+with their own framing and version guards. ``plugin_map`` collects a plugin/version's
+formats, codecs and maps without depending on a host or a converter.
+Neither a codec nor a parameter map
 registers a conversion: that remains an explicit source-to-target policy here.
 
 The containers behind the seam are one module per *family* rather than one per
@@ -100,7 +102,7 @@ CUSTOM_PREFIX = "custom:"
 
 
 class StateTransformError(ValueError):
-    """A ``state:`` naming a per-plugin transform nothing has registered."""
+    """An invalid or unsupported saved state or state operation."""
 
 
 class StateTransform(enum.StrEnum):
