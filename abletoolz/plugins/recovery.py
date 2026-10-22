@@ -12,7 +12,7 @@ from xml.etree import ElementTree as ET
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from abletoolz.formats import hex_text, live_document, path_data
-from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, set_supports
+from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind
 from abletoolz.plugins.container.format_translation import TranslationTarget, translate_device
 from abletoolz.plugins.recovery_routes import (
     PreparedState,
@@ -23,9 +23,8 @@ from abletoolz.plugins.recovery_routes import (
     UidFields,
     fingerprint_binary,
 )
-from abletoolz.plugins.repair import parameter_translation_required
+from abletoolz.plugins.repair import needs_parameter_mapper
 from abletoolz.plugins.state import ConstantControllerState
-from abletoolz.schema.versioning import parse_creator
 
 
 class RecoveryError(ValueError):
@@ -140,9 +139,8 @@ def _check_path(info: ET.Element) -> None:
     raise RecoveryError("Expected one VST2 Path or Dir/FileName representation")
 
 
-def _validate_device(
-    info: ET.Element, target: RecoveryTarget, parents: Mapping[ET.Element, ET.Element]
-) -> tuple[str, int]:
+def _validate_device(device: PluginDevice, target: RecoveryTarget) -> tuple[str, int]:
+    info = device.info
     route = target.route
     if _uid(info, "UniqueId") != route.unique_id:
         raise RecoveryError("Source identity differs from the measured recovery route")
@@ -173,16 +171,13 @@ def _validate_device(
         raise RecoveryError("Malformed saved plugin buffer") from error
     if not raw:
         raise RecoveryError("Saved plugin buffer is empty")
-    description = parents.get(info)
-    owner = parents.get(description) if description is not None else None
-    if description is None or description.tag != "PluginDesc" or owner is None or owner.tag != "PluginDevice":
+    if device.owner is None:
         raise RecoveryError("Expected a PluginDevice around the selected VST2 reference")
-    parameters = owner.find("ParameterList")
-    if parameters is not None:
-        for parameter in parameters:
-            index = _integer(parameter, "ParameterId")
-            if index != -1 and not 0 <= index < route.parameter_count:
-                raise RecoveryError("Configured control is outside the measured public parameter layout")
+    controls = device.controls
+    if controls.malformed:
+        raise RecoveryError("Configured control has no readable parameter id")
+    if any(not 0 <= index < route.parameter_count for index in controls.configured):
+        raise RecoveryError("Configured control is outside the measured public parameter layout")
     return _digest(raw), program
 
 
@@ -201,24 +196,16 @@ def _location(info: ET.Element, parents: Mapping[ET.Element, ET.Element]) -> tup
     return track, device
 
 
-def _device_plan(
-    info: ET.Element,
-    ordinal: int,
-    targets: Sequence[RecoveryTarget],
-    parents: Mapping[ET.Element, ET.Element],
-    root: ET.Element,
-    referenced_ids: frozenset[str],
-) -> DeviceRecovery:
-    name = ""
-    element = info.find("PlugName" if info.tag == "VstPluginInfo" else "Name")
-    if element is not None:
-        name = element.get("Value", "")
-    track, device = _location(info, parents)
+def _device_plan(device: PluginDevice, targets: Sequence[RecoveryTarget]) -> DeviceRecovery:
+    info = device.info
+    assert device.document is not None and device.ordinal is not None  # read through PluginDevices
+    name = device.identity.name or ""
+    track, plugin_device = _location(info, device.document.parents)
     base = DeviceRecovery(
-        device=ordinal,
+        device=device.ordinal,
         source_name=name,
         track=track,
-        plugin_device_id=device,
+        plugin_device_id=plugin_device,
         status=RecoveryStatus.NOT_APPLICABLE,
         reason="No wrapped VST2 reference to recover",
     )
@@ -237,7 +224,7 @@ def _device_plan(
         if len(matching) != 1:
             raise RecoveryError("Wrapper name and plugin identity do not select one measured route")
         target = matching[0]
-        digest, program = _validate_device(info, target, parents)
+        digest, program = _validate_device(device, target)
     except RecoveryError as error:
         return base.model_copy(update={"status": RecoveryStatus.INVALID_DEVICE, "reason": str(error)})
     updates: dict[str, object] = {
@@ -261,11 +248,7 @@ def _device_plan(
         )
     if target.route.state_mode == "prepared_vst3":
         try:
-            supported = set_supports(
-                PluginKind.VST3,
-                parse_creator(root.get("Creator", "")),
-                minor_version=root.get("MinorVersion", ""),
-            )
+            supported = device.document.supports(PluginKind.VST3)
         except ValueError as error:
             return base.model_copy(update=updates | {"status": RecoveryStatus.INVALID_DEVICE, "reason": str(error)})
         if not supported:
@@ -274,9 +257,7 @@ def _device_plan(
                 | {"status": RecoveryStatus.SET_TOO_OLD, "reason": "Document version cannot hold VST3 devices"}
             )
     if target.route.state_mode != "reference":
-        description = parents.get(info)
-        owner = parents.get(description) if description is not None else None
-        if parameter_translation_required(info, owner, referenced_ids):
+        if needs_parameter_mapper(device):
             return base.model_copy(
                 update=updates
                 | {
@@ -331,10 +312,6 @@ def plan_recovery(source: pathlib.Path, targets: Sequence[RecoveryTarget]) -> Re
     source = source.resolve()
     data = source.read_bytes()
     root = live_document.parse(data)
-    parents = {child: parent for parent in root.iter() for child in parent}
-    referenced_ids = frozenset(
-        element.attrib["Value"] for element in root.iter("PointeeId") if "Value" in element.attrib
-    )
     project = next((folder for folder in source.parents if (folder / "Ableton Project Info").is_dir()), None)
     relative = sum(element.find("RelativePathType[@Value='3']") is not None for element in root.iter("FileRef"))
     return RecoveryPlan(
@@ -343,10 +320,7 @@ def plan_recovery(source: pathlib.Path, targets: Sequence[RecoveryTarget]) -> Re
         document_sha256=_digest(ET.tostring(root)),
         source_project=project,
         project_relative_file_refs=relative,
-        devices=tuple(
-            _device_plan(info, ordinal, targets, parents, root, referenced_ids)
-            for ordinal, info in enumerate(_infos(root))
-        ),
+        devices=tuple(_device_plan(device, targets) for device in PluginDevices(root)),
     )
 
 

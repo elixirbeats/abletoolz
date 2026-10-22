@@ -193,6 +193,59 @@ def test_a_compact_document_writes_hex_without_indentation() -> None:
     assert buffer.text == "\nABCD\n"
 
 
+# -- controls ---------------------------------------------------------------
+
+
+def test_placeholders_are_not_controls_in_use() -> None:
+    """Live writes a ParameterList of unassigned placeholders for every plugin device."""
+    devices = PluginDevices(load("11.3.42"))
+    device = next(device for device in devices if device.kind is PluginKind.VST)
+    assert device.owner is not None and device.owner.tag == "PluginDevice"
+    controls = device.controls
+    assert controls.owner_known
+    assert controls.configured == ()
+    assert controls.malformed == 0
+    assert not controls.mapped
+    assert controls.targets
+    assert not controls.referenced
+    assert not controls.in_use
+
+
+def child(parent: ET.Element, path: str) -> ET.Element:
+    found = parent.find(path)
+    assert found is not None, path
+    return found
+
+
+def test_bound_mapped_and_referenced_parameters_are_in_use() -> None:
+    root = load("11.3.42")
+    device = next(device for device in PluginDevices(root) if device.kind is PluginKind.VST)
+    owner = device.owner
+    assert owner is not None and device.ordinal is not None
+    parameter = child(owner, "ParameterList")[0]  # the fixture carries placeholders
+    child(parameter, "ParameterId").set("Value", "7")
+    assert device.controls.configured == (7,)
+    ET.SubElement(child(parameter, "ParameterValue"), "KeyMidi")
+    assert device.controls.mapped
+    target_id = child(parameter, ".//AutomationTarget").get("Id", "")
+    ET.SubElement(root, "PointeeId", Value=target_id)
+    # The referenced ids are read once per document, so a new pointer needs a new read.
+    assert PluginDevices(root)[device.ordinal].controls.referenced == {target_id}
+    assert device.controls.in_use
+
+
+def test_an_audio_unit_is_owned_by_its_own_device_element() -> None:
+    device = next(iter(PluginDevices(load("11.3.41"))))
+    assert device.owner is not None and device.owner.tag == "AuPluginDevice"
+    assert device.controls.owner_known
+
+
+def test_a_device_read_outside_its_document_has_no_owner_to_ask() -> None:
+    info = ET.fromstring('<VstPluginInfo><PlugName Value="x" /></VstPluginInfo>')
+    with pytest.raises(ValueError, match="need its document"):
+        _ = PluginDevice(info).controls
+
+
 # -- the document -----------------------------------------------------------
 
 

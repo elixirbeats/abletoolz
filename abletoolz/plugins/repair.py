@@ -272,36 +272,15 @@ def _suggestion_with_state(source_name: str, target_name: str) -> str:
 # -- whole set --------------------------------------------------------------
 
 
-def parameter_translation_required(
-    info: ET.Element,
-    owner: ET.Element | None,
-    referenced_ids: frozenset[str],
-) -> bool:
-    """Whether changing plugin format needs a mapper for saved control IDs.
+def needs_parameter_mapper(device: PluginDevice) -> bool:
+    """Whether changing this device's plugin format would orphan controls it has in use.
 
-    ``owner`` is the surrounding PluginDevice. ``referenced_ids`` contains the
-    document's PointeeId values, including references outside that device.
+    Parameter indices are the plugin's own, and two formats of one plugin do
+    not number them alike, so a bound, mapped, automated or stored parameter
+    needs a mapper nothing here has yet.
     """
-    if owner is None or owner.tag != "PluginDevice":
-        return True
-    if any(len(settings) for settings in info.findall("Preset/*/ParameterSettings")):
-        return True
-    parameters = owner.find("ParameterList")
-    if parameters is None:
-        return False
-    if parameters.find(".//KeyMidi") is not None:
-        return True
-    targets: set[str] = set()
-    for parameter in parameters:
-        parameter_id = parameter.find("ParameterId")
-        if parameter_id is None or parameter_id.get("Value") != "-1":
-            return True
-        targets.update(
-            element.attrib["Id"]
-            for element in parameter.iter()
-            if element.tag in ("AutomationTarget", "ModulationTarget") and "Id" in element.attrib
-        )
-    return not targets.isdisjoint(referenced_ids)
+    controls = device.controls
+    return not controls.owner_known or device.preset.has_parameter_settings or controls.in_use
 
 
 def repair_set(
@@ -338,10 +317,6 @@ def repair_set(
     version = live_set.version_tuple
     known_names = uid_lookup.names() if uid_lookup is not None else frozenset[str]()
     actions: list[DeviceRepair] = []
-    parents = {child: parent for parent in live_set.root.iter() for child in parent}
-    referenced_ids = frozenset(
-        element.attrib["Value"] for element in live_set.root.iter("PointeeId") if "Value" in element.attrib
-    )
 
     for device in PluginDevices(live_set.root):
         info, source = device.info, device.kind
@@ -409,8 +384,7 @@ def repair_set(
             )
             continue
 
-        owner = parents.get(parents[info]) if info in parents else None
-        if source is not target.to_format and parameter_translation_required(info, owner, referenced_ids):
+        if source is not target.to_format and needs_parameter_mapper(device):
             actions.append(
                 DeviceRepair(
                     track,

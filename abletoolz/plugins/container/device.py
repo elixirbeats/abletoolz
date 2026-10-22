@@ -21,6 +21,9 @@ builds a new element from this description and is
 :class:`PluginDevices` is every plugin device of one document in document
 order. The position in that order is the device's handle across a plan and
 the apply that follows it, so it has to be the same enumeration everywhere.
+It also holds what a single element cannot know: which ``PluginDevice`` owns
+an info element, and which automation targets the rest of the document points
+at, which is what :class:`Controls` is read from.
 """
 
 from __future__ import annotations
@@ -77,6 +80,9 @@ _NAME_TAGS: dict[PluginKind, str] = {
 # Apple's component types, as the uint32 an AuPluginInfo stores them as.
 _AU_INSTRUMENT = int.from_bytes(b"aumu", "big")
 _AU_EFFECTS = frozenset(int.from_bytes(code, "big") for code in (b"aufx", b"aumf"))
+# The device element that owns a PluginDesc, per format.
+_OWNER_TAGS = frozenset({Tag.PLUGIN_DEVICE, Tag.AU_PLUGIN_DEVICE})
+_UNASSIGNED_PARAMETER = -1
 
 
 def is_info(element: ET.Element) -> bool:
@@ -162,6 +168,31 @@ class Preset:
     program_count: int | None
     program_number: int | None
     has_parameter_settings: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Controls:
+    """The controls a plugin device has in use, read off its ``ParameterList``.
+
+    These are the facts a format change could orphan: a parameter Live bound to
+    a plugin parameter index, a MIDI mapping, and an automation or modulation
+    target the rest of the set points at. ``owner_known`` is False when the
+    info element sits in no ``PluginDevice``, which is a document nothing here
+    can say anything about. ``malformed`` counts parameters whose id cannot be
+    read, which every policy treats as configured.
+    """
+
+    owner_known: bool
+    configured: tuple[int, ...]
+    malformed: int
+    mapped: bool
+    targets: frozenset[str]
+    referenced: frozenset[str]
+
+    @property
+    def in_use(self) -> bool:
+        """Whether anything binds to this device's parameters."""
+        return bool(self.configured or self.malformed or self.mapped or self.referenced)
 
 
 # -- reading ----------------------------------------------------------------
@@ -384,16 +415,19 @@ class PluginDevice:
     """One plugin device, read from and written to its info element in place.
 
     Every property reads the element afresh, so what a caller sees is what the
-    element holds now, including its own writes. ``ordinal`` is the device's
-    position in :class:`PluginDevices` when it came from one.
+    element holds now, including its own writes. ``ordinal`` and ``document``
+    are set when the device came from :class:`PluginDevices`; the facts that
+    need the rest of the document -- the owner and the controls -- are only
+    readable then.
     """
 
-    __slots__ = ("info", "kind", "ordinal")
+    __slots__ = ("document", "info", "kind", "ordinal")
 
-    def __init__(self, info: ET.Element, *, ordinal: int | None = None) -> None:
+    def __init__(self, info: ET.Element, *, ordinal: int | None = None, document: PluginDevices | None = None) -> None:
         self.kind = kind_of(info)
         self.info = info
         self.ordinal = ordinal
+        self.document = document
 
     @property
     def identity(self) -> Identity:
@@ -436,6 +470,50 @@ class PluginDevice:
         if self.kind is not PluginKind.VST:
             return True
         return self.info.find(Tag.CATEGORY) is not None and self._preset() is not None
+
+    @property
+    def owner(self) -> ET.Element | None:
+        """The ``PluginDevice`` holding this device, or None when nothing well-formed does."""
+        parents = self._document().parents
+        description = parents.get(self.info)
+        if description is None or description.tag != Tag.PLUGIN_DESC:
+            return None
+        owner = parents.get(description)
+        return owner if owner is not None and owner.tag in _OWNER_TAGS else None
+
+    @property
+    def controls(self) -> Controls:
+        owner = self.owner
+        parameters = None if owner is None else owner.find(Tag.PARAMETER_LIST)
+        if parameters is None:
+            return Controls(owner is not None, (), 0, False, frozenset(), frozenset())
+        configured: list[int] = []
+        malformed = 0
+        targets: set[str] = set()
+        for parameter in parameters:
+            index = _int(parameter, Tag.PARAMETER_ID)
+            if index is None:
+                malformed += 1
+            elif index != _UNASSIGNED_PARAMETER:
+                configured.append(index)
+            targets.update(
+                element.attrib[Attr.ID]
+                for element in parameter.iter()
+                if element.tag in (Tag.AUTOMATION_TARGET, Tag.MODULATION_TARGET) and Attr.ID in element.attrib
+            )
+        return Controls(
+            owner_known=True,
+            configured=tuple(configured),
+            malformed=malformed,
+            mapped=parameters.find(f".//{Tag.KEY_MIDI}") is not None,
+            targets=frozenset(targets),
+            referenced=frozenset(targets) & self._document().referenced_ids,
+        )
+
+    def _document(self) -> PluginDevices:
+        if self.document is None:
+            raise ValueError("the owner and the controls of a device need its document; read it through PluginDevices")
+        return self.document
 
     # -- writes, same format --
 
@@ -547,6 +625,10 @@ class PluginDevices:
     The order is the one thing a plan and its apply have to agree on, so it is
     read once here and nowhere else: every info element of every format, as
     ``root.iter()`` meets them.
+
+    The parent map and the referenced ids are read once too. A structural edit
+    elsewhere in the document -- an element replaced or moved -- needs a new
+    instance; an edit inside an info element does not.
     """
 
     def __init__(self, root: ET.Element) -> None:
@@ -558,10 +640,22 @@ class PluginDevices:
 
     def __iter__(self) -> Iterator[PluginDevice]:
         for ordinal, info in enumerate(self._infos):
-            yield PluginDevice(info, ordinal=ordinal)
+            yield PluginDevice(info, ordinal=ordinal, document=self)
 
     def __getitem__(self, ordinal: int) -> PluginDevice:
-        return PluginDevice(self._infos[ordinal], ordinal=ordinal)
+        return PluginDevice(self._infos[ordinal], ordinal=ordinal, document=self)
+
+    @functools.cached_property
+    def parents(self) -> dict[ET.Element, ET.Element]:
+        """Every element's parent; ElementTree keeps no upward link of its own."""
+        return {child: parent for parent in self.root.iter() for child in parent}
+
+    @functools.cached_property
+    def referenced_ids(self) -> frozenset[str]:
+        """Every automation or modulation target id something in the document points at."""
+        return frozenset(
+            element.attrib[Attr.VALUE] for element in self.root.iter(Tag.POINTEE_ID) if Attr.VALUE in element.attrib
+        )
 
     @functools.cached_property
     def version(self) -> Version:

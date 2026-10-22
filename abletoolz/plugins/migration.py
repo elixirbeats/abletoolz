@@ -66,17 +66,14 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
     at zero. Unassigned Live parameter placeholders are retained. Configured
     parameters or references to placeholders require a parameter mapper first.
     """
-    infos = [found.info for found in PluginDevices(root)]
-    if not 0 <= device < len(infos) or infos[device].tag != "VstPluginInfo":
+    devices = PluginDevices(root)
+    if not 0 <= device < len(devices) or devices[device].info.tag != "VstPluginInfo":
         raise MigrationError("Selected device is not a VST2 plugin")
-    info = infos[device]
-    parents = {child: parent for parent in root.iter() for child in parent}
-    plugin = parents.get(info)
-    if plugin is None or plugin.tag != "PluginDesc":
-        raise MigrationError("Expected a PluginDesc around the selected plugin")
-    owner = parents.get(plugin)
-    if owner is None or owner.tag != "PluginDevice":
+    found = devices[device]
+    info = found.info
+    if found.owner is None:
         raise MigrationError("Expected a PluginDevice around the selected plugin")
+    plugin = devices.parents[info]
     name = _required(info, "PlugName").get("Value")
     if name != migration.source_name or _required(info, "UniqueId").get("Value") != str(migration.source_unique_id):
         raise MigrationError("Source plugin identity does not match the prepared migration")
@@ -90,8 +87,7 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
         raise MigrationError("Preset identity disagrees with its source plugin")
     if _required(preset, "ParameterCount").get("Value") != _required(info, "NumberOfParameters").get("Value"):
         raise MigrationError("Preset parameter count disagrees with its source plugin")
-    settings = preset.find("ParameterSettings")
-    if settings is not None and len(settings):
+    if found.preset.has_parameter_settings:
         raise MigrationError("Stored preset parameters require an explicit parameter translation")
     source = _required(preset, "Buffer")
     source_hash = hashlib.sha256(hex_text.decode(source.text)).hexdigest()
@@ -105,20 +101,12 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
     if not migration.state or len(migration.state) > 32 * 1024 * 1024:
         raise MigrationError("Expected a bounded, nonempty bare native chunk")
 
-    parameters = owner.find("ParameterList")
-    targets: set[str] = set()
-    if parameters is not None:
-        for parameter in parameters:
-            if _required(parameter, "ParameterId").get("Value") != "-1":
-                raise MigrationError("Configured plugin parameters require an explicit parameter translation")
-            if parameter.find(".//KeyMidi") is not None:
-                raise MigrationError("Mapped plugin controls require an explicit parameter translation")
-            targets.update(
-                element.attrib["Id"]
-                for element in parameter.iter()
-                if element.tag in ("AutomationTarget", "ModulationTarget") and "Id" in element.attrib
-            )
-    if any(element.tag == "PointeeId" and element.get("Value") in targets for element in root.iter()):
+    controls = found.controls
+    if controls.configured or controls.malformed:
+        raise MigrationError("Configured plugin parameters require an explicit parameter translation")
+    if controls.mapped:
+        raise MigrationError("Mapped plugin controls require an explicit parameter translation")
+    if controls.referenced:
         raise MigrationError("Referenced plugin parameters require an explicit parameter translation")
 
     replacement = copy.deepcopy(info)

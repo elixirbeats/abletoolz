@@ -137,6 +137,8 @@ class Tag(enum.StrEnum):
     # Hosted plugins.
     PLUGIN_DEVICE = "PluginDevice"
     AU_PLUGIN_DEVICE = "AuPluginDevice"
+    PARAMETER_LIST = "ParameterList"
+    PARAMETER_ID = "ParameterId"
     PLUGIN_DESC = "PluginDesc"
     VST_PLUGIN_INFO = "VstPluginInfo"
     VST3_PLUGIN_INFO = "Vst3PluginInfo"
