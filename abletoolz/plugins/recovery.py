@@ -12,13 +12,8 @@ from xml.etree import ElementTree as ET
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from abletoolz.formats import hex_text, live_document, path_data
-from abletoolz.plugins.container.format_translation import (
-    TranslationTarget,
-    is_translatable,
-    set_supports,
-    translate_device,
-)
-from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, set_supports
+from abletoolz.plugins.container.format_translation import TranslationTarget, translate_device
 from abletoolz.plugins.recovery_routes import (
     PreparedState,
     RecoveryTarget,
@@ -129,7 +124,7 @@ def _uid(parent: ET.Element, path: str) -> int:
 
 
 def _infos(root: ET.Element) -> list[ET.Element]:
-    return [element for element in root.iter() if element.tag in ("VstPluginInfo", "Vst3PluginInfo")]
+    return [device.info for device in PluginDevices(root)]
 
 
 def _check_path(info: ET.Element) -> None:
@@ -290,7 +285,7 @@ def _device_plan(
                 }
             )
     if target.route.state_mode == "prepared_vst3":
-        if not is_translatable(info):
+        if not PluginDevice(info).complete:
             return base.model_copy(
                 update=updates
                 | {

@@ -45,12 +45,13 @@ owns it, so a reader arriving at a name can tell which question it answers.
 """
 
 from abletoolz.plugins.config import AbletoolzConfig, load_config
+from abletoolz.plugins.container.device import PluginKind
 from abletoolz.plugins.identity.mapping import (
     default_suggestions_path,
     render_targets_yaml,
     survey_machine,
 )
-from abletoolz.plugins.parsers.base import PluginAnalysis, PluginData, PluginKind
+from abletoolz.plugins.parsers.base import PluginAnalysis, PluginData
 from abletoolz.plugins.parsers.registry import analyze_plugin, fix_plugin, get_all_parsers
 
 __all__ = [

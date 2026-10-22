@@ -14,9 +14,9 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
-from abletoolz.ansi import RST, C, G, R, Y
+from abletoolz.ansi import RST, C, G, Y
 from abletoolz.elements import get_element
-from abletoolz.formats import path_data
+from abletoolz.formats.path_data import SetOperatingSystem
 from abletoolz.live_set.tracks import AbletonTrack
 from abletoolz.machine import default_au_component_dirs, default_live_database_dir, default_vst_dirs, read_plist
 from abletoolz.plugins import (
@@ -28,6 +28,7 @@ from abletoolz.plugins import (
     fix_plugin,
 )
 from abletoolz.plugins.config import load_config
+from abletoolz.plugins.container.device import AuIdentifier, PluginDevices, ReferenceForm
 from abletoolz.plugins.container.format_translation import ConfiguredTarget
 from abletoolz.plugins.container.upgrade_rules import get_upgrade
 from abletoolz.plugins.identity.plugin_db import load_plugin_db
@@ -64,8 +65,6 @@ _PLUGIN_QUERY = (
 )
 _VST3_INDEX_CACHE: dict[tuple[pathlib.Path, ...], dict[str, pathlib.Path]] = {}
 _VST3_INDEX_LOCK = threading.Lock()
-
-type AuIdentifier = tuple[int, int, int]
 
 _AU_INDEX_CACHE: dict[tuple[pathlib.Path, ...], dict[AuIdentifier, pathlib.Path]] = {}
 _AU_INDEX_LOCK = threading.Lock()
@@ -287,14 +286,6 @@ class Plugins:
     def _root(self) -> ET.Element:
         return self._set.root
 
-    def _parse_hex_path(self, text: str) -> str | None:
-        """The path in a pre-11 ``Data`` blob, noting which OS its encoding says saved the set."""
-        blob = path_data.read(text)
-        if blob is None:
-            return None
-        self._set.set_os = blob.os
-        return blob.path
-
     def search(self, plugin_name: str) -> pathlib.Path | None:
         """Search this OS's standard plugin dirs and previously seen plugin dirs."""
         if pathlib.Path(plugin_name).suffix.casefold() == ".dll" and sys.platform != "win32":
@@ -338,84 +329,9 @@ class Plugins:
             self._au_index_dirs = search_dirs
         return self._au_index.get(identifier)
 
-    def parse_au_element(self, au_element: ET.Element) -> tuple[str | None, str | None, AuIdentifier | None]:
-        """Pull display metadata and exact component identity from an AuPluginInfo element."""
-        name_element = au_element.find(Tag.NAME)
-        manufacturer_element = au_element.find(Tag.MANUFACTURER)
-        type_element = au_element.find(Tag.COMPONENT_TYPE)
-        subtype_element = au_element.find(Tag.COMPONENT_SUB_TYPE)
-        component_manufacturer_element = au_element.find(Tag.COMPONENT_MANUFACTURER)
-        type_value = type_element.get(Attr.VALUE) if type_element is not None else None
-        subtype_value = subtype_element.get(Attr.VALUE) if subtype_element is not None else None
-        component_manufacturer_value = (
-            component_manufacturer_element.get(Attr.VALUE) if component_manufacturer_element is not None else None
-        )
-        identity = None
-        if type_value is not None and subtype_value is not None and component_manufacturer_value is not None:
-            identity = (int(type_value), int(subtype_value), int(component_manufacturer_value))
-        return (
-            name_element.get(Attr.VALUE) if name_element is not None else None,
-            manufacturer_element.get(Attr.VALUE) if manufacturer_element is not None else None,
-            identity,
-        )
-
-    def parse_vst3_element(self, vst3_element: ET.Element) -> tuple[str | None, pathlib.Path | None]:
-        """Pull display name and stored path out of a Vst3PluginInfo element.
-
-        Every version stores a Name; only newer sets also store a Path.
-        """
-        name_ele = vst3_element.find(Tag.NAME)
-        name = name_ele.get(Attr.VALUE) if name_ele is not None else None
-        path_ele = vst3_element.find(Tag.PATH)
-        path_value = path_ele.get(Attr.VALUE) if path_ele is not None else None
-        return name, pathlib.Path(path_value) if path_value else None
-
-    def parse_vst_element(self, vst_element: ET.Element) -> tuple[pathlib.Path | None, str | None, pathlib.Path | None]:
-        """Parse out VST element from vst xtree."""
-        for plugin_path in [Tag.DIR, Tag.PATH]:
-            path_results = vst_element.findall(f".//{plugin_path}")
-            if len(path_results):
-                if plugin_path == Tag.PATH:
-                    if (full_path := path_results[0].get(Attr.VALUE)) is None:
-                        logger.error("Couldn't get Path for %s", path_results[0])
-                        continue
-                    if "/" not in full_path and "\\" not in full_path:
-                        if search_result := self.search(full_path):
-                            return None, search_result.name, search_result
-                        return None, full_path, None
-                    path_separator = path_data.path_separator_type(full_path)
-                    name = full_path.split(path_separator)[-1]
-                    return pathlib.Path(full_path), name, None
-                elif plugin_path == Tag.DIR:
-                    if (dir_bin := path_results[0].find(Tag.DATA)) is None:
-                        logger.error("Couldn't get Path for %s", path_results[0])
-                        continue
-                    if (text := dir_bin.text) is None:
-                        continue
-                    path = self._parse_hex_path(text)
-                    name_ele = vst_element.find(Tag.FILE_NAME)
-                    name = name_ele.get(Attr.VALUE, "") if name_ele is not None else "<>"
-                    if not path:
-                        logger.error("%sCouldn't parse absolute path for %s", Y, name)
-                        return None, name, None
-                    if "\\" not in path and "/" not in path:
-                        # A stub device: whatever wrote the set put the plugin's
-                        # file name into Dir with no directory around it, so
-                        # there is no stored path to report. Measured only in
-                        # sets a third-party generator produced; no Live-written
-                        # set in the library does this. The name
-                        # is all it has, which is what repair reports it by.
-                        logger.debug("%sNo directory stored for %s; device is a stub", Y, name)
-                        return None, name, None
-                    path_separator = path_data.path_separator_type(path)
-                    if path[-1] == path_separator:
-                        full_path = f"{path}{name}"
-                    else:
-                        full_path = f"{path}{path_separator}{name}"
-                    return pathlib.Path(full_path), name, None
-
-        logger.error("%sCouldn't parse plugin!", R)
-        return None, None, None
+    def au_loadable(self, identifier: AuIdentifier | None) -> bool:
+        """Whether this Mac has an Audio Unit registered under an exact identity."""
+        return identifier is not None and audio_component_registered(identifier)
 
     def containing_track(self, element: ET.Element) -> ET.Element | None:
         """The track element holding ``element``, or None when it sits outside every track."""
@@ -449,16 +365,18 @@ class Plugins:
         """Resolve every plugin reference in the set against disk."""
         self.found_vst_dirs.extend(vst_dirs)
         refs: list[PluginRef] = []
-        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
-            track_loc = self._find_track_for_element(plugin_element)
-            for vst_element in plugin_element.iter(Tag.VST_PLUGIN_INFO):
-                full_path, name, potential = self.parse_vst_element(vst_element)
+        for device in PluginDevices(self._root):
+            track_loc = self._find_track_for_element(device.info)
+            identity, reference = device.identity, device.reference
+            if device.kind is PluginKind.VST:
+                if reference.form is ReferenceForm.DIR and reference.os is not SetOperatingSystem.UNSET:
+                    self._set.set_os = reference.os
+                full_path, name = reference.path, reference.file_name
                 exists = bool(full_path and full_path.exists())
                 if exists and full_path is not None and full_path.parent not in self.found_vst_dirs:
                     self.found_vst_dirs.append(full_path.parent)
-                elif not exists and isinstance(name, str):
-                    # Did not find plugin in saved path, try to search
-                    potential = self.search(name)
+                # Not at its saved path, so look for the file by name.
+                potential = self.search(name) if not exists and name is not None else None
                 refs.append(
                     PluginRef(
                         kind=PluginKind.VST,
@@ -469,8 +387,8 @@ class Plugins:
                         track_location=track_loc,
                     )
                 )
-            for vst3_element in plugin_element.iter(Tag.VST3_PLUGIN_INFO):
-                name, stored_path = self.parse_vst3_element(vst3_element)
+            elif device.kind is PluginKind.VST3:
+                name, stored_path = identity.name, reference.path
                 exists = bool(stored_path and stored_path.exists())
                 if exists and stored_path is not None and stored_path.parent not in self.found_vst_dirs:
                     self.found_vst_dirs.append(stored_path.parent)
@@ -495,19 +413,19 @@ class Plugins:
                         track_location=track_loc,
                     )
                 refs.append(ref)
-            for au_element in plugin_element.iter(Tag.AU_PLUGIN_INFO):
-                name, manufacturer, identifier = self.parse_au_element(au_element)
-                registered = identifier is not None and audio_component_registered(identifier)
+            else:
+                identifier = identity.au
+                registered = self.au_loadable(identifier)
                 component_path = self.search_au(identifier) if identifier is not None else None
                 refs.append(
                     PluginRef(
                         kind=PluginKind.AU,
-                        name=name,
+                        name=identity.name,
                         path=component_path if registered else None,
                         exists=registered,
                         alternative=component_path if component_path is not None and not registered else None,
                         track_location=track_loc,
-                        manufacturer=manufacturer,
+                        manufacturer=identity.manufacturer,
                     )
                 )
         return refs

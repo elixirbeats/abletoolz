@@ -9,6 +9,7 @@ import plistlib
 import pytest
 
 from abletoolz.live_set import AbletonSet, plugins
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.run.console import render_plugins
 
 SKELETON = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons" / "11.3.41.als"
@@ -58,11 +59,11 @@ def hermetic(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.usefixtures("hermetic")
-def test_parse_au_element_reads_exact_identity() -> None:
-    domain = make_set().plugins
-    element = domain._root.find(".//AuPluginInfo")
+def test_an_au_info_element_reads_its_exact_identity() -> None:
+    element = make_set().root.find(".//AuPluginInfo")
     assert element is not None
-    assert domain.parse_au_element(element) == ("AUBandpass", "Apple", APPLE_BANDPASS)
+    identity = PluginDevice(element).identity
+    assert (identity.name, identity.manufacturer, identity.au) == ("AUBandpass", "Apple", APPLE_BANDPASS)
 
 
 @pytest.mark.usefixtures("hermetic")

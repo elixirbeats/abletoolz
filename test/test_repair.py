@@ -23,13 +23,12 @@ from abletoolz.live_set import AbletonSet, plugins
 from abletoolz.plugins import PluginKind, repair
 from abletoolz.plugins import config as config_module
 from abletoolz.plugins.config import AbletoolzConfig
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.container.format_translation import (
     IncompleteDevice,
     NamedTarget,
     TranslationTarget,
-    is_translatable,
     parse_config_targets,
-    read_identity,
     resolve_target,
     translate_device,
 )
@@ -557,7 +556,7 @@ def test_format_repair_refuses_controls_without_a_parameter_translation(control:
     report = repair_set(
         live_set,
         uid_lookup=UidLookup(),
-        loadable=lambda element: read_identity(element).name != "Serum_x64",
+        loadable=lambda element: PluginDevice(element).identity.name != "Serum_x64",
     )
     action = only(report, "Serum_x64")
     assert action.status is RepairStatus.PARAMETER_TRANSLATION_REQUIRED
@@ -688,7 +687,7 @@ def test_every_status_is_reachable_in_one_pass() -> None:
     get_element(safe_device, "ParameterList").clear()
 
     def loadable(info: ET.Element) -> bool:
-        return read_identity(info).name in loadable_names
+        return PluginDevice(info).identity.name in loadable_names
 
     report = repair_set(
         live_set,
@@ -794,7 +793,7 @@ def test_a_stub_device_is_still_read_by_name() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     make_stub(info)
-    identity = read_identity(info)
+    identity = PluginDevice(info).identity
     assert identity.name == "Serum_x64"
     assert identity.is_instrument is None
 
@@ -836,7 +835,7 @@ def test_translating_a_stub_on_purpose_refuses_loudly() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     make_stub(info)
-    assert not is_translatable(info)
+    assert not PluginDevice(info).complete
     with pytest.raises(IncompleteDevice):
         translate_device(info, TranslationTarget(PluginKind.VST3, "Serum", SERUM_FIELDS))
 

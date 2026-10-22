@@ -6,16 +6,13 @@ Live 12.4.5: the ``PluginDevice`` wrapper around ``PluginDesc`` is byte for byte
 the same whichever format is inside, so a translation is entirely local to the
 info element.
 
-Two pieces of knowledge make that possible, and they are kept apart:
-
-* per format, how to read an info element into a neutral :class:`PluginIdentity`
-  (what plugin, is it an instrument) -- ``_READERS``;
-* per ordered format pair, how to rewrite one info element into the other --
-  ``_TRANSLATIONS``.
+Reading an info element is :mod:`abletoolz.plugins.container.device`'s job.
+What this module adds is, per ordered format pair, how to rewrite one info
+element into the other -- ``_TRANSLATIONS``.
 
 Only ``(vst, vst3)`` is implemented today, because that is the pair whose output
 has been loaded in Live and listened to. Another pair is another entry in
-``_TRANSLATIONS`` plus a reader; nothing in the dispatch names a format.
+``_TRANSLATIONS``; nothing in the dispatch names a format.
 
 What the target format cannot infer from the source is supplied by a
 :class:`TranslationTarget`: VST3 identifies a plugin by a class id that appears
@@ -27,16 +24,15 @@ nowhere in a VST2 device, so it has to come from somewhere else. The
 from __future__ import annotations
 
 import dataclasses
-import re
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 from xml.etree import ElementTree as ET
 
 import pydantic
 
 from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
-from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.container.device import INFO_TAGS, PluginDevice, PluginKind, UidFields, kind_of
 from abletoolz.plugins.state import (
     NO_CONTROLLER_STATE,
     ControllerState,
@@ -48,23 +44,10 @@ from abletoolz.plugins.state import (
     state_bytes,
 )
 from abletoolz.schema import Attr, Tag, path
-from abletoolz.schema.versioning import MIN_SUPPORTED, Version
-
-if TYPE_CHECKING:
-    from abletoolz.live_set.document import AbletonSet
-type UidFields = tuple[int, int, int, int]
 
 
 class IncompleteDevice(ValueError):
-    """A device the set describes too thinly to rewrite. See :func:`is_translatable`."""
-
-
-# The element a PluginDesc holds for each format.
-INFO_TAGS: dict[PluginKind, str] = {
-    PluginKind.VST: Tag.VST_PLUGIN_INFO,
-    PluginKind.VST3: Tag.VST3_PLUGIN_INFO,
-    PluginKind.AU: Tag.AU_PLUGIN_INFO,
-}
+    """A device the set describes too thinly to rewrite. See :attr:`PluginDevice.complete`."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -128,20 +111,6 @@ def resolve_target(target: ConfiguredTarget, uid_lookup: UidResolver | None) -> 
     if fields is None:
         return None
     return TranslationTarget(target.to_format, target.name, fields, target.state_transform, target.controller_state)
-
-
-@dataclasses.dataclass(frozen=True)
-class PluginIdentity:
-    """What a set says about one plugin device, in format-neutral terms.
-
-    ``is_instrument`` is None when the set does not say -- see
-    :func:`is_translatable`. A device is still perfectly identifiable then; it
-    just cannot be rewritten as another format.
-    """
-
-    format: PluginKind
-    name: str
-    is_instrument: bool | None
 
 
 def _vst3(
@@ -246,104 +215,6 @@ def parse_config_targets(raw: object) -> dict[str, ConfiguredTarget]:
     """Build targets from the ``plugin_translation.targets`` mapping in config.yaml."""
     targets = pydantic.TypeAdapter(dict[str, TargetConfig]).validate_python(raw)
     return {source_name: entry.target(source_name) for source_name, entry in targets.items()}
-
-
-# -- identity ---------------------------------------------------------------
-
-
-def _read_vst2(info: ET.Element) -> PluginIdentity:
-    """VST2 keeps its file-derived name in PlugName; Category 2 means instrument.
-
-    A stub device has no Category at all and the set says nothing about what the
-    plugin is -- the name is still there, which is the half repair needs to
-    report it.
-    """
-    category = info.find(Tag.CATEGORY)
-    return PluginIdentity(
-        format=PluginKind.VST,
-        name=get_element(info, Tag.PLUG_NAME, attribute=Attr.VALUE),
-        is_instrument=None if category is None else category.get(Attr.VALUE) == "2",
-    )
-
-
-def _read_vst3(info: ET.Element) -> PluginIdentity:
-    """VST3 keeps its display name in Name; DeviceType 1 means instrument."""
-    return PluginIdentity(
-        format=PluginKind.VST3,
-        name=get_element(info, Tag.NAME, attribute=Attr.VALUE),
-        is_instrument=get_element(info, Tag.DEVICE_TYPE, attribute=Attr.VALUE) == "1",
-    )
-
-
-_READERS: dict[PluginKind, Callable[[ET.Element], PluginIdentity]] = {
-    PluginKind.VST: _read_vst2,
-    PluginKind.VST3: _read_vst3,
-}
-
-_KIND_BY_TAG: dict[str, PluginKind] = {INFO_TAGS[kind]: kind for kind in _READERS}
-
-
-def read_identity(info: ET.Element) -> PluginIdentity:
-    """Read any supported plugin info element into format-neutral terms."""
-    return _READERS[_KIND_BY_TAG[info.tag]](info)
-
-
-# What a VST2 info element has to carry before it can become anything else: the
-# Category that decides DeviceType, and the preset block that becomes the
-# Vst3Preset. Measured over 811 sets: 54 devices in 11 of them carry a stub
-# instead -- Dir, FileName, PlugName, UniqueId and sometimes Preset, nothing
-# more. Every one of those 11 sets is the output of a third-party set generator
-# and no set Live wrote carries the shape. Nothing in that stub says
-# what the device is, so nothing here will invent it.
-_REQUIRED_FIELDS: dict[PluginKind, tuple[str, ...]] = {
-    PluginKind.VST: (Tag.CATEGORY, path(Tag.PRESET, Tag.VST_PRESET)),
-    PluginKind.VST3: (),
-}
-
-
-def is_translatable(info: ET.Element) -> bool:
-    """Whether this device carries what rewriting it into another format needs."""
-    return all(info.find(path) is not None for path in _REQUIRED_FIELDS[_KIND_BY_TAG[info.tag]])
-
-
-# The oldest set each format's info element may be written into.
-#
-# A set's XML is schema-versioned by its root element, and Live reads a tag as a
-# class only if the schema that version declared knows the name. So writing a
-# Vst3PluginInfo into a set Live 9 saved does not produce a set with a VST3
-# device in it -- it produces a file Live will not open at all:
-#
-#     ... is corrupt and cannot be loaded.
-#     (Unknown class 'Vst3PluginInfo' encountered (at line 19371, column 25))
-#
-# Measured 2026-08-13 on Live 12.4.5b, opening a 9.0.1 set (MinorVersion
-# 9.0_305) whose Pro-Q 1 devices had been translated to Pro-Q 3. The floor comes
-# from the library, by document schema: MinorVersion 9.0_305 (9 sets), 9.5_326
-# (10), 9.5_327 (22) and 10.0_370 (61) carry no Vst3PluginInfo between them,
-# while 10.0_377 -- the schema Live 10.1 writes -- carries 129 across 23 sets.
-# By Creator the same line falls between 10.0.6 and 10.1.
-_FORMAT_FLOORS: dict[PluginKind, Version] = {
-    PluginKind.VST: MIN_SUPPORTED,
-    PluginKind.VST3: (10, 1, 0),
-    PluginKind.AU: MIN_SUPPORTED,
-}
-
-
-def set_supports(kind: PluginKind, version: Version, *, minor_version: str | None = None) -> bool:
-    """Whether a set saved by ``version`` may hold ``kind``'s info element.
-
-    Identity and state are beside the point when the answer is no: the container
-    is invalid for the document, and Live rejects the whole file rather than the
-    one device.
-    """
-    if version < _FORMAT_FLOORS[kind]:
-        return False
-    if kind is PluginKind.VST3 and minor_version is not None:
-        schema = re.fullmatch(r"(\d+)\.(\d+)_(\d+)", minor_version)
-        if schema is None:
-            return False
-        return tuple(int(part) for part in schema.groups()) >= (10, 0, 377)
-    return True
 
 
 # -- shaping ----------------------------------------------------------------
@@ -478,10 +349,10 @@ _VST3_PRESET_ORDER = (
 
 def _translate_vst2_to_vst3(info: ET.Element, target: TranslationTarget) -> None:
     """Rewrite a VstPluginInfo element into the Vst3PluginInfo Live writes."""
-    is_instrument = _read_vst2(info).is_instrument
-    if is_instrument is None:
-        raise IncompleteDevice(f"{read_identity(info).name} is a stub device: the set never says what it is")
-    device_type = "1" if is_instrument else "2"
+    identity = PluginDevice(info).identity
+    if identity.is_instrument is None:
+        raise IncompleteDevice(f"{identity.name} is a stub device: the set never says what it is")
+    device_type = "1" if identity.is_instrument else "2"
     info_closing = info[-1].tail
 
     preset = get_element(info, path(Tag.PRESET, Tag.VST_PRESET))
@@ -512,7 +383,7 @@ _TRANSLATIONS: dict[tuple[PluginKind, PluginKind], Callable[[ET.Element, Transla
 
 def translate_device(info: ET.Element, target: TranslationTarget) -> None:
     """Rewrite one plugin info element into ``target``'s format, in place."""
-    _TRANSLATIONS[(_KIND_BY_TAG[info.tag], target.to_format)](info, target)
+    _TRANSLATIONS[(kind_of(info), target.to_format)](info, target)
 
 
 def has_translator(source: PluginKind, to: PluginKind) -> bool:
@@ -524,17 +395,3 @@ def has_translator(source: PluginKind, to: PluginKind) -> bool:
     missing half is a translator nobody has written yet.
     """
     return (source, to) in _TRANSLATIONS
-
-
-def device_infos(live_set: AbletonSet) -> list[tuple[ET.Element, PluginKind]]:
-    """Every plugin device in a set this module can read, with its format.
-
-    Snapshotted before anything is rewritten, on purpose: translating a device
-    changes its tag, and a live iteration would meet the result again as a
-    device of the target format and report it twice.
-    """
-    found: list[tuple[ET.Element, PluginKind]] = []
-    for plugin_desc in live_set.root.iter(Tag.PLUGIN_DESC):
-        for kind in _READERS:
-            found.extend((info, kind) for info in plugin_desc.iter(INFO_TAGS[kind]))
-    return found

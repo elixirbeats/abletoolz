@@ -23,7 +23,8 @@ import pytest
 from abletoolz.elements import get_element
 from abletoolz.errors import ElementNotFound, SetError
 from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugins.container.format_translation import TranslationTarget, set_supports
+from abletoolz.plugins.container.device import set_supports
+from abletoolz.plugins.container.format_translation import TranslationTarget
 from abletoolz.plugins.parsers.base import PluginKind
 from abletoolz.plugins.repair import repair_set
 

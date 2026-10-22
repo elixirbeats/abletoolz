@@ -14,6 +14,7 @@ import pathlib
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text, path_data
+from abletoolz.plugins.container.device import PluginDevices
 
 
 class MigrationError(ValueError):
@@ -65,7 +66,7 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
     at zero. Unassigned Live parameter placeholders are retained. Configured
     parameters or references to placeholders require a parameter mapper first.
     """
-    infos = [element for element in root.iter() if element.tag in ("VstPluginInfo", "Vst3PluginInfo")]
+    infos = [found.info for found in PluginDevices(root)]
     if not 0 <= device < len(infos) or infos[device].tag != "VstPluginInfo":
         raise MigrationError("Selected device is not a VST2 plugin")
     info = infos[device]

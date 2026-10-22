@@ -58,20 +58,16 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz.machine import default_live_database_dir
+from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, set_supports
 from abletoolz.plugins.container.format_translation import (
     KNOWN_TRANSLATIONS,
     ConfiguredTarget,
-    device_infos,
     has_translator,
-    is_translatable,
-    read_identity,
     resolve_target,
-    set_supports,
     translate_device,
 )
 from abletoolz.plugins.identity.mapping import suggest_target_name, suggestion_line
 from abletoolz.plugins.identity.uid_sources import DatabasePlugin, UidLookup, read_live_databases
-from abletoolz.plugins.parsers.base import PluginKind
 from abletoolz.plugins.state import MeasuredState, measured_state
 
 if TYPE_CHECKING:
@@ -197,10 +193,23 @@ def database_oracle(plugins: Sequence[DatabasePlugin]) -> LoadableOracle:
     loadable = frozenset((plugin.kind, plugin.name) for plugin in plugins if plugin.loadable)
 
     def check(info: ET.Element) -> bool:
-        identity = read_identity(info)
-        return (identity.format, identity.name) in loadable
+        device = PluginDevice(info)
+        return (device.kind, device.identity.name) in loadable
 
     return check
+
+
+def _with_audio_units(check: LoadableOracle, live_set: AbletonSet) -> LoadableOracle:
+    """Live's database lists VST2 and VST3; an Audio Unit is asked of the component registry."""
+    plugins = live_set.plugins
+
+    def judge(info: ET.Element) -> bool:
+        device = PluginDevice(info)
+        if device.kind is PluginKind.AU:
+            return plugins.au_loadable(device.identity.au)
+        return check(info)
+
+    return judge
 
 
 def disk_oracle(live_set: AbletonSet, *, vst_dirs: Sequence[pathlib.Path] | None = None) -> LoadableOracle:
@@ -212,18 +221,17 @@ def disk_oracle(live_set: AbletonSet, *, vst_dirs: Sequence[pathlib.Path] | None
     plugins.found_vst_dirs.extend(vst_dirs or [])
 
     def check(info: ET.Element) -> bool:
-        identity = read_identity(info)
-        if identity.format is PluginKind.VST3:
-            _name, stored = plugins.parse_vst3_element(info)
-            if stored is not None and stored.exists():
+        device = PluginDevice(info)
+        identity, reference = device.identity, device.reference
+        if device.kind is PluginKind.AU:
+            return plugins.au_loadable(identity.au)
+        if device.kind is PluginKind.VST3:
+            if reference.path is not None and reference.path.exists():
                 return True
-            return plugins.search_vst3(identity.name) is not None
-        stored_path, name, alternative = plugins.parse_vst_element(info)
-        if stored_path is not None and stored_path.exists():
+            return identity.name is not None and plugins.search_vst3(identity.name) is not None
+        if reference.path is not None and reference.path.exists():
             return True
-        if alternative is not None:
-            return True
-        return name is not None and plugins.search(name) is not None
+        return reference.file_name is not None and plugins.search(reference.file_name) is not None
 
     return check
 
@@ -243,7 +251,7 @@ def default_oracle(
         known = read_live_databases(directory)
         if known:
             logger.debug("Judging plugins against %s entries in %s", len(known), directory)
-            return database_oracle(known)
+            return _with_audio_units(database_oracle(known), live_set)
     logger.debug("No Live plugin database to consult; judging plugins by what is on disk")
     return disk_oracle(live_set, vst_dirs=vst_dirs)
 
@@ -335,8 +343,9 @@ def repair_set(
         element.attrib["Value"] for element in live_set.root.iter("PointeeId") if "Value" in element.attrib
     )
 
-    for info, source in device_infos(live_set):
-        name = read_identity(info).name
+    for device in PluginDevices(live_set.root):
+        info, source = device.info, device.kind
+        name = device.identity.name or ""
         track = live_set.plugins.track_name(info)
         configured = table.get(name)
 
@@ -366,7 +375,7 @@ def repair_set(
             )
             continue
 
-        if not is_translatable(info):
+        if not device.complete:
             actions.append(
                 DeviceRepair(
                     track,
