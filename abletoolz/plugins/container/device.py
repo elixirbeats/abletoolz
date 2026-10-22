@@ -473,7 +473,7 @@ class PluginDevice:
         """
         if self.kind is not PluginKind.VST:
             return True
-        return self.info.find(Tag.CATEGORY) is not None and self._preset() is not None
+        return self.info.find(Tag.CATEGORY) is not None and self.info.find(self._preset_path()) is not None
 
     @property
     def owner(self) -> ET.Element | None:
@@ -580,17 +580,20 @@ class PluginDevice:
         """
         if self.kind is PluginKind.AU:
             raise ValueError("an Audio Unit device points at no file")
+        # A Windows path handed over on another OS is one component to pathlib;
+        # read it as Windows spells it, so its folder and file name come apart.
+        spelled: pathlib.PurePath = pathlib.PureWindowsPath(target) if "\\" in str(target) else target
         directory = self.info.find(Tag.DIR) if self.kind is PluginKind.VST else None
         if directory is not None:
             data = self._require(Tag.DATA, directory)
-            _set_hex(data, directory, path_data.encode(str(target.parent)))
+            _set_hex(data, directory, path_data.encode(str(spelled.parent)))
             self._require(Tag.TYPE, directory).set(Attr.VALUE, "2")
-            self._require(Tag.FILE_NAME).set(Attr.VALUE, target.name)
+            self._require(Tag.FILE_NAME).set(Attr.VALUE, spelled.name)
             return
         direct = self.info.find(Tag.PATH)
         if direct is None:
             raise ValueError(f"{self.info.tag} stores no file to point at")
-        direct.set(Attr.VALUE, target.as_posix())
+        direct.set(Attr.VALUE, spelled.as_posix())
 
     def set_state(self, payload: bytes) -> None:
         """Replace the preset bytes; nothing at all is the empty element Live writes."""
@@ -605,8 +608,15 @@ class PluginDevice:
 
     # -- the element --
 
+    def _preset_path(self) -> str:
+        return path(Tag.PRESET, _PRESET_TAGS[self.kind])
+
     def _preset(self) -> ET.Element | None:
-        return self.info.find(path(Tag.PRESET, _PRESET_TAGS[self.kind]))
+        """The device's one preset; a device that holds two is nothing Live wrote."""
+        found = self.info.findall(self._preset_path())
+        if len(found) > 1:
+            raise ValueError(f"{self.info.tag} holds {len(found)} {_PRESET_TAGS[self.kind]} elements")
+        return found[0] if found else None
 
     def _require_preset(self) -> ET.Element:
         preset = self._preset()

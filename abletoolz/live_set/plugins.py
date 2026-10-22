@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, cast
 from xml.etree import ElementTree as ET
 
 from abletoolz.ansi import RST, C, G, Y
-from abletoolz.elements import get_element
 from abletoolz.formats.path_data import SetOperatingSystem
 from abletoolz.live_set.tracks import display_name
 from abletoolz.machine import default_au_component_dirs, default_live_database_dir, default_vst_dirs, read_plist
@@ -36,7 +35,7 @@ from abletoolz.plugins.identity.uid_sources import UidLookup
 from abletoolz.plugins.migration import MigrationResult, Vst2Migration, apply_vst2_migration
 from abletoolz.plugins.repair import RepairReport, default_oracle, repair_set
 from abletoolz.samples.database import DatabaseT
-from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema import Attr, Tag
 from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
@@ -493,29 +492,19 @@ class Plugins:
             return []
 
         upgraded: list[DeviceUpgrade] = []
-        for plugin_element in self._root.iter(Tag.PLUGIN_DESC):
-            path_el = get_element(plugin_element, path(Tag.VST_PLUGIN_INFO, Tag.PATH), silent_error=True)
-            if not isinstance(path_el, ET.Element):
+        for device in self._devices():
+            if device.kind is not PluginKind.VST:
                 continue
-
-            current_path = path_el.get(Attr.VALUE, "")
-            if not current_path:
+            current_filename = device.reference.file_name
+            if not current_filename:
                 continue
-
-            current_filename = pathlib.Path(current_path).name
             result = get_upgrade(current_filename, rules)
-
             if result:
                 target_name, target_path = result
-                new_path = str(target_path).replace("\\", "/")
-                path_el.set(Attr.VALUE, new_path)
-
-                plugname_el = get_element(plugin_element, path(Tag.VST_PLUGIN_INFO, Tag.PLUG_NAME), silent_error=True)
-                if isinstance(plugname_el, ET.Element):
-                    plugname_el.set(Attr.VALUE, target_path.stem)
-
+                device.set_reference(target_path)
+                device.set_name(target_path.stem)
                 logger.info("%sUpgraded: %s%s%s -> %s%s", G, Y, current_filename, RST, G, target_name)
-                upgraded.append(DeviceUpgrade(self.track_name(plugin_element), current_filename, target_name))
+                upgraded.append(DeviceUpgrade(self.track_name(device.info), current_filename, target_name))
 
         return upgraded
 

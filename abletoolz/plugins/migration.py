@@ -13,8 +13,7 @@ import hashlib
 import pathlib
 from xml.etree import ElementTree as ET
 
-from abletoolz.formats import hex_text, path_data
-from abletoolz.plugins.container.device import PluginDevices
+from abletoolz.plugins.container.device import PluginDevice, PluginDevices, ReferenceForm
 
 
 class MigrationError(ValueError):
@@ -52,13 +51,6 @@ class MigrationResult:
     target_sha256: str
 
 
-def _required(parent: ET.Element, path: str) -> ET.Element:
-    element = parent.find(path)
-    if element is None:
-        raise MigrationError(f"Missing device field: {path}")
-    return element
-
-
 def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration) -> MigrationResult:
     """Replace one VST2 chunk and identity atomically; retain the set's schema.
 
@@ -74,23 +66,27 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
     if found.owner is None:
         raise MigrationError("Expected a PluginDevice around the selected plugin")
     plugin = devices.parents[info]
-    name = _required(info, "PlugName").get("Value")
-    if name != migration.source_name or _required(info, "UniqueId").get("Value") != str(migration.source_unique_id):
+    try:
+        identity, reference, preset = found.identity, found.reference, found.preset
+    except ValueError as error:
+        raise MigrationError(str(error)) from error
+    if identity.name != migration.source_name or identity.unique_id != migration.source_unique_id:
         raise MigrationError("Source plugin identity does not match the prepared migration")
-    presets = info.findall("Preset/VstPreset")
-    if len(presets) != 1:
+    if identity.parameter_count is None or identity.flags is None:
+        raise MigrationError("Missing device field")
+    if reference.form is ReferenceForm.NONE:
+        raise MigrationError("Unsupported or ambiguous VST2 path representation")
+    if preset.type is None:
         raise MigrationError("Expected exactly one VST2 preset")
-    preset = presets[0]
-    if _required(preset, "Type").get("Value") != str(int.from_bytes(b"FBCh", "big")):
+    if preset.type != int.from_bytes(b"FBCh", "big"):
         raise MigrationError("Expected an opaque FBCh preset, not a parameter bank")
-    if _required(preset, "UniqueId").get("Value") != str(migration.source_unique_id):
+    if preset.unique_id != migration.source_unique_id:
         raise MigrationError("Preset identity disagrees with its source plugin")
-    if _required(preset, "ParameterCount").get("Value") != _required(info, "NumberOfParameters").get("Value"):
+    if preset.parameter_count != identity.parameter_count:
         raise MigrationError("Preset parameter count disagrees with its source plugin")
-    if found.preset.has_parameter_settings:
+    if preset.has_parameter_settings:
         raise MigrationError("Stored preset parameters require an explicit parameter translation")
-    source = _required(preset, "Buffer")
-    source_hash = hashlib.sha256(hex_text.decode(source.text)).hexdigest()
+    source_hash = hashlib.sha256(preset.state).hexdigest()
     if source_hash != migration.source_sha256:
         raise MigrationError("Source state changed after native conversion")
     target = migration.target
@@ -109,31 +105,18 @@ def apply_vst2_migration(root: ET.Element, device: int, migration: Vst2Migration
     if controls.referenced:
         raise MigrationError("Referenced plugin parameters require an explicit parameter translation")
 
+    # Staged on a copy, so a refusal anywhere above or below leaves the set untouched.
     replacement = copy.deepcopy(info)
-    direct_path = replacement.find("Path")
-    directory = replacement.find("Dir")
-    if direct_path is not None and directory is None:
-        direct_path.set("Value", target.path.as_posix())
-    elif directory is not None and direct_path is None:
-        data = _required(directory, "Data")
-        depth = hex_text.depth(data.text) if data.text and data.text.strip() else 12
-        data.text = hex_text.encode(path_data.encode(str(target.path.parent)), depth)
-        _required(directory, "Type").set("Value", "2")
-        _required(replacement, "FileName").set("Value", target.path.name)
-    else:
-        raise MigrationError("Unsupported or ambiguous VST2 path representation")
-    for field, value in (
-        ("PlugName", target.name),
-        ("UniqueId", str(target.unique_id)),
-        ("NumberOfParameters", str(target.parameter_count)),
-        ("Flags", str(target.flags)),
-    ):
-        _required(replacement, field).set("Value", value)
-    _required(replacement, "Preset/VstPreset/UniqueId").set("Value", str(target.unique_id))
-    _required(replacement, "Preset/VstPreset/ParameterCount").set("Value", str(target.parameter_count))
-    destination = _required(replacement, "Preset/VstPreset/Buffer")
-    depth = hex_text.depth(destination.text) if destination.text and destination.text.strip() else 12
-    destination.text = hex_text.encode(migration.state, depth)
+    staged = PluginDevice(replacement)
+    try:
+        staged.set_reference(target.path)
+        staged.set_name(target.name)
+        staged.set_unique_id(target.unique_id)
+        staged.set_layout(parameters=target.parameter_count, flags=target.flags)
+        staged.set_preset_record(unique_id=target.unique_id, parameters=target.parameter_count)
+        staged.set_state(migration.state)
+    except ValueError as error:
+        raise MigrationError(str(error)) from error
     result = MigrationResult(
         device, migration.source_name, target.name, source_hash, hashlib.sha256(migration.state).hexdigest()
     )
