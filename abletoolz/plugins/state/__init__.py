@@ -1,4 +1,9 @@
-"""What happens to a plugin's saved patch when its container changes.
+"""Reusable plugin state codecs and source-to-target transforms.
+
+State can be inspected or edited on its own, reused in a newer version, or
+translated into another plugin through an explicit mapping. Container changes
+and set repair are consumers of this knowledge. Knowing a binary layout does
+not by itself establish control semantics or a valid transform.
 
 The third axis of the plugin transform model -- container, identity, state --
 and the only hard one. Container and identity are

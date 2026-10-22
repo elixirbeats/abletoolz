@@ -1,4 +1,4 @@
-"""Plan and apply measured VST2 reference recovery without changing saved controls."""
+"""Plan native reference repairs and apply prepared state conversions to set copies."""
 
 from __future__ import annotations
 
@@ -12,7 +12,25 @@ from xml.etree import ElementTree as ET
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from abletoolz.formats import hex_text, live_document, path_data
-from abletoolz.plugins.recovery_routes import RecoveryTarget, StateEvidence, TargetStatus, fingerprint_binary
+from abletoolz.plugins.container.format_translation import (
+    TranslationTarget,
+    is_translatable,
+    set_supports,
+    translate_device,
+)
+from abletoolz.plugins.parsers.base import PluginKind
+from abletoolz.plugins.recovery_routes import (
+    PreparedState,
+    RecoveryTarget,
+    StateEvidence,
+    TargetFormat,
+    TargetStatus,
+    UidFields,
+    fingerprint_binary,
+)
+from abletoolz.plugins.repair import parameter_translation_required
+from abletoolz.plugins.state import ConstantControllerState
+from abletoolz.schema.versioning import parse_creator
 
 
 class RecoveryError(ValueError):
@@ -26,6 +44,9 @@ class RecoveryStatus(enum.StrEnum):
     INVALID_DEVICE = "invalid_device"
     UNVERIFIED_STATE = "state_or_program_unverified"
     TARGET_UNAVAILABLE = "target_unavailable"
+    SET_TOO_OLD = "set_too_old_for_target"
+    PARAMETER_TRANSLATION_REQUIRED = "parameter_translation_required"
+    PREPARED_STATE_UNAVAILABLE = "prepared_state_unavailable"
 
 
 class DeviceRecovery(BaseModel):
@@ -44,6 +65,10 @@ class DeviceRecovery(BaseModel):
     target_path: pathlib.Path | None = None
     target_name: str | None = None
     target_sha256: str | None = None
+    target_format: TargetFormat = "vst"
+    target_uid_fields: UidFields | None = None
+    program_capacity_update: int | None = None
+    prepared: PreparedState | None = None
     info_sha256: str | None = None
     state_evidence: StateEvidence | None = None
     verification_notes: str | None = None
@@ -59,7 +84,7 @@ class RecoveryPlan(BaseModel):
     source_project: pathlib.Path | None
     project_relative_file_refs: int
     devices: tuple[DeviceRecovery, ...]
-    operation: str = "native_vst2_reference_recovery"
+    operation: str = "verified_plugin_recovery"
     assets: str = "Stored media references are preserved; assets are not relocated"
 
     @computed_field  # type: ignore[prop-decorator]  # Pydantic supports stacked property decorators.
@@ -127,7 +152,7 @@ def _validate_device(
     if _uid(info, "UniqueId") != route.unique_id:
         raise RecoveryError("Source identity differs from the measured recovery route")
     if _integer(info, "NumberOfParameters") != route.parameter_count:
-        raise RecoveryError("Source public parameter count differs from the measured native layout")
+        raise RecoveryError("Source public parameter count differs from the measured source layout")
     if _integer(info, "NumberOfPrograms") != route.program_count:
         raise RecoveryError("Source program count differs from the measured native bank")
     _required(info, "Flags")
@@ -182,7 +207,12 @@ def _location(info: ET.Element, parents: Mapping[ET.Element, ET.Element]) -> tup
 
 
 def _device_plan(
-    info: ET.Element, ordinal: int, targets: Sequence[RecoveryTarget], parents: Mapping[ET.Element, ET.Element]
+    info: ET.Element,
+    ordinal: int,
+    targets: Sequence[RecoveryTarget],
+    parents: Mapping[ET.Element, ET.Element],
+    root: ET.Element,
+    referenced_ids: frozenset[str],
 ) -> DeviceRecovery:
     name = ""
     element = info.find("PlugName" if info.tag == "VstPluginInfo" else "Name")
@@ -223,6 +253,7 @@ def _device_plan(
         "info_sha256": _digest(ET.tostring(info)),
         "state_evidence": target.route.state_evidence,
         "verification_notes": target.route.notes,
+        "target_format": target.route.targets[0].format,
     }
     state = next((state for state in target.route.states if state.sha256 == digest), None)
     if state is None or program not in state.program_numbers:
@@ -233,16 +264,69 @@ def _device_plan(
                 "reason": "Saved bank and selected program have not been verified",
             }
         )
+    if target.route.state_mode == "prepared_vst3":
+        try:
+            supported = set_supports(
+                PluginKind.VST3,
+                parse_creator(root.get("Creator", "")),
+                minor_version=root.get("MinorVersion", ""),
+            )
+        except ValueError as error:
+            return base.model_copy(update=updates | {"status": RecoveryStatus.INVALID_DEVICE, "reason": str(error)})
+        if not supported:
+            return base.model_copy(
+                update=updates
+                | {"status": RecoveryStatus.SET_TOO_OLD, "reason": "Document version cannot hold VST3 devices"}
+            )
+    if target.route.state_mode != "reference":
+        description = parents.get(info)
+        owner = parents.get(description) if description is not None else None
+        if parameter_translation_required(info, owner, referenced_ids):
+            return base.model_copy(
+                update=updates
+                | {
+                    "status": RecoveryStatus.PARAMETER_TRANSLATION_REQUIRED,
+                    "reason": "Configured, mapped or referenced controls require a parameter-index mapper",
+                }
+            )
+    if target.route.state_mode == "prepared_vst3":
+        if not is_translatable(info):
+            return base.model_copy(
+                update=updates
+                | {
+                    "status": RecoveryStatus.INVALID_DEVICE,
+                    "reason": "Source device is too incomplete for VST3 conversion",
+                }
+            )
+        if state.prepared is None:
+            raise RecoveryError("Prepared conversion route is missing its native state")
+        try:
+            state.prepared.read()
+        except (OSError, ValueError) as error:
+            return base.model_copy(
+                update=updates | {"status": RecoveryStatus.PREPARED_STATE_UNAVAILABLE, "reason": str(error)}
+            )
+        updates["prepared"] = state.prepared
     if target.status is not TargetStatus.AVAILABLE or target.path is None or target.binary is None:
         return base.model_copy(update=updates | {"status": RecoveryStatus.TARGET_UNAVAILABLE, "reason": target.reason})
+    reason = "Measured native identity; saved bank and all control bindings retained"
+    if target.route.state_mode == "prepared_vst3":
+        reason = "Prepared native VST3 state; unassigned control placeholders retained"
+    elif target.route.state_mode == "reference_with_program_capacity":
+        reason = "Measured native reader; saved bank retained and program-capacity metadata updated"
     return base.model_copy(
         update=updates
         | {
             "status": RecoveryStatus.READY,
-            "reason": "Measured native identity; saved bank and all control bindings retained",
+            "reason": reason,
             "target_path": target.path,
             "target_name": target.binary.name,
             "target_sha256": target.binary.sha256,
+            "target_format": target.binary.format,
+            "target_uid_fields": target.binary.uid_fields,
+            "program_capacity_update": (
+                target.binary.program_count if target.route.state_mode == "reference_with_program_capacity" else None
+            ),
         }
     )
 
@@ -253,6 +337,9 @@ def plan_recovery(source: pathlib.Path, targets: Sequence[RecoveryTarget]) -> Re
     data = source.read_bytes()
     root = live_document.parse(data)
     parents = {child: parent for parent in root.iter() for child in parent}
+    referenced_ids = frozenset(
+        element.attrib["Value"] for element in root.iter("PointeeId") if "Value" in element.attrib
+    )
     project = next((folder for folder in source.parents if (folder / "Ableton Project Info").is_dir()), None)
     relative = sum(element.find("RelativePathType[@Value='3']") is not None for element in root.iter("FileRef"))
     return RecoveryPlan(
@@ -261,7 +348,10 @@ def plan_recovery(source: pathlib.Path, targets: Sequence[RecoveryTarget]) -> Re
         document_sha256=_digest(ET.tostring(root)),
         source_project=project,
         project_relative_file_refs=relative,
-        devices=tuple(_device_plan(info, ordinal, targets, parents) for ordinal, info in enumerate(_infos(root))),
+        devices=tuple(
+            _device_plan(info, ordinal, targets, parents, root, referenced_ids)
+            for ordinal, info in enumerate(_infos(root))
+        ),
     )
 
 
@@ -270,6 +360,7 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
     if _digest(ET.tostring(root)) != plan.document_sha256:
         raise RecoveryError("Document changed after recovery was planned")
     checks: dict[pathlib.Path, str | None] = {}
+    prepared: dict[int, tuple[bytes, bytes]] = {}
     original = _infos(root)
     for action in plan.devices:
         if action.status is not RecoveryStatus.READY:
@@ -285,6 +376,13 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
             or _digest(ET.tostring(original[action.device])) != action.info_sha256
         ):
             raise RecoveryError("Selected plugin changed after recovery was planned")
+        if action.target_format == "vst3":
+            if action.prepared is None or action.target_uid_fields is None:
+                raise RecoveryError("Prepared VST3 action is missing its state or class ID")
+            try:
+                prepared[action.device] = action.prepared.read()
+            except (OSError, ValueError) as error:
+                raise RecoveryError(str(error)) from error
     repaired = copy.deepcopy(root)
     infos = _infos(repaired)
     for action in plan.devices:
@@ -293,6 +391,26 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
         if action.target_path is None or action.target_name is None:
             raise RecoveryError("Missing planned target")
         info = infos[action.device]
+        if action.target_format == "vst3":
+            if action.target_uid_fields is None:
+                raise RecoveryError("Missing planned VST3 class ID")
+            processor, controller = prepared[action.device]
+            buffer = _required(info, "Preset/VstPreset/Buffer")
+            depth = hex_text.depth(buffer.text) if buffer.text and buffer.text.strip() else 12
+            buffer.text = hex_text.encode(processor, depth)
+            translate_device(
+                info,
+                TranslationTarget(
+                    PluginKind.VST3,
+                    action.target_name,
+                    action.target_uid_fields,
+                    controller_state=ConstantControllerState(controller),
+                ),
+            )
+            continue
+        if action.program_capacity_update is not None:
+            _required(info, "NumberOfPrograms").set("Value", str(action.program_capacity_update))
+            _required(info, "Preset/VstPreset/ProgramCount").set("Value", str(action.program_capacity_update))
         direct = info.find("Path")
         if direct is not None:
             direct.set("Value", action.target_path.as_posix())

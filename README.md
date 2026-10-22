@@ -138,10 +138,18 @@ Track type   AudioTrack, Name     3-Bass, Id   15, Group id   -1, Color  43, Wid
 Track type  ReturnTrack, Name   A-Reverb, Id    2, Group id   -1, Color  60, Width 120, Height  68, Unfolded: true
 ```
 
+### Plugin state knowledge and transformations
+
+Plugin structure maps, control maps and state codecs support inspection and editing independently of
+set repair. They can also support moving state to a newer plugin version or converting it to another
+plugin through an explicit transformer. Each source/target conversion needs its own mapping and
+verification; understanding a saved format alone does not establish that conversion.
+
 ### Plugin recovery copies
 
-`plugins` checks measured recovery paths for old wrapped VST2 devices and writes repaired copies without
-opening Live. Start by listing the routes, then inspect a set before writing:
+`plugins` checks measured recovery paths for old wrapped VST2 devices and applies matching migrations to
+new set copies without opening Live. This is one application of plugin state knowledge. Start by listing
+the routes, then inspect a set before writing:
 
 ```powershell
 abletoolz plugins routes
@@ -162,9 +170,15 @@ folders. Without it, the commands search the standard installation folders. Use,
 `abletoolz plugins plan "song.als" --json` for structured results.
 
 The commands automatically match binaries and saved bank/program combinations against bundled verification
-records. The report explains unavailable targets and unresolved devices. Supported replacements retain the saved bank,
+records. The report explains unavailable targets and unresolved devices. Native VST2 replacements retain the saved bank,
 selected program, configured controls and automation; other devices stay unchanged. Each copy gets a report
 beside it, such as `song recovered.als.recovery.json`, describing the replacements and their verification limits.
+
+For a plugin that needs its native importer to convert old state, use `--prepared "conversion.json"` to
+include a separately prepared VST3 conversion. The manifest must come from a native import and readback
+experiment; these commands check its file hashes and source/target matches but do not execute the plugin
+or repeat that experiment. Prepared conversions currently accept single-program sources with no configured
+or referenced controls. Older document schemas are refused rather than upgraded.
 
 These commands preserve the document version and all stored media references. Samples are not copied
 or relocated, so a sandbox copy may still need its original project assets. Native state readback does
