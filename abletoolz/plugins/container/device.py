@@ -14,9 +14,13 @@ the indentation Live wrote it with, touching nothing else. One container
 adapter per format does the spelling; nothing outside this module names a
 child of an info element.
 
-A write here never changes the format. Rewriting a device as another format
-builds a new element from this description and is
-:mod:`abletoolz.plugins.container.format_translation`'s job.
+Two kinds of write, and never a third. Within a format, a change edits its
+field on the existing element and touches nothing else. Across formats, the
+element is rebuilt from a description in the child order measured for the
+target, in place, so it keeps its position and indentation and every child
+the two formats share. Only bytes are written either way; what the bytes and
+the identity should be is a recipe's decision, made in
+:mod:`abletoolz.plugins.container.format_translation`. See ADR 0001.
 
 :class:`PluginDevices` is every plugin device of one document in document
 order. The position in that order is the device's handle across a plan and
@@ -33,7 +37,7 @@ import enum
 import functools
 import pathlib
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text, path_data
@@ -412,6 +416,132 @@ def set_supports(kind: PluginKind, version: Version, *, minor_version: str | Non
     return True
 
 
+# -- rebuilding as another format -------------------------------------------
+# Live pretty-prints with tabs, so an element added without matching its
+# siblings makes the file stop looking like Live's own.
+
+
+def _inner_indent(parent: ET.Element) -> str | None:
+    """The whitespace Live writes before each child of ``parent``."""
+    text = parent.text
+    return text if text is not None and not text.strip() else None
+
+
+def _rebuild(parent: ET.Element, order: tuple[str, ...], closing: str | None) -> None:
+    """Keep only ``order``'s tags, in ``order``, indented the way Live writes them.
+
+    ``closing`` is the indentation before the parent's own closing tag, which
+    has to be read off the last child before anything is appended.
+
+    Dropping by keep-list rather than by a list of unwanted tags is what makes
+    one rule cover every Live version: a set from Live 10 carries Dir/FileName
+    and no NumAudioInputs, Live 12 the other way round, and the result each time
+    is exactly the element that version of Live writes for a VST3.
+    """
+    inner = _inner_indent(parent)
+    kept = {child.tag: child for child in parent}
+    children = [kept[tag] for tag in order if tag in kept]
+    for child in children:
+        child.tail = inner
+    children[-1].tail = closing
+    parent[:] = children
+
+
+def _uid_element(fields: UidFields, indent: str | None) -> ET.Element:
+    """Live's Uid block, indented for a parent whose children sit at ``indent``."""
+    uid: ET.Element = ET.Element(Tag.UID)
+    uid.text = None if indent is None else indent + "\t"
+    for index, value in enumerate(fields):
+        field = ET.SubElement(uid, f"Fields.{index}", {Attr.VALUE: str(value)})
+        field.tail = uid.text
+    uid[-1].tail = indent
+    return uid
+
+
+# Everything a Vst3PluginInfo holds, in the order Live writes it. What a VST2
+# device carries beyond this -- Path, PlugName, UniqueId, Inputs, Outputs,
+# NumberOfParameters, NumberOfPrograms, Flags, Version, VstVersion,
+# IsShellClient, Category, plus the Dir/FileName/LastPresetFolder of older sets
+# -- has no VST3 counterpart and goes. Verified against the Vst3PluginInfo
+# elements in the Live 10.1.3 and 11.3.42 fixtures, which are this list minus
+# whatever that version of Live did not write yet.
+_VST3_INFO_ORDER = (
+    Tag.WIN_POS_X,
+    Tag.WIN_POS_Y,
+    Tag.NUM_AUDIO_INPUTS,
+    Tag.NUM_AUDIO_OUTPUTS,
+    Tag.IS_PLACEHOLDER_DEVICE,
+    Tag.PRESET,
+    Tag.NAME,
+    Tag.UID,
+    Tag.DEVICE_TYPE,
+)
+
+# Same for the preset. The 13 tags up to ParametersListWrapperLomId are the ones
+# both formats share untouched; Type, ProgramCount, ParameterCount,
+# ProgramNumber, PluginVersion, UniqueId and ByteOrder are VST2-only and go.
+_VST3_PRESET_ORDER = (
+    Tag.OVERWRITE_PROTECTION_NUMBER,
+    Tag.MPE_ENABLED,
+    Tag.MPE_SETTINGS,
+    Tag.PARAMETER_SETTINGS,
+    Tag.IS_ON,
+    Tag.POWER_MACRO_CONTROL_INDEX,
+    Tag.POWER_MACRO_MAPPING_RANGE,
+    Tag.IS_FOLDED,
+    Tag.STORED_ALL_PARAMETERS,
+    Tag.DEVICE_LOM_ID,
+    Tag.DEVICE_VIEW_LOM_ID,
+    Tag.IS_ON_LOM_ID,
+    Tag.PARAMETERS_LIST_WRAPPER_LOM_ID,
+    Tag.UID,
+    Tag.DEVICE_TYPE,
+    Tag.PROCESSOR_STATE,
+    Tag.CONTROLLER_STATE,
+    Tag.NAME,
+    Tag.PRESET_REF,
+)
+
+
+def _write_vst3(device: PluginDevice, identity: Identity, preset: Preset) -> None:
+    """Rebuild ``device``'s element as the Vst3PluginInfo Live writes."""
+    if identity.name is None or identity.uid_fields is None or identity.is_instrument is None:
+        raise ValueError("a VST3 device needs a name, a class id and an instrument-or-effect answer")
+    info = device.info
+    device_type = "1" if identity.is_instrument else "2"
+    info_closing = info[-1].tail
+    preset_element = device._require_preset()
+    preset_closing = preset_element[-1].tail
+    preset_element.tag = Tag.VST3_PRESET
+    state = device._require(_STATE_TAGS[device.kind], preset_element)
+    state.tag = Tag.PROCESSOR_STATE
+    _set_hex(state, preset_element, preset.state)
+    preset_element.append(_uid_element(identity.uid_fields, _inner_indent(preset_element)))
+    preset_element.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
+    controller: ET.Element = ET.Element(Tag.CONTROLLER_STATE)
+    _set_hex(controller, preset_element, preset.controller or b"")
+    preset_element.append(controller)
+    _rebuild(preset_element, _VST3_PRESET_ORDER, preset_closing)
+
+    info.append(ET.Element(Tag.NAME, {Attr.VALUE: identity.name}))
+    info.append(_uid_element(identity.uid_fields, _inner_indent(info)))
+    info.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
+    _rebuild(info, _VST3_INFO_ORDER, info_closing)
+    info.tag = Tag.VST3_PLUGIN_INFO
+
+
+# One per format a device can be rebuilt as. A format missing here is a writer
+# nobody has measured yet, which is a fact to report, not a pair to implement.
+_WRITERS: dict[PluginKind, Callable[[PluginDevice, Identity, Preset], None]] = {
+    PluginKind.VST3: _write_vst3,
+}
+
+
+def has_writer(kind: PluginKind) -> bool:
+    """Whether a device can be rebuilt as ``kind`` at all."""
+    return kind in _WRITERS
+
+
 # -- one device -------------------------------------------------------------
 
 
@@ -605,6 +735,24 @@ class PluginDevice:
         self._only(PluginKind.VST3)
         preset = self._require_preset()
         _set_hex(self._require(Tag.CONTROLLER_STATE, preset), preset, payload)
+
+    # -- writes, another format --
+
+    def rewrite(self, kind: PluginKind, identity: Identity, preset: Preset) -> None:
+        """Rebuild this device as ``kind`` from a description, in place.
+
+        ``identity`` and ``preset`` say what the device is and holds afterwards,
+        in the target format's terms; they are written as given. The element
+        keeps its position, its indentation and every child the two formats
+        share, and the device reads as the new format from here on.
+        """
+        writer = _WRITERS.get(kind)
+        if writer is None:
+            raise ValueError(f"no writer for {kind.value}: nothing has measured the {INFO_TAGS[kind]} Live writes")
+        if kind is self.kind:
+            raise ValueError(f"already a {INFO_TAGS[kind]}: edit its fields instead")
+        writer(self, identity, preset)
+        self.kind = kind
 
     # -- the element --
 

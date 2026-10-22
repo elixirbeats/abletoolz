@@ -136,8 +136,23 @@ class CustomState:
         return f"{CUSTOM_PREFIX}{self.name}"
 
 
-# What a mapping entry may say about state.
-type StatePolicy = StateTransform | CustomState
+@dataclasses.dataclass(frozen=True)
+class PreparedBytes:
+    """A patch converted outside abletoolz and read back by the target plugin.
+
+    These bytes replace whatever the source device saved, even nothing. No
+    config entry can name them; a recovery route's manifest carries them, with
+    the hash that binds them to the one patch they were derived from.
+    """
+
+    processor: bytes
+
+    def __str__(self) -> str:
+        return "prepared"
+
+
+# What a mapping entry may say about state, plus the one shape a route supplies.
+type StatePolicy = StateTransform | CustomState | PreparedBytes
 
 
 # -- the registry -----------------------------------------------------------
@@ -216,6 +231,8 @@ def state_bytes(policy: StatePolicy) -> StateBytes | None:
     """The byte rewrite ``policy`` asks for, or None when the bytes go across as they are."""
     if isinstance(policy, CustomState):
         return custom_state(policy.name)
+    if isinstance(policy, PreparedBytes):
+        return lambda _source: policy.processor
     return _BUILT_IN_TRANSFORMS.get(policy)
 
 

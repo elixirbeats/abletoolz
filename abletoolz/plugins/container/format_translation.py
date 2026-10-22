@@ -6,13 +6,14 @@ Live 12.4.5: the ``PluginDevice`` wrapper around ``PluginDesc`` is byte for byte
 the same whichever format is inside, so a translation is entirely local to the
 info element.
 
-Reading an info element is :mod:`abletoolz.plugins.container.device`'s job.
-What this module adds is, per ordered format pair, how to rewrite one info
-element into the other -- ``_TRANSLATIONS``.
-
-Only ``(vst, vst3)`` is implemented today, because that is the pair whose output
-has been loaded in Live and listened to. Another pair is another entry in
-``_TRANSLATIONS``; nothing in the dispatch names a format.
+Reading an info element, and rebuilding one as another format, is
+:mod:`abletoolz.plugins.container.device`'s job. What this module adds is
+the recipe -- what a device becomes: the target format and identity, the
+state policy its patch crosses under, the controller policy a VST3 target
+needs -- and the one step that applies it: read the device, carry its patch
+across, write the target. A new target format is a writer in the device
+module, not a pair here; VST3 is the one written today, because that is the
+output that has been loaded in Live and listened to.
 
 What the target format cannot infer from the source is supplied by a
 :class:`TranslationTarget`: VST3 identifies a plugin by a class id that appears
@@ -24,26 +25,22 @@ nowhere in a VST2 device, so it has to come from somewhere else. The
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
 from typing import Protocol
-from xml.etree import ElementTree as ET
 
 import pydantic
 
-from abletoolz.elements import get_element
-from abletoolz.formats import hex_text
-from abletoolz.plugins.container.device import INFO_TAGS, PluginDevice, PluginKind, UidFields, kind_of
+from abletoolz.plugins.container.device import PluginDevice, PluginKind, UidFields, has_writer
 from abletoolz.plugins.state import (
     NO_CONTROLLER_STATE,
     ControllerState,
     CustomState,
+    PreparedBytes,
     StatePolicy,
     StateTransform,
     parse_controller_state,
     parse_state,
     state_bytes,
 )
-from abletoolz.schema import Attr, Tag, path
 
 
 class IncompleteDevice(ValueError):
@@ -79,7 +76,7 @@ class NamedTarget:
     What a config entry means when it gives a ``name`` and no ``uid``: the user
     knows which VST3 they want, and the class id is a machine fact
     :mod:`abletoolz.plugins.identity.uid_sources` can look up. Kept apart from
-    :class:`TranslationTarget` so nothing can reach ``translate_device`` without
+    :class:`TranslationTarget` so nothing can reach ``apply_recipe`` without
     a class id in hand.
     """
 
@@ -217,181 +214,51 @@ def parse_config_targets(raw: object) -> dict[str, ConfiguredTarget]:
     return {source_name: entry.target(source_name) for source_name, entry in targets.items()}
 
 
-# -- shaping ----------------------------------------------------------------
-# Live pretty-prints with tabs, so an element added without matching its
-# siblings makes the file stop looking like Live's own.
+# -- applying a recipe ------------------------------------------------------
 
 
-def _inner_indent(parent: ET.Element) -> str | None:
-    """The whitespace Live writes before each child of ``parent``."""
-    text = parent.text
-    return text if text is not None and not text.strip() else None
+def carried_state(source: bytes, policy: StatePolicy) -> bytes:
+    """The preset bytes a device carries across under ``policy``.
 
-
-def _rebuild(parent: ET.Element, order: tuple[str, ...], closing: str | None) -> None:
-    """Keep only ``order``'s tags, in ``order``, indented the way Live writes them.
-
-    ``closing`` is the indentation before the parent's own closing tag, which
-    has to be read off the last child before anything is appended.
-
-    Dropping by keep-list rather than by a list of unwanted tags is what makes
-    one rule cover every Live version: a set from Live 10 carries Dir/FileName
-    and no NumAudioInputs, Live 12 the other way round, and the result each time
-    is exactly the element that version of Live writes for a VST3.
+    A device saved without a patch stays without one -- there is nothing to
+    reframe or re-encode -- unless the policy brings bytes of its own.
     """
-    inner = _inner_indent(parent)
-    kept = {child.tag: child for child in parent}
-    children = [kept[tag] for tag in order if tag in kept]
-    for child in children:
-        child.tail = inner
-    children[-1].tail = closing
-    parent[:] = children
-
-
-def _uid_element(fields: UidFields, indent: str | None) -> ET.Element:
-    """Live's Uid block, indented for a parent whose children sit at ``indent``."""
-    uid: ET.Element = ET.Element(Tag.UID)
-    uid.text = None if indent is None else indent + "\t"
-    for index, value in enumerate(fields):
-        field = ET.SubElement(uid, f"Fields.{index}", {Attr.VALUE: str(value)})
-        field.tail = uid.text
-    uid[-1].tail = indent
-    return uid
-
-
-# -- state ------------------------------------------------------------------
-# What the bytes become is :mod:`abletoolz.plugins.state`'s knowledge;
-# here is only where they sit in the file.
-
-
-def _state_payload(element: ET.Element) -> bytes:
-    """The bytes a state element holds, or none at all for a device saved without a patch."""
-    return hex_text.decode(element.text)
-
-
-def _transform_state(element: ET.Element, policy: StatePolicy) -> None:
-    """Rewrite a state element's hex blob in place, keeping Live's hex line width."""
     rewrite = state_bytes(policy)
-    if rewrite is None:
-        return
-    text = element.text
-    if text is None or not text.strip():
-        return
-    element.text = hex_text.encode(rewrite(hex_text.decode(text)), hex_text.depth(text))
+    if rewrite is None or (not source and not isinstance(policy, PreparedBytes)):
+        return source
+    return rewrite(source)
 
 
-def _controller_element(controller: ControllerState, source: bytes, indent: str | None) -> ET.Element:
-    """The ControllerState Live writes beside every ProcessorState.
+def apply_recipe(device: PluginDevice, target: TranslationTarget) -> None:
+    """Rewrite ``device`` as ``target`` says: read it, carry its patch across, write the target format.
 
-    Measured over 150 sets: there is exactly one of these per ``ProcessorState``
-    -- 917 pairs out of 917 in a second sample -- and whether it holds anything
-    is a fact about the plugin. It is built from what the *source* device saved
-    rather than from what the processor half became, because for the products
-    that populate it the two are halves of the same saved chunk.
-
-    A device saved with no patch at all has nothing to build one out of, and
-    gets the empty element that says so.
+    The controller half of a VST3 preset is built from what the *source*
+    device saved rather than from what the processor half becomes, because for
+    the products that populate it the two are halves of the same saved chunk
+    (measured over 150 sets: exactly one ControllerState per ProcessorState,
+    917 pairs out of 917). A device saved with no patch has nothing to build
+    one out of, and gets the empty element that says so -- unless its bytes
+    are prepared, which carry their own controller half with them.
     """
-    element: ET.Element = ET.Element(Tag.CONTROLLER_STATE)
-    payload = controller.build(source) if source else None
-    if payload:
-        levels = 0 if indent is None else indent.count("\t") + 1
-        element.text = hex_text.encode(payload, levels)
-    return element
-
-
-# -- vst2 to vst3 -----------------------------------------------------------
-
-# Everything a Vst3PluginInfo holds, in the order Live writes it. What a VST2
-# device carries beyond this -- Path, PlugName, UniqueId, Inputs, Outputs,
-# NumberOfParameters, NumberOfPrograms, Flags, Version, VstVersion,
-# IsShellClient, Category, plus the Dir/FileName/LastPresetFolder of older sets
-# -- has no VST3 counterpart and goes. Verified against the Vst3PluginInfo
-# elements in the Live 10.1.3 and 11.3.42 fixtures, which are this list minus
-# whatever that version of Live did not write yet.
-_VST3_INFO_ORDER = (
-    Tag.WIN_POS_X,
-    Tag.WIN_POS_Y,
-    Tag.NUM_AUDIO_INPUTS,
-    Tag.NUM_AUDIO_OUTPUTS,
-    Tag.IS_PLACEHOLDER_DEVICE,
-    Tag.PRESET,
-    Tag.NAME,
-    Tag.UID,
-    Tag.DEVICE_TYPE,
-)
-
-# Same for the preset. The 13 tags up to ParametersListWrapperLomId are the ones
-# both formats share untouched; Type, ProgramCount, ParameterCount,
-# ProgramNumber, PluginVersion, UniqueId and ByteOrder are VST2-only and go.
-_VST3_PRESET_ORDER = (
-    Tag.OVERWRITE_PROTECTION_NUMBER,
-    Tag.MPE_ENABLED,
-    Tag.MPE_SETTINGS,
-    Tag.PARAMETER_SETTINGS,
-    Tag.IS_ON,
-    Tag.POWER_MACRO_CONTROL_INDEX,
-    Tag.POWER_MACRO_MAPPING_RANGE,
-    Tag.IS_FOLDED,
-    Tag.STORED_ALL_PARAMETERS,
-    Tag.DEVICE_LOM_ID,
-    Tag.DEVICE_VIEW_LOM_ID,
-    Tag.IS_ON_LOM_ID,
-    Tag.PARAMETERS_LIST_WRAPPER_LOM_ID,
-    Tag.UID,
-    Tag.DEVICE_TYPE,
-    Tag.PROCESSOR_STATE,
-    Tag.CONTROLLER_STATE,
-    Tag.NAME,
-    Tag.PRESET_REF,
-)
-
-
-def _translate_vst2_to_vst3(info: ET.Element, target: TranslationTarget) -> None:
-    """Rewrite a VstPluginInfo element into the Vst3PluginInfo Live writes."""
-    identity = PluginDevice(info).identity
+    identity, preset = device.identity, device.preset
     if identity.is_instrument is None:
         raise IncompleteDevice(f"{identity.name} is a stub device: the set never says what it is")
-    device_type = "1" if identity.is_instrument else "2"
-    info_closing = info[-1].tail
-
-    preset = get_element(info, path(Tag.PRESET, Tag.VST_PRESET))
-    preset_closing = preset[-1].tail
-    preset.tag = Tag.VST3_PRESET
-    state = get_element(preset, Tag.BUFFER)
-    state.tag = Tag.PROCESSOR_STATE
-    # Read before the rewrite: the controller half is built from what the VST2
-    # device saved, not from what the processor half is about to become.
-    source = _state_payload(state)
-    _transform_state(state, target.state_transform)
-    preset.append(_uid_element(target.uid_fields, _inner_indent(preset)))
-    preset.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
-    preset.append(_controller_element(target.controller_state, source, _inner_indent(preset)))
-    _rebuild(preset, _VST3_PRESET_ORDER, preset_closing)
-
-    info.append(ET.Element(Tag.NAME, {Attr.VALUE: target.name}))
-    info.append(_uid_element(target.uid_fields, _inner_indent(info)))
-    info.append(ET.Element(Tag.DEVICE_TYPE, {Attr.VALUE: device_type}))
-    _rebuild(info, _VST3_INFO_ORDER, info_closing)
-    info.tag = INFO_TAGS[PluginKind.VST3]
+    source = preset.state
+    prepared = isinstance(target.state_transform, PreparedBytes)
+    controller = target.controller_state.build(source) if source or prepared else None
+    device.rewrite(
+        target.to_format,
+        dataclasses.replace(identity, kind=target.to_format, name=target.name, uid_fields=target.uid_fields),
+        dataclasses.replace(preset, state=carried_state(source, target.state_transform), controller=controller),
+    )
 
 
-_TRANSLATIONS: dict[tuple[PluginKind, PluginKind], Callable[[ET.Element, TranslationTarget], None]] = {
-    (PluginKind.VST, PluginKind.VST3): _translate_vst2_to_vst3,
-}
+def can_rewrite(source: PluginKind, to: PluginKind) -> bool:
+    """Whether a device of ``source`` can be rewritten as ``to`` at all.
 
-
-def translate_device(info: ET.Element, target: TranslationTarget) -> None:
-    """Rewrite one plugin info element into ``target``'s format, in place."""
-    _TRANSLATIONS[(kind_of(info), target.to_format)](info, target)
-
-
-def has_translator(source: PluginKind, to: PluginKind) -> bool:
-    """Whether this ordered format pair can be translated at all.
-
-    Direction comes from the mapping entry, so an entry may name a pair nothing
-    here implements -- today anything but ``(vst, vst3)``. That is a fact to
-    report, not an error: the entry is the user's statement of intent, and the
-    missing half is a translator nobody has written yet.
+    Direction comes from the mapping entry, so an entry may name a format
+    nothing can write yet. That is a fact to report, not an error: the entry
+    is the user's statement of intent, and the missing half is a writer nobody
+    has measured yet.
     """
-    return (source, to) in _TRANSLATIONS
+    return source is not to and has_writer(to)

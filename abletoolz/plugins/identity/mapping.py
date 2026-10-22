@@ -66,7 +66,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 
 from abletoolz.plugins.config import AbletoolzConfig, get_config_path
-from abletoolz.plugins.container.format_translation import KNOWN_TRANSLATIONS, has_translator
+from abletoolz.plugins.container.format_translation import KNOWN_TRANSLATIONS, can_rewrite
 from abletoolz.plugins.identity.plugin_db import (
     FORMAT_LABELS,
     PluginDatabase,
@@ -363,7 +363,7 @@ def _pair(
         target_vendor=target.vendor,
         vendor=_agreement(source.vendor, target.vendor),
         migration=is_migration(source.name, target.name),
-        translator=has_translator(source.kind, target.kind),
+        translator=can_rewrite(source.kind, target.kind),
         state=measured_state(source.name, target.name),
         alternates=alternates,
     )

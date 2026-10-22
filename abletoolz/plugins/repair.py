@@ -62,9 +62,9 @@ from abletoolz.plugins.container.device import PluginDevice, PluginDevices, Plug
 from abletoolz.plugins.container.format_translation import (
     KNOWN_TRANSLATIONS,
     ConfiguredTarget,
-    has_translator,
+    apply_recipe,
+    can_rewrite,
     resolve_target,
-    translate_device,
 )
 from abletoolz.plugins.identity.mapping import suggest_target_name, suggestion_line
 from abletoolz.plugins.identity.uid_sources import DatabasePlugin, UidLookup, read_live_databases
@@ -337,7 +337,7 @@ def repair_set(
             actions.append(DeviceRepair(track, source, name, RepairStatus.BROKEN_UNMAPPED, None, None, suggestion))
             continue
 
-        if not has_translator(source, configured.to_format):
+        if not can_rewrite(source, configured.to_format):
             actions.append(
                 DeviceRepair(
                     track,
@@ -397,7 +397,7 @@ def repair_set(
             )
             continue
 
-        translate_device(info, target)
+        apply_recipe(device, target)
         state = measured_state(name, target.name)
         actions.append(
             DeviceRepair(track, source, name, RepairStatus.FIXED, target.to_format, target.name, None, state)

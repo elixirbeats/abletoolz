@@ -21,7 +21,8 @@ from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
-from abletoolz.plugins.container.format_translation import TranslationTarget, translate_device
+from abletoolz.plugins.container.device import PluginDevice
+from abletoolz.plugins.container.format_translation import TranslationTarget, apply_recipe
 from abletoolz.plugins.state import (
     CustomState,
     StateEvidence,
@@ -424,7 +425,7 @@ def test_a_pro_q1_device_comes_out_of_a_translation_as_a_pro_q3_patch() -> None:
     get_element(preset, "Buffer").text = hex_text.encode(bank.encode(), (preset.text or "").count("\t") + 1)
 
     target = TranslationTarget(PluginKind.VST3, "Pro-Q 3", (1, 2, 3, 4), CustomState(PRO_Q1_TO_PRO_Q3))
-    translate_device(info, target)
+    apply_recipe(PluginDevice(info), target)
 
     state = get_element(info, "Preset.Vst3Preset.ProcessorState")
     assert state.text is not None

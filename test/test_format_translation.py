@@ -21,6 +21,7 @@ from abletoolz.formats import hex_text
 from abletoolz.live_set import AbletonSet
 from abletoolz.plugins import PluginKind
 from abletoolz.plugins.container import format_translation as translation
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.container.format_translation import TranslationTarget
 from abletoolz.plugins.identity import uid_sources
 from abletoolz.plugins.state import StateTransform
@@ -98,7 +99,7 @@ def test_translated_device_matches_the_vst3_live_wrote_beside_it(key: str, plug_
     expected_preset = tags(get_element(reference, "Preset.Vst3Preset"))
 
     info = vst2_info(live_set, plug_name)
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
 
     assert info.tag == "Vst3PluginInfo"
     assert tags(info) == expected_info
@@ -108,7 +109,7 @@ def test_translated_device_matches_the_vst3_live_wrote_beside_it(key: str, plug_
 def test_vst2_only_elements_are_gone() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     dropped = {
         "Path",
         "PlugName",
@@ -143,14 +144,14 @@ def test_shared_preset_head_is_untouched() -> None:
     info = vst2_info(live_set, "Serum_x64")
     preset = get_element(info, "Preset.VstPreset")
     before = [ET.tostring(child) for child in list(preset)[:13]]
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     assert [ET.tostring(child) for child in list(get_element(info, "Preset.Vst3Preset"))[:13]] == before
 
 
 def test_uid_fields_are_written_at_both_levels() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, INSTRUMENT)
+    translation.apply_recipe(PluginDevice(info), INSTRUMENT)
     uids = list(info.iter("Uid"))
     assert len(uids) == 2
     for uid in uids:
@@ -162,7 +163,7 @@ def test_name_comes_from_the_target_not_the_vst2() -> None:
     """A VST3 is usually known by a shorter display name than its VST2 file."""
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     assert get_element(info, "Name", attribute="Value") == "Test Effect"
 
 
@@ -172,7 +173,7 @@ def test_device_type_follows_vst2_category(category: str, device_type: str) -> N
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     get_element(info, "Category").set("Value", category)
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     assert get_element(info, "DeviceType", attribute="Value") == device_type
     assert get_element(info, "Preset.Vst3Preset.DeviceType", attribute="Value") == device_type
 
@@ -186,7 +187,7 @@ def test_a_target_declaring_no_controller_state_writes_the_element_empty() -> No
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, b"some state")
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     preset = get_element(info, "Preset.Vst3Preset")
     order = tags(preset)
     assert order.index("ControllerState") == order.index("ProcessorState") + 1
@@ -201,7 +202,7 @@ def test_a_constant_controller_state_is_written_whatever_the_patch(preset_name: 
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, legacy_bank(preset_name))
-    translation.translate_device(info, FABF_TARGET)
+    translation.apply_recipe(PluginDevice(info), FABF_TARGET)
     assert read_state(get_element(info, "Preset.Vst3Preset.ControllerState")) == FABFILTER_CONTROLLER_TRAILER
 
 
@@ -210,7 +211,7 @@ def test_a_constant_controller_state_is_indented_the_way_live_writes_a_blob() ->
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, legacy_bank("Default Setting"))
-    translation.translate_device(info, FABF_TARGET)
+    translation.apply_recipe(PluginDevice(info), FABF_TARGET)
     preset = get_element(info, "Preset.Vst3Preset")
     text = get_element(preset, "ControllerState").text
     assert text is not None
@@ -222,7 +223,7 @@ def test_an_ffbs_controller_state_carries_the_preset_name_out_of_the_bank() -> N
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, legacy_bank("Smear bM"))
-    translation.translate_device(info, FFBS_TARGET)
+    translation.apply_recipe(PluginDevice(info), FFBS_TARGET)
     payload = read_state(get_element(info, "Preset.Vst3Preset.ControllerState"))
     assert payload.endswith(FABFILTER_CONTROLLER_TRAILER)
     assert EditorState.parse(payload).preset_name == "Smear bM"
@@ -241,7 +242,7 @@ def test_an_ffbs_controller_state_carries_a_chunk_s_editor_half_across_whole() -
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, b"FFBS processor half" + editor.encode())
-    translation.translate_device(info, FFBS_TARGET)
+    translation.apply_recipe(PluginDevice(info), FFBS_TARGET)
     payload = read_state(get_element(info, "Preset.Vst3Preset.ControllerState"))
     assert payload == editor.encode() + FABFILTER_CONTROLLER_TRAILER
     assert EditorState.parse(payload) == editor
@@ -252,7 +253,7 @@ def test_a_device_saved_with_no_patch_gets_an_empty_controller_state() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     assert get_element(info, "Preset.VstPreset.Buffer").text is None
-    translation.translate_device(info, FABF_TARGET)
+    translation.apply_recipe(PluginDevice(info), FABF_TARGET)
     assert get_element(info, "Preset.Vst3Preset.ControllerState").text is None
 
 
@@ -273,7 +274,7 @@ def test_the_controller_state_is_built_from_the_source_not_the_rewritten_process
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     set_state(info, payload)
-    translation.translate_device(info, target)
+    translation.apply_recipe(PluginDevice(info), target)
     preset = get_element(info, "Preset.Vst3Preset")
     assert read_state(get_element(preset, "ProcessorState")) == struct.pack("<II", 1, len(payload)) + payload
     assert read_state(get_element(preset, "ControllerState")) == payload
@@ -287,7 +288,7 @@ def test_state_carries_over_verbatim_by_default() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     original = set_state(info, bytes(range(256)) * 4)
-    translation.translate_device(info, EFFECT)
+    translation.apply_recipe(PluginDevice(info), EFFECT)
     assert get_element(info, "Preset.Vst3Preset.ProcessorState").text == original
 
 
@@ -297,7 +298,7 @@ def test_kilohearts_state_gains_an_eight_byte_header() -> None:
     info = vst2_info(live_set, "Serum_x64")
     payload = b"PK\x03\x04" + bytes(range(64))
     set_state(info, payload)
-    translation.translate_device(info, KILOHEARTS)
+    translation.apply_recipe(PluginDevice(info), KILOHEARTS)
     state = read_state(get_element(info, "Preset.Vst3Preset.ProcessorState"))
     assert state[:8] == struct.pack("<II", 1, len(payload))
     assert state[8:] == payload
@@ -308,7 +309,7 @@ def test_empty_state_stays_empty() -> None:
     live_set = make_set("11.3.42")
     info = vst2_info(live_set, "Serum_x64")
     assert get_element(info, "Preset.VstPreset.Buffer").text is None
-    translation.translate_device(info, KILOHEARTS)
+    translation.apply_recipe(PluginDevice(info), KILOHEARTS)
     assert get_element(info, "Preset.Vst3Preset.ProcessorState").text is None
 
 

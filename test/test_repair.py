@@ -28,9 +28,9 @@ from abletoolz.plugins.container.format_translation import (
     IncompleteDevice,
     NamedTarget,
     TranslationTarget,
+    apply_recipe,
     parse_config_targets,
     resolve_target,
-    translate_device,
 )
 from abletoolz.plugins.identity import plugin_db, uid_sources
 from abletoolz.plugins.identity.mapping import name_variants, strip_bitness, suggest_target_name
@@ -837,7 +837,7 @@ def test_translating_a_stub_on_purpose_refuses_loudly() -> None:
     make_stub(info)
     assert not PluginDevice(info).complete
     with pytest.raises(IncompleteDevice):
-        translate_device(info, TranslationTarget(PluginKind.VST3, "Serum", SERUM_FIELDS))
+        apply_recipe(PluginDevice(info), TranslationTarget(PluginKind.VST3, "Serum", SERUM_FIELDS))
 
 
 # -- what a repaired device says about its patch ----------------------------

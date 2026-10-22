@@ -15,7 +15,7 @@ from abletoolz.formats import live_document
 from abletoolz.formats.errors import FormatError
 from abletoolz.live_set.tracks import display_name
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, PluginKind, ReferenceForm
-from abletoolz.plugins.container.format_translation import TranslationTarget, translate_device
+from abletoolz.plugins.container.format_translation import TranslationTarget, apply_recipe
 from abletoolz.plugins.recovery_routes import (
     PreparedState,
     RecoveryTarget,
@@ -26,7 +26,7 @@ from abletoolz.plugins.recovery_routes import (
     fingerprint_binary,
 )
 from abletoolz.plugins.repair import needs_parameter_mapper
-from abletoolz.plugins.state import ConstantControllerState
+from abletoolz.plugins.state import ConstantControllerState, PreparedBytes
 from abletoolz.schema import Attr
 
 
@@ -327,13 +327,13 @@ def apply_recovery_plan(root: ET.Element, plan: RecoveryPlan) -> ET.Element:
                 if action.target_uid_fields is None:
                     raise RecoveryError("Missing planned VST3 class ID")
                 processor, controller = prepared[action.device]
-                device.set_state(processor)
-                translate_device(
-                    device.info,
+                apply_recipe(
+                    device,
                     TranslationTarget(
                         PluginKind.VST3,
                         action.target_name,
                         action.target_uid_fields,
+                        state_transform=PreparedBytes(processor),
                         controller_state=ConstantControllerState(controller),
                     ),
                 )

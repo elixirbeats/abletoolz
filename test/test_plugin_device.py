@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import pathlib
 from xml.etree import ElementTree as ET
 
@@ -14,6 +15,7 @@ from abletoolz.plugins.container.device import (
     PluginDevices,
     PluginKind,
     ReferenceForm,
+    has_writer,
     is_info,
     kind_of,
     set_supports,
@@ -191,6 +193,36 @@ def test_a_compact_document_writes_hex_without_indentation() -> None:
     buffer = info.find("Preset/VstPreset/Buffer")
     assert buffer is not None
     assert buffer.text == "\nABCD\n"
+
+
+# -- another format ---------------------------------------------------------
+
+
+def test_rewriting_as_vst3_keeps_the_element_in_place() -> None:
+    """A rebuilt device is the same element at the same position, read back as the new format."""
+    devices = PluginDevices(load("11.3.42"))
+    device = next(device for device in devices if device.kind is PluginKind.VST)
+    description = devices.parents[device.info]
+    index, indent = list(description).index(device.info), device.info.text
+    identity = dataclasses.replace(device.identity, kind=PluginKind.VST3, name="Serum", uid_fields=(1, 2, 3, 4))
+    preset = dataclasses.replace(device.preset, state=b"\x01\x02", controller=b"\x03")
+    device.rewrite(PluginKind.VST3, identity, preset)
+    assert device.kind is PluginKind.VST3 and device.info.tag == "Vst3PluginInfo"
+    assert list(description).index(device.info) == index and device.info.text == indent
+    again = PluginDevice(device.info).identity
+    assert (again.name, again.uid_fields, again.is_instrument) == ("Serum", (1, 2, 3, 4), identity.is_instrument)
+    assert PluginDevice(device.info).preset.state == b"\x01\x02"
+    assert PluginDevice(device.info).preset.controller == b"\x03"
+
+
+def test_only_measured_formats_have_a_writer() -> None:
+    assert has_writer(PluginKind.VST3)
+    assert not has_writer(PluginKind.VST) and not has_writer(PluginKind.AU)
+    device = next(device for device in PluginDevices(load("11.3.42")) if device.kind is PluginKind.VST3)
+    with pytest.raises(ValueError, match="no writer"):
+        device.rewrite(PluginKind.VST, device.identity, device.preset)
+    with pytest.raises(ValueError, match="already a"):
+        device.rewrite(PluginKind.VST3, device.identity, device.preset)
 
 
 # -- controls ---------------------------------------------------------------
