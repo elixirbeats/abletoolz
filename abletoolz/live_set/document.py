@@ -16,6 +16,7 @@ from abletoolz.live_set.describe import Describe
 from abletoolz.live_set.devices import Devices
 from abletoolz.live_set.plugins import Plugins
 from abletoolz.live_set.samples import Samples
+from abletoolz.live_set.save_as import SaveAsReport, SaveTarget, write_for
 from abletoolz.live_set.tracks import Tracks
 from abletoolz.live_set.transport import Transport
 from abletoolz.schema import Attr, versioning
@@ -174,6 +175,10 @@ class AbletonSet:
     def get_file_times(self) -> None:
         """Find set creation/modification times."""
         persistence.get_file_times(self)
+
+    def save_as(self, target: SaveTarget, output_dir: pathlib.Path | None = None) -> tuple[pathlib.Path, SaveAsReport]:
+        """Write a copy for an older Live release; see :func:`abletoolz.live_set.save_as.write_for`."""
+        return write_for(self, target, output_dir)
 
     def save_set(
         self,

@@ -31,3 +31,21 @@ _Avoid_: parameters, bindings, automation (each is only one of them)
 **State policy**:
 What happens to a preset's bytes on the way to the target: carried verbatim, reframed, re-encoded by a registered transform, or replaced by a prepared state.
 _Avoid_: transform (one kind of policy), conversion
+
+## Live versions
+
+**Schema**:
+The document format a Live release writes, named by the two version numbers at the top of every set: `MinorVersion` and `SchemaChangeCount`. Several releases can share one schema, and one Live line holds many. Live opens a set whose schema is its own or older.
+_Avoid_: version (a release), format (a plugin format)
+
+**Save target**:
+The schema a set is written in. Named by a Live version; it resolves to the newest schema seen at or below that version, and to nothing if the corpus holds no set from it.
+_Avoid_: downgrade target, export version
+
+**Grammar**:
+For each element of a set, the child elements and attributes Live writes under it, with the first and last schema each was seen in.
+_Avoid_: census (the measuring that produces it), allow-list
+
+**Stand-in rack**:
+An empty rack of a device's kind (audio effect, instrument or MIDI effect), named after a device the save target does not have and put where that device was, its info text saying what was there.
+_Avoid_: placeholder, downgrade, replacement device
