@@ -165,6 +165,8 @@ type StatePolicy = StateTransform | CustomState | PreparedBytes
 # -- the registry -----------------------------------------------------------
 
 _CUSTOM_TRANSFORMS: dict[str, StateBytes] = {}
+# Keep old configurations readable without retaining the prototype implementation.
+_WITHDRAWN_CUSTOM_STATES = frozenset({"fabfilter-pro-c-1"})
 
 
 def register_custom_state(name: str, transform: StateBytes) -> None:
@@ -174,6 +176,8 @@ def register_custom_state(name: str, transform: StateBytes) -> None:
     won would decide what a patch sounds like, and nothing about a silent winner
     is inspectable afterwards.
     """
+    if name in _WITHDRAWN_CUSTOM_STATES:
+        raise StateTransformError(f"Custom state transform {name!r} is withdrawn from the release package")
     existing = _CUSTOM_TRANSFORMS.get(name)
     if existing is not None and existing is not transform:
         raise StateTransformError(f"A different custom state transform is already registered as {name!r}")
@@ -182,6 +186,11 @@ def register_custom_state(name: str, transform: StateBytes) -> None:
 
 def custom_state(name: str) -> StateBytes:
     """The registered transform ``custom:<name>`` means."""
+    if name in _WITHDRAWN_CUSTOM_STATES:
+        raise StateTransformError(
+            f"Custom state transform {name!r} is withdrawn from the release package; "
+            "its source-to-target curves are unverified. No state was converted."
+        )
     transform = _CUSTOM_TRANSFORMS.get(name)
     if transform is None:
         known = ", ".join(sorted(_CUSTOM_TRANSFORMS)) or "nothing"
@@ -200,12 +209,13 @@ def registered_custom_states() -> frozenset[str]:
 def parse_state(raw: str) -> StatePolicy:
     """Read a config entry's ``state:``, which is a rung name or ``custom:<name>``.
 
-    Both failure modes raise: an unknown built-in name, and a ``custom:`` naming
-    something unregistered. Neither can be quietly treated as verbatim.
+    Unknown names raise. Withdrawn names remain readable for existing configs,
+    but resolving their executable transform raises before a device is changed.
     """
     if raw.startswith(CUSTOM_PREFIX):
         name = raw[len(CUSTOM_PREFIX) :]
-        custom_state(name)
+        if name not in _WITHDRAWN_CUSTOM_STATES:
+            custom_state(name)
         return CustomState(name)
     return StateTransform(raw)
 

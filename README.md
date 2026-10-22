@@ -184,9 +184,10 @@ These commands preserve the document version and all stored media references. Sa
 or relocated, so a sandbox copy may still need its original project assets. Native state readback does
 not establish sound equivalence with the missing original plugin.
 
-### Plugin parsers (experimental)
+### Plugins
 
 Plugin state inside a set is an opaque buffer per plugin; parsers teach abletoolz specific formats.
+See [supported maps and conversions](abletoolz/plugins/MAPPINGS.md) for current coverage and extension guidance.
 
 Only a handful of plugins are covered currently, so out of the box this won't fix your sets.. but the value is in the framework being able to manipulate those plugin buffers/shapes easily so it is possible to reverse engineer and recover old sets or turn them into newer plugins even. This depends entirely on if you'll be able to decode the buffer. Once you figure out the format (and I recommend using agents to help you do this), from then on every device of that plugin across every set you own is fixable
 with one command. Old collections tend to be broken by the same few plugins over and over, so each one

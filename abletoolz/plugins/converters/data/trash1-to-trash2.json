@@ -1,5 +1,5 @@
 {
-  "scope": "Experimental single-band distortion; final native vector 44100 Hz, physical Drive6.37/Style0.819, seeded probe20261027. Errors are diagnostics at that vector, not a complete-domain quality guarantee.",
+  "scope": "Single-band distortion; final native vector 44100 Hz, physical Drive6.37/Style0.819, seeded probe20261027. Errors are diagnostics at that vector, not a complete-domain quality guarantee.",
   "source_sha256": "ec1e66d15ce7b611148260681da68444de51299fe75d0a9ef416d3cd504e38c9",
   "target_engine_sha256": "625fe654b2818cde66c229745f72939e1a2f840359aa8125601d16650093ddc0",
   "rules": [

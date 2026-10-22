@@ -35,7 +35,7 @@ def test_explicit_converter_reproduces_five_complete_native_reloads() -> None:
         converted = convert_single_band_distortion(bank, program=row["program"])
         assert converted.state.encode() == native
         assert converted.program == row["program"]
-        assert converted.notices[0].code is NoticeCode.EXPERIMENTAL
+        assert converted.notices[0].code is NoticeCode.LIMITED_SCOPE
         assert bank.encode() == raw
     assert registered_custom_states() == before
 

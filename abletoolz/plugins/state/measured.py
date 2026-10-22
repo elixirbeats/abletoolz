@@ -154,10 +154,8 @@ MEASURED_STATE: dict[str, MeasuredState] = {
     "FabFilter Pro-Q 2.64": _RECOVERED_PRO_Q2,
     "FabFilter Timeless 2": _hosted(StateRung.RE_ENCODE),
     "FabFilter Saturn": _hosted(StateRung.RE_ENCODE),
-    # Pro-C 1 is the second product with a re-encode written for it, and the
-    # first whose source side came out of Live's own records rather than out of
-    # the plugin. Both spellings again: the ".64" is the jBridged 32-bit build
-    # every one of the user's newer sets carries.
+    # Historical prototype readback evidence, retained independently of availability.
+    # No Pro-C 1 converter is registered in the release package.
     "FabFilter Pro-C": _re_encoded(StateRung.RE_ENCODE),
     "FabFilter Pro-C.64": _re_encoded(StateRung.RE_ENCODE),
     "iZotope Ozone 4": _hosted(StateRung.RE_ENCODE),

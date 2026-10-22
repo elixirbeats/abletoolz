@@ -2,7 +2,7 @@
 
 The fourth state rung: nobody migrates the patch for you, so someone has to
 parse the source format and write the target's. This is that parser and that
-serializer, for Pro-Q 1 and 2 to Pro-Q 3 and for Pro-C 1 to Pro-C 2.
+serializer, for Pro-Q 1 and 2 to Pro-Q 3 and Pro-C 2 between host formats.
 
 Two chunk generations
 ---------------------
@@ -37,8 +37,8 @@ decode to 1 kHz through the formulas here.
 What does not survive
 ---------------------
 * **Per-band placement.** Pro-Q 1 stores something other than 1.0 for bands that
-  are not stereo and the encoding is still unresolved, so every band lands on
-  Stereo. Guessing would put a band on one channel silently.
+  are not stereo and the encoding is still unresolved. Conversion refuses
+  those bands; supported stereo bands retain their placement.
 * **Automation.** A clip's envelopes point at plugin parameter indices, and the
   two versions do not number their parameters alike.
 
@@ -49,21 +49,6 @@ one. Every Pro-Q 3, Saturn 2 and Timeless 3 device in the corpus writes it, name
 and all. :class:`FfbsControllerState` builds it, so a converted patch keeps the
 name the Pro-Q 1 bank gave it.
 
-Why Pro-C 1 to Pro-C 2 is a different shape of problem
-------------------------------------------------------
-Both sides of that one are FabF-generation, so the target half is already
-measured -- Pro-C 2's derived table says what each of its parameters stores and
-how a normalized value gets there. What was missing is the source half. Pro-Q 1
-could be read because its bank layout was cracked by hand; Pro-C 1's could not
-be asked at all, because its VST2 is a 32-bit build no 64-bit host will open.
-
-Live wrote it down anyway. Every ``PluginDevice`` carries a ``ParameterList``
-of records with a plugin parameter index and a name, and 566 Pro-C 1 devices
-across 847 of the user's sets agree on all 31 of them with nothing contested.
-So the join below is by name, the same join the derivation rig makes when both
-binaries are available -- with the source names read out of Live's record
-instead of out of the plugin. What that costs is written down below, parameter
-by parameter: :data:`PRO_C_1_DROPPED` and :data:`PRO_C_1_ENUM_WIDENING`.
 """
 
 from __future__ import annotations
@@ -575,6 +560,8 @@ def pro_q1_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
     for band in range(used):
         start = 1 + band * PRO_Q1_BAND_SLOTS
         source = bank[start : start + PRO_Q1_BAND_SLOTS]
+        if source[Q1BandField.PLACEMENT] != 1.0:
+            raise StateTransformError("Pro-Q 1 non-stereo band placement is unmapped")
         target = band * PRO_Q3_BAND_SLOTS
         frequency = _Q1_FREQUENCY_FLOOR_HZ * _Q1_FREQUENCY_DECADES ** source[Q1BandField.FREQUENCY]
         parameters[target + Q3BandField.USED] = 1.0
@@ -586,8 +573,6 @@ def pro_q1_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
         parameters[target + Q3BandField.Q] = source[Q1BandField.Q]
         parameters[target + Q3BandField.SHAPE] = _enum_index(source[Q1BandField.SHAPE], _Q1_TO_Q3_SHAPE, "shape")
         parameters[target + Q3BandField.SLOPE] = _enum_index(source[Q1BandField.SLOPE], _Q1_TO_Q3_SLOPE, "slope")
-        # Pro-Q 1's non-stereo placement encoding is unresolved; see the module
-        # docstring. Every band lands on Stereo rather than on a guess.
         parameters[target + Q3BandField.PLACEMENT] = _Q3_STEREO_PLACEMENT
     return tuple(parameters)
 
@@ -705,204 +690,3 @@ PRO_C_2 = "fabfilter-pro-c-2"
 PRO_C_2_TABLE = read_derived_table(DERIVED_TABLES / "pro-c-2.json")
 
 register_custom_state(PRO_C_2, PRO_C_2_TABLE.convert)
-
-
-# -- Pro-C 1 to Pro-C 2, joined by a name Live wrote down -------------------
-# The first cross-version re-encode off a derived table, and the first whose
-# source side could not be asked: Pro-C 1's VST2 is a 32-bit build Live 12 will
-# not load and no 64-bit host can open. What Live recorded instead is a
-# ``ParameterList`` beside every device -- an index, a name and the value it
-# last saw -- and 566 Pro-C 1 devices across 847 sets agree on all 31 names
-# with nothing contested.
-
-PRO_C_1_PARAMETERS: tuple[str, ...] = (
-    "Characteristic",
-    "Threshold",
-    "Ratio",
-    "Knee Shape",
-    "Attack",
-    "Release",
-    "Input Level",
-    "Input Panning",
-    "Left Side Chain Level",
-    "Left Side Chain Mix",
-    "Right Side Chain Level",
-    "Right Side Chain Mix",
-    "Output Level",
-    "Output Panning",
-    "Dry Level",
-    "Dry Panning",
-    "Auto Gain",
-    "Auto Release",
-    "Auto Release Speed",
-    "Input signal",
-    "Low Pass Frequency",
-    "High Pass Frequency",
-    "Audition Side Chain",
-    "Channel Processing",
-    "Receive Midi",
-    "Expert Mode",
-    "Interface: Opacity Input",
-    "Interface: Opacity Output",
-    "Interface: Opacity Gain Change",
-    "Interface: Meter Scale",
-    "Interface: Display Enabled",
-)
-
-# Which Pro-C 2 knob each of them becomes. Nine pair on the name alone; the
-# rest are decided here and each says why.
-PRO_C_1_TO_PRO_C_2: tuple[tuple[str, str], ...] = (
-    # Pro-C 1's three characteristics against Pro-C 2's eight styles. The
-    # widening below is what makes this safe to write down at all.
-    ("Characteristic", "Style"),
-    ("Threshold", "Threshold"),
-    ("Ratio", "Ratio"),
-    ("Attack", "Attack"),
-    ("Release", "Release"),
-    ("Input Level", "Input Level"),
-    ("Output Level", "Output Level"),
-    ("Auto Gain", "Auto Gain"),
-    ("Auto Release", "Auto Release"),
-    ("Audition Side Chain", "Audition Side Chain"),
-    # Pro-C 2 spells every pan "Pan". 0.5 is centre on both sides and Pro-C 2's
-    # own default for all four of these is the 0 that 0.5 decodes to.
-    ("Input Panning", "Input Pan"),
-    ("Output Panning", "Output Pan"),
-    ("Dry Panning", "Dry Pan"),
-    # Same knob, renamed: Pro-C 2 calls its dry path a gain. Pro-C 1's default
-    # 0 decodes to Pro-C 2's own default of -1, which is dry fully out.
-    ("Dry Level", "Dry Gain"),
-    # Pro-C 1 gave the side chain a level per channel and Pro-C 2 has one, so
-    # the left one crosses and the right is dropped. Both sit at 0.5 -- 0 dB,
-    # Pro-C 2's default -- in all 188 corpus patches, so nothing in this
-    # collection turns on the choice.
-    ("Left Side Chain Level", "Side Chain Level"),
-    # Which signal the detector listens to. Both are two-way and both default
-    # to the internal one, and every corpus patch is on it.
-    ("Input signal", "Side Chain Input"),
-    # Pro-C 1's two side-chain filters against the outer two bands of Pro-C 2's
-    # side-chain EQ, which is where a slope-carrying cut lives: its Low band is
-    # the high-pass and its High band is the low-pass. The names cross over,
-    # which is exactly why this pairing is written down rather than matched.
-    ("High Pass Frequency", "Side Chain Low Frequency"),
-    ("Low Pass Frequency", "Side Chain High Frequency"),
-    ("Receive Midi", "Midi State"),
-    # Pro-C 1's expert panel is Pro-C 2's side-chain panel. Display only.
-    ("Expert Mode", "Side Chain Expert Mode"),
-    ("Interface: Meter Scale", "Meter Scale"),
-    ("Interface: Display Enabled", "Display Enabled"),
-)
-
-# What Pro-C 1 says that Pro-C 2 has nowhere to put. Listed rather than left
-# out, because a reader's first question about a version migration is what it
-# lost.
-PRO_C_1_DROPPED: tuple[tuple[str, str], ...] = (
-    (
-        "Knee Shape",
-        "reads 0 or 1 and nothing else in 188 patches, so it is a switch; Pro-C 2's Knee is a "
-        "continuous 0 to 72 dB width, and passing a 1 through would put the widest knee it has "
-        "on a patch that asked for a soft one",
-    ),
-    (
-        "Left Side Chain Mix",
-        "Pro-C 2 has no per-channel side-chain blend. The two mixes mirror each other "
-        "around 0.5 in the two corpus patches that move them, which is a stereo-link "
-        "control of some kind, but nothing measurable says it is Pro-C 2's Stereo Link",
-    ),
-    ("Right Side Chain Mix", "as above"),
-    ("Right Side Chain Level", "Pro-C 2 has one side-chain level; the left one crosses"),
-    (
-        "Auto Release Speed",
-        "Pro-C 2 has no separate speed -- its Release knob is the auto-release speed "
-        "when Auto Release is on, and writing one knob from two would silently "
-        "overwrite the release time of every patch that is not in auto",
-    ),
-    (
-        "Channel Processing",
-        "0 in all 188 corpus patches, so nothing says how many settings it has or "
-        "whether Pro-C 2's Stereo Link Mode is the same control",
-    ),
-    ("Interface: Opacity Input", "an editor opacity with no counterpart"),
-    ("Interface: Opacity Output", "an editor opacity with no counterpart"),
-    ("Interface: Opacity Gain Change", "an editor opacity with no counterpart"),
-)
-
-# Pairs where the two versions count their settings differently, so a
-# normalized value cannot cross as it stands: Live stores an enum as its index
-# over its top index, and 0.5 of three settings is 1 while 0.5 of eight is 3.5.
-# The index is recovered against the source's count and rewritten against the
-# target's, which assumes the newer product kept the older one's settings in
-# order and added to the end -- the way Pro-Q 3 kept Pro-Q 1's five band shapes.
-#
-# Both counts on the left are measured off the corpus rather than off the
-# plugin, and that is the weak end of this conversion. Characteristic takes
-# exactly three values in 188 patches (0, 0.5 and 1, in 180, 4 and 4 of them)
-# and Meter Scale exactly four; a setting the collection never used would make
-# the count too small and land the middle settings one place early.
-PRO_C_1_ENUM_WIDENING: tuple[tuple[str, int, int], ...] = (
-    ("Characteristic", 3, 8),
-    ("Interface: Meter Scale", 4, 5),
-)
-
-# Pro-C 2 gates each side-chain filter behind a flag Pro-C 1 has no parameter
-# for: its filters are always in circuit and are opened by running them to the
-# end of their range instead. So the flag is set from whether the filter was
-# doing anything -- a patch that left one open converts to a Pro-C 2 with that
-# band off, which is the same sound and the same default the plugin ships with.
-PRO_C_1_FILTER_SWITCHES: tuple[tuple[str, str, float], ...] = (
-    ("High Pass Frequency", "Side Chain Low Enabled", 0.0),
-    ("Low Pass Frequency", "Side Chain High Enabled", 1.0),
-)
-
-
-def pro_c_1_to_pro_c_2_values(bank: Sequence[float]) -> dict[str, float]:
-    """Which Pro-C 2 parameter takes which of Pro-C 1's normalized values.
-
-    Normalized on both sides. Turning those into what Pro-C 2 stores is the
-    derived table's job and not this function's -- the curve per parameter was
-    measured off the installed VST3, and what is decided here is only which
-    knob each number belongs to.
-
-    The open question every pairing carries is whether a Pro-C 1 normalized
-    value means what a Pro-C 2 one does, and Pro-C 1 cannot be asked. Where the
-    corpus can answer it does: 0.5 in Pro-C 1's four pans, its side-chain level
-    and its two output levels all decode through Pro-C 2's own curves to the
-    exact defaults Pro-C 2 ships, and Dry Level's 0 decodes to Pro-C 2's -1.
-    Threshold, Ratio, Attack and Release have no such check and pass through
-    assumed -- Pro-C 2 defaults its ratio to 0.6 normalized where the most
-    repeated Pro-C 1 value is 0.5, which is either two products defaulting to
-    different ratios or two different curves, and no bank says which.
-    """
-    if len(bank) != len(PRO_C_1_PARAMETERS):
-        raise StateTransformError(
-            f"a Pro-C 1 bank has {len(PRO_C_1_PARAMETERS)} parameters, not {len(bank)}. "
-            "Another FabFilter's bank read as one would land on a patch nobody chose."
-        )
-    source = {name: bank[index] for index, name in enumerate(PRO_C_1_PARAMETERS)}
-    values = {target: source[name] for name, target in PRO_C_1_TO_PRO_C_2}
-
-    joined = dict(PRO_C_1_TO_PRO_C_2)
-    for name, source_steps, target_steps in PRO_C_1_ENUM_WIDENING:
-        index = round(source[name] * (source_steps - 1))
-        values[joined[name]] = index / (target_steps - 1)
-
-    for name, flag, open_value in PRO_C_1_FILTER_SWITCHES:
-        values[flag] = float(source[name] != open_value)
-    return values
-
-
-def pro_c_1_to_pro_c_2(payload: bytes) -> bytes:
-    """Re-encode a Pro-C 1 VST2 bank as the ``ProcessorState`` Pro-C 2's VST3 wants.
-
-    What a mapping entry reaches with ``state: custom:fabfilter-pro-c-1``. The
-    preset name crosses inside the state, where the ``FabF`` container has a
-    field for it.
-    """
-    bank = LegacyBank.parse(payload)
-    return PRO_C_2_TABLE.build(bank.preset_name, pro_c_1_to_pro_c_2_values(bank.parameters))
-
-
-# The name a config entry writes as ``state: custom:<name>``.
-PRO_C_1_TO_PRO_C_2_STATE = "fabfilter-pro-c-1"
-
-register_custom_state(PRO_C_1_TO_PRO_C_2_STATE, pro_c_1_to_pro_c_2)

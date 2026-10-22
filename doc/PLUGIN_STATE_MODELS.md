@@ -248,6 +248,14 @@ buffers where available; a parser encoding its own synthetic output is not
 native acceptance evidence. Package data and tests must run without the research
 sandbox, a plugin DLL, a DAW or a remote machine.
 
+Keep unfinished codecs, converters and research inventories on development
+branches. The release package contains completed operations within their stated
+scope. Unsupported settings must be refused or reported as an explicit accepted
+approximation, rather than silently treated as mapped. A completed map can cover
+part of a format without claiming that all controls or conversions are available.
+Previously configured names for withdrawn transforms remain readable, but
+resolving those transforms raises before a device can be rewritten.
+
 The Trash 1 bank model packages typed fields, version-local algorithm domains and
 sampled controls. Trash 2 packages a native default template, bounded saved-field
 edits, linear curve polarity edits and sixteen executable core parameter curves.
@@ -257,7 +265,7 @@ consumes these models and returns a `TrashConversion` with a target state and
 notices. It supports an explicitly selected single-band distortion program,
 refuses active unmapped modules and reports known tonal differences. The
 converter's correspondence data is owned separately from both plugin maps.
-It is experimental: callers retain its notices and make the application decision.
+Callers retain its scope and tonal-difference notices when presenting the result.
 No byte-only conversion is registered, because a bank alone does not identify
 the selected program. Set identity, configured controls and automation require
 separate handling.

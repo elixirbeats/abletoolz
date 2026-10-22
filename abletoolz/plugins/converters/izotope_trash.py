@@ -1,4 +1,4 @@
-"""Experimental Trash 1-to-2 distortion conversion with explicit scope and notices.
+"""Measured Trash 1-to-2 distortion conversion with explicit scope and notices.
 
 Maps own the bytes and parameter meanings. This module owns correspondence,
 target defaults and known differences. Hosts retain automation and device identity.
@@ -21,7 +21,7 @@ from abletoolz.plugins.state.model import FieldKey, StateValue
 
 
 class NoticeCode(enum.StrEnum):
-    EXPERIMENTAL = "experimental"
+    LIMITED_SCOPE = "limited_scope"
     ALGORITHM_DIFFERENCE = "algorithm_difference"
     CHANNEL_GAINS_UNCALIBRATED = "channel_gains_uncalibrated"
 
@@ -58,7 +58,7 @@ class TrashConversion:
 
 @cache
 def algorithm_rules() -> tuple[AlgorithmRule, ...]:
-    """Return measured candidates; their names alone never establish sound agreement."""
+    """Return measured correspondences with their retained audio differences."""
     path = Path(__file__).with_name("data") / "trash1-to-trash2.json"
     data = TypeAdapter(_Rules).validate_json(path.read_bytes(), strict=True)
     if len({rule.source_id for rule in data.rules}) != len(data.rules):
@@ -69,7 +69,7 @@ def algorithm_rules() -> tuple[AlgorithmRule, ...]:
 def convert_single_band_distortion(source: Bank, *, program: int) -> TrashConversion:
     """Convert one selected revision-21 program, refusing active unmapped modules.
 
-    Output is an experimental VST2 state. Notices identify known tonal differences;
+    Output is a distortion-only VST2 state. Notices identify known tonal differences;
     container rewriting and host automation need separate application-level handling.
     """
     settings = source.program(program).settings
@@ -81,7 +81,7 @@ def convert_single_band_distortion(source: Bank, *, program: int) -> TrashConver
             raise StateTransformError(f"Trash {mode} is outside single-band distortion conversion")
     if settings.value("Bypass Gain") != 0:
         raise StateTransformError("Nonzero bypass gain is unmapped")
-    notices = [Notice(NoticeCode.EXPERIMENTAL, "Distortion-only conversion; sound agreement varies with controls.")]
+    notices = [Notice(NoticeCode.LIMITED_SCOPE, "Distortion-only conversion; sound agreement varies with controls.")]
     target = Trash2State.default()
     changes: dict[FieldKey, StateValue] = {
         "Limiter Enable": False,

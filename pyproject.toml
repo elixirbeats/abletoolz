@@ -57,7 +57,7 @@ version = {attr = "abletoolz.__version__"}
 "abletoolz.data" = ["*.alc"]
 "abletoolz.plugins.state" = ["data/*.json"]
 "abletoolz.plugins.converters" = ["data/*.json"]
-"abletoolz.plugins" = ["data/*.json"]
+"abletoolz.plugins" = ["data/*.json", "MAPPINGS.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

@@ -14,6 +14,7 @@ import datetime
 import pathlib
 import struct
 from collections.abc import Iterator
+from xml.etree import ElementTree as ET
 
 import pydantic
 import pytest
@@ -267,6 +268,26 @@ def test_a_config_entry_may_name_a_registered_transform(registry: None) -> None:
 def test_a_config_entry_naming_an_unregistered_transform_fails_to_load(registry: None) -> None:
     with pytest.raises(pydantic.ValidationError, match="analog_lab"):
         parse_config_targets({"Analog Lab 1": {"name": "Analog Lab 4", "state": "custom:analog_lab"}})
+
+
+@pytest.mark.parametrize("payload", [b"patch", b""])
+def test_a_withdrawn_config_remains_readable_but_cannot_change_a_device(payload: bytes) -> None:
+    targets = parse_config_targets(
+        {"FabFilter Pro-C": {"name": "Pro-C 2", "uid": [1, 2, 3, 4], "state": "custom:fabfilter-pro-c-1"}}
+    )
+    target = targets["FabFilter Pro-C"]
+    assert isinstance(target, ConversionRule)
+    live_set = AbletonSet(SKELETONS / "11.3.42.als")
+    assert live_set.parse()
+    info = next(live_set.root.iter("VstPluginInfo"))
+    device = PluginDevice(info)
+    device.set_state(payload)
+    before = ET.tostring(live_set.root)
+    with pytest.raises(StateTransformError, match="withdrawn"):
+        apply_conversion_rule(device, target)
+    assert ET.tostring(live_set.root) == before
+    with pytest.raises(StateTransformError, match="withdrawn"):
+        register_custom_state("fabfilter-pro-c-1", _shout)
 
 
 def test_a_custom_transform_reaches_a_translated_device(registry: None) -> None:
