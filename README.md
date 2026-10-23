@@ -138,18 +138,9 @@ Track type   AudioTrack, Name     3-Bass, Id   15, Group id   -1, Color  43, Wid
 Track type  ReturnTrack, Name   A-Reverb, Id    2, Group id   -1, Color  60, Width 120, Height  68, Unfolded: true
 ```
 
-### Plugin state knowledge and transformations
+### Recover old wrapped plugins
 
-Plugin structure maps, control maps and state codecs support inspection and editing independently of
-set repair. They can also support moving state to a newer plugin version or converting it to another
-plugin through an explicit transformer. Each source/target conversion needs its own mapping and
-verification; understanding a saved format alone does not establish that conversion.
-
-### Plugin recovery copies
-
-`plugins` checks measured recovery paths for old wrapped VST2 devices and applies matching migrations to
-new set copies without opening Live. This is one application of plugin state knowledge. Start by listing
-the routes, then inspect a set before writing:
+If an old set points to a wrapped plugin and you have a compatible native 64-bit version, abletoolz can replace that reference and keep its saved settings. Start by checking which replacements are available, then preview what would change in your set:
 
 ```powershell
 abletoolz plugins routes
@@ -169,20 +160,11 @@ Add `--plugin-dir "D:/VstPlugins"` to search only that folder and its subfolders
 folders. Without it, the commands search the standard installation folders. Use, for example,
 `abletoolz plugins plan "song.als" --json` for structured results.
 
-The commands automatically match binaries and saved bank/program combinations against bundled verification
-records. The report explains unavailable targets and unresolved devices. Native VST2 replacements retain the saved bank,
-selected program, configured controls and automation; other devices stay unchanged. Each copy gets a report
-beside it, such as `song recovered.als.recovery.json`, describing the replacements and their verification limits.
+Only combinations we've checked are used: the saved state, selected preset and installed plugin build must match the recorded results. Anything else is left alone, with the reason in the report. Each copy gets a report beside it, such as `song recovered.als.recovery.json`.
 
-For a plugin that needs its native importer to convert old state, use `--prepared "conversion.json"` to
-include a separately prepared VST3 conversion. The manifest must come from a native import and readback
-experiment; these commands check its file hashes and source/target matches but do not execute the plugin
-or repeat that experiment. Prepared conversions currently accept single-program sources with no configured
-or referenced controls. Older document schemas are refused rather than upgraded.
+Some plugins can import their old presets themselves. If you've already used the native plugin to convert and check one, `--prepared "conversion.json"` lets you supply that result. The command checks that it belongs to the source preset; it does not run the plugin again. These prepared conversions currently require a single-preset source with no configured controls or automation references.
 
-These commands preserve the document version and all stored media references. Samples are not copied
-or relocated, so a sandbox copy may still need its original project assets. Native state readback does
-not establish sound equivalence with the missing original plugin.
+The copy keeps the set's Live version. Samples aren't copied, so you'll still need the original project assets. Check the result in Live before relying on it; the recovery checks above cover saved settings, and do not establish a sound match with the original 32-bit plugin.
 
 ### Plugins
 

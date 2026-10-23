@@ -28,3 +28,6 @@ abletoolz_backup/
 
 # a library pins nothing; the lock is whatever the local dev env resolved
 uv.lock
+
+# Local plugin experiments stay on research branches.
+/unfinished_sandbox/
