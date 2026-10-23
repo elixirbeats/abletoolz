@@ -25,7 +25,7 @@ See [plugin commands and configuration](../../README.md#plugins) for the current
 
 | From | To | What works | Limits |
 | --- | --- | --- | --- |
-| [Trash 1](converters/izotope_trash.py) | Trash 2 | Two single-band distortion stages, with 47 algorithm matches and gain, drive, style, mix and polarity settings | Choose a preset explicitly. Other modules and multiband modes must be off. Algorithm 36 has no match. Five old presets were checked against native saves and audio; some algorithms sound different at other settings and return a notice. |
+| [Trash 1](converters/izotope_trash.py) | Trash 2 | Two single-band distortion stages, with 47 algorithm matches and gain, drive, style, mix and polarity settings | Choose one of the 16 presets in the source bank explicitly. Other modules and multiband modes must be off. Algorithm 36 has no match. Five old presets were checked against native saves and audio; some algorithms sound different at other settings and return a notice. |
 | [FabFilter Pro-Q 1](state/fabfilter.py) | Pro-Q 3 | EQ settings and preset name | Stereo bands only; other band placements are refused. Automation needs its own translation. |
 | [FabFilter Pro-Q 2](state/fabfilter.py) | Pro-Q 3 | Supported EQ settings | Checked in the target plugin. Unsupported monitoring modes are refused. |
 | [FabFilter Pro-C 2 VST2](state/fabfilter.py) | Pro-C 2 VST3 | All 46 controls | Nine real presets were loaded and saved back exactly. |
