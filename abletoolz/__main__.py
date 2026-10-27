@@ -1,5 +1,7 @@
 """Gets called with python -m abletoolz."""
 
+import sys
+
 from abletoolz import cli
 
-cli.main()
+sys.exit(cli.main())

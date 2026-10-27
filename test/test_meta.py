@@ -1,8 +1,10 @@
 """Per-set sidecars: what a scan writes down, what it reuses, and what it never touches.
 
-Driven through ``cli.main()`` like the rest of the CLI suite, because the
-sidecar is a fact about a run rather than about a set. Kept hermetic the same
-way: no real plugin dirs, no real Live database, no real user config.
+Most of it drives ``run_set`` directly with a ``SetJob`` and a fixed scan
+fingerprint, since writing and reusing a sidecar is what one set's run does. A
+few drive ``cli.main()`` end to end, to show the command line's flags and the
+batch's fingerprint reach it. Kept hermetic by the suite's ``locations``: no
+plugin folders, no Live database, a scratch config folder.
 """
 
 from __future__ import annotations
@@ -13,41 +15,25 @@ from typing import Any
 
 import pytest
 import yaml
+from conftest import SKELETONS, copy_set, run_cli
 
-from abletoolz import cli, meta
-from abletoolz.live_set import plugins
-from abletoolz.plugin_parsers import plugin_db, repair
-from abletoolz.plugin_parsers.config import AbletoolzConfig
+from abletoolz.live_set import AbletonSet, find_sets, persistence
+from abletoolz.machine import Locations
+from abletoolz.plugins.identity import plugin_db
+from abletoolz.run import meta
+from abletoolz.run.job import SetJob, run_set
 
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-
-def run_cli(monkeypatch: pytest.MonkeyPatch, *argv: str) -> int:
-    monkeypatch.setattr("sys.argv", ["abletoolz", *argv])
-    with pytest.raises(SystemExit) as excinfo:
-        cli.main()
-    code = excinfo.value.code
-    assert isinstance(code, int)
-    return code
-
-
-@pytest.fixture(autouse=True)
-def hermetic(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """No real plugin dirs, no real Live database, no real user config or plugin db."""
-    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
-    monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [])
-    monkeypatch.setattr(plugin_db, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(plugin_db, "DEFAULT_PLUGIN_DB_PATH", tmp_path / "config" / "plugin_db.json")
-    monkeypatch.setattr(repair, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(cli, "load_config", lambda: AbletoolzConfig())
-    monkeypatch.setattr(plugins, "load_config", lambda: AbletoolzConfig())
+# Any fixed value: the cache reuses a scan only under the fingerprint it was made with.
+FINGERPRINT = "test inputs"
+PLUGINS = SetJob(check_plugins=True)
+# What checking the 11.3.42 fixture's plugins finds with no plugin folders and no Live database.
+MISSING = {"p39730.dll": 1, "p29892.dll": 1, "Decapitator": 1}
+# An answer no check gives, planted in a sidecar to tell a reused scan from a fresh one.
+PLANTED = {"planted": 1}
 
 
-def copy_set(tmp_path: pathlib.Path, key: str, name: str = "set.als") -> pathlib.Path:
-    copy = tmp_path / name
-    copy.write_bytes((SKELETONS / f"{key}.als").read_bytes())
-    return copy
+def run(job: SetJob, path: pathlib.Path) -> None:
+    assert run_set(job, path, fingerprint=FINGERPRINT).error is None
 
 
 def sidecar(set_path: pathlib.Path) -> dict[str, Any]:
@@ -56,25 +42,20 @@ def sidecar(set_path: pathlib.Path) -> dict[str, Any]:
     return document
 
 
-def count_scans(monkeypatch: pytest.MonkeyPatch) -> list[pathlib.Path]:
-    """Record every set whose plugins are actually resolved against disk."""
-    scanned: list[pathlib.Path] = []
-
-    def counted(self: plugins.Plugins, vst_dirs: list[pathlib.Path]) -> list[plugins.PluginRef]:
-        scanned.append(self._set.path)
-        return []
-
-    monkeypatch.setattr(plugins.Plugins, "scan", counted)
-    return scanned
+def plant(set_path: pathlib.Path, **stale: Any) -> None:
+    """Rewrite the scan block beside ``set_path``; a run that reuses it gives itself away by answering ``PLANTED``."""
+    document = meta.read(set_path)
+    assert document is not None and document.scan is not None
+    meta.write(set_path, document.scan.model_copy(update={"plugins_missing": PLANTED, **stale}))
 
 
 # -- what a scan writes down -------------------------------------------------
 
 
-def test_a_scan_leaves_what_it_found_beside_the_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_a_scan_leaves_what_it_found_beside_the_set(tmp_path: pathlib.Path) -> None:
     """The machine zone is the run's answers, and the hash is of what it read."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins", "--check-samples") == 0
+    assert run_cli(str(copy), "--check-plugins", "--check-samples") == 0
 
     document = sidecar(copy)
     scan = document["scan"]
@@ -84,23 +65,23 @@ def test_a_scan_leaves_what_it_found_beside_the_set(monkeypatch: pytest.MonkeyPa
     assert scan["bpm"] == 120.0
     assert scan["bars"] == 0
     # With no plugin dirs and no Live database, nothing in the fixture resolves.
-    assert scan["plugins_missing"] == {"p39730.dll": 1, "p29892.dll": 1, "Decapitator": 1}
+    assert scan["plugins_missing"] == MISSING
     assert scan["samples_missing"] == 0
     # Nothing in this run fixed anything, which is not the same as fixing nothing.
     assert scan["plugins_fixed"] is None
     assert document["status"] is None and document["notes"] is None
 
 
-def test_a_run_that_scans_nothing_writes_no_sidecar(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_a_run_that_scans_nothing_writes_no_sidecar(tmp_path: pathlib.Path) -> None:
     """Listing tracks is not a scan; there is nothing to write down."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--list-tracks") == 0
+    run(SetJob(list_tracks=True), copy)
     assert not meta.sidecar_path(copy).exists()
 
 
-def test_no_meta_writes_no_sidecar(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_no_meta_writes_no_sidecar(tmp_path: pathlib.Path) -> None:
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins", "--no-meta") == 0
+    assert run_cli(str(copy), "--check-plugins", "--no-meta") == 0
     assert not meta.sidecar_path(copy).exists()
 
 
@@ -115,15 +96,53 @@ def test_backups_and_resource_forks_get_no_sidecar(tmp_path: pathlib.Path) -> No
     assert not list(tmp_path.rglob("*.meta.yaml"))
 
 
+def test_lives_own_backup_folder_gets_no_sidecar(tmp_path: pathlib.Path) -> None:
+    """Ableton's Backup/ counts too, not just the folder abletoolz writes.
+
+    A set in there reached the sidecar writer only when named directly on the
+    command line -- directory walks already skipped it -- and the writer used
+    to accept it, leaving files inside Live's own backup folder.
+    """
+    scan = meta.SetScan(scanned=meta.now(), scanned_with=meta.SCANNER, set_hash="abc")
+    # Each spelling gets its own root: Windows would fold "Backup" and "backup"
+    # into one directory, so a shared parent would only ever test one of them.
+    for index, folder in enumerate(("Backup", "backup")):
+        live_backup = tmp_path / str(index) / folder / "MyTune [2024-01-02 143000].als"
+        live_backup.parent.mkdir(parents=True)
+        assert meta.write(live_backup, scan) is None
+    assert not list(tmp_path.rglob("*.meta.yaml"))
+
+
+def test_a_directly_named_backup_is_not_collected(tmp_path: pathlib.Path) -> None:
+    """The collector and the sidecar writer answer the same question the same way."""
+    for index, folder in enumerate(("Backup", "backup", "abletoolz_backup")):
+        inside = tmp_path / str(index) / folder / "old.als"
+        inside.parent.mkdir(parents=True)
+        inside.write_bytes(b"")
+        assert find_sets([str(inside)]) == []
+        assert not meta.describes_a_real_set(inside)
+
+    real = tmp_path / "real.als"
+    real.write_bytes(b"")
+    assert find_sets([str(real)]) == [real]
+    assert meta.describes_a_real_set(real)
+
+
+def test_a_set_named_backup_is_still_a_set(tmp_path: pathlib.Path) -> None:
+    """Only parent directories are checked -- "Backup.als" is a filename, not a folder."""
+    named = tmp_path / "Backup.als"
+    named.write_bytes(b"")
+    assert find_sets([str(named)]) == [named]
+    assert meta.describes_a_real_set(named)
+
+
 # -- the user's half ---------------------------------------------------------
 
 
-def test_a_rescan_carries_the_human_zone_through_verbatim(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_a_rescan_carries_the_human_zone_through_verbatim(tmp_path: pathlib.Path) -> None:
     """status, notes and anything else the user put there survive being rescanned."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
+    run(PLUGINS, copy)
 
     path = meta.sidecar_path(copy)
     document = sidecar(copy)
@@ -134,7 +153,7 @@ def test_a_rescan_carries_the_human_zone_through_verbatim(
 
     # A different set under the same name: the machine zone must be replaced.
     copy.write_bytes((SKELETONS / "12.2.6.als").read_bytes())
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
+    run(PLUGINS, copy)
 
     rescanned = sidecar(copy)
     assert rescanned["status"] == "needs work"
@@ -144,71 +163,113 @@ def test_a_rescan_carries_the_human_zone_through_verbatim(
     assert rescanned["scan"]["live_version"] == "Ableton Live 12.2.6"
 
 
-def test_an_unreadable_sidecar_is_ignored_and_replaced(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_an_unreadable_sidecar_is_ignored_and_replaced(tmp_path: pathlib.Path) -> None:
     """A sidecar nothing can parse is no sidecar: the run says so and writes its own."""
     copy = copy_set(tmp_path, "11.3.42")
     meta.sidecar_path(copy).write_text("scan: [this is not a scan block", encoding="utf-8")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
+    run(PLUGINS, copy)
     assert sidecar(copy)["scan"]["scanned_with"] == meta.SCANNER
 
 
 # -- the cache ---------------------------------------------------------------
 
 
-def test_the_same_bytes_and_version_are_not_scanned_twice(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_the_same_bytes_and_inputs_are_not_scanned_twice(tmp_path: pathlib.Path) -> None:
     """The second pass over an unchanged library answers out of the sidecars."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
-    first = sidecar(copy)["scan"]
-
-    scanned = count_scans(monkeypatch)
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
-    assert scanned == []
-    assert sidecar(copy)["scan"]["plugins_missing"] == first["plugins_missing"]
+    assert run_cli(str(copy), "--check-plugins") == 0
+    plant(copy)
+    assert run_cli(str(copy), "--check-plugins") == 0
+    assert sidecar(copy)["scan"]["plugins_missing"] == PLANTED
 
 
-def test_changed_bytes_are_scanned_again(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_a_check_the_sidecar_answers_never_opens_the_set(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Parsing is most of a scan, so an unchanged set is answered without it; asking anything else opens it."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
+    run(PLUGINS, copy)
+    plant(copy)
+    before = meta.sidecar_path(copy).read_bytes()
+    parsed: list[pathlib.Path] = []
+    real_load = persistence.load_set
 
-    copy.write_bytes((SKELETONS / "12.2.6.als").read_bytes())
-    scanned = count_scans(monkeypatch)
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
-    assert scanned == [copy]
+    def counting_load(live_set: AbletonSet) -> str | None:
+        parsed.append(live_set.path)
+        return real_load(live_set)
+
+    monkeypatch.setattr(persistence, "load_set", counting_load)
+    record = run_set(PLUGINS, copy, fingerprint=FINGERPRINT)
+    assert record.plugins_missing == PLANTED and parsed == []
+    assert meta.sidecar_path(copy).read_bytes() == before
+    # A sample check always opens the set.
+    run(SetJob(check_plugins=True, check_samples=True), copy)
+    assert parsed == [copy]
+    run(SetJob(check_plugins=True, list_tracks=True), copy)
+    assert parsed == [copy, copy]
 
 
-def test_another_abletoolz_is_scanned_again(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """A newer abletoolz can give a different answer about the same bytes."""
+@pytest.mark.parametrize(
+    ("stale", "fingerprint"),
+    [
+        ({"set_hash": "0" * 64}, FINGERPRINT),
+        ({"scanned_with": "abletoolz 0.0.1 scan 0"}, FINGERPRINT),
+        ({"scan_fingerprint": "other inputs"}, FINGERPRINT),
+        ({"scan_fingerprint": None}, FINGERPRINT),
+        ({}, None),
+    ],
+    ids=["other bytes", "another abletoolz", "other inputs", "before fingerprints", "unreadable inputs"],
+)
+def test_a_scan_of_anything_else_is_not_reused(
+    tmp_path: pathlib.Path, stale: dict[str, Any], fingerprint: str | None
+) -> None:
+    """Other bytes, another abletoolz, other plugins, config or support files: each can change the answer.
+
+    So can inputs this run could not read, which is no fingerprint at all.
+    """
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
-
-    monkeypatch.setattr(meta, "SCANNER", "abletoolz 99.0.0")
-    scanned = count_scans(monkeypatch)
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
-    assert scanned == [copy]
-    assert sidecar(copy)["scan"]["scanned_with"] == "abletoolz 99.0.0"
+    run(PLUGINS, copy)
+    plant(copy, **stale)
+    assert run_set(PLUGINS, copy, fingerprint=fingerprint).plugins_missing == MISSING
+    assert sidecar(copy)["scan"]["scanned_with"] == meta.SCANNER
 
 
-def test_passes_with_different_flags_accumulate(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_a_rebuilt_plugin_database_rescans_unchanged_sets(tmp_path: pathlib.Path, locations: Locations) -> None:
+    """The command line's fingerprint covers the computer's plugin database, so building one makes old answers stale."""
+    copy = copy_set(tmp_path, "11.3.42")
+    assert run_cli(str(copy), "--check-plugins") == 0
+    plant(copy)
+    plugin_db.write_plugin_db(plugin_db.PluginDatabase(built=meta.now()), locations.plugin_db)
+    assert run_cli(str(copy), "--check-plugins") == 0
+    assert sidecar(copy)["scan"]["plugins_missing"] == MISSING
+
+
+def test_a_sample_check_never_answers_from_the_sidecar(tmp_path: pathlib.Path) -> None:
+    """Sample files are outside the cache key, so a sample deleted or unplugged since the last scan must still show."""
+    copy = copy_set(tmp_path, "11.3.42")
+    samples = SetJob(check_samples=True)
+    run(samples, copy)
+    plant(copy, samples_missing_by_name=PLANTED)
+    assert run_set(samples, copy, fingerprint=FINGERPRINT).samples_missing == 0
+    assert sidecar(copy)["scan"]["samples_missing_by_name"] == {}
+
+
+def test_passes_with_different_flags_accumulate(tmp_path: pathlib.Path) -> None:
     """A cache hit keeps what the run did not measure and adds what it did."""
     copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-samples") == 0
+    run(SetJob(check_samples=True), copy)
     assert sidecar(copy)["scan"]["plugins_missing"] is None
 
-    assert run_cli(monkeypatch, str(copy), "--check-plugins") == 0
+    run(PLUGINS, copy)
     scan = sidecar(copy)["scan"]
-    assert scan["plugins_missing"] == {"p39730.dll": 1, "p29892.dll": 1, "Decapitator": 1}
+    assert scan["plugins_missing"] == MISSING
     assert scan["samples_missing"] == 0  # carried over from the samples pass
 
 
 # -- where it goes -----------------------------------------------------------
 
 
-def test_output_keeps_every_write_away_from_the_original(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_output_keeps_every_write_away_from_the_original(tmp_path: pathlib.Path) -> None:
     """With --output the sidecar goes with the copy, and the original's folder is untouched."""
     library = tmp_path / "library"
     library.mkdir()
@@ -216,20 +277,17 @@ def test_output_keeps_every_write_away_from_the_original(
     original = copy.read_bytes()
     quarantine = tmp_path / "quarantine"
 
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    run(SetJob(gradient_tracks=True, check_plugins=True, save=True, output=quarantine), copy)
 
     assert [path.name for path in sorted(library.iterdir())] == ["repair.als"]
     assert copy.read_bytes() == original
     written = quarantine / "repair.als"
-    assert written.exists()
+    assert AbletonSet(written).parse()
     document = yaml.safe_load(meta.sidecar_path(written).read_text(encoding="utf-8"))
     assert document["scan"]["set_hash"] == hashlib.sha256(original).hexdigest()
-    assert document["scan"]["plugins_fixed"] == {"Serum_x64 -> Serum": 1}
 
 
-def test_an_output_sidecar_carries_the_original_s_notes(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_an_output_sidecar_carries_the_original_s_notes(tmp_path: pathlib.Path) -> None:
     """The copy inherits what the user wrote about the set it came from."""
     library = tmp_path / "library"
     library.mkdir()
@@ -237,28 +295,51 @@ def test_an_output_sidecar_carries_the_original_s_notes(
     meta.sidecar_path(copy).write_text("status: keeper\nnotes: mixed in 2019\n", encoding="utf-8")
     quarantine = tmp_path / "quarantine"
 
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    run(SetJob(gradient_tracks=True, check_plugins=True, save=True, output=quarantine), copy)
 
     document = yaml.safe_load(meta.sidecar_path(quarantine / "repair.als").read_text(encoding="utf-8"))
     assert document["status"] == "keeper"
     assert document["notes"] == "mixed in 2019"
 
 
-def test_an_unchanged_set_leaves_nothing_in_the_output_dir(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
-    """No set landed there, so no sidecar for one did either."""
+def test_a_renamed_save_takes_its_sidecar_with_it(tmp_path: pathlib.Path) -> None:
+    """A save that lands under another name, here beside a set already in --output, takes its sidecar along."""
     copy = copy_set(tmp_path, "11.3.42")
-    quarantine = tmp_path / "quarantine"
-    # No upgrade rules configured, so --upgrade-plugins edits nothing.
-    assert run_cli(monkeypatch, str(copy), "--upgrade-plugins", "-s", "--output", str(quarantine)) == 0
-    assert not list(quarantine.glob("*.meta.yaml"))
-    assert not meta.sidecar_path(copy).exists()
-
-
-def test_a_renamed_save_takes_its_sidecar_with_it(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """--append-bars-bpm renames the set, and the sidecar is named for the file that exists."""
-    copy = copy_set(tmp_path, "11.3.42")
-    assert run_cli(monkeypatch, str(copy), "--check-plugins", "-s", "--append-bars-bpm") == 0
-    saved = next(path for path in tmp_path.glob("*.als") if path.name != "set.als")
+    output = tmp_path / "out"
+    output.mkdir()
+    (output / "set.als").write_bytes(copy.read_bytes())
+    run(SetJob(gradient_tracks=True, check_plugins=True, save=True, output=output), copy)
+    saved = output / "set__1.als"
+    assert saved.exists()
     assert meta.sidecar_path(saved).exists()
+    assert not meta.sidecar_path(output / "set.als").exists()
+
+
+def test_an_xml_dump_with_output_goes_with_the_copy(tmp_path: pathlib.Path) -> None:
+    """-x beside --output writes nothing next to the original, not even a backup of an old dump."""
+    library = tmp_path / "library"
+    library.mkdir()
+    copy = copy_set(library, "11.3.42", "repair.als")
+    (library / "repair.xml").write_text("an old dump", encoding="utf-8")
+    quarantine = tmp_path / "quarantine"
+
+    run(SetJob(gradient_tracks=True, xml=True, save=True, output=quarantine), copy)
+
+    assert sorted(path.name for path in library.iterdir()) == ["repair.als", "repair.xml"]
+    assert (library / "repair.xml").read_text(encoding="utf-8") == "an old dump"
+    assert (quarantine / "repair.xml").read_bytes().startswith(b"<?xml")
+
+
+def test_a_set_and_a_clip_of_one_name_keep_their_own_sidecars(tmp_path: pathlib.Path) -> None:
+    """Song.als keeps Song.meta.yaml, so old sidecars still load; Song.alc beside it gets one of its own."""
+    scan = meta.SetScan(scanned=meta.now(), scanned_with=meta.SCANNER, set_hash="set")
+    song, clip = tmp_path / "Song.als", tmp_path / "Song.alc"
+    meta.write(song, scan)
+    meta.write(clip, scan.model_copy(update={"set_hash": "clip"}))
+
+    assert meta.sidecar_path(song) == tmp_path / "Song.meta.yaml"
+    assert meta.sidecar_path(clip) == tmp_path / "Song.alc.meta.yaml"
+    for path, digest in ((song, "set"), (clip, "clip")):
+        document = meta.read(path)
+        assert document is not None and document.scan is not None
+        assert document.scan.set_hash == digest
