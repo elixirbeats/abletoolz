@@ -2,56 +2,33 @@
 
 The version matrix proves the domain logic per Live version; this file proves the
 CLI wiring above it — argument plumbing, save/rename behavior, exit codes. Kept
-hermetic: plugin-dir scanning and user config are monkeypatched so nothing
-touches the real machine.
+hermetic: the suite's ``locations`` stand in for this computer, with no plugin
+folders, no Live database and a scratch config folder.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import gzip
 import json
-import logging
 import pathlib
+import sqlite3
+from contextlib import closing
 
-import pytest
+from conftest import SKELETONS, copy_set, run_cli, skeleton_set
 
-from abletoolz import cli
-from abletoolz.live_set import AbletonSet, plugins
-from abletoolz.plugin_parsers import plugin_db, repair
-from abletoolz.plugin_parsers.config import AbletoolzConfig
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-
-def run_cli(monkeypatch: pytest.MonkeyPatch, *argv: str) -> int:
-    monkeypatch.setattr("sys.argv", ["abletoolz", *argv])
-    with pytest.raises(SystemExit) as excinfo:
-        cli.main()
-    code = excinfo.value.code
-    assert isinstance(code, int)
-    return code
+from abletoolz.live_set import AbletonSet
+from abletoolz.machine import Locations
+from abletoolz.plugins.identity import plugin_db
 
 
-@pytest.fixture(autouse=True)
-def hermetic(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """No real plugin dirs, no real Live database, no real user config or plugin db."""
-    monkeypatch.setattr(plugins, "default_vst_dirs", lambda: [])
-    monkeypatch.setattr(plugins, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [])
-    monkeypatch.setattr(plugin_db, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(plugin_db, "DEFAULT_PLUGIN_DB_PATH", tmp_path / "config" / "plugin_db.json")
-    monkeypatch.setattr(repair, "default_live_database_dir", lambda: None)
-    monkeypatch.setattr(cli, "load_config", lambda: AbletoolzConfig())
-    monkeypatch.setattr(plugins, "load_config", lambda: AbletoolzConfig())
+def test_edit_flags_through_cli(tmp_path: pathlib.Path) -> None:
+    """The full edit combo saves, renames, and the written set carries every edit.
 
-
-@pytest.mark.parametrize("key", ["9.0.1", "11.3.42", "12.2.6", "12.4.5b"])
-def test_edit_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, key: str) -> None:
-    """The full edit combo saves, renames, and the written set carries every edit."""
-    copy = tmp_path / "combo.als"
-    copy.write_bytes((SKELETONS / f"{key}.als").read_bytes())
+    One version: the version matrix proves each edit on every version, this the flags reaching it.
+    """
+    copy = copy_set(tmp_path, "11.3.42", "combo.als")
     code = run_cli(
-        monkeypatch,
         str(copy),
         "-s",
         "-x",
@@ -65,17 +42,11 @@ def test_edit_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathl
         "1",
         "--cue-out",
         "1",
-        "--append-bars-bpm",
-        "--prepend-version",
     )
     assert code == 0
     assert (tmp_path / "combo.xml").exists()  # -x dump
     assert (tmp_path / "abletoolz_backup").exists()  # original moved to backup
-    saved = [p for p in tmp_path.glob("*.als") if p.name != "combo.als"]
-    assert len(saved) == 1
-    assert "bars_" in saved[0].name and saved[0].name.startswith(key.split("b")[0].split(".")[0])
-
-    reloaded = AbletonSet(saved[0])
+    reloaded = AbletonSet(copy)
     assert reloaded.parse()
     widths = [
         el.get("Value")
@@ -88,90 +59,53 @@ def test_edit_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathl
     assert all(el.get("Value") == "false" for el in reloaded.root.iter("TrackUnfolded"))
 
 
-# -- the deprecated filename tags -------------------------------------------
-# Both still rename the file; both now say the sidecar records what they used to
-# encode into the name. Removing them is a separate job.
-
-
-def test_append_bars_bpm_still_tags_the_name_and_says_it_is_deprecated(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    copy = tmp_path / "tagged.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
-
-    with caplog.at_level(logging.WARNING):
-        assert run_cli(monkeypatch, str(copy), "-s", "--append-bars-bpm") == 0
-
-    assert list(tmp_path.glob("tagged_*bars_*bpm.als"))
-    assert "--append-bars-bpm is deprecated" in caplog.text
-    assert ".meta.yaml" in caplog.text
-
-
-def test_prepend_version_still_tags_the_name_and_says_it_is_deprecated(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    copy = tmp_path / "tagged.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
-
-    with caplog.at_level(logging.WARNING):
-        assert run_cli(monkeypatch, str(copy), "-s", "--prepend-version") == 0
-
-    assert (tmp_path / "11.3.42_tagged.als").exists()
-    assert "--prepend-version is deprecated" in caplog.text
-    assert ".meta.yaml" in caplog.text
-
-
-def test_analysis_flags_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_analysis_flags_through_cli(tmp_path: pathlib.Path) -> None:
     """Read-only flags run together and leave the set untouched."""
     copy = tmp_path / "readonly.als"
     original = (SKELETONS / "11.2.10.als").read_bytes()
     copy.write_bytes(original)
     code = run_cli(
-        monkeypatch,
         str(copy),
         "-v",
         "--list-tracks",
         "--check-samples",
         "--check-plugins",
-        "--analyze-plugins",
         "--dump-plugins",
     )
     assert code == 0
     assert copy.read_bytes() == original  # nothing written without -s
 
 
-def test_db_create_and_fix_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_db_create_and_fix_through_cli(tmp_path: pathlib.Path) -> None:
     """--db builds a database at --db-path; --fix-samples-absolute consumes it and repairs the set."""
     samples_dir = tmp_path / "samples"
     samples_dir.mkdir()
-    db_path = tmp_path / "db.json"
+    db_path = tmp_path / "db.sqlite3"
 
     # Ground truth from the fixture: the first missing ref's name and stored mtime.
-    probe = AbletonSet(SKELETONS / "11.2.10.als")
-    assert probe.parse()
+    probe = skeleton_set("11.2.10")
     target = probe.samples.check()[0]
     (samples_dir / target.name).write_bytes(b"\x00" * 16)
 
-    assert run_cli(monkeypatch, "--db", "--db-path", str(db_path), str(samples_dir)) == 0
-    db = json.loads(db_path.read_text(encoding="utf-8"))
-    assert any(info["name"] == target.name for info in db.values())
+    assert run_cli("--db", "--db-path", str(db_path), str(samples_dir)) == 0
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        # Align the db entry with what the set stores so the matcher accepts it: a
+        # stored size that disagrees would rule the file out whatever its date says.
+        aligned = connection.execute(
+            "UPDATE samples SET last_modified=?, size=?, crc=NULL WHERE name=?",
+            (float(target.last_modified), target.size, target.name),
+        )
+        assert aligned.rowcount == 1
 
-    # Align the db entry's mtime with what the set stores so the matcher accepts it.
-    for info in db.values():
-        if info["name"] == target.name:
-            info["last_modified"] = float(target.last_modified)
-    db_path.write_text(json.dumps(db), encoding="utf-8")
-
-    copy = tmp_path / "fixme.als"
-    copy.write_bytes((SKELETONS / "11.2.10.als").read_bytes())
-    assert run_cli(monkeypatch, str(copy), "--fix-samples-absolute", "--db-path", str(db_path), "-s") == 0
+    copy = copy_set(tmp_path, "11.2.10", "fixme.als")
+    assert run_cli(str(copy), "--fix-samples-absolute", "--db-path", str(db_path), "-s") == 0
     reloaded = AbletonSet(copy)
     assert reloaded.parse()
     fixed = [ref for ref in reloaded.samples.iterate() if ref.absolute == samples_dir / target.name]
     assert fixed
 
 
-def test_db_create_makes_missing_config_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_db_create_makes_missing_config_dir(tmp_path: pathlib.Path) -> None:
     """First run on a fresh machine: the db's parent dir doesn't exist yet and must be created.
 
     Regression: a fresh macOS install scanned for a minute, then crashed writing to the
@@ -180,100 +114,49 @@ def test_db_create_makes_missing_config_dir(monkeypatch: pytest.MonkeyPatch, tmp
     samples_dir = tmp_path / "samples"
     samples_dir.mkdir()
     (samples_dir / "kick.wav").write_bytes(b"\x00" * 16)
-    db_path = tmp_path / "fresh" / "config" / "db.json"  # parents absent
-    assert run_cli(monkeypatch, "--db", "--db-path", str(db_path), str(samples_dir)) == 0
+    db_path = tmp_path / "fresh" / "config" / "db.sqlite3"  # parents absent
+    assert run_cli("--db", "--db-path", str(db_path), str(samples_dir)) == 0
     assert db_path.exists()
 
 
-def test_upgrade_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """--upgrade-plugins with no rules configured is a clean no-op."""
-    copy = tmp_path / "upgrade.als"
-    copy.write_bytes((SKELETONS / "10.1.3.als").read_bytes())
-    assert run_cli(monkeypatch, str(copy), "--upgrade-plugins") == 0
-
-
-def test_plugin_db_through_cli(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, scans_windows_plugins: None
-) -> None:
+def test_plugin_db_through_cli(tmp_path: pathlib.Path, locations: Locations) -> None:
     """--plugin-db reads this machine's plugins into a database at --plugin-db-path."""
-    folder = tmp_path / "VstPlugins"
-    folder.mkdir()
-    (folder / "Thing.dll").write_bytes(b"")
-    monkeypatch.setattr(plugin_db, "default_vst_dirs", lambda: [folder])
+    folder = tmp_path / "VST3"
+    contents = folder / "Thing.vst3" / "Contents"
+    contents.mkdir(parents=True)
+    module = {"Classes": [{"CID": "00" * 16, "Category": "Audio Module Class", "Name": "Thing"}]}
+    (contents / "moduleinfo.json").write_text(json.dumps(module), encoding="utf-8")
     db_path = tmp_path / "plugin_db.json"
 
-    assert run_cli(monkeypatch, "--plugin-db", "--plugin-db-path", str(db_path)) == 0
+    here = dataclasses.replace(locations, vst_dirs=(folder,))
+    assert run_cli("--plugin-db", "--plugin-db-path", str(db_path), locations=here) == 0
     database = plugin_db.read_plugin_db(db_path)
     assert [entry.name for entry in database.plugins] == ["Thing"]
 
 
-def test_plugin_db_takes_no_set_and_no_other_command(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_plugin_db_takes_no_set_and_no_other_command(tmp_path: pathlib.Path) -> None:
     """A machine command, like --db: mixing it with set work is a usage error."""
-    copy = tmp_path / "combo.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
-    assert run_cli(monkeypatch, "--plugin-db", str(copy)) == 2
-    assert run_cli(monkeypatch, "--plugin-db", "--db") == 2
+    copy = copy_set(tmp_path, "11.3.42", "combo.als")
+    assert run_cli("--plugin-db", str(copy)) == 2
+    assert run_cli("--plugin-db", "--db") == 2
 
 
-def test_repair_plugins_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """--repair-plugins converts the broken devices it has a mapping for and saves with -s.
-
-    With no plugin dirs and no Live database, nothing in the fixture is loadable,
-    so every mapped device is a repair.
-    """
-    copy = tmp_path / "repair.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s") == 0
-    saved = AbletonSet(copy)
-    assert saved.parse()
-    names = {element.get("Value") for info in saved.root.iter("Vst3PluginInfo") for element in info.findall("Name")}
-    assert "Serum" in names
-    left = [info.find("PlugName") for info in saved.root.iter("VstPluginInfo")]
-    assert [element.get("Value") for element in left if element is not None] == ["Effectrix"]
-
-
-def test_repair_plugins_is_an_edit_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """Without -s the run still reminds the user nothing was written."""
-    copy = tmp_path / "repair_unsaved.als"
-    original = (SKELETONS / "11.3.42.als").read_bytes()
-    copy.write_bytes(original)
-    assert "repair_plugins" in cli.EDIT_FLAGS
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins") == 0
-    assert copy.read_bytes() == original
-
-
-def test_output_dir_quarantines_repaired_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """-s --output DIR writes the repaired set to DIR; the original stays byte-identical, no backup made."""
-    copy = tmp_path / "repair.als"
-    original = (SKELETONS / "11.3.42.als").read_bytes()
-    copy.write_bytes(original)
-    quarantine = tmp_path / "quarantine"  # created by the run
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
-    assert copy.read_bytes() == original
-    assert not (tmp_path / "abletoolz_backup").exists()
-    saved = AbletonSet(quarantine / "repair.als")
-    assert saved.parse()
-    names = {element.get("Value") for info in saved.root.iter("Vst3PluginInfo") for element in info.findall("Name")}
-    assert "Serum" in names
-
-
-def test_output_dir_suffixes_on_collision(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_output_dir_suffixes_on_collision(tmp_path: pathlib.Path) -> None:
     """An already-taken DIR/<name> is kept; new saves land beside it with the backup __N suffixes."""
-    copy = tmp_path / "repair.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
+    copy = copy_set(tmp_path, "11.3.42", "repair.als")
     quarantine = tmp_path / "quarantine"
     quarantine.mkdir()
     stranger = b"not a set, must survive"
     (quarantine / "repair.als").write_bytes(stranger)
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
-    assert run_cli(monkeypatch, str(copy), "--repair-plugins", "-s", "--output", str(quarantine)) == 0
+    assert run_cli(str(copy), "--gradient-tracks", "-s", "--output", str(quarantine)) == 0
+    assert run_cli(str(copy), "--gradient-tracks", "-s", "--output", str(quarantine)) == 0
     assert (quarantine / "repair.als").read_bytes() == stranger
     for suffixed in ("repair__1.als", "repair__2.als"):
         saved = AbletonSet(quarantine / suffixed)
         assert saved.parse()
 
 
-def test_output_dir_skips_unchanged_set(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_output_dir_skips_unchanged_set(tmp_path: pathlib.Path) -> None:
     """A set the run doesn't change is not written to the output dir at all.
 
     The run report lands there regardless -- it is the record of the run, not of
@@ -283,24 +166,25 @@ def test_output_dir_skips_unchanged_set(monkeypatch: pytest.MonkeyPatch, tmp_pat
     original = (SKELETONS / "11.3.42.als").read_bytes()
     copy.write_bytes(original)
     quarantine = tmp_path / "quarantine"
-    # No upgrade rules configured, so --upgrade-plugins edits nothing.
-    assert run_cli(monkeypatch, str(copy), "--upgrade-plugins", "-s", "--output", str(quarantine)) == 0
+    # Checking plugins edits nothing, so there is nothing to write.
+    assert run_cli(str(copy), "--check-plugins", "-s", "--output", str(quarantine)) == 0
     assert copy.read_bytes() == original
     assert not list(quarantine.glob("*.als"))
+    # Nor a sidecar, there or beside the original.
     assert not list(quarantine.glob("*.meta.yaml"))
+    assert not list(tmp_path.glob("*.meta.yaml"))
 
 
-def test_unfold_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    copy = tmp_path / "unfold.als"
-    copy.write_bytes((SKELETONS / "11.3.42.als").read_bytes())
-    assert run_cli(monkeypatch, str(copy), "--unfold", "-s") == 0
+def test_unfold_through_cli(tmp_path: pathlib.Path) -> None:
+    copy = copy_set(tmp_path, "11.3.42", "unfold.als")
+    assert run_cli(str(copy), "--unfold", "-s") == 0
     saved = AbletonSet(copy)
     assert saved.parse()
     assert all(el.get("Value") == "true" for el in saved.root.iter("TrackUnfolded"))
 
 
-def test_plain_xml_set_through_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_plain_xml_set_through_cli(tmp_path: pathlib.Path) -> None:
     """A hand-unzipped XML .als processes through the CLI like any other set."""
     xml_copy = tmp_path / "unzipped.als"
     xml_copy.write_bytes(gzip.decompress((SKELETONS / "12.2.6.als").read_bytes()))
-    assert run_cli(monkeypatch, str(xml_copy), "--list-tracks") == 0
+    assert run_cli(str(xml_copy), "--list-tracks") == 0

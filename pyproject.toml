@@ -17,6 +17,7 @@ dependencies = [
     "colorama",
     "colormath",
     "mutagen",
+    "fastcrc>=0.5,<0.6",
     "numpy",
     "pydantic",
     "pyyaml",
@@ -36,8 +37,6 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# BPM/onset detection for synthesized .asd grids
-analysis = ["librosa", "scipy"]
 dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-PyYAML", "types-colorama", "types-tqdm"]
 
 [project.urls]
@@ -48,14 +47,18 @@ Repository = "https://github.com/elixirbeats/abletoolz"
 abletoolz = "abletoolz:main"
 abletoolz-dj-crates = "abletoolz.dj_crates:main"
 
-[tool.setuptools]
-packages = ["abletoolz", "abletoolz.asd", "abletoolz.data", "abletoolz.live_set", "abletoolz.plugin_parsers", "abletoolz.plugin_parsers.parsers", "abletoolz.plugin_parsers.state", "abletoolz.sample_databaser"]
+[tool.setuptools.packages.find]
+include = ["abletoolz*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "abletoolz.__version__"}
 
 [tool.setuptools.package-data]
-"abletoolz.data" = ["*.alc", "fabfilter/*.json"]
+"abletoolz.data" = ["*.alc"]
+"abletoolz.plugins.state" = ["data/*.json"]
+"abletoolz.plugins.converters" = ["data/*.json"]
+"abletoolz.plugins" = ["data/*.json"]
+"abletoolz.schema" = ["data/*.json", "data/*.json.gz"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
@@ -71,7 +74,7 @@ explicit_package_bases = true
 mypy_path = "."
 
 [[tool.mypy.overrides]]
-module = ["colormath.*", "librosa", "scipy.*"]
+module = ["colormath.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
@@ -83,5 +86,4 @@ select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # Color tables mirror Live's 14-wide color-picker layout; long lines are the point.
-"abletoolz/color_tools.py" = ["E501"]
-"abletoolz/misc.py" = ["E501"]
+"abletoolz/live_set/colors.py" = ["E501"]
