@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,7 +11,8 @@ authors = [
     {name = "ElixirBeats"},
 ]
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MPL-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     "colorama",
     "colormath",
