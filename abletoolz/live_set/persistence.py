@@ -1,20 +1,20 @@
-"""File-IO for .als documents: the gzip container, backups, and file times."""
+"""File-IO for .als documents: backups, renames and file times around :mod:`abletoolz.formats.live_document`."""
 
 from __future__ import annotations
 
-import gzip
+import datetime
 import logging
 import os
 import pathlib
-import re
+import shutil
 import subprocess
 import sys
-import threading
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz import utils
-from abletoolz.misc import B, G, M, R, Y
+from abletoolz.ansi import B, G, R, Y
+from abletoolz.formats import FormatError, live_document
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -24,51 +24,118 @@ if sys.platform == "win32":
 
 logger = logging.getLogger(__name__)
 
-GZIP_MAGIC = b"\x1f\x8b"
-PRE_8_2_MAGIC = b"\xab\x1e"  # yes, it spells able :P
-XML_MAGIC = b"<?"  # hand-unzipped/exported sets are plain XML; Live opens those too
+BACKUP_DIR = "abletoolz_backup"
+
+# Live's own backup folder, and the one abletoolz writes. A set inside either is
+# a copy of one the user already has.
+_BACKUP_DIRS = frozenset({"Backup", "backup", BACKUP_DIR})
+
+
+def is_backup_set(path: pathlib.Path) -> bool:
+    """Whether ``path`` is a copy of a set rather than a set worth acting on.
+
+    Two kinds of copy: a file inside a backup folder, and a macOS ``._``
+    resource fork that only looks like a set. Only the parent directories are
+    checked, so a set *named* "Backup.als" is still a real set.
+
+    The collector and the sidecar writer share this predicate because they
+    must agree: when they disagree, files land in Ableton's own Backup folder.
+    """
+    return path.name.startswith("._") or not _BACKUP_DIRS.isdisjoint(path.parts[:-1])
+
+
+def find_sets(paths: Iterable[str | os.PathLike[str]]) -> list[pathlib.Path]:
+    """Every set and clip under ``paths``, folders searched recursively, backups skipped, each file once."""
+    found: list[pathlib.Path] = []
+    for src in paths:
+        path = pathlib.Path(src)
+        if path.is_dir():
+            # Path.rglob takes one pattern and no filter.
+            files = list(path.rglob("*.als")) + list(path.rglob("*.alc"))
+            found.extend(file for file in files if not is_backup_set(file))
+        elif path.is_file() and not is_backup_set(path):
+            found.append(path)
+    unique: dict[tuple[int, int] | pathlib.Path, pathlib.Path] = {}
+    for path in found:
+        identity: tuple[int, int] | pathlib.Path = path.resolve()
+        try:
+            status = path.stat()
+        except OSError:
+            pass
+        else:
+            if status.st_ino:
+                identity = (status.st_dev, status.st_ino)
+        unique.setdefault(identity, path)
+    return list(unique.values())
+
+
+def format_date(timestamp: float) -> str:
+    """Return easy to read date."""
+    return datetime.datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y %H:%M:%S")
+
+
+def unclaimed_path(pathlib_obj: pathlib.Path) -> pathlib.Path:
+    """First name__N.suffix path beside ``pathlib_obj`` that doesn't exist yet."""
+    ending_int = 1
+    while True:
+        candidate = pathlib_obj.parent / (pathlib_obj.stem + "__" + str(ending_int) + pathlib_obj.suffix)
+        if not candidate.exists():
+            return candidate
+        ending_int += 1
+
+
+def create_backup(pathlib_obj: pathlib.Path) -> None:
+    """Copy file to the backup directory, never replacing an earlier backup there.
+
+    A copy, not a move: the original stays at its path until the new file
+    replaces it in one step, so an interrupted save leaves the old file there.
+    """
+    backup_dir = pathlib_obj.parent / BACKUP_DIR
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = unclaimed_path(backup_dir / pathlib_obj.name)
+    logger.info(
+        "%sCopying original file to backup directory:\n%s --> %s",
+        B,
+        pathlib_obj,
+        backup_path,
+    )
+    # Through a temp file, so an interrupted copy never leaves half a backup under the backup's name.
+    partial = backup_path.with_name(backup_path.name + ".tmp")
+    shutil.copy2(pathlib_obj, partial)
+    os.replace(partial, backup_path)
 
 
 def read_set(live_set: AbletonSet) -> bool:
-    """Uncompress an .als and load it into an element tree."""
-    with open(live_set.path, "rb") as fd:
-        first_two_bytes = fd.read(2)
-    if first_two_bytes == PRE_8_2_MAGIC:
-        logger.error("%s%sIs pre Ableton 8.2.x which is unsupported.", R, live_set.path)
-        return False
-    if first_two_bytes not in (GZIP_MAGIC, XML_MAGIC):
-        logger.error(
-            "%s%sFile is not .als or is an older format that doesn't use gzip!, cannot open...",
-            R,
-            live_set.path,
-        )
-        return False
+    """Load the set's document into an element tree; log and say False when it is not one."""
+    return load_set(live_set) is None
+
+
+def load_set(live_set: AbletonSet) -> str | None:
+    """Load the set's document into an element tree; None once loaded, else why it cannot be, logged."""
+    try:
+        root = live_document.read(live_set.path)
+    except FormatError as error:
+        # read() puts the path in front; the reason alone is its cause.
+        reason = str(error.__cause__ if isinstance(error.__cause__, FormatError) else error)
+        logger.error("%s%s: %s", R, live_set.path, reason)
+        return reason
     get_file_times(live_set)
-    if first_two_bytes == XML_MAGIC:
-        data = live_set.path.read_text(encoding="utf-8")
-    else:
-        with gzip.open(live_set.path, "r") as fd:
-            data = fd.read().decode("utf-8")
-    if not data:
-        logger.error("%s%s is an empty gzip archive — the file is truncated or corrupt.", R, live_set.path)
-        return False
-    live_set._root = ET.fromstring(data)
-    return True
+    live_set._root = root
+    return None
 
 
 def to_xml_bytes(live_set: AbletonSet) -> bytes:
     """Serialize the tree with Ableton's xml header and trailing newline."""
-    header = b'<?xml version="1.0" encoding="UTF-8"?>\n'
-    footer = b"\n"
-    xml_bytes: bytes = ET.tostring(live_set.root, encoding="utf-8")
-    return header + xml_bytes + footer
+    return live_document.to_xml_bytes(live_set.root)
 
 
-def save_xml(live_set: AbletonSet) -> None:
-    """Dump the decompressed XML next to the set."""
-    xml_file = live_set.path.parent / (live_set.path.stem + ".xml")
+def save_xml(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> None:
+    """Dump the decompressed XML next to the set, or into ``output_dir`` so the original's folder stays untouched."""
+    folder = live_set.path.parent if output_dir is None else output_dir
+    folder.mkdir(parents=True, exist_ok=True)
+    xml_file = folder / (live_set.path.stem + ".xml")
     if xml_file.exists():
-        utils.create_backup(xml_file)
+        create_backup(xml_file)
     xml_file.write_bytes(to_xml_bytes(live_set))
     logger.info("%sSaved xml to %s", G, xml_file)
 
@@ -85,8 +152,8 @@ def get_file_times(live_set: AbletonSet) -> None:
     logger.debug(
         "%sFile creation time %s, Last modification time: %s",
         B,
-        utils.format_date(live_set.creation_time),
-        utils.format_date(live_set.last_modification_time),
+        format_date(live_set.creation_time),
+        format_date(live_set.last_modification_time),
     )
 
 
@@ -101,82 +168,57 @@ def restore_file_times(live_set: AbletonSet) -> None:
     if sys.platform == "win32":
         win32_setctime.setctime(live_set.path, live_set.creation_time)
     elif sys.platform == "darwin":
-        date = utils.format_date(live_set.creation_time)
+        date = format_date(live_set.creation_time)
         subprocess.run(["SetFile", "-d", date, str(live_set.path)], capture_output=True, check=False)
     logger.debug(
         "%sRestored set creation and modification times: %s, %s",
         G,
-        utils.format_date(live_set.creation_time),
-        utils.format_date(live_set.last_modification_time),
+        format_date(live_set.creation_time),
+        format_date(live_set.last_modification_time),
     )
 
 
-def write_set(live_set: AbletonSet, xml_bytes: bytes) -> None:
-    """Recompress the set to gzip. Run in a thread to avoid corruption on interrupt."""
-    if live_set.path.exists():
-        raise FileExistsError(
-            f"File {live_set.path} already exists!(Did it not get moved to the backup folder?) Cannot overwrite..."
-        )
-    with gzip.open(live_set.path, "wb") as fd:
-        fd.write(xml_bytes)
+def write_set(live_set: AbletonSet, document: bytes) -> None:
+    """Write the set the way Live does, replacing the file at its path in one step."""
+    live_document.write(live_set.path, document)
     logger.info("%sSaved set to %s", G, live_set.path)
     restore_file_times(live_set)
 
 
-def save_set(
-    live_set: AbletonSet,
-    append_bars_bpm: bool = False,
-    prepend_version: bool = False,
-    output_dir: pathlib.Path | None = None,
-) -> None:
-    """Back up the original, optionally rename, and write the set on a non-daemon thread.
+def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> None:
+    """Back up the original and replace it with the edited set.
 
-    With ``output_dir`` the set is written into that directory under its own name and
-    the original file is never touched -- writing elsewhere is the protection an
-    in-place save gets from its backup, so no backup is made either.
-
-    ``append_bars_bpm`` and ``prepend_version`` are deprecated: the ``.meta.yaml``
-    sidecar beside each set records bars, bpm and the Live version on every scan.
+    With ``output_dir`` the set is written into that directory under its own name,
+    the original is never touched, and no backup is made.
     """
     # Serialize before touching anything on disk: a tree that cannot serialize
     # must fail loudly here, while the original file is still in place.
-    xml_bytes = to_xml_bytes(live_set)
+    document = live_document.encode(live_set.root)
     if output_dir is None:
-        utils.create_backup(live_set.path)
-    if append_bars_bpm:
-        logger.warning(
-            "%s--append-bars-bpm is deprecated and will be removed in a future release. "
-            "Bars and bpm are recorded in the set's .meta.yaml sidecar on every scan.",
-            Y,
-        )
-        if live_set.bpm is None or live_set.furthest_bar is None:
-            live_set.transport.bpm()
-            live_set.transport.furthest_bar()
-        cleaned_name = re.sub(r"_\d{1,3}bars_\d{1,3}\.\d{2}bpm", "", live_set.path.stem)
-        new_filename = cleaned_name + f"_{live_set.furthest_bar}bars_{live_set.bpm:.2f}bpm{live_set.path.suffix}"
-        live_set.path = pathlib.Path(live_set.path.parent / new_filename)
-        logger.debug("%sAppending bars and bpm, new set name: %s.als", M, live_set.path.stem)
+        create_backup(live_set.path)
+        write_set(live_set, document)
+        return
+    output_dir.mkdir(parents=True, exist_ok=True)
+    wanted = output_dir / live_set.path.name
+    target = unclaimed_path(wanted) if wanted.exists() else wanted
+    # Published without replacing anything: another worker may save a set of the same name here at the same time.
+    while True:
+        try:
+            live_document.write_new(target, document)
+            break
+        except FileExistsError:
+            target = unclaimed_path(wanted)
+    if target != wanted:
+        logger.info("%s%s already exists, saving as %s", Y, wanted, target.name)
+    live_set.path = target
+    logger.info("%sSaved set to %s", G, target)
+    restore_file_times(live_set)
 
-    if prepend_version:
-        logger.warning(
-            "%s--prepend-version is deprecated and will be removed in a future release. "
-            "The Live version is recorded in the set's .meta.yaml sidecar on every scan.",
-            Y,
-        )
-        if live_set.version_tuple:
-            version_string = f"{live_set.version_tuple[0]}.{live_set.version_tuple[1]}.{live_set.version_tuple[2]}_"
-            cleaned_name = re.sub(r"\d{1,2}\.\d{1,3}\.[b\d]{1,5}_", "", live_set.path.stem)
-            live_set.path = live_set.path.parent / (version_string + cleaned_name + live_set.path.suffix)
 
-    if output_dir is not None:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        target = output_dir / live_set.path.name
-        if target.exists():
-            target = utils.unclaimed_path(target)
-            logger.info("%s%s already exists, saving as %s", Y, output_dir / live_set.path.name, target.name)
-        live_set.path = target
-
-    # Non daemon thread so the write is not forcibly killed if the parent process is.
-    thread = threading.Thread(target=write_set, args=(live_set, xml_bytes))
-    thread.start()
-    thread.join()
+def save_in_place(path: pathlib.Path, root: ET.Element) -> None:
+    """Write ``root`` over the set at ``path`` the way ``-s`` does: original to the backup folder, times kept."""
+    document = live_document.encode(root)
+    times = path.stat()
+    create_backup(path)
+    live_document.write(path, document)
+    os.utime(path, (times.st_atime, times.st_mtime))

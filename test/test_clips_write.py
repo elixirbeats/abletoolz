@@ -21,16 +21,14 @@ findings that shaped the writer:
 
 from __future__ import annotations
 
-import gzip
 import pathlib
 from xml.etree import ElementTree as ET
 
 import pytest
+from conftest import first_session_clip, raw_root, writable_set
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.clips import ClipLocation, MidiClipRef, MidiNote, parse_pitch_name
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
+from abletoolz.live_set.clips import ClipLocation, MidiNote
 
 # C major arpeggio, quarter notes -- the pattern the Live verification files carry.
 ARPEGGIO = (
@@ -41,30 +39,12 @@ ARPEGGIO = (
 )
 
 
-def make_set(key: str, tmp_path: pathlib.Path) -> AbletonSet:
-    """A writable copy of a fixture, parsed."""
-    copy = tmp_path / f"{key}.als"
-    copy.write_bytes((SKELETONS / f"{key}.als").read_bytes())
-    ableton_set = AbletonSet(copy)
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def raw_root(path: pathlib.Path) -> ET.Element:
-    """Parse a saved .als straight from disk, bypassing abletoolz entirely."""
-    return ET.fromstring(gzip.decompress(path.read_bytes()).decode("utf-8"))
-
-
-def first_session_clip(ableton_set: AbletonSet) -> MidiClipRef:
-    return next(clip for clip in ableton_set.clips.midi() if clip.location is ClipLocation.SESSION)
-
-
 # --- note replacement -------------------------------------------------------
 
 
 def test_set_notes_9_0_1_reads_back_with_pre_11_defaults(tmp_path: pathlib.Path) -> None:
     """9.x has no NoteId and stores integer velocities, so that is what comes back."""
-    ableton_set = make_set("9.0.1", tmp_path)
+    ableton_set = writable_set("9.0.1", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, ARPEGGIO)
 
@@ -77,7 +57,7 @@ def test_set_notes_9_0_1_reads_back_with_pre_11_defaults(tmp_path: pathlib.Path)
 
 def test_set_notes_11_0_0_keeps_every_expression_field(tmp_path: pathlib.Path) -> None:
     """11.x round-trips probability, velocity deviation and per-note ids."""
-    ableton_set = make_set("11.0.0", tmp_path)
+    ableton_set = writable_set("11.0.0", tmp_path)
     clip = ableton_set.clips.midi()[0]
     notes = (
         MidiNote(pitch=48, start=0.0, duration=0.5, velocity=90.5, off_velocity=12.0, probability=0.25),
@@ -94,7 +74,7 @@ def test_set_notes_11_0_0_keeps_every_expression_field(tmp_path: pathlib.Path) -
 
 def test_set_notes_12_4_5b_allocates_note_ids_in_start_pitch_order(tmp_path: pathlib.Path) -> None:
     """Live's own numbering: earliest note gets id 1, ties broken by pitch."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, ARPEGGIO)
 
@@ -109,7 +89,7 @@ def test_set_notes_12_4_5b_allocates_note_ids_in_start_pitch_order(tmp_path: pat
 
 def test_set_notes_rebuilds_one_key_track_per_pitch_sorted_by_time(tmp_path: pathlib.Path) -> None:
     """Chord plus a repeated pitch: two KeyTracks, ids from 0, notes in time order."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(
         clip,
@@ -130,7 +110,7 @@ def test_set_notes_rebuilds_one_key_track_per_pitch_sorted_by_time(tmp_path: pat
 
 
 def test_set_notes_with_no_notes_empties_the_clip(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, [])
     assert first_session_clip(ableton_set).notes == ()
@@ -140,7 +120,7 @@ def test_set_notes_with_no_notes_empties_the_clip(tmp_path: pathlib.Path) -> Non
 @pytest.mark.parametrize("key", ["9.0.1", "10.0.1"])
 def test_rewriting_a_clips_own_notes_reproduces_lives_xml(key: str, tmp_path: pathlib.Path) -> None:
     """Strongest fidelity check available: pre-11 output is byte-identical."""
-    ableton_set = make_set(key, tmp_path)
+    ableton_set = writable_set(key, tmp_path)
     clip = first_session_clip(ableton_set)
     before = ET.tostring(clip.clip_element, encoding="unicode")
     ableton_set.clips.set_notes(clip, list(clip.notes))
@@ -152,7 +132,7 @@ def test_rewriting_a_clips_own_notes_reproduces_lives_xml(key: str, tmp_path: pa
 
 def test_written_xml_matches_9_0_1_native_note_shape(tmp_path: pathlib.Path) -> None:
     """No NoteId, no Probability, integer velocities, no KeyTrack Id."""
-    ableton_set = make_set("9.0.1", tmp_path)
+    ableton_set = writable_set("9.0.1", tmp_path)
     ableton_set.clips.set_notes(
         first_session_clip(ableton_set),
         [MidiNote(60, 0.0, 1.0, velocity=99.6, off_velocity=64.0)],
@@ -180,7 +160,7 @@ def test_written_xml_matches_9_0_1_native_note_shape(tmp_path: pathlib.Path) -> 
 
 def test_written_xml_matches_12_4_5b_native_note_shape(tmp_path: pathlib.Path) -> None:
     """12.x writes NoteId and nothing from the 11-era expression trio."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     ableton_set.clips.set_notes(first_session_clip(ableton_set), [MidiNote(60, 0.0, 1.0)])
     ableton_set.get_file_times()
     ableton_set.save_set()
@@ -205,7 +185,7 @@ def test_written_xml_matches_12_4_5b_native_note_shape(tmp_path: pathlib.Path) -
 
 def test_12_x_writes_expression_attributes_only_when_non_default(tmp_path: pathlib.Path) -> None:
     """A disabled, probabilistic note keeps its meaning through 11's attribute names."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, [MidiNote(60, 0.0, 1.0, enabled=False, probability=0.5, velocity_deviation=3.0)])
     event = clip.clip_element.find("Notes/KeyTracks/KeyTrack/Notes/MidiNoteEvent")
@@ -227,7 +207,7 @@ def test_12_x_writes_expression_attributes_only_when_non_default(tmp_path: pathl
 
 def test_save_and_reopen_keeps_the_written_notes(tmp_path: pathlib.Path) -> None:
     """Full persistence path: write, gzip, reopen from disk, read the notes back."""
-    ableton_set = make_set("11.0.0", tmp_path)
+    ableton_set = writable_set("11.0.0", tmp_path)
     ableton_set.clips.set_notes(ableton_set.clips.midi()[0], ARPEGGIO)
     ableton_set.get_file_times()
     ableton_set.save_set()
@@ -248,7 +228,7 @@ def test_save_and_reopen_keeps_the_written_notes(tmp_path: pathlib.Path) -> None
 
 def test_set_notes_drops_stale_per_note_events(tmp_path: pathlib.Path) -> None:
     """Entries keyed by NoteId cannot outlive the notes they described."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     event_lists = clip.clip_element.find("Notes/PerNoteEventStore/EventLists")
     assert event_lists is not None
@@ -265,28 +245,28 @@ def test_set_notes_drops_stale_per_note_events(tmp_path: pathlib.Path) -> None:
 
 
 def test_overlapping_same_pitch_notes_are_rejected(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     with pytest.raises(ValueError, match="overlap"):
         ableton_set.clips.set_notes(clip, [MidiNote(60, 0.0, 2.0), MidiNote(60, 1.0, 1.0)])
 
 
 def test_notes_touching_end_to_start_are_allowed(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, [MidiNote(60, 0.0, 1.0), MidiNote(60, 1.0, 1.0)])
     assert len(first_session_clip(ableton_set).notes) == 2
 
 
 def test_duplicate_preset_note_ids_are_rejected(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     with pytest.raises(ValueError, match="unique"):
         ableton_set.clips.set_notes(clip, [MidiNote(60, 0.0, 1.0, note_id=7), MidiNote(64, 0.0, 1.0, note_id=7)])
 
 
 def test_preset_note_ids_are_honored_and_the_counter_clears_them(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     ableton_set.clips.set_notes(clip, [MidiNote(60, 0.0, 1.0, note_id=9), MidiNote(64, 1.0, 1.0)])
 
@@ -298,7 +278,7 @@ def test_preset_note_ids_are_honored_and_the_counter_clears_them(tmp_path: pathl
 
 
 def test_out_of_range_pitch_is_rejected(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     clip = first_session_clip(ableton_set)
     with pytest.raises(ValueError, match="MIDI range"):
         ableton_set.clips.set_notes(clip, [MidiNote(128, 0.0, 1.0)])
@@ -308,7 +288,7 @@ def test_out_of_range_pitch_is_rejected(tmp_path: pathlib.Path) -> None:
 
 
 def test_clone_clip_lands_in_the_empty_slot_with_its_own_notes(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     donor_xml = ET.tostring(donor.clip_element, encoding="unicode")
 
@@ -326,7 +306,7 @@ def test_clone_clip_lands_in_the_empty_slot_with_its_own_notes(tmp_path: pathlib
 
 
 def test_clone_clip_defaults_to_the_donors_length(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     clone = ableton_set.clips.clone_clip(donor, slot_index=0, name="same length", notes=ARPEGGIO)
     assert clone.length == donor.length
@@ -334,7 +314,7 @@ def test_clone_clip_defaults_to_the_donors_length(tmp_path: pathlib.Path) -> Non
 
 def test_clone_clip_normalizes_an_arrangement_donor_into_a_session_slot(tmp_path: pathlib.Path) -> None:
     """11.0.0 only has arrangement clips; the copy has to start at beat 0."""
-    ableton_set = make_set("11.0.0", tmp_path)
+    ableton_set = writable_set("11.0.0", tmp_path)
     donor = ableton_set.clips.midi()[0]
     assert donor.location is ClipLocation.ARRANGEMENT
     assert donor.start_time == 224.0
@@ -356,7 +336,7 @@ def test_clone_clip_reactivates_and_reloops_the_copy(tmp_path: pathlib.Path) -> 
     mutated into one first -- exactly the shape a real deactivated or
     one-shot arrangement clip has.
     """
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     disabled = donor.clip_element.find("Disabled")
     loop_on = donor.clip_element.find("Loop/LoopOn")
@@ -375,21 +355,21 @@ def test_clone_clip_reactivates_and_reloops_the_copy(tmp_path: pathlib.Path) -> 
 
 
 def test_clone_clip_rejects_an_occupied_slot(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     with pytest.raises(ValueError, match="already holds a clip"):
         ableton_set.clips.clone_clip(donor, slot_index=1, name="nope", notes=ARPEGGIO)
 
 
 def test_clone_clip_rejects_a_slot_that_does_not_exist(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     with pytest.raises(ValueError, match="no slot 99"):
         ableton_set.clips.clone_clip(donor, slot_index=99, name="nope", notes=ARPEGGIO)
 
 
 def test_clone_clip_survives_save_and_reopen(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     ableton_set.clips.clone_clip(first_session_clip(ableton_set), slot_index=5, name="saved clone", notes=ARPEGGIO)
     ableton_set.get_file_times()
     ableton_set.save_set()
@@ -419,7 +399,7 @@ def collect_ids(root: ET.Element) -> list[tuple[str, int]]:
 
 def test_clone_clip_renumbers_the_ids_it_owns_and_advances_the_counter(tmp_path: pathlib.Path) -> None:
     """No fixture clip owns a set-global id, so the donor gets one injected."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = first_session_clip(ableton_set)
     envelopes = donor.clip_element.find("Envelopes/Envelopes")
     assert envelopes is not None
@@ -455,7 +435,7 @@ def test_clone_clip_renumbers_the_ids_it_owns_and_advances_the_counter(tmp_path:
 
 
 def test_clone_clip_leaves_the_counter_alone_when_the_copy_owns_nothing(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     counter = ableton_set.root.find("LiveSet/NextPointeeId")
     assert counter is not None
     before = counter.get("Value")
@@ -469,7 +449,7 @@ def test_clone_clip_leaves_the_counter_alone_when_the_copy_owns_nothing(tmp_path
 
 def test_clone_clip_works_on_a_pre_pointee_set(tmp_path: pathlib.Path) -> None:
     """9.0.1 has no NextPointeeId element at all; nothing to renumber, nothing to break."""
-    ableton_set = make_set("9.0.1", tmp_path)
+    ableton_set = writable_set("9.0.1", tmp_path)
     assert ableton_set.root.find("LiveSet/NextPointeeId") is None
     donor = first_session_clip(ableton_set)
     clone = ableton_set.clips.clone_clip(donor, slot_index=1, name="old school", notes=ARPEGGIO, length=4.0)
@@ -486,37 +466,31 @@ def test_midi_note_defaults_match_a_freshly_drawn_live_note() -> None:
     assert (note.probability, note.velocity_deviation, note.note_id) == (1.0, 0.0, None)
 
 
-def test_from_dict_accepts_a_to_dict_note(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    payload = first_session_clip(ableton_set).to_dict()
-    notes = payload["notes"]
-    assert isinstance(notes, list)
-    assert [MidiNote.from_dict(note) for note in notes] == list(first_session_clip(ableton_set).notes)
-
-
-def test_from_dict_accepts_a_note_name_instead_of_a_pitch() -> None:
-    assert MidiNote.from_dict({"note": "E3", "start": 1.0, "duration": 0.5}) == MidiNote(64, 1.0, 0.5)
-
-
-def test_from_dict_rejects_a_pitch_and_name_that_disagree() -> None:
-    with pytest.raises(ValueError, match="different pitches"):
-        MidiNote.from_dict({"pitch": 60, "note": "E3", "start": 0.0, "duration": 1.0})
-
-
-def test_from_dict_needs_a_pitch_or_a_name() -> None:
-    with pytest.raises(ValueError, match="'pitch' or 'note'"):
-        MidiNote.from_dict({"start": 0.0, "duration": 1.0})
-
-
 @pytest.mark.parametrize(
-    ("name", "pitch"),
-    [("C3", 60), ("c3", 60), ("C-2", 0), ("G8", 127), ("C#3", 61), ("Db3", 61), ("A3", 69)],
+    ("note", "refusal"),
+    [
+        (MidiNote(60, 0.0, 0.0), "must be positive"),
+        (MidiNote(60, 0.0, -1.0), "must be positive"),
+        (MidiNote(60, 0.0, 1.0, velocity=0.0), "Velocity"),
+        (MidiNote(60, 0.0, 1.0, velocity=128.0), "Velocity"),
+        (MidiNote(60, 0.0, 1.0, off_velocity=-1.0), "Off velocity"),
+        (MidiNote(60, 0.0, 1.0, probability=1.5), "Probability"),
+    ],
 )
-def test_parse_pitch_name(name: str, pitch: int) -> None:
-    assert parse_pitch_name(name) == pitch
+def test_out_of_range_note_fields_are_rejected(note: MidiNote, refusal: str, tmp_path: pathlib.Path) -> None:
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    clip = first_session_clip(ableton_set)
+    with pytest.raises(ValueError, match=refusal):
+        ableton_set.clips.set_notes(clip, [note])
 
 
-@pytest.mark.parametrize("name", ["H3", "C", "C99", "", "C3x"])
-def test_parse_pitch_name_rejects_nonsense(name: str) -> None:
-    with pytest.raises(ValueError):
-        parse_pitch_name(name)
+def test_a_zero_length_is_refused_before_the_write_is_handed_back(tmp_path: pathlib.Path) -> None:
+    """A batch prepares every op before running any, so the length check belongs to the prepare step."""
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    donor = first_session_clip(ableton_set)
+    with pytest.raises(ValueError, match="must be positive"):
+        ableton_set.clips.prepare_clone_clip(donor, slot_index=3, name="x", notes=[], length=0.0)
+    arranged = writable_set("11.0.12", tmp_path)
+    placed = next(clip for clip in arranged.clips.midi() if clip.location is ClipLocation.ARRANGEMENT)
+    with pytest.raises(ValueError, match="must be positive"):
+        arranged.clips.prepare_place_clip(placed, track=placed.track, at=900.0, length=0.0)

@@ -18,20 +18,16 @@ Audio strategy (``--audio {link,wav,flac}``, default ``link``):
   ``RelativePath`` so Live falls back to the absolute path (mirrors how Live's own
   sets reference cross-volume files -- see the ``RelativePathType=1`` examples in
   ``test/sample_missing_fix Project/11.2.10_abs_rel.xml``). MP3 sources need every
-  authored time shifted by :func:`mp3_decoder_offset_seconds` -- one of two constant
-  sample counts keyed on whether the file's Xing/Info header carries a gapless block
-  (see :data:`LIVE_MP3_OFFSET_TAGGED_SAMPLES` / :data:`LIVE_MP3_OFFSET_UNTAGGED_SAMPLES`),
-  verified sample-exact at 44100 Hz only; other sample rates still get the same
-  sample-count offset (scaled by that file's own rate) but are flagged in the
-  end-of-run report as unverified.
-  WAV/AIFF sources need no shift (PCM decode is deterministic) and are referenced in
-  place.
-* ``wav`` / ``flac`` -- the original transcode-into-library behavior: MP3 (and other
-  compressed) sources are transcoded via ffmpeg into a shared cache under
-  ``--audio-dir`` (Live's MP3 decoder is offset from ffmpeg's, which would otherwise
-  shift the whole grid); WAV/AIFF sources are copied unchanged. Idempotent -- an
-  existing cache entry is left alone. This is the fallback for crates meant to be
-  self-contained (no cross-volume/UNC references).
+  authored time shifted by Live's decoder offset (:func:`mp3_offset_from_row`, the
+  model above :data:`MPEG_DECODER_DELAY_SAMPLES`), verified sample-exact at 44100 Hz
+  only; other rates get the same sample count at their own rate and are flagged in
+  the end-of-run report as unverified. Lossless sources need no shift (their decode is
+  deterministic) and are referenced in place.
+* ``wav`` / ``flac`` -- MP3 (and other compressed) sources are transcoded via ffmpeg
+  into a shared cache under ``--audio-dir`` (Live's MP3 decoder is offset from
+  ffmpeg's, which would otherwise shift the whole grid); lossless sources are copied
+  unchanged. Idempotent -- an existing cache entry is left alone. This is the
+  fallback for self-contained crates (no cross-volume/UNC references).
 
 CLI usage::
 
@@ -57,7 +53,8 @@ from pathlib import Path
 from typing import Literal
 
 from abletoolz.alc import AlcClip, AlcError
-from abletoolz.misc import C, R, Y, default_ableton_user_library
+from abletoolz.ansi import C, R, Y
+from abletoolz.machine import Locations
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +83,8 @@ _CACHE_CODECS: dict[CacheFormat, FfmpegCodec] = {
     AudioMode.FLAC: FfmpegCodec.FLAC,
 }
 
-_LOSSLESS_EXTENSIONS = {".wav", ".aiff", ".aif"}
+# Lossless sources decode with no offset: linked or cached, they are used as they are.
+_LOSSLESS_EXTENSIONS = {".wav", ".aiff", ".aif", ".flac"}
 _DEFAULT_BAR_TOLERANCE = 0.02
 # Headroom to the right of the last cue in a generated clip's opening view:
 # enough of the following section to see where it goes, without zooming out so
@@ -256,12 +254,10 @@ def compute_anchor(
     phase as the drop, as close to the track start as possible without going
     negative. Without a drop: the anchor is the track's tagged first beat.
 
-    This operates purely in the analyzer's own time coordinates -- a constant
-    per-track offset (e.g. the MP3 link-mode decoder correction, see
-    :func:`mp3_decoder_offset_seconds`) is applied later, at clip-authoring time, and
-    does not change the bar-fold math (it shifts ``beat_offset_s`` and ``drop_s`` by
-    the same amount, leaving their difference, and therefore ``n_bars``/
-    ``residual_bars``, unchanged).
+    It works in the analyzer's own time. A per-track offset (the MP3 link-mode
+    decoder correction, :func:`mp3_offset_from_row`) is applied later, at clip
+    authoring, and shifts ``beat_offset_s`` and ``drop_s`` alike, so ``n_bars``
+    and ``residual_bars`` are unchanged by it.
     """
     if drop_s is None:
         return AnchorResult(anchor_s=beat_offset_s, n_bars=None, residual_bars=0.0, bar_phase_warning=False)
@@ -272,11 +268,9 @@ def compute_anchor(
     anchor_s = drop_s - n_bars * bar_s
     if anchor_s < 0.0:
         # The nearest downbeat is before the file starts. Stepping forward a
-        # whole bar (the old unconditional behaviour) puts 1.1.1 a full bar
-        # after the music whenever the drop sits a hair below a whole number of
-        # bars -- 597 library tracks land within a millisecond of that. When the
-        # shortfall is negligible, treat the downbeat as being at zero instead;
-        # only step forward when it is genuinely mid-bar.
+        # whole bar puts 1.1.1 a bar after the music when the drop sits a hair
+        # under whole bars (597 library tracks are within a millisecond of it),
+        # so a negligible shortfall snaps to zero; only mid-bar steps forward.
         if -anchor_s <= _ANCHOR_SNAP_S:
             anchor_s = 0.0
         else:
@@ -339,17 +333,13 @@ MPEG1_FRAME_SAMPLES = 1152
 
 _VERIFIED_MP3_SAMPLE_RATE = 44100
 
-# A plausible gapless-block delay. The upper bound rejects 0xFFF garbage, which
-# means the block is absent or unusable.
-#
-# Zero is ACCEPTED, though it used to be excluded. Measured on a real MP3
-# ("Phlegmatic Dogs - Cuatrocats (Volac Remix)") whose LAME extension declares a
-# delay of 0: the stream holds 10070 frames = 11600640 samples, ffmpeg decodes
-# 11598959, so it discards exactly 1681 = 1152 + 529. ffmpeg applies the 529
-# decoder delay whenever the tag is present, regardless of the declared value.
-# Excluding 0 made this function return 1152 while the row-based
-# `resolve_link_placement` returned 1681 -- the two disagreed by 12 ms on the
-# 31 library files in this class.
+# A plausible gapless-block delay; the upper bound rejects 0xFFF garbage (the
+# block is absent or unusable). Zero is a real delay. Measured on an MP3
+# ("Phlegmatic Dogs - Cuatrocats (Volac Remix)") whose LAME extension declares
+# 0: the stream holds 10070 frames = 11600640 samples and ffmpeg decodes
+# 11598959, discarding exactly 1681 = 1152 + 529. ffmpeg applies the 529 decoder
+# delay whenever the tag is present, whatever the declared value, which is what
+# the row-based `mp3_offset_from_row` does too (31 library files in this class).
 _GAPLESS_DELAY_RANGE = range(0, 4096)
 
 _GAPLESS_SIGNATURES = (b"LAME", b"Lavf", b"Lavc")
@@ -410,35 +400,13 @@ def mp3_decoder_offset_seconds(path: Path, sample_rate: int) -> float:
     return mp3_decode_offset_samples(path) / sample_rate
 
 
-def read_sample_rate(path: Path) -> int:
-    """Read an audio file's sample rate via ``ffprobe``."""
-    result = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "error",
-            "-select_streams",
-            "a:0",
-            "-show_entries",
-            "stream=sample_rate",
-            "-of",
-            "default=nw=1:nk=1",
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return int(result.stdout.strip())
-
-
 # ── Audio cache (transcode / copy, idempotent -- ``wav``/``flac`` modes) ─────
 
 
 def audio_dest_extension(src: Path, audio_format: CacheFormat) -> str:
     """The cached audio file's extension.
 
-    Lossless sources (WAV/AIFF) are copied unchanged and keep their own extension.
+    Lossless sources are copied unchanged and keep their own extension.
     Only compressed sources (MP3, ...) get transcoded, to ``audio_format``.
     """
     suffix = src.suffix.lower()
@@ -457,13 +425,11 @@ def _ffmpeg_transcode(src: Path, dest: Path, audio_format: CacheFormat) -> None:
 def ensure_audio_cached(src: Path, dest: Path, audio_format: CacheFormat) -> bool:
     """Ensure ``dest`` holds a decoder-deterministic copy of ``src``.
 
-    MP3 (and other compressed) sources are transcoded via ffmpeg -- Live's MP3 decoder
-    is offset from ffmpeg's timeline, which would shift the whole grid. WAV/AIFF
-    sources are copied unchanged. Idempotent: a pre-existing ``dest`` is left alone.
+    Compressed sources are transcoded via ffmpeg, lossless ones copied unchanged (see
+    the module docstring). Idempotent: a pre-existing ``dest`` is left alone.
 
     Returns:
-        True if work was performed (copy or transcode); False if ``dest`` already
-        existed (cache hit -- nothing done).
+        True if a copy or transcode ran; False on a cache hit.
     """
     if dest.exists():
         return False
@@ -510,19 +476,6 @@ def library_relative_path(path: Path) -> Path:
     return Path("abletoolz outside library") / path.name
 
 
-def _set_relative_path_type(clip: AlcClip, value: int) -> None:
-    """Override the clip's ``SampleRef/FileRef/RelativePathType``.
-
-    Only called when ``--link-relative-path-type`` is explicitly passed; by default
-    the template's own value (6, "user library") is left untouched -- the correct
-    value for link mode's cross-volume references is pending a live drag test.
-    """
-    element = clip.clip.find("SampleRef/FileRef/RelativePathType")
-    if element is None:
-        raise AlcError("clip is missing SampleRef/FileRef/RelativePathType")
-    element.set("Value", str(value))
-
-
 # ── Audio placement (where the clip's audio lives, per --audio mode) ────────
 
 
@@ -541,9 +494,7 @@ class AudioPlacement:
 def _fake_relative_path(audio_dir: Path, safe_name: str, ext: str) -> Path:
     """A deliberately non-resolving RelativePath so Live falls back to the absolute Path.
 
-    Shaped like a real (wav/flac-mode) cache path, but nothing is ever written there
-    in link mode -- the point is for Live's relative-path resolution to fail and fall
-    through to the absolute ``Path`` field.
+    Shaped like a wav/flac-mode cache path; link mode never writes there.
     """
     return library_relative_path(audio_dir / f"{safe_name}{ext}")
 
@@ -663,16 +614,11 @@ def _adjust_times(plan: TrackPlan, placement: AudioPlacement) -> _AdjustedTimes:
 def _apply_markers(clip: AlcClip, plan: TrackPlan, times: _AdjustedTimes) -> None:
     """Add the drop marker, if there is one.
 
-    No start-cue marker. It used to be added because full clips began at the
-    ANCHOR, so the start cue needed something to show where it was; clips now
-    begin at the start cue itself and ``CurrentStart`` already records it, which
-    left the marker carrying no information the clip did not state twice.
-
-    It was also actively unhelpful. The anchor and the start cue are both
-    derived from the drop grid, so they often land within a few tens of
-    milliseconds of one another -- measured at 24 ms on Busta Rhymes "Touch It"
-    and 41 ms on Phlegmatic Dogs "Cuatrocats" -- giving two warp markers stacked
-    at the head of the clip where the user expects one.
+    No start-cue marker: clips begin at the start cue, which ``CurrentStart``
+    already records. The anchor and the start cue both derive from the drop
+    grid and often land tens of milliseconds apart (24 ms on Busta Rhymes
+    "Touch It", 41 ms on Phlegmatic Dogs "Cuatrocats"), so a start marker would
+    stack a second warp marker at the head of the clip where the user expects one.
     """
     if times.drop_s is not None and plan.anchor.n_bars is not None:
         clip.add_grid_marker(times.drop_s, beat_time=float(plan.anchor.n_bars * 4))
@@ -692,14 +638,13 @@ def _build_variant(
     clip = load_template()
     clip.set_grid(bpm=plan.row.bpm, grid_start_seconds=times.anchor_s, duration_seconds=times.duration_s)
     _apply_markers(clip, plan, times)
-    clip.retarget_sample(placement.absolute_path, placement.relative_path)
-    if relative_path_type is not None:
-        _set_relative_path_type(clip, relative_path_type)
+    # ``relative_path_type`` is only set by an explicit --link-relative-path-type;
+    # by default the template's own value (6, "user library") stays -- the correct
+    # value for link mode's cross-volume references is pending a live drag test.
+    clip.retarget_sample(placement.absolute_path, placement.relative_path, kind=relative_path_type)
     clip.name = name
     clip.set_clip_start(clip_start_s)
-    # Open zoomed to the first few phrases from wherever this variant starts,
-    # rather than the template's full-file view: the cue and the bar lines
-    # around it are what a person opens one of these to look at.
+    # Open framed on this variant's cue, not the template's full-file view.
     clip.set_view_window(clip_start_s, view_end_s, _VIEW_MARGIN_BARS)
     return clip
 
@@ -749,19 +694,15 @@ def generate_track(
             times,
             placement,
             name=plan.clip_name,
-            # The start CUE, not the grid anchor. The anchor is beat one of the
-            # grid -- a downbeat placed a whole number of bars before the drop --
-            # and where it falls relative to the music's actual start is
-            # incidental. Anchoring the clip to it opened every full clip early
-            # or late by however much the two differ: measured -3.99 beats on
-            # Bredren "Flick Knife" (start 0.000, anchor 1.375) and +4 beats on
-            # Enei "The Greatest Trick" (start 2.525, anchor 1.146), while both
-            # drops stayed exact -- one timeline, so a right drop beside a wrong
-            # start is a start-selection bug, not an offset one.
+            # The start CUE, not the grid anchor: the anchor is a downbeat a
+            # whole number of bars before the drop, incidental to where the
+            # music starts. Starting there opened full clips early or late
+            # (-3.99 beats on Bredren "Flick Knife", start 0.000, anchor 1.375;
+            # +4 on Enei "The Greatest Trick", start 2.525, anchor 1.146) while
+            # both drops stayed exact.
             clip_start_s=times.start_s,
-            # The full clip opens framed on start-through-drop: both cues on
-            # screen at once is what makes a generated grid checkable at a
-            # glance. Falls back to the start alone when there is no drop.
+            # Start through drop on screen at once makes the grid checkable at
+            # a glance; the start alone when there is no drop.
             view_end_s=times.drop_s if times.drop_s is not None else times.start_s,
             relative_path_type=relative_path_type,
         )
@@ -854,15 +795,15 @@ def mirror_subpath(source: Path, marker: str) -> Path:
     return Path()
 
 
-# Same-name duplicate resolution: lossless sources play with no decoder offset at
-# all, the MP3 offset is a measured model (MPEG_DECODER_DELAY_SAMPLES), anything
-# else (m4a/AAC rips) plays with an unverified offset in Live.
-_GRID_RELIABILITY = {".wav": 0, ".aif": 0, ".aiff": 0, ".flac": 0, ".mp3": 1}
-
-
 def _source_preference(path: Path) -> int:
-    """Rank a source file by how trustworthy its grid alignment is (lower wins)."""
-    return _GRID_RELIABILITY.get(path.suffix.lower(), 2)
+    """Rank a source file by how trustworthy its grid alignment is (lower wins).
+
+    Lossless sources have no decoder offset, the MP3 offset is a measured model
+    (MPEG_DECODER_DELAY_SAMPLES), and anything else (m4a/AAC rips) plays with an
+    unverified offset in Live.
+    """
+    suffix = path.suffix.lower()
+    return 0 if suffix in _LOSSLESS_EXTENSIONS else 1 if suffix == ".mp3" else 2
 
 
 def run_crate_generation(
@@ -890,7 +831,7 @@ def run_crate_generation(
         plan = build_plan(row, bar_tolerance=bar_tolerance)
         crate_dir = crate_root
         if mirror_marker is not None:
-            crate_dir = crate_root / mirror_subpath(Path(row.path), mirror_marker)
+            crate_dir = crate_root / mirror_subpath(row.path, mirror_marker)
         key = (crate_dir, plan.safe_name.casefold())
         existing = chosen.get(key)
         if existing is None:
@@ -1043,14 +984,16 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_output_dirs(crates_dir: Path | None, audio_dir: Path | None) -> tuple[Path, Path]:
+def resolve_output_dirs(
+    crates_dir: Path | None, audio_dir: Path | None, user_library: Path | None
+) -> tuple[Path, Path]:
     """CLI-level smarts: fall back to Live's User Library only when it actually exists.
 
-    Raises ValueError when no crates dir was given and the User Library isn't at
-    this OS's standard location — the caller must ask instead of guessing.
+    ``user_library`` is that library, None when it isn't at the OS's standard
+    location; then a missing crates dir raises ValueError -- the caller must ask
+    instead of guessing.
     """
     if crates_dir is None:
-        user_library = default_ableton_user_library()
         if user_library is None:
             raise ValueError(
                 "Could not find your Ableton User Library at its standard location; pass --crates-dir explicitly."
@@ -1067,7 +1010,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     try:
-        crates_dir, audio_dir = resolve_output_dirs(args.crates_dir, args.audio_dir)
+        crates_dir, audio_dir = resolve_output_dirs(
+            args.crates_dir, args.audio_dir, Locations.this_computer().user_library
+        )
     except ValueError as exc:
         logger.error("%s%s", R, exc)
         return 2

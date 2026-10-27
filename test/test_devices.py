@@ -19,39 +19,24 @@ ElementTree walks before any of it existed in code, the same way
 * The main track is ``MainTrack`` from Live 12 and ``MasterTrack`` before it,
   named "Main" and "Master" respectively, and its chain sits one tab
   shallower than a track's.
-* ``PreHearTrack`` (the cue chain) exists in every fixture but 10.1.3 and is
-  empty in all of them.
+* ``PreHearTrack`` (the cue chain) exists in every fixture and is empty in
+  all of them.
 """
 
 from __future__ import annotations
 
-import gzip
-import pathlib
 from xml.etree import ElementTree as ET
 
 import pytest
+from conftest import SKELETONS, raw_root, skeleton_set
 
-from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.devices import DeviceRef
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-
-def make_set(key: str) -> AbletonSet:
-    ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def raw_root(key: str) -> ET.Element:
-    """Parse a fixture straight off disk, bypassing abletoolz entirely."""
-    return ET.fromstring(gzip.decompress((SKELETONS / f"{key}.als").read_bytes()).decode("utf-8"))
 
 
 def summary(key: str) -> list[tuple[str, str, tuple[tuple[str, str, bool], ...]]]:
     return [
         (chain.track_type, chain.track_name, tuple((d.tag, d.display_name, d.enabled) for d in chain.devices))
-        for chain in make_set(key).devices.inventory()
+        for chain in skeleton_set(key).devices.inventory()
     ]
 
 
@@ -94,7 +79,7 @@ def test_11_3_41_names_audio_units_from_au_plugin_info() -> None:
 
 def test_10_0_1_tracks_are_named_the_way_tracks_py_names_them() -> None:
     """A user-renamed track answers to its UserName, not its EffectiveName."""
-    names = [chain.track_name for chain in make_set("10.0.1").devices.inventory()]
+    names = [chain.track_name for chain in skeleton_set("10.0.1").devices.inventory()]
     assert names == [
         "Drum Bus",
         "Kicks",
@@ -110,7 +95,7 @@ def test_10_0_1_tracks_are_named_the_way_tracks_py_names_them() -> None:
 
 def test_device_ids_are_a_sparse_chain_local_counter() -> None:
     """10.0.1's master chain: ids 4, 2, 5, 3 in the order Live runs them."""
-    main = make_set("10.0.1").devices.inventory()[-1]
+    main = skeleton_set("10.0.1").devices.inventory()[-1]
     assert [device.device_element.get("Id") for device in main.devices] == ["4", "2", "5", "3"]
     assert [device.display_name for device in main.devices] == [
         "Eq8",
@@ -123,7 +108,7 @@ def test_device_ids_are_a_sparse_chain_local_counter() -> None:
 
 def test_a_rack_nests_whole_chains_that_restart_device_ids() -> None:
     """The rack's branches each hold a Devices list of their own, numbered from 0."""
-    drum_bus = make_set("10.0.1").devices.inventory()[0]
+    drum_bus = skeleton_set("10.0.1").devices.inventory()[0]
     rack = next(device for device in drum_bus.devices if device.tag == "AudioEffectGroupDevice")
     assert rack.device_element.get("Id") == "3"
     nested = [
@@ -138,36 +123,36 @@ def test_a_rack_nests_whole_chains_that_restart_device_ids() -> None:
     ("key", "tag", "name"),
     [
         ("9.0.1", "MasterTrack", "Master"),
-        ("10.1.3", "MasterTrack", "Master"),
+        ("10.1.18", "MasterTrack", "Master"),
         ("11.2.10", "MasterTrack", "Master"),
         ("12.2.6", "MainTrack", "Main"),
         ("12.4.5b", "MainTrack", "Main"),
     ],
 )
 def test_the_main_chain_is_last_and_follows_the_version_rename(key: str, tag: str, name: str) -> None:
-    last = make_set(key).devices.inventory()[-1]
+    last = skeleton_set(key).devices.inventory()[-1]
     assert (last.track_type, last.track_name) == (tag, name)
-    assert raw_root(key).find(f"LiveSet/{tag}") is not None
+    assert raw_root(SKELETONS / f"{key}.als").find(f"LiveSet/{tag}") is not None
 
 
 def test_the_cue_chain_is_not_part_of_the_inventory() -> None:
     """PreHearTrack has a device chain but is not a track anyone authors."""
-    assert raw_root("12.4.5b").find("LiveSet/PreHearTrack/DeviceChain/DeviceChain/Devices") is not None
-    assert "PreHearTrack" not in {chain.track_type for chain in make_set("12.4.5b").devices.inventory()}
+    assert raw_root(SKELETONS / "12.4.5b.als").find("LiveSet/PreHearTrack/DeviceChain/DeviceChain/Devices") is not None
+    assert "PreHearTrack" not in {chain.track_type for chain in skeleton_set("12.4.5b").devices.inventory()}
 
 
 def test_empty_chains_are_reported_rather_than_skipped() -> None:
-    empty = [chain.track_name for chain in make_set("11.2.10").devices.inventory() if not chain.devices]
+    empty = [chain.track_name for chain in skeleton_set("11.2.10").devices.inventory() if not chain.devices]
     assert empty == ["1-MIDI", "2-MIDI", "3-DJ SAMPLES VOL 2 (2)", "4-GB_DrumHit_01", "Master"]
 
 
 def test_every_chain_carries_the_sets_version() -> None:
-    assert {chain.version for chain in make_set("11.0.12").devices.inventory()} == {(11, 0, 12)}
+    assert {chain.version for chain in skeleton_set("11.0.12").devices.inventory()} == {(11, 0, 12)}
 
 
 def test_device_ref_compares_on_content_not_on_tree_identity() -> None:
     """The element is a handle for the write path, not part of what a ref means."""
     element = ET.Element("Eq8")
     other = ET.Element("Eq8")
-    assert DeviceRef("Eq8", "Eq8", True, element) == DeviceRef("Eq8", "Eq8", True, other)
-    assert "Element" not in repr(DeviceRef("Eq8", "Eq8", True, element))
+    assert DeviceRef("Eq8", "Eq8", True, element, (12, 0, 0)) == DeviceRef("Eq8", "Eq8", True, other, (11, 0, 0))
+    assert "Element" not in repr(DeviceRef("Eq8", "Eq8", True, element, (12, 0, 0)))

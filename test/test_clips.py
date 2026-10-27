@@ -8,7 +8,7 @@ One finding worth recording: the 12.4.5b fixture's second ``MidiClip`` (of
 two present in the raw XML) lives at ``GroovePool/Grooves/Groove/Clip``, not
 on any track -- it is the source clip Live keeps around for an extracted
 groove template, not a session or arrangement clip. ``Clips.midi()``
-deliberately walks tracks only (mirroring ``AbletonTrack.clips_clipview``/
+deliberately walks tracks only (mirroring ``AbletonTrack.session_clips``/
 ``clips_arrangement``, the same session/arrangement split ``tracks.py``
 already established), so that clip is correctly excluded and 12.4.5b yields
 exactly one real MidiClipRef.
@@ -16,32 +16,23 @@ exactly one real MidiClipRef.
 
 from __future__ import annotations
 
-import json
-import pathlib
+import copy
 
 import pytest
+from conftest import skeleton_set
 
-from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.clips import ClipLocation, MidiNote, pitch_name
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
+from abletoolz.live_set.clips import ClipLocation, MidiNote
 
 
-def make_set(key: str) -> AbletonSet:
-    ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
-@pytest.mark.parametrize("key", ["10.1.3", "11.3.41"])
+@pytest.mark.parametrize("key", ["11.2.10", "11.3.41"])
 def test_zero_notes_fixtures_return_no_clips(key: str) -> None:
     """These fixtures carry MidiTracks but no MidiClip content at all."""
-    assert make_set(key).clips.midi() == []
+    assert skeleton_set(key).clips.midi() == []
 
 
 def test_9_0_1_session_and_arrangement_clips() -> None:
     """Two MidiTracks, each with one session clip and four arrangement clips."""
-    clips = make_set("9.0.1").clips.midi()
+    clips = skeleton_set("9.0.1").clips.midi()
     assert sum(len(c.notes) for c in clips) == 223
     assert {c.location for c in clips} == {ClipLocation.SESSION, ClipLocation.ARRANGEMENT}
 
@@ -83,7 +74,7 @@ def test_9_0_1_session_and_arrangement_clips() -> None:
 
 def test_11_0_0_note_fields_float_velocity_and_note_id() -> None:
     """11.0+ shape: NoteId, Probability, VelocityDeviation, and float velocities."""
-    clips = make_set("11.0.0").clips.midi()
+    clips = skeleton_set("11.0.0").clips.midi()
     assert sum(len(c.notes) for c in clips) == 219
     clip = next(c for c in clips if c.track_name == "Kick" and c.start_time == 224.0)
     assert clip.location is ClipLocation.ARRANGEMENT
@@ -105,7 +96,7 @@ def test_11_0_0_note_fields_float_velocity_and_note_id() -> None:
 def test_12_4_5b_excludes_groove_pool_clip() -> None:
     """Only the session clip on the surviving MidiTrack counts; the GroovePool
     clip belongs to no track and is not a real session/arrangement clip."""
-    clips = make_set("12.4.5b").clips.midi()
+    clips = skeleton_set("12.4.5b").clips.midi()
     assert len(clips) == 1
     clip = clips[0]
     assert clip.track_name == "1-LOW"
@@ -149,31 +140,46 @@ def test_12_4_5b_excludes_groove_pool_clip() -> None:
     )
 
 
-def test_to_dict_is_json_ready_and_flat() -> None:
-    """to_dict() gives both pitch number and note name, and round-trips through json."""
-    clip = make_set("12.4.5b").clips.midi()[0]
-    data = clip.to_dict()
-    encoded = json.dumps(data)
-    decoded = json.loads(encoded)
-    assert decoded["track_name"] == "1-LOW"
-    assert decoded["location"] == "session"
-    assert decoded["start_time"] == 0.0
-    assert decoded["length"] == 4.0
-    assert [note["pitch"] for note in decoded["notes"]] == [70, 64, 70]
-    assert [note["note"] for note in decoded["notes"]] == ["A#3", "E3", "A#3"]
-    assert decoded["notes"][1]["note_id"] == 2
-    assert decoded["notes"][0]["enabled"] is True
+def test_every_ref_carries_the_track_and_slot_it_was_read_from() -> None:
+    ableton_set = skeleton_set("9.0.1")
+    for clip in ableton_set.clips.midi():
+        assert clip.track.track_root.find(".//" + clip.clip_element.tag) is not None
+        if clip.location is ClipLocation.SESSION:
+            assert clip.slot is not None
+            assert clip.track.session_slot(clip.slot).clip is clip.clip_element
+        else:
+            assert clip.slot is None
+            assert any(element is clip.clip_element for element in clip.track.clips_arrangement())
 
 
-@pytest.mark.parametrize(
-    ("pitch", "name"),
-    [
-        (60, "C3"),  # Ableton's middle C.
-        (0, "C-2"),
-        (127, "G8"),
-        (61, "C#3"),
-        (69, "A3"),
-    ],
-)
-def test_pitch_name(pitch: int, name: str) -> None:
-    assert pitch_name(pitch) == name
+def test_session_clips_skip_a_malformed_slot_and_the_freeze_sequencer() -> None:
+    """A slot without ClipSlot/Value is passed over, and later slots keep their index."""
+    ableton_set = skeleton_set("12.4.5b")
+    (clip,) = ableton_set.clips.midi()
+    assert clip.slot == 1
+    track = clip.track
+    first = track.track_root.find("DeviceChain/MainSequencer/ClipSlotList/ClipSlot")
+    assert first is not None
+    inner = first.find("ClipSlot")
+    assert inner is not None
+    first.remove(inner)
+    freeze_value = track.track_root.find("DeviceChain/FreezeSequencer/ClipSlotList/ClipSlot/ClipSlot/Value")
+    assert freeze_value is not None
+    freeze_value.append(copy.deepcopy(clip.clip_element))
+
+    (again,) = ableton_set.clips.midi()
+    assert again.slot == 1
+    assert again.clip_element is clip.clip_element
+    assert track.first_empty_slot() == 2
+    with pytest.raises(ValueError, match="has no ClipSlot/Value"):
+        track.session_slot(0)
+
+
+@pytest.mark.parametrize("key", ["9.6.0", "11.0.0", "12.2.6"])
+def test_one_tracks_clips_are_the_sets_clips_on_that_track(key: str) -> None:
+    """``midi(track)`` and ``audio(track)`` read one track instead of the whole set, and find the same clips."""
+    live_set = skeleton_set(key)
+    for track in live_set.tracks.load():
+        for listing in (live_set.clips.midi, live_set.clips.audio):
+            every = [clip.clip_element for clip in listing() if clip.track is track]
+            assert [clip.clip_element for clip in listing(track)] == every

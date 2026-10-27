@@ -57,16 +57,67 @@ import enum
 from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
+from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.live_set.xml_edit import number_value
+from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.objects import Clip
+from abletoolz.schema.versioning import Version
 
 # Where each track type keeps its arrangement clips, and what the clips are called.
-ARRANGEMENT_EVENTS_PATH = {
-    "MidiTrack": ("DeviceChain/MainSequencer/ClipTimeable/ArrangerAutomation", "MidiClip"),
-    "AudioTrack": ("DeviceChain/MainSequencer/Sample/ArrangerAutomation", "AudioClip"),
+ARRANGEMENT_EVENTS_PATH: dict[str, tuple[str, str]] = {
+    Tag.MIDI_TRACK: (
+        path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_TIMEABLE, Tag.ARRANGER_AUTOMATION),
+        Tag.MIDI_CLIP,
+    ),
+    Tag.AUDIO_TRACK: (path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.SAMPLE, Tag.ARRANGER_AUTOMATION), Tag.AUDIO_CLIP),
 }
 
 # The only automation event tags observed in any Automation/Events list.
-AUTOMATION_EVENT_TAGS = frozenset({"FloatEvent", "BoolEvent", "EnumEvent"})
+AUTOMATION_EVENT_TAGS = frozenset({Tag.FLOAT_EVENT, Tag.BOOL_EVENT, Tag.ENUM_EVENT})
+
+# Where a track keeps its session clips. Every track type carries a second
+# ClipSlotList under FreezeSequencer, which holds the rendered AudioClips of a
+# frozen track (a frozen MidiTrack's included), so this is anchored at
+# MainSequencer rather than searched for.
+SESSION_SLOTS_PATH = path(Tag.DEVICE_CHAIN, Tag.MAIN_SEQUENCER, Tag.CLIP_SLOT_LIST, Tag.CLIP_SLOT)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SessionSlot:
+    """One session clip slot, filled or not.
+
+    ``holder`` is the inner ``ClipSlot``; its indentation is what a clip cloned
+    into the slot has to be shifted to match. ``value`` is what actually holds
+    the clip element.
+    """
+
+    holder: ET.Element
+    value: ET.Element
+
+    @property
+    def filled(self) -> bool:
+        return len(self.value) > 0
+
+    @property
+    def clip(self) -> ET.Element | None:
+        """The clip in the slot, or None for an empty one."""
+        return self.value[0] if len(self.value) else None
+
+
+def session_slots(track_root: ET.Element) -> list[SessionSlot | None]:
+    """A track's session clip slots, in slot order.
+
+    An entry with no inner ``ClipSlot/Value`` stands as None, so every later
+    slot keeps its own index. No set measured has one: the 74 read (the
+    fixtures and a local library) carry 12312 ``ClipSlotList`` entries under
+    ``MainSequencer``, every one with both.
+    """
+    slots: list[SessionSlot | None] = []
+    for entry in track_root.iterfind(SESSION_SLOTS_PATH):
+        holder = entry.find(Tag.CLIP_SLOT)
+        value = None if holder is None else holder.find(Tag.VALUE)
+        slots.append(None if holder is None or value is None else SessionSlot(holder=holder, value=value))
+    return slots
 
 
 class SectionMode(enum.StrEnum):
@@ -114,20 +165,27 @@ class SectionCopyReport:
     replaced: int
     envelope_events: int
 
-    def lines(self) -> list[str]:
-        """Human summary, one line per fact worth reading."""
-        report = [f"copied {len(self.copied)} clip(s) to beat {number_value(self.dest_start)}"]
-        if self.replaced:
-            report.append(f"deleted {self.replaced} clip(s) at the destination")
-        if self.envelope_events:
-            report.append(f"copied {self.envelope_events} automation event(s)")
-        report.extend(
-            f"skipped {straddler.clip_name!r} on {straddler.track_name!r} "
-            f"({number_value(straddler.start)}-{number_value(straddler.end)}): "
-            f"crosses the section {straddler.boundary}"
-            for straddler in self.skipped
-        )
-        return report
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class RemovedClip:
+    """One clip that was deleted from the arrangement."""
+
+    track_name: str
+    clip_name: str
+    start: float
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SectionRemoveReport:
+    """What ``Clips.remove_section_clips`` deleted, and what it left standing.
+
+    ``kept`` is the half that matters to a caller: a clip crossing either edge
+    of the section is never truncated, so a section that looked empty
+    afterwards may still hold the tails of clips that started before it.
+    """
+
+    removed: tuple[RemovedClip, ...]
+    kept: tuple[SkippedStraddler, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -137,12 +195,13 @@ class ArrangementEvents:
     element: ET.Element
     indent: str
     clip_tag: str
+    version: Version
 
     def clips(self) -> list[ET.Element]:
         return [child for child in self.element if child.tag == self.clip_tag]
 
 
-def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEvents | None:
+def arrangement_events(track_root: ET.Element, track_type: str, version: Version) -> ArrangementEvents | None:
     """A track's arrangement clip list, or ``None`` for a track type that has none.
 
     Group, return and main tracks hold no clips at all; the path is looked up
@@ -156,30 +215,30 @@ def arrangement_events(track_root: ET.Element, track_type: str) -> ArrangementEv
     arranger = track_root.find(path)
     if arranger is None:
         return None
-    events = arranger.find("Events")
+    events = arranger.find(Tag.EVENTS)
     if events is None:
         return None
     # ``arranger.text`` is the whitespace before its first child, which is the
     # indentation ``Events`` itself sits on -- the anchor every insert needs.
-    return ArrangementEvents(element=events, indent=arranger.text or "", clip_tag=clip_tag)
+    return ArrangementEvents(element=events, indent=arranger.text or "", clip_tag=clip_tag, version=version)
 
 
 def event_time(element: ET.Element) -> float:
     """The ``Time`` attribute of a clip or automation event, in beats."""
-    return float(element.get("Time", "0"))
+    return float(element.get(Attr.TIME, "0"))
 
 
-def event_span(clip: ET.Element) -> tuple[float, float]:
+def event_span(clip: ET.Element, version: Version) -> tuple[float, float]:
     """A clip's arrangement span ``[Time, CurrentEnd)`` in beats."""
-    current_end = clip.find("CurrentEnd")
+    current_end = find(clip, Clip.CURRENT_END, version)
     if current_end is None:
         raise ValueError(f"Arrangement {clip.tag} carries no CurrentEnd; it has no span")
-    return event_time(clip), float(current_end.get("Value", "0"))
+    return event_time(clip), float(current_end.raw)
 
 
-def clip_name(clip: ET.Element) -> str:
-    name = clip.find("Name")
-    return "" if name is None else name.get("Value", "")
+def clip_name(clip: ET.Element, version: Version) -> str:
+    name = find(clip, Clip.NAME, version)
+    return "" if name is None else name.raw
 
 
 def straddled_boundary(span: tuple[float, float], start: float, end: float) -> SectionBoundary | None:
@@ -198,46 +257,38 @@ def straddled_boundary(span: tuple[float, float], start: float, end: float) -> S
         return SectionBoundary.BOTH
     if crosses_start:
         return SectionBoundary.START
-    if crosses_end:
-        return SectionBoundary.END
-    return None
+    return SectionBoundary.END if crosses_end else None
 
 
-def move_clip(clip: ET.Element, start: float, length: float | None) -> None:
+def move_clip(clip: ET.Element, start: float, length: float | None, version: Version) -> None:
     """Put a clip element at ``start``, optionally resizing its arrangement span.
 
     ``Time``, ``CurrentStart`` and ``CurrentEnd`` are the whole placement.
     A resize also carries ``LoopEnd`` on a non-looping clip, which is the one
     marker the corpus ties to the arrangement span.
     """
-    current_start = _child(clip, "CurrentStart")
-    current_end = _child(clip, "CurrentEnd")
-    span = float(current_end.get("Value", "0")) - float(current_start.get("Value", "0"))
+    current_start = _clip_setting(clip, Clip.CURRENT_START, version)
+    current_end = _clip_setting(clip, Clip.CURRENT_END, version)
+    span = float(current_end.raw) - float(current_start.raw)
     if length is None:
         length = span
     if length <= 0:
         raise ValueError(f"Clip length must be positive, got {length}")
 
-    clip.set("Time", number_value(start))
-    current_start.set("Value", number_value(start))
-    current_end.set("Value", number_value(start + length))
+    clip.set(Attr.TIME, number_value(start))
+    current_start.set(start)
+    current_end.set(start + length)
 
-    loop_on = clip.find("Loop/LoopOn")
-    if length != span and loop_on is not None and loop_on.get("Value") == "false":
-        loop_start = _child(clip, "Loop/LoopStart")
-        _child(clip, "Loop/LoopEnd").set("Value", number_value(float(loop_start.get("Value", "0")) + length))
+    loop_on = find(clip, Clip.LOOP_ON, version)
+    if length != span and loop_on is not None and loop_on.value is False:
+        loop_start = _clip_setting(clip, Clip.LOOP_START, version)
+        _clip_setting(clip, Clip.LOOP_END, version).set(float(loop_start.raw) + length)
 
 
 def next_event_id(events: ET.Element) -> str | None:
-    """The id a new sibling should take, or ``None`` where siblings carry none.
-
-    Ids are list-local and sparse, so ``max + 1`` is the only claim the
-    corpus supports; pre-10 clips have no ``Id`` attribute at all.
-    """
-    ids = [int(child.attrib["Id"]) for child in events if child.attrib.get("Id", "").lstrip("-").isdigit()]
-    if not ids:
-        return None
-    return str(max(ids) + 1)
+    """The id a new sibling should take, ``max + 1`` of a sparse list, or ``None`` where siblings carry none."""
+    ids = [int(child.attrib[Attr.ID]) for child in events if child.attrib.get(Attr.ID, "").lstrip("-").isdigit()]
+    return str(max(ids) + 1) if ids else None
 
 
 def assign_event_id(events: ET.Element, clip: ET.Element) -> None:
@@ -249,9 +300,9 @@ def assign_event_id(events: ET.Element, clip: ET.Element) -> None:
     """
     fresh = next_event_id(events)
     if fresh is not None:
-        clip.set("Id", fresh)
-    elif "Id" in clip.attrib:
-        clip.set("Id", "0")
+        clip.set(Attr.ID, fresh)
+    elif Attr.ID in clip.attrib:
+        clip.set(Attr.ID, "0")
 
 
 def insert_in_time_order(container: ET.Element, element: ET.Element, *, indent: str) -> None:
@@ -296,11 +347,13 @@ def remove_children(container: ET.Element, doomed: Sequence[ET.Element]) -> None
 
 def track_envelopes(track_root: ET.Element) -> list[ET.Element]:
     """A track's automation envelopes, empty for Live 9 sets which have no container."""
-    envelopes = track_root.find("AutomationEnvelopes/Envelopes")
-    return [] if envelopes is None else [child for child in envelopes if child.tag == "AutomationEnvelope"]
+    envelopes = track_root.find(path(Tag.AUTOMATION_ENVELOPES, Tag.ENVELOPES))
+    return [] if envelopes is None else [child for child in envelopes if child.tag == Tag.AUTOMATION_ENVELOPE]
 
 
-def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta: float) -> int:
+def copy_envelope_segment(
+    envelope: ET.Element, start: float, end: float, delta: float, *, replace: bool = False
+) -> int:
     """Copy one envelope's events in ``[start, end)`` to ``+delta``, in time order.
 
     ``EnvelopeTarget/PointeeId`` is never touched: it names a parameter that
@@ -310,31 +363,98 @@ def copy_envelope_segment(envelope: ET.Element, start: float, end: float, delta:
 
     The copy is a segment, not a splice: no edge value is synthesized at
     ``start + delta``, so the copied stretch inherits whatever value the
-    envelope already held just before it.
+    envelope already held just before it. ``replace`` first deletes the
+    events already in ``[start + delta, end + delta)``, after the sources are
+    taken, so an overlapping range still copies what it started with.
     """
-    automation = envelope.find("Automation")
+    automation = envelope.find(Tag.AUTOMATION)
     if automation is None:
         return 0
-    events = automation.find("Events")
+    events = automation.find(Tag.EVENTS)
     if events is None:
         return 0
     indent = automation.text or ""
 
     sources = [child for child in events if child.tag in AUTOMATION_EVENT_TAGS and start <= event_time(child) < end]
+    if replace:
+        doomed = [
+            child
+            for child in events
+            if child.tag in AUTOMATION_EVENT_TAGS and start + delta <= event_time(child) < end + delta
+        ]
+        remove_children(events, doomed)
     next_id = next_event_id(events)
     counter = 0 if next_id is None else int(next_id)
     for source in sources:
         copied = copy.deepcopy(source)
-        copied.set("Time", number_value(event_time(source) + delta))
-        if "Id" in copied.attrib:
-            copied.set("Id", str(counter))
+        copied.set(Attr.TIME, number_value(event_time(source) + delta))
+        if Attr.ID in copied.attrib:
+            copied.set(Attr.ID, str(counter))
             counter += 1
         insert_in_time_order(events, copied, indent=indent)
     return len(sources)
 
 
-def _child(element: ET.Element, path: str) -> ET.Element:
-    found = element.find(path)
+def _clip_setting(clip: ET.Element, member: Clip, version: Version) -> Setting:
+    found = find(clip, member, version)
     if found is None:
-        raise ValueError(f"Clip element {element.tag} has no {path}")
+        raise ValueError(f"Clip element {clip.tag} has no {member.value}")
     return found
+
+
+def set_clip_length(clip_element: ET.Element, length: float, version: Version) -> None:
+    """Make a session clip exactly ``length`` beats long, start to loop end.
+
+    Live shows a clip's length from ``CurrentStart``/``CurrentEnd`` and loops
+    it between the ``Loop`` markers; every session clip in the fixture corpus
+    has all of them agreeing on 0..length, so all of them are written.
+    """
+    if length <= 0:
+        raise ValueError(f"Clip length must be positive, got {length}")
+    for member, value in (
+        (Clip.CURRENT_START, 0.0),
+        (Clip.CURRENT_END, length),
+        (Clip.LOOP_START, 0.0),
+        (Clip.LOOP_END, length),
+        (Clip.OUT_MARKER, length),
+        (Clip.HIDDEN_LOOP_START, 0.0),
+        (Clip.HIDDEN_LOOP_END, length),
+    ):
+        resolve(clip_element, member, version).set(value)
+
+
+def span_occupants(events: ArrangementEvents, start: float, end: float) -> list[ET.Element]:
+    """Clips inside ``[start, end)``, raising on any that straddle an edge."""
+    occupants: list[ET.Element] = []
+    for clip in events.clips():
+        span = event_span(clip, events.version)
+        boundary = straddled_boundary(span, start, end)
+        if boundary is not None:
+            raise ValueError(
+                f"Clip {clip_name(clip, events.version)!r} spans {number_value(span[0])}-{number_value(span[1])} and "
+                f"crosses the {boundary} of {number_value(start)}-{number_value(end)}; "
+                "sections are never trimmed, so move or delete it first"
+            )
+        if start <= span[0] and span[1] <= end:
+            occupants.append(clip)
+    return occupants
+
+
+def clear_span(
+    events: ArrangementEvents,
+    span: tuple[float, float],
+    *,
+    replace: bool,
+    track_name: str,
+) -> None:
+    """Empty a destination span, or refuse to land on top of what is already there."""
+    occupants = span_occupants(events, *span)
+    if not occupants:
+        return
+    if not replace:
+        names = ", ".join(f"{clip_name(clip, events.version)!r} at beat {clip.get(Attr.TIME)}" for clip in occupants)
+        raise ValueError(
+            f"Beats {number_value(span[0])}-{number_value(span[1])} of track {track_name!r} already hold "
+            f"{len(occupants)} clip(s): {names}"
+        )
+    remove_children(events.element, occupants)

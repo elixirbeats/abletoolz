@@ -1,31 +1,23 @@
 """LLM-facing describe surface: a tiered, deduplicated view of a set.
 
-A real arrangement measured before this existed: 16 near-identical 32-note
-clips (the same pattern re-placed across a track) cost ~90% wasted tokens
-under a raw per-clip dump, and audio clips were invisible to the domain API
-at all, forcing a raw XML walk just to map the arrangement. This module
-answers both: clip *content* is deduplicated into a ``patterns`` table keyed
-by exact (length, notes) identity, clip *placement* references a pattern by
-id, and audio clips are read through ``Clips.audio()`` like any other clip.
+Clip *content* is deduplicated into a ``patterns`` table keyed by exact
+(length, notes) identity, so the same pattern re-placed across a track ships
+once; clip *placement* references a pattern by id. Audio clips are read
+through ``Clips.audio()`` like any other clip.
 
-Three levels tier how much of that content ships. STRUCTURE is tracks and
-per-track clip counts only -- enough to see the shape of a set. PATTERNS
-adds the deduplicated note content and every placement, with per-note
-nuance (probability, velocity deviation, disabled) silently dropped.
-FULL keeps that nuance, at the cost of patterns that would otherwise
-dedupe no longer doing so once one note's nuance differs.
+Three levels tier how much content ships. STRUCTURE is tracks and per-track
+clip counts only -- the shape of a set. PATTERNS adds the deduplicated note
+content and every placement, dropping per-note nuance (probability, velocity
+deviation, disabled). FULL keeps that nuance, so patterns that differ only in
+it no longer dedupe.
 
-``set.describe(level)`` returns a typed ``DescribeDocument`` -- frozen
-dataclasses throughout, the same shape ``MidiClipRef``/``TrackDevices``
-already use elsewhere in this package. The dict/JSON conversion happens
-exactly once, at the serialization edge (``to_wire``/``describe_json``);
-nothing upstream of that indexes into a bare dict.
+``set.describe(level)`` returns a ``DescribeDocument`` of frozen dataclasses;
+the dict/JSON conversion happens once, at the serialization edge
+(``to_wire``/``describe_json``).
 
-Track ids and clip-to-track association both go through ``Clips.track_of``,
-identity-based rather than name-based: duplicate track names are real (a
-real set can carry two tracks named the same), and a describe() that
-silently merged them under one name would be worse than the raw XML walk
-it replaces.
+Track ids and clip-to-track association come from the track object each clip
+ref was read from, not its name: a set can carry two tracks named the same,
+and describe() must not merge them.
 """
 
 from __future__ import annotations
@@ -34,30 +26,28 @@ import dataclasses
 import enum
 import json
 from typing import TYPE_CHECKING
-from xml.etree import ElementTree as ET
 
 from abletoolz.live_set.clips import AudioClipRef, ClipLocation, MidiClipRef, NoteArray, encode_note
 from abletoolz.live_set.devices import TrackDevices
 from abletoolz.live_set.tracks import AbletonTrack
-from abletoolz.misc import get_element
+from abletoolz.schema import Tag
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
 
 # Live's own track tags, mapped to the schema's short names. MasterTrack is
-# pre-12, MainTrack 12+ (schema.tag("master_track", ...)); both mean "main".
-_TRACK_TYPE = {
-    "MidiTrack": "midi",
-    "AudioTrack": "audio",
-    "GroupTrack": "group",
-    "ReturnTrack": "return",
-    "MasterTrack": "main",
-    "MainTrack": "main",
+# pre-12, MainTrack 12+ (schema.objects.OWNER_SPELLINGS); both mean "main".
+_TRACK_TYPE: dict[str, str] = {
+    Tag.MIDI_TRACK: "midi",
+    Tag.AUDIO_TRACK: "audio",
+    Tag.GROUP_TRACK: "group",
+    Tag.RETURN_TRACK: "return",
+    Tag.MASTER_TRACK: "main",
+    Tag.MAIN_TRACK: "main",
 }
 
-# The main track carries no Id attribute in any corpus fixture, across every
-# version. -1 is Live's own convention for "no id" (TrackGroupId reads -1 on
-# an ungrouped track), reused here rather than inventing a new sentinel.
+# The main track carries no Id attribute in any corpus fixture, in any
+# version. -1 is Live's own "no id" (TrackGroupId reads -1 on an ungrouped track).
 _MAIN_TRACK_ID = -1
 
 
@@ -104,8 +94,7 @@ class Pattern:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class SessionPlacement:
-    """A MIDI clip in a session slot. Audio session clips have no placement
-    shape in this document -- see the module docstring's dedup discussion."""
+    """A MIDI clip in a session slot. Audio session clips have no placement in this document."""
 
     track_id: int
     slot: int
@@ -155,15 +144,6 @@ def _group_id(track: AbletonTrack) -> int | None:
     return None if track.group_id in (None, "-1") else int(track.group_id)
 
 
-def _session_slot_index(track: AbletonTrack, clip_element: ET.Element) -> int:
-    """Which session slot on ``track`` holds ``clip_element``, by identity."""
-    for index, slot in enumerate(track.track_root.iterfind("DeviceChain/MainSequencer/ClipSlotList/ClipSlot")):
-        value = get_element(slot, "ClipSlot.Value")
-        if any(child is clip_element for child in value):
-            return index
-    raise ValueError("Session clip not found in its own track's slot list")
-
-
 def _freeze_notes(notes: tuple[NoteArray, ...]) -> tuple[object, ...]:
     """A hashable form of an encoded note list -- dicts become sorted item tuples."""
     return tuple(
@@ -206,7 +186,7 @@ class Describe:
         audio_clips = self._set.clips.audio()
 
         set_info = SetInfo(
-            creator=self._set.version or "",
+            creator=self._set.version,
             major=self._set.version_tuple[0],
             bpm=_round(self._set.transport.bpm()),
         )
@@ -221,12 +201,11 @@ class Describe:
 
         for clip in midi_clips:
             pattern_id = table.id_for(clip, extended=extended)
-            track = self._set.clips.track_of(clip.clip_element)
-            if clip.location is ClipLocation.SESSION:
+            if clip.slot is not None:
                 session.append(
                     SessionPlacement(
-                        track_id=_track_id(track),
-                        slot=_session_slot_index(track, clip.clip_element),
+                        track_id=_track_id(clip.track),
+                        slot=clip.slot,
                         name=clip.name,
                         pattern=pattern_id,
                     )
@@ -234,7 +213,7 @@ class Describe:
             else:
                 arrangement.append(
                     ArrangementMidiPlacement(
-                        track_id=_track_id(track),
+                        track_id=_track_id(clip.track),
                         start=_round(clip.start_time),
                         name=clip.name,
                         pattern=pattern_id,
@@ -244,10 +223,9 @@ class Describe:
         for audio_clip in audio_clips:
             if audio_clip.location is not ClipLocation.ARRANGEMENT:
                 continue
-            track = self._set.clips.track_of(audio_clip.clip_element)
             arrangement.append(
                 ArrangementAudioPlacement(
-                    track_id=_track_id(track),
+                    track_id=_track_id(audio_clip.track),
                     start=_round(audio_clip.start_time),
                     length=None if audio_clip.length is None else _round(audio_clip.length),
                     sample=audio_clip.sample_name,
@@ -276,8 +254,7 @@ class Describe:
             arrangement_counts = dict.fromkeys((id(track) for track in tracks), 0)
             all_clips: list[MidiClipRef | AudioClipRef] = [*midi_clips, *audio_clips]
             for clip in all_clips:
-                track = self._set.clips.track_of(clip.clip_element)
-                key = id(track)
+                key = id(clip.track)
                 if key not in session_counts:
                     continue
                 if clip.location is ClipLocation.SESSION:
@@ -289,18 +266,17 @@ class Describe:
                 for key in session_counts
             }
 
-        entries: list[TrackEntry] = []
-        for track, chain in zip(tracks, inventory[: len(tracks)], strict=True):
-            entries.append(
-                TrackEntry(
-                    id=_track_id(track),
-                    name=track.name,
-                    type=_TRACK_TYPE[track.type],
-                    group_id=_group_id(track),
-                    chain=tuple(device.display_name for device in chain.devices),
-                    clips=None if clip_counts is None else clip_counts[id(track)],
-                )
+        entries = [
+            TrackEntry(
+                id=_track_id(track),
+                name=track.name,
+                type=_TRACK_TYPE[track.type],
+                group_id=_group_id(track),
+                chain=tuple(device.display_name for device in chain.devices),
+                clips=None if clip_counts is None else clip_counts[id(track)],
             )
+            for track, chain in zip(tracks, inventory[: len(tracks)], strict=True)
+        ]
 
         main = inventory[-1]
         entries.append(
