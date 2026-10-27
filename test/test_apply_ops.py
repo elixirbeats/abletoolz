@@ -9,7 +9,7 @@ writers this module calls):
   already relies on, cross-checked here through the ops surface instead.
 * Track selection by name has to raise on ambiguity rather than guess:
   nothing in the corpus carries duplicate track names, so the ambiguity
-  tests rename a track in memory to manufacture one, the same technique
+  case renames a track in memory to manufacture one, the same technique
   ``test_devices_write.py`` uses to manufacture ``PointeeId`` references
   that don't occur naturally either.
 """
@@ -17,29 +17,27 @@ writers this module calls):
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 from xml.etree import ElementTree as ET
 
 import pydantic
 import pytest
+from conftest import SKELETONS, first_session_clip, writable_set
 
 from abletoolz.live_set import AbletonSet
-from abletoolz.live_set.apply_ops import OpsDocument, TrackByName, _resolve_track, apply_ops
-from abletoolz.live_set.clips import ClipLocation, MidiClipRef, encode_note
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-
-def make_set(key: str, tmp_path: pathlib.Path) -> AbletonSet:
-    """A writable copy of a fixture, parsed."""
-    copy = tmp_path / f"{key}.als"
-    copy.write_bytes((SKELETONS / f"{key}.als").read_bytes())
-    ableton_set = AbletonSet(copy)
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def first_session_clip(ableton_set: AbletonSet) -> MidiClipRef:
-    return next(clip for clip in ableton_set.clips.midi() if clip.location is ClipLocation.SESSION)
+from abletoolz.live_set.apply_ops import (
+    AnyOp,
+    CopySectionResult,
+    GraftChainResult,
+    OpsDocument,
+    PlaceClipResult,
+    RemoveSectionClipsResult,
+    SetNotesResult,
+    SetTrackSettingResult,
+    apply_ops,
+)
+from abletoolz.live_set.clips import ClipLocation, encode_note
+from abletoolz.schema.objects import Mixer
 
 
 def track_id(ableton_set: AbletonSet, name: str) -> int:
@@ -48,61 +46,46 @@ def track_id(ableton_set: AbletonSet, name: str) -> int:
     return int(track.id)
 
 
+def one_op(**fields: Any) -> list[AnyOp]:
+    """One op, validated through the real document model, ready for ``apply_ops``.
+
+    Almost every test here runs a single op, so the ``{"ops": [...]}`` envelope
+    was written out twenty times over. Validation still happens exactly where
+    it did -- a wrong key or an unknown op raises here the same as inline --
+    so the tests that assert on validation errors call this too.
+
+    Documents with more than one op keep the envelope: those tests are about
+    the document, not about an op.
+    """
+    return OpsDocument.model_validate({"ops": [fields]}).ops
+
+
 # --- set_notes ---------------------------------------------------------
 
 
 def test_set_notes_op_writes_through_to_the_clip(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "set_notes",
-                    "track": {"name": "1-LOW"},
-                    "clip": {"slot": 1},
-                    "notes": [[60, 0.0, 1.0], [64, 1.0, 1.0]],
-                }
-            ]
-        }
-    )
-    results = apply_ops(ableton_set, doc.ops)
-    assert len(results) == 1
-    assert "set_notes" in results[0]
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ops = one_op(op="set_notes", track={"name": "1-LOW"}, clip={"slot": 1}, notes=[[60, 0.0, 1.0], [64, 1.0, 1.0]])
+    results = apply_ops(ableton_set, ops)
+    assert results == [SetNotesResult(track="1-LOW", clip="", notes=2)]
 
     rewritten = first_session_clip(ableton_set)
     assert [(n.pitch, n.start, n.duration) for n in rewritten.notes] == [(60, 0.0, 1.0), (64, 1.0, 1.0)]
 
 
 def test_set_notes_op_selects_the_clip_by_track_id(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     track = next(t for t in ableton_set.tracks.load() if t.name == "1-LOW")
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {"op": "set_notes", "track": {"id": int(track.id)}, "clip": {"slot": 1}, "notes": [[67, 0.0, 0.5]]},
-            ]
-        }
-    )
-    apply_ops(ableton_set, doc.ops)
+    ops = one_op(op="set_notes", track={"id": int(track.id)}, clip={"slot": 1}, notes=[[67, 0.0, 0.5]])
+    apply_ops(ableton_set, ops)
     assert [(n.pitch, n.start, n.duration) for n in first_session_clip(ableton_set).notes] == [(67, 0.0, 0.5)]
 
 
 def test_set_notes_op_selects_an_arrangement_clip_by_start(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.0", tmp_path)
+    ableton_set = writable_set("11.0.0", tmp_path)
     clip = next(c for c in ableton_set.clips.midi() if c.track_name == "Kick" and c.start_time == 224.0)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "set_notes",
-                    "track": {"name": "Kick"},
-                    "clip": {"start": 224.0},
-                    "notes": [[60, 0.0, 0.5]],
-                }
-            ]
-        }
-    )
-    apply_ops(ableton_set, doc.ops)
+    ops = one_op(op="set_notes", track={"name": "Kick"}, clip={"start": 224.0}, notes=[[60, 0.0, 0.5]])
+    apply_ops(ableton_set, ops)
     rewritten = next(c for c in ableton_set.clips.midi() if c.clip_element is clip.clip_element)
     assert [(n.pitch, n.start, n.duration) for n in rewritten.notes] == [(60, 0.0, 0.5)]
 
@@ -111,23 +94,17 @@ def test_set_notes_op_selects_an_arrangement_clip_by_start(tmp_path: pathlib.Pat
 
 
 def test_clone_clip_op_lands_in_the_first_empty_slot(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "clone_clip",
-                    "track": {"name": "1-LOW"},
-                    "donor": {"slot": 1},
-                    "slot": None,
-                    "name": "clone via ops",
-                    "length": 4.0,
-                    "notes": [[60, 0.0, 1.0]],
-                }
-            ]
-        }
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ops = one_op(
+        op="clone_clip",
+        track={"name": "1-LOW"},
+        donor={"slot": 1},
+        slot=None,
+        name="clone via ops",
+        length=4.0,
+        notes=[[60, 0.0, 1.0]],
     )
-    apply_ops(ableton_set, doc.ops)
+    apply_ops(ableton_set, ops)
 
     session_clips = [c for c in ableton_set.clips.midi() if c.location is ClipLocation.SESSION]
     assert {c.name for c in session_clips} == {"", "clone via ops"}
@@ -138,22 +115,9 @@ def test_clone_clip_op_lands_in_the_first_empty_slot(tmp_path: pathlib.Path) -> 
 
 
 def test_clone_clip_op_with_explicit_slot(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "clone_clip",
-                    "track": {"name": "1-LOW"},
-                    "donor": {"slot": 1},
-                    "slot": 3,
-                    "name": "explicit slot",
-                    "notes": [],
-                }
-            ]
-        }
-    )
-    apply_ops(ableton_set, doc.ops)
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ops = one_op(op="clone_clip", track={"name": "1-LOW"}, donor={"slot": 1}, slot=3, name="explicit slot", notes=[])
+    apply_ops(ableton_set, ops)
     clone = next(c for c in ableton_set.clips.midi() if c.name == "explicit slot")
     assert clone.notes == ()
 
@@ -162,94 +126,134 @@ def test_clone_clip_op_with_explicit_slot(tmp_path: pathlib.Path) -> None:
 
 
 def test_graft_chain_op_within_one_set(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "graft_chain",
-                    "donor_set": None,
-                    "donor_track": {"name": "A-Reverb"},
-                    "target_track": {"name": "3-Skylark - Iced"},
-                    "mode": "append",
-                }
-            ]
-        }
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ops = one_op(
+        op="graft_chain",
+        donor_set=None,
+        donor_track={"name": "A-Reverb"},
+        target_track={"name": "3-Skylark - Iced"},
+        mode="append",
     )
-    results = apply_ops(ableton_set, doc.ops)
-    assert "graft_chain" in results[0]
+    results = apply_ops(ableton_set, ops)
+    assert results == [GraftChainResult(target_track="3-Skylark - Iced", mode="append", devices=1)]
     target = next(chain for chain in ableton_set.devices.inventory() if chain.track_name == "3-Skylark - Iced")
     assert [d.tag for d in target.devices] == ["Reverb"]
 
 
 def test_graft_chain_op_from_another_set(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor_path = str(SKELETONS / "12.2.6.als")
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "graft_chain",
-                    "donor_set": donor_path,
-                    "donor_track": {"name": "A-Reverb"},
-                    "target_track": {"name": "3-Skylark - Iced"},
-                    "mode": "append",
-                }
-            ]
-        }
+    ops = one_op(
+        op="graft_chain",
+        donor_set=donor_path,
+        donor_track={"name": "A-Reverb"},
+        target_track={"name": "3-Skylark - Iced"},
+        mode="append",
     )
-    apply_ops(ableton_set, doc.ops)
+    apply_ops(ableton_set, ops)
     target = next(chain for chain in ableton_set.devices.inventory() if chain.track_name == "3-Skylark - Iced")
     assert [d.tag for d in target.devices] == ["Reverb"]
 
 
-# --- selector resolution / ambiguity ----------------------------------------
+# --- refusals -----------------------------------------------------------
 
 
-def test_track_selector_by_name_raises_on_no_match(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    with pytest.raises(ValueError, match="No track named"):
-        _resolve_track(ableton_set, TrackByName(name="nope"))
-
-
-def test_track_selector_by_name_raises_on_ambiguity(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    # Manufacture a duplicate name -- none occurs naturally in the corpus.
+def rename_track(ableton_set: AbletonSet, old: str, new: str) -> None:
+    """Rename a track in memory, which is how a duplicate name is made: none occurs in the corpus."""
     for track in ableton_set.tracks.load():
-        if track.name == "A-Reverb":
+        if track.name == old:
             for user_name in track.track_root.iter("UserName"):
-                user_name.set("Value", "B-Delay")
-            track.name = "B-Delay"
-    with pytest.raises(ValueError, match="2 tracks are named 'B-Delay'; use"):
-        _resolve_track(ableton_set, TrackByName(name="B-Delay"))
+                user_name.set("Value", new)
+            track.name = new
+
+
+@pytest.mark.parametrize(
+    ("key", "rename", "op", "refusal"),
+    [
+        pytest.param(
+            "12.4.5b",
+            None,
+            {"op": "set_notes", "track": {"name": "nope"}, "clip": {"slot": 1}, "notes": []},
+            "No track named",
+            id="no track by that name",
+        ),
+        pytest.param(
+            "12.4.5b",
+            ("A-Reverb", "B-Delay"),
+            {"op": "set_notes", "track": {"name": "B-Delay"}, "clip": {"slot": 0}, "notes": []},
+            "2 tracks are named 'B-Delay'; use",
+            id="two tracks by that name",
+        ),
+        pytest.param(
+            "11.0.12",
+            None,
+            {
+                "op": "place_clip",
+                "donor_track": {"name": "8-Drums to MIDI"},
+                "donor": {"start": 128.0},
+                "target_track": {"name": "snr2"},
+                "at": 800.0,
+            },
+            "needs a MidiTrack",
+            id="a midi clip onto an audio track",
+        ),
+        pytest.param(
+            "11.0.12",
+            None,
+            {
+                "op": "place_clip",
+                "donor_set": str(SKELETONS / "10.0.6.als"),
+                "donor_track": {"name": "2-Drum Rack"},
+                "donor": {"start": 256.0},
+                "target_track": {"name": "8-Drums to MIDI"},
+                "at": 800.0,
+            },
+            "Cannot place a Live 10.x clip",
+            id="a donor of another major version",
+        ),
+        pytest.param(
+            "11.0.12",
+            None,
+            {"op": "copy_section", "src_start": 0.0, "src_end": 64.0, "dest_start": 800.0, "tracks": ["nope"]},
+            "No track named 'nope'",
+            id="a section of an unknown track",
+        ),
+        pytest.param(
+            "11.0.12",
+            None,
+            {"op": "copy_section", "src_start": 192.0, "src_end": 128.0, "dest_start": 800.0},
+            "must be after",
+            id="a section that runs backwards",
+        ),
+    ],
+)
+def test_a_refused_op_leaves_the_set_byte_identical(
+    tmp_path: pathlib.Path, key: str, rename: tuple[str, str] | None, op: dict[str, Any], refusal: str
+) -> None:
+    ableton_set = writable_set(key, tmp_path)
+    if rename is not None:
+        rename_track(ableton_set, *rename)
+    before = ableton_set.generate_xml()
+    with pytest.raises(ValueError, match=refusal):
+        apply_ops(ableton_set, one_op(**op))
+    assert ableton_set.generate_xml() == before
 
 
 def test_ops_document_rejects_an_unknown_op() -> None:
     with pytest.raises(pydantic.ValidationError):
-        OpsDocument.model_validate({"ops": [{"op": "delete_everything", "track": {"id": 1}}]})
+        one_op(op="delete_everything", track={"id": 1})
 
 
 def test_ops_document_rejects_a_selector_with_both_keys() -> None:
     with pytest.raises(pydantic.ValidationError):
-        OpsDocument.model_validate(
-            {
-                "ops": [
-                    {
-                        "op": "set_notes",
-                        "track": {"id": 1, "name": "x"},
-                        "clip": {"slot": 0},
-                        "notes": [],
-                    }
-                ]
-            }
-        )
+        one_op(op="set_notes", track={"id": 1, "name": "x"}, clip={"slot": 0}, notes=[])
 
 
 # --- whole-document validation ----------------------------------------------
 
 
 def test_a_bad_op_aborts_before_a_good_earlier_op_mutates_anything(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     before = ableton_set.generate_xml()
     doc = OpsDocument.model_validate(
         {
@@ -265,7 +269,7 @@ def test_a_bad_op_aborts_before_a_good_earlier_op_mutates_anything(tmp_path: pat
 
 
 def test_an_out_of_range_slot_is_rejected_before_any_mutation(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     before = ableton_set.generate_xml()
     doc = OpsDocument.model_validate(
         {
@@ -293,49 +297,32 @@ def test_an_out_of_range_slot_is_rejected_before_any_mutation(tmp_path: pathlib.
 def test_set_notes_op_rewriting_the_same_notes_is_byte_identical(tmp_path: pathlib.Path) -> None:
     """Strongest fidelity check available, run through the ops surface: writing
     a clip's own notes back through set_notes reproduces Live's XML exactly."""
-    ableton_set = make_set("9.0.1", tmp_path)
+    ableton_set = writable_set("9.0.1", tmp_path)
     donor = first_session_clip(ableton_set)
     assert donor.track_name is not None
     before = ableton_set.generate_xml()
     notes = [encode_note(note, extended=False) for note in donor.notes]
 
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "set_notes",
-                    "track": {"id": track_id(ableton_set, donor.track_name)},
-                    "clip": {"slot": 0},
-                    "notes": notes,
-                }
-            ]
-        }
-    )
-    apply_ops(ableton_set, doc.ops)
+    ops = one_op(op="set_notes", track={"id": track_id(ableton_set, donor.track_name)}, clip={"slot": 0}, notes=notes)
+    apply_ops(ableton_set, ops)
     assert ableton_set.generate_xml() == before
 
 
 def test_graft_chain_leaves_untouched_chains_byte_identical(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     before = {
         chain.track_name: ET.tostring(chain.devices[0].device_element, encoding="unicode") if chain.devices else ""
         for chain in ableton_set.devices.inventory()
         if chain.track_name != "3-Skylark - Iced"
     }
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "graft_chain",
-                    "donor_set": None,
-                    "donor_track": {"name": "A-Reverb"},
-                    "target_track": {"name": "3-Skylark - Iced"},
-                    "mode": "append",
-                }
-            ]
-        }
+    ops = one_op(
+        op="graft_chain",
+        donor_set=None,
+        donor_track={"name": "A-Reverb"},
+        target_track={"name": "3-Skylark - Iced"},
+        mode="append",
     )
-    apply_ops(ableton_set, doc.ops)
+    apply_ops(ableton_set, ops)
     after = {
         chain.track_name: ET.tostring(chain.devices[0].device_element, encoding="unicode") if chain.devices else ""
         for chain in ableton_set.devices.inventory()
@@ -354,142 +341,75 @@ def test_graft_chain_leaves_untouched_chains_byte_identical(tmp_path: pathlib.Pa
 
 
 def test_place_clip_op_round_trips(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "place_clip",
-                    "donor_track": {"name": "8-Drums to MIDI"},
-                    "donor": {"start": 128.0},
-                    "target_track": {"name": "8-Drums to MIDI"},
-                    "at": 800.0,
-                }
-            ]
-        }
+    ableton_set = writable_set("11.0.12", tmp_path)
+    ops = one_op(
+        op="place_clip",
+        donor_track={"name": "8-Drums to MIDI"},
+        donor={"start": 128.0},
+        target_track={"name": "8-Drums to MIDI"},
+        at=800.0,
     )
-    results = apply_ops(ableton_set, doc.ops)
-    assert results == ["place_clip: placed 'p01587' on track '8-Drums to MIDI' at beat 800.0"]
+    results = apply_ops(ableton_set, ops)
+    assert results == [PlaceClipResult(track="8-Drums to MIDI", clip="p01587", at=800.0)]
     starts = [clip.start_time for clip in ableton_set.clips.midi() if clip.location is ClipLocation.ARRANGEMENT]
     assert 800.0 in starts
 
 
 def test_place_clip_op_accepts_an_audio_donor(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "place_clip",
-                    "donor_track": {"name": "snr2"},
-                    "donor": {"start": 128.0},
-                    "target_track": {"name": "snr2"},
-                    "at": 900.0,
-                }
-            ]
-        }
+    ableton_set = writable_set("11.0.12", tmp_path)
+    ops = one_op(
+        op="place_clip", donor_track={"name": "snr2"}, donor={"start": 128.0}, target_track={"name": "snr2"}, at=900.0
     )
-    apply_ops(ableton_set, doc.ops)
+    apply_ops(ableton_set, ops)
     assert 900.0 in [clip.start_time for clip in ableton_set.clips.audio()]
 
 
-def test_place_clip_op_rejects_the_wrong_track_kind_before_running(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "place_clip",
-                    "donor_track": {"name": "8-Drums to MIDI"},
-                    "donor": {"start": 128.0},
-                    "target_track": {"name": "snr2"},
-                    "at": 800.0,
-                }
-            ]
-        }
-    )
-    with pytest.raises(ValueError, match="needs a MidiTrack"):
-        apply_ops(ableton_set, doc.ops)
-
-
-def test_place_clip_op_rejects_a_cross_major_version_donor(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    donor_set = make_set("10.0.6", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "place_clip",
-                    "donor_set": str(donor_set.path),
-                    "donor_track": {"name": "2-Drum Rack"},
-                    "donor": {"start": 256.0},
-                    "target_track": {"name": "8-Drums to MIDI"},
-                    "at": 800.0,
-                }
-            ]
-        }
-    )
-    with pytest.raises(ValueError, match="donor is from Live 10.x"):
-        apply_ops(ableton_set, doc.ops)
-
-
 def test_copy_section_op_round_trips(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {
-            "ops": [
-                {
-                    "op": "copy_section",
-                    "src_start": 128.0,
-                    "src_end": 192.0,
-                    "dest_start": 384.0,
-                    "tracks": ["8-Drums to MIDI"],
-                }
-            ]
-        }
-    )
-    results = apply_ops(ableton_set, doc.ops)
-    assert results == ["copy_section: copied 4 clip(s) to beat 384"]
+    ableton_set = writable_set("11.0.12", tmp_path)
+    ops = one_op(op="copy_section", src_start=128.0, src_end=192.0, dest_start=384.0, tracks=["8-Drums to MIDI"])
+    results = apply_ops(ableton_set, ops)
+    copied = results[0]
+    assert isinstance(copied, CopySectionResult)
+    assert (copied.dest_start, len(copied.copied), copied.skipped) == (384.0, 4, [])
+    assert [place.start for place in copied.copied] == [384.0, 400.0, 408.0, 424.0]
     starts = [clip.start_time for clip in ableton_set.clips.midi()]
     assert [start for start in starts if start >= 384.0] == [384.0, 400.0, 408.0, 424.0]
 
 
-def test_copy_section_op_rejects_an_unknown_track_before_running(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {"ops": [{"op": "copy_section", "src_start": 0.0, "src_end": 64.0, "dest_start": 800.0, "tracks": ["nope"]}]}
-    )
-    with pytest.raises(ValueError, match="No track named 'nope'"):
-        apply_ops(ableton_set, doc.ops)
-
-
-def test_copy_section_op_rejects_a_backwards_range_before_running(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {"ops": [{"op": "copy_section", "src_start": 192.0, "src_end": 128.0, "dest_start": 800.0}]}
-    )
-    with pytest.raises(ValueError, match="must be after"):
-        apply_ops(ableton_set, doc.ops)
-
-
 def test_remove_section_clips_op_round_trips(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
-    doc = OpsDocument.model_validate(
-        {"ops": [{"op": "remove_section_clips", "start": 128.0, "end": 192.0, "tracks": ["8-Drums to MIDI"]}]}
-    )
-    results = apply_ops(ableton_set, doc.ops)
-    assert results[0].count("deleted") == 4
+    ableton_set = writable_set("11.0.12", tmp_path)
+    ops = one_op(op="remove_section_clips", start=128.0, end=192.0, tracks=["8-Drums to MIDI"])
+    results = apply_ops(ableton_set, ops)
+    removal = results[0]
+    assert isinstance(removal, RemoveSectionClipsResult)
+    assert len(removal.removed) == 4
+    assert removal.kept == []
+    assert {place.track for place in removal.removed} == {"8-Drums to MIDI"}
     starts = [clip.start_time for clip in ableton_set.clips.midi() if clip.location is ClipLocation.ARRANGEMENT]
     assert starts == [96.0, 192.0, 208.0, 256.0, 272.0]
 
 
+def test_an_op_on_a_clip_an_earlier_op_removed_is_refused(tmp_path: pathlib.Path) -> None:
+    ableton_set = writable_set("11.0.0", tmp_path)
+    doc = OpsDocument.model_validate(
+        {
+            "ops": [
+                {"op": "remove_section_clips", "start": 224.0, "end": 240.0, "tracks": ["Kick"]},
+                {"op": "set_notes", "track": {"name": "Kick"}, "clip": {"start": 224.0}, "notes": [[60, 0.0, 0.5]]},
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="removed by an earlier op"):
+        apply_ops(ableton_set, doc.ops)
+
+
 def test_remove_section_clips_op_needs_an_explicit_track_list() -> None:
     with pytest.raises(pydantic.ValidationError):
-        OpsDocument.model_validate({"ops": [{"op": "remove_section_clips", "start": 0.0, "end": 64.0}]})
+        one_op(op="remove_section_clips", start=0.0, end=64.0)
 
 
 def test_a_bad_section_op_aborts_before_an_earlier_one_mutates_anything(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
+    ableton_set = writable_set("11.0.12", tmp_path)
     before = ET.tostring(ableton_set.root, encoding="unicode")
     doc = OpsDocument.model_validate(
         {
@@ -508,3 +428,59 @@ def test_a_bad_section_op_aborts_before_an_earlier_one_mutates_anything(tmp_path
     with pytest.raises(ValueError, match="No track named 'nope'"):
         apply_ops(ableton_set, doc.ops)
     assert ET.tostring(ableton_set.root, encoding="unicode") == before
+
+
+def test_a_refused_graft_aborts_before_an_earlier_op_mutates_anything(tmp_path: pathlib.Path) -> None:
+    """The graft's own version check runs before any op does, not only once the graft is reached."""
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    before = ET.tostring(ableton_set.root, encoding="unicode")
+    doc = OpsDocument.model_validate(
+        {
+            "ops": [
+                {"op": "set_notes", "track": {"name": "1-LOW"}, "clip": {"slot": 1}, "notes": [[60, 0.0, 1.0]]},
+                {
+                    "op": "graft_chain",
+                    "donor_set": str(SKELETONS / "11.2.10.als"),
+                    "donor_track": {"name": "A-Reverb"},
+                    "target_track": {"name": "3-Skylark - Iced"},
+                },
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="Live 11.x chain into a Live 12.x set"):
+        apply_ops(ableton_set, doc.ops)
+    assert ET.tostring(ableton_set.root, encoding="unicode") == before
+
+
+def test_a_run_time_refusal_puts_back_what_earlier_ops_wrote(tmp_path: pathlib.Path) -> None:
+    """Whether a slot is still free is only known when the op runs; the first clone must not survive the second."""
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    before = ableton_set.generate_xml()
+    clone = {"op": "clone_clip", "track": {"name": "1-LOW"}, "donor": {"slot": 1}, "slot": 3, "notes": []}
+    doc = OpsDocument.model_validate({"ops": [{**clone, "name": "first"}, {**clone, "name": "second"}]})
+    with pytest.raises(ValueError, match="already holds a clip"):
+        apply_ops(ableton_set, doc.ops)
+    assert ableton_set.generate_xml() == before
+    assert [clip.name for clip in ableton_set.clips.midi() if clip.track_name == "1-LOW"] == [""]
+
+
+def test_an_arrangement_start_matches_as_describe_prints_it(tmp_path: pathlib.Path) -> None:
+    """describe() rounds starts to 4 decimals; the start it printed has to select the clip."""
+    ableton_set = writable_set("11.0.0", tmp_path)
+    clip = next(c for c in ableton_set.clips.midi() if c.track_name == "Kick" and c.start_time == 224.0)
+    clip.clip_element.set("Time", "224.33333333")
+    ops = one_op(op="set_notes", track={"name": "Kick"}, clip={"start": 224.3333}, notes=[[60, 0.0, 0.5]])
+    apply_ops(ableton_set, ops)
+    rewritten = next(c for c in ableton_set.clips.midi() if c.clip_element is clip.clip_element)
+    assert [(n.pitch, n.start, n.duration) for n in rewritten.notes] == [(60, 0.0, 0.5)]
+
+
+def test_the_main_track_answers_the_id_describe_prints_for_it(tmp_path: pathlib.Path) -> None:
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    main = ableton_set.tracks.main()
+    (result,) = apply_ops(
+        ableton_set, one_op(op="set_track_setting", setting="Mixer.VOLUME", value=0.5, track={"id": -1})
+    )
+    assert isinstance(result, SetTrackSettingResult)
+    assert result.tracks == [main.name]
+    assert main.setting(Mixer.VOLUME).value == 0.5

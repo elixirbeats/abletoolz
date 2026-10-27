@@ -17,6 +17,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from abletoolz.alc import AlcClip, AlcError
+from abletoolz.formats import FormatError
 from abletoolz.live_set import elements_equal
 
 FIXTURES = Path(__file__).parent / "alc_fixtures"
@@ -249,10 +250,10 @@ def test_retarget_sample_updates_paths_and_size(tmp_path: Path) -> None:
 
 
 def test_load_rejects_non_gzip(tmp_path: Path) -> None:
-    """load() raises AlcError for a file that isn't gzip-compressed."""
+    """load() refuses a file that is neither gzip nor XML."""
     bad = tmp_path / "not_gzip.alc"
     bad.write_bytes(b"not a gzip file")
-    with pytest.raises(AlcError, match="gzip"):
+    with pytest.raises(FormatError, match="gzip"):
         AlcClip.load(bad)
 
 
@@ -286,3 +287,20 @@ def test_add_grid_marker_colinear_and_sorted() -> None:
     clip2.set_grid(bpm=174.0, grid_start_seconds=0.000069, duration_seconds=320.0)
     clip2.add_grid_marker(44.138)
     assert abs(clip2.markers[1].beat_time - 128.0) < 1e-6
+
+
+def test_retarget_sample_keeps_the_relative_path_type_unless_told(tmp_path: Path) -> None:
+    """RelativePath and its type are written together; the clip's own type stays by default."""
+    new_audio = tmp_path / "new_track.wav"
+    kept = AlcClip.load(LIVE_SAVED)
+    kept.retarget_sample(new_audio, relative_path=Path("Samples/Imported/new_track.wav"))
+    overridden = AlcClip.load(LIVE_SAVED)
+    overridden.retarget_sample(new_audio, relative_path=Path("Samples/Imported/new_track.wav"), kind=1)
+
+    def relative_type(clip: AlcClip) -> str | None:
+        element = clip.clip.find("SampleRef/FileRef/RelativePathType")
+        assert element is not None
+        return element.get("Value")
+
+    assert relative_type(kept) == "6"
+    assert relative_type(overridden) == "1"

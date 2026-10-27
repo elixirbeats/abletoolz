@@ -322,10 +322,12 @@ def test_sanitize_filename_strips_unsafe_chars() -> None:
 
 
 def test_audio_dest_extension_lossless_kept_regardless_of_format() -> None:
-    """WAV/AIFF sources keep their own extension no matter what --audio-format is."""
+    """Lossless sources keep their own extension no matter what --audio-format is."""
     assert audio_dest_extension(Path("a.wav"), "wav") == ".wav"
     assert audio_dest_extension(Path("a.wav"), "flac") == ".wav"
     assert audio_dest_extension(Path("a.aiff"), "wav") == ".aiff"
+    assert audio_dest_extension(Path("a.flac"), "flac") == ".flac"
+    assert audio_dest_extension(Path("a.flac"), "wav") == ".flac"
 
 
 def test_audio_dest_extension_compressed_uses_audio_format() -> None:
@@ -653,51 +655,39 @@ def _write_mp3(tmp_path: Path, name: str, data: bytes) -> Path:
     return path
 
 
-def test_mp3_offset_measured_cases(tmp_path: Path) -> None:
-    """Trim+surplus model classes: Info+sig 2257, Xing 1105, tagless 0, Info-no-sig 1152."""
-    audio_frame = bytes((0xFF, 0xFB, 0x90, 0x00)) + b"\x01" * 1040  # real first frame, no tag
-    cases = [
-        ("info_lame.mp3", _synthetic_mp3_bytes(tag=b"Info", signature=b"LAME3.97 "), 2257.0),  # Gravity
-        ("info_lavf.mp3", _synthetic_mp3_bytes(tag=b"Info", signature=b"Lavf55.33"), 2257.0),  # Caligo
-        ("info_nosig.mp3", _synthetic_mp3_bytes(tag=b"Info", with_gapless=False), 1152.0),  # repaired files
-        ("xing_lavf.mp3", _synthetic_mp3_bytes(tag=b"Xing", signature=b"Lavf56.4."), 1105.0),  # Dune
-        ("xing_lame.mp3", _synthetic_mp3_bytes(tag=b"Xing", signature=b"LAME3.99r"), 1105.0),
-        ("tagless.mp3", audio_frame, 0.0),  # golden_no_info: real frame, no metadata tag
-        ("unparseable.mp3", b"\x00" * 5000, 2257.0),  # no frame found: assume majority class
-        ("vbr_delay.mp3", _synthetic_mp3_bytes(tag=b"Xing", delay=1024), 1024.0 + 529.0),  # per-file trim
-    ]
-    for name, data, expected in cases:
-        path = _write_mp3(tmp_path, name, data)
-        assert mp3_decoder_offset_seconds(path, 44100) * 44100 == pytest.approx(expected), name
-
-
-def test_mp3_offset_seeks_past_large_id3(tmp_path: Path) -> None:
-    """Multi-MB ID3 blocks (album art) must be seeked past by declared size (R.E.M bug)."""
-    art = b"\xaa" * 500_000  # bigger than any sane read window
-    size = len(art)
-    id3 = bytearray(b"ID3\x04\x00\x00")
-    id3 += bytes(((size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F))
-    id3 += art
-    combined = _write_mp3(tmp_path, "big_art.mp3", bytes(id3) + _synthetic_mp3_bytes(tag=b"Info"))
-    assert mp3_decoder_offset_seconds(combined, 44100) * 44100 == pytest.approx(2257.0)
-
-
-def test_mp3_offset_ignores_loose_lame_strings(tmp_path: Path) -> None:
-    """Loose encoder strings (e.g. ID3 TSSE comments) are irrelevant to the class."""
-    data = _synthetic_mp3_bytes(tag=b"Xing", with_gapless=False) + b"LAME3.100 loose comment text"
-    loose = _write_mp3(tmp_path, "loose.mp3", data)
-    assert mp3_decoder_offset_seconds(loose, 44100) == 0.0  # Xing skipped by both, no sig -> no trim
-
-
-def test_mp3_gapless_sniffer_skips_id3v2(tmp_path: Path) -> None:
-    """An ID3v2 tag before the first frame must be skipped, not scanned for sync bytes."""
-    id3 = bytearray(b"ID3\x04\x00\x00")
-    body = b"\x00" * 200
+def _id3(body: bytes) -> bytes:
+    """An ID3v2.4 tag holding ``body``, its size written syncsafe."""
     size = len(body)
-    id3 += bytes(((size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F))
-    id3 += body
-    combined = _write_mp3(tmp_path, "id3.mp3", bytes(id3) + _synthetic_mp3_bytes())
-    assert mp3_decoder_offset_seconds(combined, 44100) * 44100 == pytest.approx(2257.0)
+    syncsafe = bytes(((size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F))
+    return b"ID3\x04\x00\x00" + syncsafe + body
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param(_synthetic_mp3_bytes(tag=b"Info", signature=b"LAME3.97 "), 2257.0, id="Info, LAME (Gravity)"),
+        pytest.param(_synthetic_mp3_bytes(tag=b"Info", signature=b"Lavf55.33"), 2257.0, id="Info, Lavf (Caligo)"),
+        pytest.param(_synthetic_mp3_bytes(tag=b"Info", with_gapless=False), 1152.0, id="Info, no signature (repaired)"),
+        pytest.param(_synthetic_mp3_bytes(tag=b"Xing", signature=b"Lavf56.4."), 1105.0, id="Xing, Lavf (Dune)"),
+        pytest.param(_synthetic_mp3_bytes(tag=b"Xing", signature=b"LAME3.99r"), 1105.0, id="Xing, LAME"),
+        pytest.param(bytes((0xFF, 0xFB, 0x90, 0x00)) + b"\x01" * 1040, 0.0, id="a real frame, no tag"),
+        pytest.param(b"\x00" * 5000, 2257.0, id="no frame found: the majority class"),
+        pytest.param(_synthetic_mp3_bytes(tag=b"Xing", delay=1024), 1024.0 + 529.0, id="a per-file trim"),
+        pytest.param(_id3(b"\x00" * 200) + _synthetic_mp3_bytes(), 2257.0, id="ID3v2 skipped, not scanned"),
+        # Album art bigger than any sane read window is seeked past by its declared size (the R.E.M bug).
+        pytest.param(_id3(b"\xaa" * 500_000) + _synthetic_mp3_bytes(), 2257.0, id="a multi-MB ID3"),
+        # An ID3 TSSE comment, say: Xing is skipped by both decoders, and no signature means no trim.
+        pytest.param(
+            _synthetic_mp3_bytes(tag=b"Xing", with_gapless=False) + b"LAME3.100 loose comment text",
+            0.0,
+            id="loose encoder strings",
+        ),
+    ],
+)
+def test_mp3_offset_classes(tmp_path: Path, data: bytes, expected: float) -> None:
+    """Trim+surplus model classes: Info+sig 2257, Xing 1105, tagless 0, Info-no-sig 1152."""
+    path = _write_mp3(tmp_path, "tune.mp3", data)
+    assert mp3_decoder_offset_seconds(path, 44100) * 44100 == pytest.approx(expected)
 
 
 def test_mp3_decoder_offset_scales_with_sample_rate(tmp_path: Path) -> None:
@@ -709,88 +699,49 @@ def test_mp3_decoder_offset_scales_with_sample_rate(tmp_path: Path) -> None:
 # ── Link mode audio placement ─────────────────────────────────────────────────
 
 
-def _fake_ffprobe(cmd: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-    """Dispatch canned ffprobe output by which -show_entries was requested."""
-    show_entries = cmd[cmd.index("-show_entries") + 1]
-    if show_entries == "format=duration":
-        return subprocess.CompletedProcess(cmd, 0, stdout="120.0\n", stderr="")
-    if show_entries == "stream=sample_rate":
-        return subprocess.CompletedProcess(cmd, 0, stdout="44100\n", stderr="")
-    raise AssertionError(f"unexpected ffprobe args: {cmd}")
+@pytest.mark.parametrize(
+    ("fields", "rate", "expected"),
+    [
+        pytest.param(_mp3_row_fields(), 44100, 2257.0, id="Info with extension"),
+        pytest.param(_mp3_row_fields(lame_ext=False, delay=None), 44100, 1152.0, id="Info, no extension (spliced)"),
+        pytest.param(_mp3_row_fields(tag="Xing"), 44100, 1105.0, id="Xing"),
+        pytest.param(_mp3_row_fields(tag="", lame_ext=False, delay=None), 44100, 0.0, id="tagless"),
+        pytest.param(_mp3_row_fields(), 48000, 2257.0, id="not 44.1kHz: scaled, and unverified"),
+    ],
+)
+def test_resolve_link_placement_offset_classes_from_columns(
+    tmp_path: Path, fields: dict[str, object], rate: int, expected: float
+) -> None:
+    """Column-computed classes, in samples at the file's rate; only 44.1kHz is a verified rate."""
+    row = _make_row(path=tmp_path / "t.mp3", filename="t.mp3", **{**fields, "samplerate": rate})
+    placement = resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="t")
+    assert placement.time_offset_s * rate == pytest.approx(expected)
+    assert placement.offset_unverified is (rate != 44100)
 
 
-def _fake_ffprobe_at_rate(sample_rate: int) -> object:
-    """Like :func:`_fake_ffprobe`, but reporting a caller-chosen (non-44.1k) sample rate."""
+@pytest.mark.parametrize(
+    ("filename", "fields", "offset_samples"),
+    [("tune.mp3", _mp3_row_fields(), 2257.0), ("tune.wav", {}, 0.0)],
+    ids=["mp3", "wav"],
+)
+def test_resolve_link_placement_references_the_source_in_place(
+    tmp_path: Path, filename: str, fields: dict[str, object], offset_samples: float
+) -> None:
+    """The source is referenced where it lies, never even read, and the clip runs its offset longer.
 
-    def fake_run(cmd: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        show_entries = cmd[cmd.index("-show_entries") + 1]
-        if show_entries == "format=duration":
-            return subprocess.CompletedProcess(cmd, 0, stdout="120.0\n", stderr="")
-        if show_entries == "stream=sample_rate":
-            return subprocess.CompletedProcess(cmd, 0, stdout=f"{sample_rate}\n", stderr="")
-        raise AssertionError(f"unexpected ffprobe args: {cmd}")
-
-    return fake_run
-
-
-def test_resolve_link_placement_mp3_applies_offset_from_columns(tmp_path: Path) -> None:
-    """A 44.1kHz Info+gapless MP3 gets 2257 samples of offset from v2 columns alone."""
-    mp3_path = tmp_path / "tune.mp3"  # never even created: columns are the source
+    Where the reference points in the written clip is the link-mode generation test's.
+    """
+    source = tmp_path / filename
     audio_dir = tmp_path / "User Library" / "DJ Crates" / "Audio"
-
-    row = _make_row(path=mp3_path, filename="tune.mp3", duration_s=120.0, **_mp3_row_fields())
+    row = _make_row(path=source, filename=filename, duration_s=120.0, **fields)
     placement = resolve_link_placement(row, audio_dir=audio_dir, safe_name="tune")
 
-    expected_offset = 2257 / 44100
-    assert placement.absolute_path == mp3_path
-    assert placement.time_offset_s == pytest.approx(expected_offset)
-    assert placement.duration_s == pytest.approx(120.0 + expected_offset)
+    offset = offset_samples / 44100
+    assert placement.absolute_path == source
+    assert placement.time_offset_s == pytest.approx(offset)
+    assert placement.duration_s == pytest.approx(120.0 + offset)
     assert placement.did_work is False
-    assert placement.offset_unverified is False  # 44100 Hz is the verified rate
-    assert placement.relative_path == Path("DJ Crates/Audio/tune.mp3")
-    # Deliberately non-resolving: link mode never writes anything under audio_dir.
-    assert not (audio_dir / "tune.mp3").exists()
-
-
-def test_resolve_link_placement_offset_classes_from_columns(tmp_path: Path) -> None:
-    """Column-computed classes: Info+ext 2257, Info-no-ext 1152, Xing 1105, tagless 0."""
-    audio_dir = tmp_path / "User Library" / "DJ Crates" / "Audio"
-    cases = [
-        (_mp3_row_fields(), 2257.0),
-        (_mp3_row_fields(lame_ext=False, delay=None), 1152.0),  # spliced repair class
-        (_mp3_row_fields(tag="Xing"), 1105.0),
-        (_mp3_row_fields(tag="", lame_ext=False, delay=None), 0.0),
-    ]
-    for fields, expected in cases:
-        row = _make_row(path=tmp_path / "t.mp3", filename="t.mp3", **fields)
-        placement = resolve_link_placement(row, audio_dir=audio_dir, safe_name="t")
-        assert placement.time_offset_s * 44100 == pytest.approx(expected), fields
-
-
-def test_resolve_link_placement_mp3_flags_non_44k_as_unverified(tmp_path: Path) -> None:
-    """A non-44.1kHz MP3 still gets the offset (scaled), but is flagged unverified."""
-    audio_dir = tmp_path / "User Library" / "DJ Crates" / "Audio"
-    fields = _mp3_row_fields()
-    fields["samplerate"] = 48000
-    row = _make_row(path=tmp_path / "tune.mp3", filename="tune.mp3", **fields)
-    placement = resolve_link_placement(row, audio_dir=audio_dir, safe_name="tune")
-
-    assert placement.time_offset_s == pytest.approx(2257 / 48000)
-    assert placement.offset_unverified is True
-
-
-def test_resolve_link_placement_wav_has_no_offset(tmp_path: Path) -> None:
-    """A WAV source in link mode gets zero offset and is referenced in place."""
-    wav_path = tmp_path / "tune.wav"
-    audio_dir = tmp_path / "User Library" / "DJ Crates" / "Audio"
-
-    row = _make_row(path=wav_path, filename="tune.wav", duration_s=5.0)
-    placement = resolve_link_placement(row, audio_dir=audio_dir, safe_name="tune")
-
-    assert placement.absolute_path == wav_path
-    assert placement.time_offset_s == 0.0
-    assert placement.duration_s == pytest.approx(5.0)
-    assert placement.did_work is False
+    assert not audio_dir.exists()
 
 
 def test_resolve_link_placement_mp3_missing_samplerate_is_loud(tmp_path: Path) -> None:
@@ -800,9 +751,7 @@ def test_resolve_link_placement_mp3_missing_samplerate_is_loud(tmp_path: Path) -
         resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="no_tag")
 
 
-def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(tmp_path: Path) -> None:
     """End-to-end link mode: no audio is copied, and every authored time is shifted."""
     user_library = tmp_path / "User Library"
     audio_dir = user_library / "DJ Crates" / "Audio"
@@ -867,9 +816,7 @@ def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(
     assert float(drop_current_start.get("Value", "")) == pytest.approx(16.0)
 
 
-def test_run_crate_generation_link_mode_non_44k_mp3_is_flagged_not_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_crate_generation_link_mode_non_44k_mp3_is_flagged_not_failed(tmp_path: Path) -> None:
     """A non-44.1kHz MP3 still generates in link mode -- just flagged as unverified."""
     user_library = tmp_path / "User Library"
     audio_dir = user_library / "DJ Crates" / "Audio"
@@ -903,23 +850,21 @@ def test_run_crate_generation_link_mode_default_audio_flag() -> None:
 
 def test_resolve_output_dirs_explicit_paths_win() -> None:
     """Explicit dirs pass through untouched; audio defaults inside the crates dir."""
-    crates, audio = dj_crates.resolve_output_dirs(Path("crates"), None)
+    crates, audio = dj_crates.resolve_output_dirs(Path("crates"), None, None)
     assert crates == Path("crates")
     assert audio == Path("crates") / "Audio"
 
 
-def test_resolve_output_dirs_uses_user_library(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dj_crates, "default_ableton_user_library", lambda: tmp_path)
-    crates, audio = dj_crates.resolve_output_dirs(None, None)
+def test_resolve_output_dirs_uses_user_library(tmp_path: Path) -> None:
+    crates, audio = dj_crates.resolve_output_dirs(None, None, tmp_path)
     assert crates == tmp_path / "DJ Crates"
     assert audio == crates / "Audio"
 
 
-def test_resolve_output_dirs_refuses_to_guess(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_output_dirs_refuses_to_guess() -> None:
     """No User Library found and no --crates-dir: error out, never invent a path."""
-    monkeypatch.setattr(dj_crates, "default_ableton_user_library", lambda: None)
     with pytest.raises(ValueError, match="--crates-dir"):
-        dj_crates.resolve_output_dirs(None, None)
+        dj_crates.resolve_output_dirs(None, None, None)
 
 
 def test_mirror_requires_a_marker_value() -> None:

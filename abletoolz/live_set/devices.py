@@ -5,7 +5,7 @@ device, native and hosted side by side: ``Eq8``, ``Reverb``, ``Compressor2``
 and ``PluginDevice``/``AuPluginDevice`` are siblings distinguished only by
 tag. Every track type carries a chain -- audio, MIDI, return, group -- and so
 does the main track, which lives at ``LiveSet/MainTrack`` in Live 12 and
-``LiveSet/MasterTrack`` before it (``schema.tag("master_track", ...)``). Its
+``LiveSet/MasterTrack`` before it (``tracks.main()`` finds either). Its
 chain is nested one level shallower than a track's, which is why grafting
 re-indents rather than copying whitespace along. The cue chain
 (``PreHearTrack``) is deliberately not walked: it is not a track anyone
@@ -22,10 +22,9 @@ Three id spaces meet in a device chain and must not be confused.
   ``*ModulationTarget`` and ``ControllerTargets.<N>``, counted by
   ``LiveSet/NextPointeeId``) is where the real work is: a device owns one id
   per automatable parameter -- a single ``Reverb`` owns 54 of them -- so
-  every graft renumbers hundreds of ids. Live 9 sets
-  own these ids too but carry no ``NextPointeeId`` element, leaving no
-  measurable way to tell Live which ids are already taken, so grafting into a
-  pre-10 set is refused rather than guessed at.
+  every graft renumbers hundreds of ids. Live 9 sets own these ids too but
+  carry no ``NextPointeeId`` element, so there is no telling which ids are
+  taken, and grafting into a pre-10 set is refused.
 * Sidechain routing (``SideChain/RoutedInput/Routable/Target``) names another
   track through Live's own routing ids ("p46251/p59394.19/p39871" in 10.0.6),
   a fourth space that has nothing to do with pointee ids. It is carried
@@ -37,32 +36,63 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import enum
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
 
-from abletoolz import schema
-from abletoolz.live_set.xml_edit import renumber_pointee_ids, shift_indentation, strip_remote_bindings, tab_depth
-from abletoolz.misc import get_element
-from abletoolz.plugin_parsers import PluginData
-from abletoolz.versioning import Version
+from abletoolz.elements import get_element
+from abletoolz.live_set import sections
+from abletoolz.live_set.domain import Domain
+from abletoolz.live_set.settings import Setting, resolve
+from abletoolz.live_set.xml_edit import (
+    owns_pointee_id,
+    renumber_pointee_ids,
+    shift_indentation,
+    strip_remote_bindings,
+    tab_depth,
+)
+from abletoolz.plugins.container.device import PluginDevice, is_info
+from abletoolz.plugins.identity.ids import PluginKind
+from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.devices import SETTINGS_OF, Device
+from abletoolz.schema.versioning import Version
 
 if TYPE_CHECKING:
-    from abletoolz.live_set.document import AbletonSet
+    from abletoolz.live_set.tracks import AbletonTrack
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class DeviceRef:
     """One device in a chain.
 
-    ``device_element`` is the live handle the write path needs, held the same
-    way ``MidiClipRef`` holds its clip: out of ``repr`` and out of equality,
-    so refs compare on what was parsed rather than on tree identity.
+    ``device_element`` is the live handle the write path needs, kept out of
+    ``repr`` and equality so refs compare on what was parsed.
     """
 
     tag: str
     display_name: str
     enabled: bool
     device_element: ET.Element = dataclasses.field(repr=False, compare=False)
+    version: Version = dataclasses.field(repr=False, compare=False)
+
+    def setting(self, name: enum.StrEnum, **indices: int) -> Setting:
+        """One of this device's settings, by its name in :mod:`abletoolz.schema.devices`.
+
+        ``name`` has to belong to this device's own settings class -- a
+        ``Sampler`` member on a ``Sampler``. A setting that lives in a list (an
+        EQ band, a sample part) takes its position as keywords:
+        ``setting(EqEight.FREQ, index=3)``. Hosted plugins have no settings
+        here; their state is the plugin's own.
+        """
+        if self.tag not in SETTINGS_OF:
+            raise ValueError(f"{self.display_name} ({self.tag}) has no native settings; its state is the plugin's own")
+        settings = SETTINGS_OF[Device(self.tag)]
+        if type(name) is not settings:
+            raise ValueError(
+                f"{type(name).__name__}.{name.name} is not a setting of {self.tag}; use {settings.__name__}"
+            )
+        return resolve(self.device_element, name, self.version, indices, label=self.display_name)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -71,13 +101,21 @@ class TrackDevices:
 
     ``version`` travels with the chain because a donor is routinely read from
     a different set than the one it lands in, and ``graft_chain`` has to
-    compare the two.
+    compare the two. ``track`` is the track the chain was read from, kept out
+    of ``repr`` and equality the way ``DeviceRef`` keeps its element.
     """
 
-    track_name: str
-    track_type: str
     devices: tuple[DeviceRef, ...]
     version: Version
+    track: AbletonTrack = dataclasses.field(repr=False, compare=False)
+
+    @property
+    def track_name(self) -> str:
+        return self.track.name
+
+    @property
+    def track_type(self) -> str:
+        return self.track.type
 
 
 def _inner_chain(track_root: ET.Element) -> ET.Element:
@@ -86,22 +124,29 @@ def _inner_chain(track_root: ET.Element) -> ET.Element:
     Its own ``text`` is the indentation of ``Devices``, which makes every
     other depth in the graft derivable from one element.
     """
-    return get_element(track_root, "DeviceChain.DeviceChain")
+    return get_element(track_root, path(Tag.DEVICE_CHAIN, Tag.DEVICE_CHAIN))
 
 
-class Devices:
+def _drop_envelopes(track_root: ET.Element, target_ids: set[str | None]) -> None:
+    """Remove every envelope on the track whose target is one of ``target_ids``.
+
+    That is the track's own automation and the ``ClipEnvelope`` of every clip
+    on it, wherever they sit, the way ``save_as`` drops orphaned envelopes.
+    ``sections.remove_children`` keeps each list closing on its parent's indent.
+    """
+    for holder in list(track_root.iter()):
+        doomed = [
+            envelope
+            for envelope in holder
+            if (target := envelope.find(path(Tag.ENVELOPE_TARGET, Tag.POINTEE_ID))) is not None
+            and target.get(Attr.VALUE) in target_ids
+        ]
+        if doomed:
+            sections.remove_children(holder, doomed)
+
+
+class Devices(Domain):
     """Device chains of one set: what they hold, and grafting them around."""
-
-    def __init__(self, live_set: AbletonSet) -> None:
-        self._set = live_set
-
-    @property
-    def version(self) -> Version:
-        return self._set.version_tuple
-
-    @property
-    def _root(self) -> ET.Element:
-        return self._set.root
 
     def inventory(self) -> list[TrackDevices]:
         """Every chain in the set, tracks in document order and the main track last.
@@ -109,35 +154,46 @@ class Devices:
         Tracks with an empty chain are included -- an empty chain is a fact
         about the track, and it is where a graft usually wants to land.
         """
-        chains = [self._track_devices(track.track_root, track.type, track.name) for track in self._set.tracks.load()]
-        main = self._main_track()
-        chains.append(self._track_devices(main, main.tag, get_element(main, "Name.EffectiveName", attribute="Value")))
-        return chains
+        return [self.chain(track) for track in self._set.tracks.walk()]
 
-    def graft_chain(
+    def chain(self, track: AbletonTrack) -> TrackDevices:
+        """One track's chain, read from its own element."""
+        devices = get_element(_inner_chain(track.track_root), Tag.DEVICES)
+        return TrackDevices(
+            devices=tuple(self._device_ref(device) for device in devices), version=self.version, track=track
+        )
+
+    def walk(self, kind: str | None = None, *, track: AbletonTrack | None = None) -> Iterator[DeviceRef]:
+        """Every device in the set, racks walked into, optionally only one kind or one track.
+
+        ``kind`` is a device tag, which :class:`~abletoolz.schema.devices.Device`
+        names: ``walk(Device.SAMPLER)``. A rack's chains hold ``Devices`` lists
+        of their own, and every one of them is under the track that owns the
+        rack, so walking each track's whole subtree reaches all of them in
+        document order: the rack, then what it holds. The main track comes last
+        and the cue track is not walked, as in :meth:`inventory`.
+
+        ``track`` has to be one of this set's own tracks.
+        """
+        tracks = self._set.tracks.walk() if track is None else [self._owned(track)]
+        for selected in tracks:
+            for devices in selected.track_root.iter(Tag.DEVICES):
+                for element in devices:
+                    if kind is None or element.tag == kind:
+                        yield self._device_ref(element)
+
+    def prepare_graft_chain(
         self,
         donor: TrackDevices,
-        target_track_name: str,
+        target: AbletonTrack,
         *,
         mode: Literal["append", "replace"] = "append",
-    ) -> list[DeviceRef]:
-        """Copy a whole chain onto another track, in this set or from another one.
+    ) -> Callable[[], list[DeviceRef]]:
+        """Check that ``donor`` can be grafted onto ``target``, and return the graft without running it.
 
-        Every device is deep-copied, re-indented to the target's depth, given
-        fresh set-global ids, stripped of the donor's key/MIDI remote bindings
-        (which crash Live 12 when they travel), and given a chain-local ``Id``
-        past whatever the target chain already uses. ``append`` puts the copies
-        after the existing devices; ``replace`` clears the chain first.
-
-        Two things ride along unexamined, because the fixture corpus shows
-        them but cannot show what Live does with them after a graft. Sidechain
-        routing (10.0.6's ``Gate`` names another track by routing id) is
-        copied verbatim, so a cross-set graft lands a reference to a track
-        that does not exist in the target. And a track's automation lives
-        outside its chain, in ``DeviceChain/AutomationEnvelopes``, so a graft
-        carries no automation with it and ``replace`` leaves the target's own
-        envelopes naming devices that are gone -- neither case occurs in the
-        corpus, where no envelope names a device parameter at all.
+        Everything that can refuse the graft is checked here, so a batch of
+        prepared writes can be refused before any of them edits the set.
+        :meth:`graft_chain` says what the graft does.
         """
         if donor.version[0] != self.version[0]:
             raise ValueError(
@@ -149,78 +205,102 @@ class Devices:
                 f"Live {self.version[0]}.x sets carry no LiveSet/NextPointeeId, so there is no allocator to take "
                 "fresh device parameter ids from; grafting into them is unsupported"
             )
+        track_root = self._owned(target).track_root
 
-        chain = self._chain_of(target_track_name)
-        devices = get_element(chain, "Devices")
-        if mode == "replace":
-            for existing in list(devices):
-                devices.remove(existing)
+        def run() -> list[DeviceRef]:
+            chain = _inner_chain(track_root)
+            devices = get_element(chain, Tag.DEVICES)
+            if mode == "replace":
+                removed_ids = {
+                    element.get(Attr.ID)
+                    for existing in devices
+                    for element in existing.iter()
+                    if owns_pointee_id(element.tag) and element.get(Attr.ID) is not None
+                }
+                del devices[:]
+                _drop_envelopes(track_root, removed_ids)
 
-        child_indent = (chain.text or "") + "\t"
-        next_device_id = max((int(device.attrib["Id"]) for device in devices if "Id" in device.attrib), default=-1) + 1
-        grafted: list[DeviceRef] = []
-        for offset, source in enumerate(donor.devices):
-            grafted_element = copy.deepcopy(source.device_element)
-            shift_indentation(grafted_element, tab_depth(child_indent) - (tab_depth(grafted_element.text) - 1))
-            renumber_pointee_ids(grafted_element, self._root)
-            strip_remote_bindings(grafted_element)
-            grafted_element.set("Id", str(next_device_id + offset))
-            devices.append(grafted_element)
-            grafted.append(self._device_ref(grafted_element))
+            child_indent = (chain.text or "") + "\t"
+            next_device_id = (
+                max((int(device.attrib[Attr.ID]) for device in devices if Attr.ID in device.attrib), default=-1) + 1
+            )
+            grafted: list[DeviceRef] = []
+            for offset, source in enumerate(donor.devices):
+                grafted_element = copy.deepcopy(source.device_element)
+                shift_indentation(grafted_element, tab_depth(child_indent) - (tab_depth(grafted_element.text) - 1))
+                renumber_pointee_ids(grafted_element, self._root)
+                strip_remote_bindings(grafted_element)
+                grafted_element.set(Attr.ID, str(next_device_id + offset))
+                devices.append(grafted_element)
+                grafted.append(self._device_ref(grafted_element))
 
-        # Live closes the list on the parent's indent, so only the last tail differs.
-        for index, device in enumerate(devices):
-            device.tail = chain.text if index == len(devices) - 1 else child_indent
-        devices.text = child_indent if len(devices) else None
-        return grafted
+            # Live closes the list on the parent's indent, so only the last tail differs.
+            for index, device in enumerate(devices):
+                device.tail = chain.text if index == len(devices) - 1 else child_indent
+            devices.text = child_indent if len(devices) else None
+            return grafted
 
-    def _main_track(self) -> ET.Element:
-        return get_element(self._root, f"LiveSet.{schema.tag('master_track', self.version)}")
+        return run
 
-    def _chain_of(self, track_name: str) -> ET.Element:
-        """The inner chain of the named track. Duplicate names resolve to the first."""
-        for track in self._set.tracks.load():
-            if track.name == track_name:
-                return _inner_chain(track.track_root)
-        main = self._main_track()
-        if get_element(main, "Name.EffectiveName", attribute="Value") == track_name:
-            return _inner_chain(main)
-        raise ValueError(f"No track named {track_name!r} in this set")
+    def graft_chain(
+        self,
+        donor: TrackDevices,
+        target: AbletonTrack,
+        *,
+        mode: Literal["append", "replace"] = "append",
+    ) -> list[DeviceRef]:
+        """Copy a whole chain onto ``target``, a track of this set, from this set or another one.
 
-    def _track_devices(self, track_root: ET.Element, track_type: str, track_name: str) -> TrackDevices:
-        devices = get_element(_inner_chain(track_root), "Devices")
-        return TrackDevices(
-            track_name=track_name,
-            track_type=track_type,
-            devices=tuple(self._device_ref(device) for device in devices),
-            version=self.version,
-        )
+        Every device is deep-copied, re-indented to the target's depth, given
+        fresh set-global ids, stripped of the donor's key/MIDI remote bindings
+        (which crash Live 12 when they travel), and given a chain-local ``Id``
+        past whatever the target chain already uses. ``append`` puts the copies
+        after the existing devices; ``replace`` clears the chain first.
+
+        Two things are left unexamined: the fixture corpus shows them but not
+        what Live does with them after a graft. Sidechain routing (10.0.6's
+        ``Gate`` names another track by routing id) is copied verbatim, so a
+        cross-set graft lands a reference to a track that does not exist in
+        the target. And a track's automation lives outside its chain, in
+        ``AutomationEnvelopes/Envelopes`` on the track, so a graft carries
+        none with it.
+
+        ``replace`` drops the target's envelopes, its clips' envelopes too, that
+        automate a parameter of a device it removes, since what they name is gone. Measured 2026-09-26
+        recombining two finished songs: two of a base's eleven envelopes named
+        parameters of the chain a replace took out, where the fixture corpus
+        had shown none.
+        """
+        return self.prepare_graft_chain(donor, target, mode=mode)()
+
+    def _owned(self, track: AbletonTrack) -> AbletonTrack:
+        """``track`` as this set holds it, refused when it belongs to another set."""
+        for owned in self._set.tracks.walk():
+            if owned.track_root is track.track_root:
+                return owned
+        raise ValueError(f"Track {track.name!r} does not belong to this set")
 
     def _device_ref(self, element: ET.Element) -> DeviceRef:
         """``On/Manual`` is the enable switch, present on all 238 devices in the corpus."""
         return DeviceRef(
             tag=element.tag,
             display_name=self._display_name(element),
-            enabled=get_element(element, "On.Manual", attribute="Value") == "true",
+            enabled=get_element(element, path(Tag.ON, Tag.MANUAL), attribute=Attr.VALUE) == "true",
             device_element=element,
+            version=self.version,
         )
 
     def _display_name(self, element: ET.Element) -> str:
         """A native device is its own tag; a hosted one names itself inside PluginDesc.
 
-        Each format keeps the name in a different child, and every fixture
-        carries exactly one of the three, so the readers in ``plugins.py`` and
-        ``plugin_parsers`` do the parsing rather than a fourth copy of it.
+        The plugin device reader does the parsing, whichever format is inside.
         """
-        vst3_element = element.find("PluginDesc/Vst3PluginInfo")
-        if vst3_element is not None:
-            name, _ = self._set.plugins.parse_vst3_element(vst3_element)
-            return name or element.tag
-        au_element = element.find("PluginDesc/AuPluginInfo")
-        if au_element is not None:
-            name, _, _ = self._set.plugins.parse_au_element(au_element)
-            return name or element.tag
-        vst_element = element.find("PluginDesc/VstPluginInfo")
-        if vst_element is not None:
-            return PluginData.from_element(vst_element).plugin_name
-        return element.tag
+        plugin_desc = element.find(Tag.PLUGIN_DESC)
+        info = None if plugin_desc is None else next((child for child in plugin_desc if is_info(child)), None)
+        if info is None:
+            return element.tag
+        device = PluginDevice(info)
+        name = device.identity.name
+        if device.kind is PluginKind.VST:
+            return name or device.reference.file_name or "<unknown>"
+        return name or element.tag

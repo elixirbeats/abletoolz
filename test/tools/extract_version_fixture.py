@@ -207,7 +207,7 @@ def _value(parent: ET.Element | None, tag: str) -> str | None:
 def _midi_track_clips(liveset: ET.Element) -> list[ET.Element]:
     """Every real (track-owned) MidiClip: session ClipSlot + arrangement ClipTimeable.
 
-    Mirrors the session/arrangement split ``AbletonTrack.clips_clipview``/
+    Mirrors the session/arrangement split ``AbletonTrack.session_clips``/
     ``clips_arrangement`` already establish, written directly against the XML
     so harvest() stays independent of the abletoolz code under test.
     Deliberately excludes ``GroovePool/Grooves/Groove/Clip/Value/MidiClip``: a

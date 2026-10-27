@@ -20,37 +20,22 @@ before any of it was written in code:
 
 from __future__ import annotations
 
-import gzip
 import pathlib
 from xml.etree import ElementTree as ET
 
 import pytest
+from conftest import raw_root, skeleton_set, writable_set
 
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.devices import TrackDevices
-
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
+from abletoolz.live_set.tracks import AbletonTrack
+from abletoolz.live_set.xml_edit import owns_pointee_id
 
 OWNER_TAGS = {"AutomationTarget", "ModulationTarget", "Pointee"}
 
 
-def make_set(key: str, tmp_path: pathlib.Path) -> AbletonSet:
-    """A writable copy of a fixture, parsed."""
-    copy = tmp_path / f"{key}.als"
-    copy.write_bytes((SKELETONS / f"{key}.als").read_bytes())
-    ableton_set = AbletonSet(copy)
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def read_only_set(key: str) -> AbletonSet:
-    ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def raw_root(path: pathlib.Path) -> ET.Element:
-    return ET.fromstring(gzip.decompress(path.read_bytes()).decode("utf-8"))
+def track_of(ableton_set: AbletonSet, name: str) -> AbletonTrack:
+    return ableton_set.tracks.named(name, main=True)
 
 
 def chain_of(ableton_set: AbletonSet, track_name: str) -> TrackDevices:
@@ -88,8 +73,10 @@ def devices_element(ableton_set: AbletonSet, track_name: str) -> ET.Element:
 
 
 def test_graft_appends_a_chain_onto_an_empty_track(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "3-Skylark - Iced")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    grafted = ableton_set.devices.graft_chain(
+        chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "3-Skylark - Iced")
+    )
 
     assert [(ref.tag, ref.display_name, ref.enabled) for ref in grafted] == [("Reverb", "Reverb", True)]
     assert [device.tag for device in chain_of(ableton_set, "3-Skylark - Iced").devices] == ["Reverb"]
@@ -97,35 +84,35 @@ def test_graft_appends_a_chain_onto_an_empty_track(tmp_path: pathlib.Path) -> No
 
 
 def test_graft_appends_after_the_devices_already_there(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "B-Delay"), "1-LOW")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "B-Delay"), track_of(ableton_set, "1-LOW"))
     assert [device.display_name for device in chain_of(ableton_set, "1-LOW").devices] == ["LOW", "V-Clip", "Delay"]
 
 
 def test_replace_clears_the_target_chain_first(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "1-LOW", mode="replace")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "1-LOW"), mode="replace")
     assert [device.display_name for device in chain_of(ableton_set, "1-LOW").devices] == ["Reverb"]
 
 
 def test_grafted_devices_take_ids_past_whatever_the_chain_uses(tmp_path: pathlib.Path) -> None:
     """10.0.1's Bass chain already numbers up to 6, so the copy starts at 7."""
-    ableton_set = make_set("10.0.1", tmp_path)
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "Kicks"), "Bass")
+    ableton_set = writable_set("10.0.1", tmp_path)
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "Kicks"), track_of(ableton_set, "Bass"))
     ids = [device.device_element.get("Id") for device in chain_of(ableton_set, "Bass").devices]
     assert ids == ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 
 def test_replacing_a_chain_numbers_the_copy_from_zero(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("10.0.1", tmp_path)
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "Kicks"), "Bass", mode="replace")
+    ableton_set = writable_set("10.0.1", tmp_path)
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "Kicks"), track_of(ableton_set, "Bass"), mode="replace")
     ids = [device.device_element.get("Id") for device in chain_of(ableton_set, "Bass").devices]
     assert ids == ["0", "1", "2"]
 
 
 def test_a_rack_carries_its_nested_chains_and_their_own_id_space(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("10.0.1", tmp_path)
-    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "Drum Bus"), "3-Audio")
+    ableton_set = writable_set("10.0.1", tmp_path)
+    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "Drum Bus"), track_of(ableton_set, "3-Audio"))
     rack = next(ref for ref in grafted if ref.tag == "AudioEffectGroupDevice")
     nested = [(device.tag, device.get("Id")) for branch in rack.device_element.iter("Devices") for device in branch]
     assert nested == [("Saturator", "0"), ("Eq8", "0")]
@@ -136,48 +123,49 @@ def test_a_rack_carries_its_nested_chains_and_their_own_id_space(tmp_path: pathl
 
 
 def test_graft_from_another_set_of_the_same_major(tmp_path: pathlib.Path) -> None:
-    target = make_set("12.4.5b", tmp_path)
-    donor_set = read_only_set("12.2.6")
+    target = writable_set("12.4.5b", tmp_path)
+    donor_set = skeleton_set("12.2.6")
     donor = chain_of(donor_set, "2-100_SoulShufflebreak_01_SP_4")
 
-    grafted = target.devices.graft_chain(donor, "3-Skylark - Iced")
+    grafted = target.devices.graft_chain(donor, track_of(target, "3-Skylark - Iced"))
     assert [ref.tag for ref in grafted] == ["OriginalSimpler"]
     assert [device.tag for device in chain_of(target, "3-Skylark - Iced").devices] == ["OriginalSimpler"]
 
 
 def test_the_donor_set_is_left_untouched(tmp_path: pathlib.Path) -> None:
-    target = make_set("12.4.5b", tmp_path)
-    donor_set = read_only_set("12.2.6")
+    target = writable_set("12.4.5b", tmp_path)
+    donor_set = skeleton_set("12.2.6")
     donor = chain_of(donor_set, "A-Reverb")
     before = ET.tostring(donor.devices[0].device_element, encoding="unicode")
     donor_counter = counter_of(donor_set).get("Value")
 
-    target.devices.graft_chain(donor, "3-Skylark - Iced")
+    target.devices.graft_chain(donor, track_of(target, "3-Skylark - Iced"))
     assert ET.tostring(donor.devices[0].device_element, encoding="unicode") == before
     assert counter_of(donor_set).get("Value") == donor_counter
 
 
 def test_a_cross_major_graft_is_refused(tmp_path: pathlib.Path) -> None:
-    target = make_set("12.4.5b", tmp_path)
-    donor = chain_of(read_only_set("11.2.10"), "A-Reverb")
+    target = writable_set("12.4.5b", tmp_path)
+    donor = chain_of(skeleton_set("11.2.10"), "A-Reverb")
     with pytest.raises(ValueError, match="Live 11.x chain into a Live 12.x set"):
-        target.devices.graft_chain(donor, "3-Skylark - Iced")
+        target.devices.graft_chain(donor, track_of(target, "3-Skylark - Iced"))
 
 
 def test_grafting_into_a_pre_10_set_is_refused(tmp_path: pathlib.Path) -> None:
     """9.x owns pointee ids but has no allocator to take fresh ones from."""
-    target = make_set("9.6.0", tmp_path)
+    target = writable_set("9.6.0", tmp_path)
     assert target.root.find("LiveSet/NextPointeeId") is None
     assert owned_ids(target.root)  # ...yet the ids are there, 4136 of them
-    donor = chain_of(read_only_set("9.0.1"), "2-Drum Rack")
+    donor = chain_of(skeleton_set("9.0.1"), "2-Drum Rack")
     with pytest.raises(ValueError, match="no LiveSet/NextPointeeId"):
-        target.devices.graft_chain(donor, "9-Audio")
+        target.devices.graft_chain(donor, track_of(target, "9-Audio"))
 
 
-def test_grafting_into_an_unknown_track_is_refused(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    with pytest.raises(ValueError, match="No track named 'nope'"):
-        ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "nope")
+def test_grafting_onto_another_set_s_track_is_refused(tmp_path: pathlib.Path) -> None:
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    foreign = track_of(skeleton_set("12.4.5b"), "3-Skylark - Iced")
+    with pytest.raises(ValueError, match="does not belong to this set"):
+        ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), foreign)
 
 
 # --- remote bindings --------------------------------------------------------
@@ -185,12 +173,12 @@ def test_grafting_into_an_unknown_track_is_refused(tmp_path: pathlib.Path) -> No
 
 def test_a_graft_leaves_the_donors_key_midi_bindings_behind(tmp_path: pathlib.Path) -> None:
     """Live 12 dies loading a document whose device arrived carrying these; the donor keeps its own."""
-    ableton_set = make_set("11.0.12", tmp_path)
+    ableton_set = writable_set("11.0.12", tmp_path)
     donor = chain_of(ableton_set, "8-Drums to MIDI")
     before = sum(len(list(device.device_element.iter("KeyMidi"))) for device in donor.devices)
     assert before == 224
 
-    grafted = ableton_set.devices.graft_chain(donor, "9-MIDI")
+    grafted = ableton_set.devices.graft_chain(donor, track_of(ableton_set, "9-MIDI"))
 
     assert [device.tag for device in grafted] == ["DrumGroupDevice", "Erosion", "PluginDevice"]
     assert [list(device.device_element.iter("KeyMidi")) for device in grafted] == [[], [], []]
@@ -208,14 +196,14 @@ def test_a_graft_leaves_the_donors_key_midi_bindings_behind(tmp_path: pathlib.Pa
 
 
 def test_graft_renumbers_every_id_it_owns_and_advances_the_counter(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     counter = counter_of(ableton_set)
     before = int(counter.get("Value", ""))
     donor = chain_of(ableton_set, "A-Reverb")
     donor_ids = owned_ids(donor.devices[0].device_element)
     assert len(donor_ids) == 54  # one Reverb, 54 automatable things
 
-    grafted = ableton_set.devices.graft_chain(donor, "3-Skylark - Iced")
+    grafted = ableton_set.devices.graft_chain(donor, track_of(ableton_set, "3-Skylark - Iced"))
 
     new_ids = owned_ids(grafted[0].device_element)
     assert new_ids == list(range(before, before + 54))
@@ -228,13 +216,13 @@ def test_graft_renumbers_every_id_it_owns_and_advances_the_counter(tmp_path: pat
 
 
 def test_graft_renumbers_ids_nested_deep_inside_a_rack(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("11.0.12", tmp_path)
+    ableton_set = writable_set("11.0.12", tmp_path)
     counter = counter_of(ableton_set)
     before = int(counter.get("Value", ""))
     donor = chain_of(ableton_set, "B-Bass Send Stack-1")
     assert len(owned_ids(donor.devices[0].device_element)) == 1556
 
-    grafted = ableton_set.devices.graft_chain(donor, "9-MIDI")
+    grafted = ableton_set.devices.graft_chain(donor, track_of(ableton_set, "9-MIDI"))
     assert owned_ids(grafted[0].device_element) == list(range(before, before + 1556))
     assert int(counter.get("Value", "")) == before + 1556
 
@@ -244,7 +232,7 @@ def test_graft_renumbers_ids_nested_deep_inside_a_rack(tmp_path: pathlib.Path) -
 
 def test_internal_references_are_remapped_and_external_ones_are_not(tmp_path: pathlib.Path) -> None:
     """No fixture device holds a PointeeId, so the donor gets both kinds injected."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     donor = chain_of(ableton_set, "A-Reverb")
     reverb = donor.devices[0].device_element
     switch = reverb.find("On/AutomationTarget")
@@ -257,7 +245,7 @@ def test_internal_references_are_remapped_and_external_ones_are_not(tmp_path: pa
 
     counter = counter_of(ableton_set)
     before = int(counter.get("Value", ""))
-    grafted = ableton_set.devices.graft_chain(donor, "3-Skylark - Iced")
+    grafted = ableton_set.devices.graft_chain(donor, track_of(ableton_set, "3-Skylark - Iced"))
 
     copied = grafted[0].device_element.find("AbletoolzProbe")
     assert copied is not None
@@ -272,10 +260,10 @@ def test_internal_references_are_remapped_and_external_ones_are_not(tmp_path: pa
 
 def test_automation_envelopes_outside_the_chain_keep_their_targets(tmp_path: pathlib.Path) -> None:
     """The main track's Tempo/TimeSignature envelopes name ids no graft touches."""
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     before = [reference.get("Value") for reference in ableton_set.root.iter("PointeeId")]
     assert before == ["10", "8"]
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "3-Skylark - Iced")
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "3-Skylark - Iced"))
     assert [reference.get("Value") for reference in ableton_set.root.iter("PointeeId")] == before
 
 
@@ -284,12 +272,14 @@ def test_automation_envelopes_outside_the_chain_keep_their_targets(tmp_path: pat
 
 def test_a_graft_and_its_undo_reproduce_lives_xml_byte_for_byte(tmp_path: pathlib.Path) -> None:
     """Strongest fidelity check available: nothing outside the target list moves."""
-    ableton_set = make_set("11.2.10", tmp_path)
+    ableton_set = writable_set("11.2.10", tmp_path)
     before = ableton_set.generate_xml()
     counter = counter_of(ableton_set)
     was = counter.get("Value", "")
 
-    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "4-GB_DrumHit_01")
+    grafted = ableton_set.devices.graft_chain(
+        chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "4-GB_DrumHit_01")
+    )
     assert ableton_set.generate_xml() != before
 
     devices = devices_element(ableton_set, "4-GB_DrumHit_01")
@@ -301,12 +291,12 @@ def test_a_graft_and_its_undo_reproduce_lives_xml_byte_for_byte(tmp_path: pathli
 
 
 def test_untouched_chains_serialize_identically(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
+    ableton_set = writable_set("12.4.5b", tmp_path)
     before = {
         chain.track_name: ET.tostring(devices_element(ableton_set, chain.track_name), encoding="unicode")
         for chain in ableton_set.devices.inventory()
     }
-    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "3-Skylark - Iced")
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "3-Skylark - Iced"))
     after = {
         chain.track_name: ET.tostring(devices_element(ableton_set, chain.track_name), encoding="unicode")
         for chain in ableton_set.devices.inventory()
@@ -316,8 +306,8 @@ def test_untouched_chains_serialize_identically(tmp_path: pathlib.Path) -> None:
 
 def test_a_track_chain_grafted_onto_the_main_track_is_re_indented(tmp_path: pathlib.Path) -> None:
     """Track chains sit seven tabs in, the main chain six."""
-    ableton_set = make_set("12.4.5b", tmp_path)
-    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), "Main")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "Main"))
     main = devices_element(ableton_set, "Main")
     assert main.text == "\n" + "\t" * 6
     assert [device.tail for device in main] == ["\n" + "\t" * 6, "\n" + "\t" * 5]
@@ -328,8 +318,8 @@ def test_a_track_chain_grafted_onto_the_main_track_is_re_indented(tmp_path: path
 
 
 def test_the_main_chain_grafted_onto_a_track_is_re_indented(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "Main"), "3-Skylark - Iced")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    grafted = ableton_set.devices.graft_chain(chain_of(ableton_set, "Main"), track_of(ableton_set, "3-Skylark - Iced"))
     devices = devices_element(ableton_set, "3-Skylark - Iced")
     assert devices.text == "\n" + "\t" * 7
     assert [device.tail for device in devices] == ["\n" + "\t" * 6]
@@ -340,9 +330,9 @@ def test_the_main_chain_grafted_onto_a_track_is_re_indented(tmp_path: pathlib.Pa
 
 
 def test_graft_survives_save_and_reopen(tmp_path: pathlib.Path) -> None:
-    ableton_set = make_set("12.4.5b", tmp_path)
-    donor = chain_of(read_only_set("12.2.6"), "B-Delay")
-    ableton_set.devices.graft_chain(donor, "3-Skylark - Iced")
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    donor = chain_of(skeleton_set("12.2.6"), "B-Delay")
+    ableton_set.devices.graft_chain(donor, track_of(ableton_set, "3-Skylark - Iced"))
     ableton_set.get_file_times()
     ableton_set.save_set()
 
@@ -356,3 +346,60 @@ def test_graft_survives_save_and_reopen(tmp_path: pathlib.Path) -> None:
     ids = owned_ids(reopened.root)
     assert len(ids) == len(set(ids))
     assert int(counter_of(reopened).get("Value", "")) > max(ids)
+
+
+# --- automation on a replaced chain -----------------------------------------
+
+
+def automate(ableton_set: AbletonSet, track_name: str, target_ids: list[str]) -> ET.Element:
+    """Give the track one envelope per target id, the shape Live writes, and answer the list."""
+    (track,) = [track for track in ableton_set.tracks.load() if track.name == track_name]
+    envelopes = track.track_root.find("AutomationEnvelopes/Envelopes")
+    assert envelopes is not None
+    for index, target_id in enumerate(target_ids):
+        envelope = ET.SubElement(envelopes, "AutomationEnvelope", Id=str(index))
+        ET.SubElement(ET.SubElement(envelope, "EnvelopeTarget"), "PointeeId", Value=target_id)
+        ET.SubElement(envelope, "Automation")
+    return envelopes
+
+
+def envelope_targets(envelopes: ET.Element) -> list[str | None]:
+    return [envelope.find("EnvelopeTarget/PointeeId").get("Value") for envelope in envelopes]  # type: ignore[union-attr]
+
+
+def a_device_parameter_and_the_track_volume(ableton_set: AbletonSet, track_name: str) -> tuple[str, str]:
+    device = devices_element(ableton_set, track_name)[0]
+    device_target = next(node for node in device.iter("AutomationTarget"))
+    (track,) = [track for track in ableton_set.tracks.load() if track.name == track_name]
+    volume = track.track_root.find("DeviceChain/Mixer/Volume/AutomationTarget")
+    assert volume is not None
+    return device_target.attrib["Id"], volume.attrib["Id"]
+
+
+def test_replace_drops_automation_of_the_devices_it_removes(tmp_path: pathlib.Path) -> None:
+    """Measured recombining two finished songs: a replace left two envelopes naming gone parameters."""
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    device_param, volume = a_device_parameter_and_the_track_volume(ableton_set, "1-LOW")
+    envelopes = automate(ableton_set, "1-LOW", [device_param, volume])
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "1-LOW"), mode="replace")
+    assert envelope_targets(envelopes) == [volume]
+
+
+def test_append_keeps_the_automation_of_the_devices_it_keeps(tmp_path: pathlib.Path) -> None:
+    ableton_set = writable_set("12.4.5b", tmp_path)
+    device_param, volume = a_device_parameter_and_the_track_volume(ableton_set, "1-LOW")
+    envelopes = automate(ableton_set, "1-LOW", [device_param, volume])
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "A-Reverb"), track_of(ableton_set, "1-LOW"))
+    assert envelope_targets(envelopes) == [device_param, volume]
+
+
+def test_replace_drops_the_clip_envelopes_of_the_devices_it_removes(tmp_path: pathlib.Path) -> None:
+    """10.1.18's "20-Audio" clips hold 3 ClipEnvelopes on its own chain's parameters; a replace took them away."""
+    ableton_set = writable_set("10.1.18", tmp_path)
+    target = track_of(ableton_set, "20-Audio")
+    assert len(list(target.track_root.iter("ClipEnvelope"))) == 3
+    ableton_set.devices.graft_chain(chain_of(ableton_set, "21-Audio"), target, mode="replace")
+    owned = {node.get("Id") for node in ableton_set.root.iter() if owns_pointee_id(node.tag)}
+    targets = [envelope.find("EnvelopeTarget/PointeeId") for envelope in ableton_set.root.iter("ClipEnvelope")]
+    assert [found.get("Value") for found in targets if found is not None and found.get("Value") not in owned] == []
+    assert not list(target.track_root.iter("ClipEnvelope"))

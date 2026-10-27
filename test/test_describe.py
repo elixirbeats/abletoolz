@@ -29,11 +29,9 @@ dataclasses); assertions below read its fields directly. The JSON wire shape
 
 from __future__ import annotations
 
-import pathlib
-
 import pytest
+from conftest import skeleton_set
 
-from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.clips import MidiNote, encode_note
 from abletoolz.live_set.describe import (
     ArrangementAudioPlacement,
@@ -44,20 +42,11 @@ from abletoolz.live_set.describe import (
     to_wire,
 )
 
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-
-def make_set(key: str) -> AbletonSet:
-    ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
 # --- dedup --------------------------------------------------------------
 
 
 def test_11_0_0_deduplicates_47_clips_into_3_patterns() -> None:
-    d = make_set("11.0.0").describe(DescribeLevel.PATTERNS)
+    d = skeleton_set("11.0.0").describe(DescribeLevel.PATTERNS)
     assert d.patterns is not None
     assert len(d.patterns) == 3
     assert d.arrangement is not None and d.session is not None
@@ -71,7 +60,7 @@ def test_11_0_0_deduplicates_47_clips_into_3_patterns() -> None:
 
 
 def test_9_0_1_deduplicates_10_clips_into_3_patterns() -> None:
-    d = make_set("9.0.1").describe(DescribeLevel.PATTERNS)
+    d = skeleton_set("9.0.1").describe(DescribeLevel.PATTERNS)
     assert d.patterns is not None
     assert len(d.patterns) == 3
     assert d.arrangement is not None and d.session is not None
@@ -82,7 +71,7 @@ def test_9_0_1_deduplicates_10_clips_into_3_patterns() -> None:
 
 def test_two_clips_with_identical_notes_but_different_names_share_one_pattern() -> None:
     """Identity is (length, notes); the name lives on the placement, not the pattern."""
-    ableton_set = make_set("12.4.5b")
+    ableton_set = skeleton_set("12.4.5b")
     donor = next(c for c in ableton_set.clips.midi() if c.name == "")
     ableton_set.clips.clone_clip(donor, slot_index=0, name="a copy with a name", notes=list(donor.notes))
 
@@ -97,7 +86,7 @@ def test_two_clips_with_identical_notes_but_different_names_share_one_pattern() 
 
 
 def test_structure_has_no_patterns_session_or_arrangement() -> None:
-    d = make_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
     assert d.patterns is None
     assert d.session is None
     assert d.arrangement is None
@@ -106,7 +95,7 @@ def test_structure_has_no_patterns_session_or_arrangement() -> None:
 
 
 def test_structure_per_track_clip_counts() -> None:
-    d = make_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
     counts = {}
     for track in d.tracks:
         assert track.clips is not None
@@ -119,14 +108,14 @@ def test_structure_per_track_clip_counts() -> None:
 
 def test_patterns_and_full_have_no_clip_counts_on_tracks() -> None:
     for level in (DescribeLevel.PATTERNS, DescribeLevel.FULL):
-        d = make_set("12.4.5b").describe(level)
+        d = skeleton_set("12.4.5b").describe(level)
         for track in d.tracks:
             assert track.clips is None
 
 
 def test_full_keeps_nuance_patterns_silently_drops() -> None:
     """A disabled note with non-default probability: FULL keeps it, PATTERNS folds it away."""
-    ableton_set = make_set("12.4.5b")
+    ableton_set = skeleton_set("12.4.5b")
     donor = next(c for c in ableton_set.clips.midi() if c.name == "")
     ableton_set.clips.set_notes(donor, [MidiNote(60, 0.0, 1.0, enabled=False, probability=0.5), MidiNote(64, 1.0, 1.0)])
 
@@ -177,7 +166,7 @@ def test_full_note_array_adds_a_trailing_dict_only_when_needed() -> None:
 
 
 def test_audio_clips_appear_in_arrangement_with_sample_names() -> None:
-    d = make_set("11.0.12").describe(DescribeLevel.PATTERNS)
+    d = skeleton_set("11.0.12").describe(DescribeLevel.PATTERNS)
     assert d.arrangement is not None
     audio_entries = [entry for entry in d.arrangement if isinstance(entry, ArrangementAudioPlacement)]
     assert len(audio_entries) == 9
@@ -187,7 +176,7 @@ def test_audio_clips_appear_in_arrangement_with_sample_names() -> None:
 def test_audio_session_clips_are_not_in_the_session_list() -> None:
     """Real audio clips sit in session slots (12.4.5b's '2-Drum fill'), but the
     given schema has no session shape for audio; describe() omits them there."""
-    ableton_set = make_set("12.4.5b")
+    ableton_set = skeleton_set("12.4.5b")
     assert len(ableton_set.clips.audio()) == 3  # Clips.audio() still finds them
     d = ableton_set.describe(DescribeLevel.FULL)
     assert d.session is not None
@@ -198,7 +187,7 @@ def test_audio_session_clips_are_not_in_the_session_list() -> None:
 
 
 def test_main_track_reports_sentinel_id_and_type_main() -> None:
-    d = make_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
     main = next(track for track in d.tracks if track.type == "main")
     assert main.id == -1
     assert main.group_id is None
@@ -206,7 +195,7 @@ def test_main_track_reports_sentinel_id_and_type_main() -> None:
 
 
 def test_group_id_is_null_when_ungrouped_and_the_groups_own_id_otherwise() -> None:
-    d = make_set("9.0.1").describe(DescribeLevel.STRUCTURE)
+    d = skeleton_set("9.0.1").describe(DescribeLevel.STRUCTURE)
     by_name = {track.name: track for track in d.tracks}
     assert by_name["1-Group"].group_id is None
     assert by_name["1-Group"].type == "group"
@@ -215,7 +204,7 @@ def test_group_id_is_null_when_ungrouped_and_the_groups_own_id_otherwise() -> No
 
 
 def test_track_chain_is_display_names_in_chain_order() -> None:
-    d = make_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.STRUCTURE)
     by_name = {track.name: track for track in d.tracks}
     assert by_name["1-LOW"].chain == ("LOW", "V-Clip")
     assert by_name["A-Reverb"].chain == ("Reverb",)
@@ -223,7 +212,7 @@ def test_track_chain_is_display_names_in_chain_order() -> None:
 
 def test_session_slot_matches_the_slot_clone_clip_would_reject_as_occupied() -> None:
     """Cross-check against test_clips_write's own knowledge of this fixture's layout."""
-    d = make_set("12.4.5b").describe(DescribeLevel.PATTERNS)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.PATTERNS)
     assert d.session is not None
     assert list(d.session) == [SessionPlacement(track_id=13, slot=1, name="", pattern="p0")]
 
@@ -232,21 +221,21 @@ def test_session_slot_matches_the_slot_clone_clip_would_reject_as_occupied() -> 
 
 
 def test_describe_json_is_stable_across_calls() -> None:
-    ableton_set = make_set("11.0.0")
+    ableton_set = skeleton_set("11.0.0")
     first = describe_json(ableton_set, DescribeLevel.FULL)
     second = describe_json(ableton_set, DescribeLevel.FULL)
     assert first == second
 
 
 def test_describe_json_is_compact_and_preserves_key_order() -> None:
-    ableton_set = make_set("12.4.5b")
+    ableton_set = skeleton_set("12.4.5b")
     encoded = describe_json(ableton_set, DescribeLevel.STRUCTURE)
     assert ", " not in encoded
     assert encoded.startswith('{"set":{"creator":')
 
 
 def test_to_wire_matches_the_schemas_exact_keys() -> None:
-    d = make_set("12.4.5b").describe(DescribeLevel.FULL)
+    d = skeleton_set("12.4.5b").describe(DescribeLevel.FULL)
     wire = to_wire(d)
     assert set(wire) == {"set", "tracks", "patterns", "session", "arrangement"}
     assert set(wire["set"]) == {"creator", "major", "bpm"}
@@ -257,7 +246,7 @@ def test_to_wire_matches_the_schemas_exact_keys() -> None:
 
 
 def test_round_trip_describe_apply_describe_reproduces_the_same_pattern() -> None:
-    ableton_set = make_set("12.4.5b")
+    ableton_set = skeleton_set("12.4.5b")
     clip = next(c for c in ableton_set.clips.midi() if c.name == "")
     before = ableton_set.describe(DescribeLevel.PATTERNS)
     assert before.patterns is not None and before.session is not None
