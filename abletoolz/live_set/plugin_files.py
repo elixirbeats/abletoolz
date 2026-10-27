@@ -147,6 +147,7 @@ class PluginFiles:
         collector: relink.Collector | None = None,
         plugin_files_db: SampleCatalog | None = None,
         refused: list[relink.Refusal] | None = None,
+        gone: set[pathlib.Path] | None = None,
     ) -> list[relink.Relink]:
         """Relink every missing file a plugin can be relinked for: audio through ``db``, the rest through
         ``plugin_files_db``.
@@ -158,9 +159,10 @@ class PluginFiles:
         found; without ``plugin_files_db`` it is reported, not relinked. A
         device is rewritten in its own format, or left exactly as it was. A
         file left as it was for any reason but not being found goes into
-        ``refused``.
+        ``refused``, and database records whose file is gone into ``gone``.
         """
         refused = [] if refused is None else refused
+        gone = set() if gone is None else gone
         relinks: list[relink.Relink] = []
         for found in self._devices():
             if isinstance(found, PluginFile):
@@ -198,7 +200,7 @@ class PluginFiles:
                     )
                     continue
                 located = relink.locate(
-                    searched, _evidence(ref, stored), f"{stored.name} for {found.name} on {found.track}", refused
+                    searched, _evidence(ref, stored), f"{stored.name} for {found.name} on {found.track}", refused, gone
                 )
                 if located is None:
                     continue

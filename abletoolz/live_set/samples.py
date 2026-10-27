@@ -65,6 +65,7 @@ class Samples(Domain):
         db: SampleCatalog,
         collector: relink.Collector | None = None,
         refused: list[relink.Refusal] | None = None,
+        gone: set[pathlib.Path] | None = None,
     ) -> list[relink.Relink]:
         """Point every missing sample reference at the file the sample database finds for it.
 
@@ -72,9 +73,11 @@ class Samples(Domain):
         way Live's collect and save does: into the reference's own project
         folder when it had one, else Samples/Imported. The copy itself is only
         made when the collector runs, which is when the set is saved. A
-        reference left as it was although a file was found goes into ``refused``.
+        reference left as it was although a file was found goes into ``refused``,
+        and database records whose file is gone into ``gone``.
         """
         refused = [] if refused is None else refused
+        gone = set() if gone is None else gone
         relinks: list[relink.Relink] = []
         missing = 0
         located: dict[relink.Evidence, pathlib.Path | None] = {}
@@ -107,7 +110,7 @@ class Samples(Domain):
             )
             # The same sample is often referenced many times in one set.
             if evidence not in located:
-                located[evidence] = relink.locate(db, evidence, f"sample {parsed.name} at {original}", refused)
+                located[evidence] = relink.locate(db, evidence, f"sample {parsed.name} at {original}", refused, gone)
             found = located[evidence]
             if found is not None and self._point_at(parsed, found, collector):
                 relinks.append(relink.Relink(str(original), str(found)))
