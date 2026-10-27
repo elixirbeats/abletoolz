@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import pathlib
 from typing import TYPE_CHECKING
 
 from abletoolz.ansi import Y
@@ -72,6 +73,8 @@ class SetFiles:
         Audio, Live's own samples and the audio plugin patches point at, is
         found in ``db`` and collected with ``collect``. Files only a plugin
         loads are found in ``plugin_files_db`` and relinked where they are.
+        Database records whose file is gone are skipped, and one warning per
+        set says how many, so the user knows to run ``--db-prune``.
         """
         collector = None
         if collect:
@@ -81,7 +84,14 @@ class SetFiles:
             else:
                 collector = relink.Collector(project_root)
         refused: list[relink.Refusal] = []
-        relinks = self._set.samples.fix(db, collector, refused) + self._set.plugin_files.fix(
-            db, collector, plugin_files_db, refused
+        gone: set[pathlib.Path] = set()
+        relinks = self._set.samples.fix(db, collector, refused, gone) + self._set.plugin_files.fix(
+            db, collector, plugin_files_db, refused, gone
         )
+        if gone:
+            logger.warning(
+                "%s%s file(s) in the sample database no longer exist; run abletoolz --db-prune to remove them",
+                Y,
+                len(gone),
+            )
         return Relinked(relinks, collector, refused + (collector.refused if collector is not None else []))
