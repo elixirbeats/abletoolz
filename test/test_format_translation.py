@@ -3,177 +3,118 @@
 Hermetic. The oracle is the fixtures themselves: a skeleton that holds both a
 VstPluginInfo and a Vst3PluginInfo says exactly what shape that version of Live
 gives a VST3 device, so a translated device is compared against its neighbour
-rather than against a shape written down here. State payloads, moduleinfo.json
-files and config mappings are built in tmp_path.
+rather than against a shape written down here. State payloads are built here.
 """
 
 from __future__ import annotations
 
 import dataclasses
-import pathlib
-import struct
 from xml.etree import ElementTree as ET
 
 import pytest
+from conftest import device_named, serum_as, skeleton
 
-from abletoolz import decode_encode
-from abletoolz.live_set import AbletonSet
-from abletoolz.misc import get_element
-from abletoolz.plugin_parsers import PluginKind, uid_sources
-from abletoolz.plugin_parsers import format_translation as translation
-from abletoolz.plugin_parsers.format_translation import TranslationTarget
-from abletoolz.plugin_parsers.state import StateTransform
-from abletoolz.plugin_parsers.state.fabfilter import (
+from abletoolz.elements import get_element
+from abletoolz.formats import hex_text
+from abletoolz.plugins import conversion
+from abletoolz.plugins.container.device import PluginDevice, PluginDevices
+from abletoolz.plugins.conversion import Rebuild, write
+from abletoolz.plugins.identity.ids import PluginKind, UidFields, Vst2Id, Vst3Id
+from abletoolz.plugins.identity.vst3_parameters import no_parameters
+from abletoolz.plugins.state.all_plugins import CATALOG
+from abletoolz.plugins.state.fabfilter import (
     FABFILTER_CONSTANT_CONTROLLER,
     FABFILTER_CONTROLLER_TRAILER,
-    EditorState,
-    FfbsControllerState,
 )
-from abletoolz.plugin_parsers.state.fxbk import LegacyBank
+from abletoolz.plugins.state.fxbk import LegacyBank
+from abletoolz.plugins.state.plugin_map import FormatState
 
-SKELETONS = pathlib.Path(__file__).parent / "version_fixtures" / "skeletons"
-
-# Ad-hoc targets, so the tests exercise the machinery rather than the seed table.
-EFFECT = TranslationTarget(PluginKind.VST3, "Test Effect", (1, 2, 3, 4))
-INSTRUMENT = TranslationTarget(PluginKind.VST3, "Test Instrument", (-5, 6, -7, 8))
-KILOHEARTS = TranslationTarget(PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS)
-# A FabF-generation FabFilter: a constant twelve byte controller state, whatever
-# the patch. A legacy bank is all its VST2 ever saved.
-FABF_TARGET = TranslationTarget(
-    PluginKind.VST3, "Pro-C 2", (13, 14, 15, 16), controller_state=FABFILTER_CONSTANT_CONTROLLER
-)
-# An FFBS-generation one, whose controller state carries the preset name.
-FFBS_TARGET = TranslationTarget(
-    PluginKind.VST3, "Pro-Q 3", (17, 18, 19, 20), controller_state=FfbsControllerState(b"FQ3p")
-)
+KHS_DISTORTION_VST2 = 1802724468
+PRO_C_2_VST2 = 1178808944
+INSTRUMENT_UID = (-5, 6, -7, 8)
 
 
-def legacy_bank(preset_name: str, parameters: int = 8) -> bytes:
-    """A Live stored-parameter bank, which is what an .als holds for an older FabFilter."""
-    return LegacyBank(preset_name=preset_name, parameters=tuple(0.5 for _ in range(parameters))).encode()
-
-
-def make_set(key: str) -> AbletonSet:
-    ableton_set = AbletonSet(SKELETONS / f"{key}.als")
-    assert ableton_set.parse()
-    return ableton_set
-
-
-def vst2_info(live_set: AbletonSet, plug_name: str) -> ET.Element:
-    """The VstPluginInfo of one named device in a set."""
-    for info in live_set.root.iter("VstPluginInfo"):
-        if get_element(info, "PlugName", attribute="Value") == plug_name:
-            return info
-    raise AssertionError(f"no VST2 device named {plug_name}")
+def serum(key: str = "11.3.42") -> PluginDevice:
+    """A skeleton's Serum_x64 VST2 device, which saved no patch."""
+    return device_named(skeleton(key), "Serum_x64")
 
 
 def tags(element: ET.Element) -> tuple[str, ...]:
     return tuple(child.tag for child in element)
 
 
-def set_state(info: ET.Element, payload: bytes) -> str:
-    """Give a VST2 device some saved state, wrapped the way Live wraps a hex blob."""
-    preset = get_element(info, "Preset.VstPreset")
-    state = get_element(preset, "Buffer")
-    state.text = decode_encode.string_to_xml(payload.hex().upper(), levels=(preset.text or "").count("\t") + 1)
-    return state.text
+def as_vst3(
+    device: PluginDevice,
+    name: str = "Test Effect",
+    uid_fields: UidFields = (1, 2, 3, 4),
+    *,
+    controller: bytes | None = None,
+) -> None:
+    """Rebuild a VST2 device as an ad-hoc VST3 holding its patch as it is.
+
+    Ad hoc so the tests exercise the container rather than any plugin's map.
+    """
+    identity = dataclasses.replace(device.identity, kind=PluginKind.VST3, name=name, uid_fields=uid_fields)
+    write(device, Rebuild(PluginKind.VST3, identity, dataclasses.replace(device.saved_state, controller=controller)))
 
 
 def read_state(element: ET.Element) -> bytes:
     assert element.text is not None
-    return bytes.fromhex(decode_encode.xml_to_string(element.text)[0])
+    return hex_text.decode(element.text)
 
 
 # -- shape ------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("key", "plug_name"), [("11.3.42", "Serum_x64"), ("10.1.3", "Texture")])
+@pytest.mark.parametrize(("key", "plug_name"), [("11.3.42", "Serum_x64"), ("10.1.18", "EchoBoy")])
 def test_translated_device_matches_the_vst3_live_wrote_beside_it(key: str, plug_name: str) -> None:
-    """Every version keeps a different subset of the info tags; the fixture says which."""
-    live_set = make_set(key)
-    reference = live_set.root.find(".//Vst3PluginInfo")
+    """Every version keeps a different subset of the info tags; the fixture says which.
+
+    Matching them exactly is also what drops every VST2-only tag (Path, PlugName,
+    UniqueId, the counts, Flags, Category; Type, Buffer and the rest of the preset).
+    """
+    root = skeleton(key)
+    reference = root.find(".//Vst3PluginInfo")
     assert reference is not None
-    expected_info = tags(reference)
-    expected_preset = tags(get_element(reference, "Preset.Vst3Preset"))
+    device = device_named(root, plug_name)
+    as_vst3(device)
 
-    info = vst2_info(live_set, plug_name)
-    translation.translate_device(info, EFFECT)
-
-    assert info.tag == "Vst3PluginInfo"
-    assert tags(info) == expected_info
-    assert tags(get_element(info, "Preset.Vst3Preset")) == expected_preset
-
-
-def test_vst2_only_elements_are_gone() -> None:
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, EFFECT)
-    dropped = {
-        "Path",
-        "PlugName",
-        "UniqueId",
-        "Inputs",
-        "Outputs",
-        "NumberOfParameters",
-        "NumberOfPrograms",
-        "Flags",
-        "Version",
-        "VstVersion",
-        "IsShellClient",
-        "Category",
-    }
-    assert dropped.isdisjoint(tags(info))
-    preset = get_element(info, "Preset.Vst3Preset")
-    assert {
-        "Type",
-        "ProgramCount",
-        "ParameterCount",
-        "ProgramNumber",
-        "PluginVersion",
-        "UniqueId",
-        "ByteOrder",
-        "Buffer",
-    }.isdisjoint(tags(preset))
+    assert device.info.tag == "Vst3PluginInfo"
+    assert tags(device.info) == tags(reference)
+    assert tags(get_element(device.info, "Preset.Vst3Preset")) == tags(get_element(reference, "Preset.Vst3Preset"))
 
 
 def test_shared_preset_head_is_untouched() -> None:
     """The 13 tags up to ParametersListWrapperLomId mean the same in both formats."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    preset = get_element(info, "Preset.VstPreset")
-    before = [ET.tostring(child) for child in list(preset)[:13]]
-    translation.translate_device(info, EFFECT)
-    assert [ET.tostring(child) for child in list(get_element(info, "Preset.Vst3Preset"))[:13]] == before
+    device = serum()
+    before = [ET.tostring(child) for child in list(get_element(device.info, "Preset.VstPreset"))[:13]]
+    as_vst3(device)
+    assert [ET.tostring(child) for child in list(get_element(device.info, "Preset.Vst3Preset"))[:13]] == before
 
 
-def test_uid_fields_are_written_at_both_levels() -> None:
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, INSTRUMENT)
-    uids = list(info.iter("Uid"))
+def test_the_targets_name_and_class_id_are_written_the_id_at_both_levels() -> None:
+    """A VST3 is usually known by a shorter display name than its VST2 file."""
+    device = serum()
+    as_vst3(device, "Test Instrument", INSTRUMENT_UID)
+    assert get_element(device.info, "Name", attribute="Value") == "Test Instrument"
+    uids = list(device.info.iter("Uid"))
     assert len(uids) == 2
     for uid in uids:
         assert tags(uid) == ("Fields.0", "Fields.1", "Fields.2", "Fields.3")
-        assert uid_sources.read_uid_fields(uid) == INSTRUMENT.uid_fields
-
-
-def test_name_comes_from_the_target_not_the_vst2() -> None:
-    """A VST3 is usually known by a shorter display name than its VST2 file."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    translation.translate_device(info, EFFECT)
-    assert get_element(info, "Name", attribute="Value") == "Test Effect"
+        assert tuple(int(field.get("Value", "")) for field in uid) == INSTRUMENT_UID
 
 
 @pytest.mark.parametrize(("category", "device_type"), [("2", "1"), ("1", "2"), ("0", "2"), ("4", "2")])
 def test_device_type_follows_vst2_category(category: str, device_type: str) -> None:
     """VST2 says instrument with Category 2; VST3 says it with DeviceType 1."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    get_element(info, "Category").set("Value", category)
-    translation.translate_device(info, EFFECT)
-    assert get_element(info, "DeviceType", attribute="Value") == device_type
-    assert get_element(info, "Preset.Vst3Preset.DeviceType", attribute="Value") == device_type
+    device = serum()
+    get_element(device.info, "Category").set("Value", category)
+    as_vst3(device)
+    assert get_element(device.info, "DeviceType", attribute="Value") == device_type
+    assert get_element(device.info, "Preset.Vst3Preset.DeviceType", attribute="Value") == device_type
+
+
+# -- controller state -------------------------------------------------------
 
 
 def test_a_target_declaring_no_controller_state_writes_the_element_empty() -> None:
@@ -182,11 +123,10 @@ def test_a_target_declaring_no_controller_state_writes_the_element_empty() -> No
     Live writes exactly one ControllerState per ProcessorState whether or not
     the plugin puts anything in it, so the element is there either way.
     """
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, b"some state")
-    translation.translate_device(info, EFFECT)
-    preset = get_element(info, "Preset.Vst3Preset")
+    device = serum()
+    device.set_state(b"some state")
+    as_vst3(device)
+    preset = get_element(device.info, "Preset.Vst3Preset")
     order = tags(preset)
     assert order.index("ControllerState") == order.index("ProcessorState") + 1
     controller = get_element(preset, "ControllerState")
@@ -194,90 +134,18 @@ def test_a_target_declaring_no_controller_state_writes_the_element_empty() -> No
     assert len(controller) == 0
 
 
-@pytest.mark.parametrize("preset_name", ["Quiet Glue", "Snare Bus"])
-def test_a_constant_controller_state_is_written_whatever_the_patch(preset_name: str) -> None:
-    """Pro-C 2, Pro-L 2, Pro-MB and Pro-R each write the same twelve bytes every time."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, legacy_bank(preset_name))
-    translation.translate_device(info, FABF_TARGET)
-    assert read_state(get_element(info, "Preset.Vst3Preset.ControllerState")) == FABFILTER_CONTROLLER_TRAILER
+def test_a_controller_state_is_laid_out_as_live_lays_out_a_blob() -> None:
+    """A hex block Live did not lay out makes the file stop looking like Live's own.
 
-
-def test_a_constant_controller_state_is_indented_the_way_live_writes_a_blob() -> None:
-    """A hex block Live did not lay out makes the file stop looking like Live's own."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, legacy_bank("Default Setting"))
-    translation.translate_device(info, FABF_TARGET)
-    preset = get_element(info, "Preset.Vst3Preset")
-    text = get_element(preset, "ControllerState").text
-    assert text is not None
-    assert text == decode_encode.string_to_xml(
-        FABFILTER_CONTROLLER_TRAILER.hex().upper(), levels=(preset.text or "").count("\t") + 1
-    )
-
-
-def test_an_ffbs_controller_state_carries_the_preset_name_out_of_the_bank() -> None:
-    """The name lives in the editor state, and an .als does carry that -- as this element."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, legacy_bank("Smear bM"))
-    translation.translate_device(info, FFBS_TARGET)
-    payload = read_state(get_element(info, "Preset.Vst3Preset.ControllerState"))
-    assert payload.endswith(FABFILTER_CONTROLLER_TRAILER)
-    assert EditorState.parse(payload).preset_name == "Smear bM"
-
-
-def test_an_ffbs_controller_state_carries_a_chunk_s_editor_half_across_whole() -> None:
-    """Same product both sides: the VST2 chunk's second half is already this state."""
-    editor = EditorState(
-        magic=b"FQ3p",
-        version=3,
-        preset_name="Flutter Machine MdB",
-        instance_index=-1,
-        label="",
-        controllers=(("XY1", "Character"),),
-    )
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, b"FFBS processor half" + editor.encode())
-    translation.translate_device(info, FFBS_TARGET)
-    payload = read_state(get_element(info, "Preset.Vst3Preset.ControllerState"))
-    assert payload == editor.encode() + FABFILTER_CONTROLLER_TRAILER
-    assert EditorState.parse(payload) == editor
-
-
-def test_a_device_saved_with_no_patch_gets_an_empty_controller_state() -> None:
-    """There is nothing to build one out of, whatever the target declares."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    assert get_element(info, "Preset.VstPreset.Buffer").text is None
-    translation.translate_device(info, FABF_TARGET)
-    assert get_element(info, "Preset.Vst3Preset.ControllerState").text is None
-
-
-@dataclasses.dataclass(frozen=True)
-class EchoController:
-    """A controller state that hands back what it was given, so a test can see which bytes reach it."""
-
-    def build(self, source: bytes) -> bytes:
-        return source
-
-
-def test_the_controller_state_is_built_from_the_source_not_the_rewritten_processor_state() -> None:
-    """The two are halves of one saved chunk, so a rewrite of the first must not reach the second."""
-    payload = b"PK\x03\x04payload"
-    target = TranslationTarget(
-        PluginKind.VST3, "kHs Test", (9, 10, 11, 12), StateTransform.KILOHEARTS, EchoController()
-    )
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    set_state(info, payload)
-    translation.translate_device(info, target)
-    preset = get_element(info, "Preset.Vst3Preset")
-    assert read_state(get_element(preset, "ProcessorState")) == struct.pack("<II", 1, len(payload)) + payload
-    assert read_state(get_element(preset, "ControllerState")) == payload
+    The blob is FabFilter's constant, whose bytes ``test_state`` holds against a set Live wrote.
+    """
+    device = serum()
+    bank = LegacyBank(preset_name="Quiet Glue", parameters=tuple(0.5 for _ in range(8))).encode()
+    device.set_state(bank)
+    as_vst3(device, "Pro-C 2", controller=FABFILTER_CONSTANT_CONTROLLER.build(bank))
+    preset = get_element(device.info, "Preset.Vst3Preset")
+    depth = (preset.text or "").count("\t") + 1
+    assert get_element(preset, "ControllerState").text == hex_text.encode(FABFILTER_CONTROLLER_TRAILER, depth)
 
 
 # -- state ------------------------------------------------------------------
@@ -285,122 +153,61 @@ def test_the_controller_state_is_built_from_the_source_not_the_rewritten_process
 
 def test_state_carries_over_verbatim_by_default() -> None:
     """Serum, Prophet V3, Serato Sample and FabFilter all read their VST2 blob unchanged."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    original = set_state(info, bytes(range(256)) * 4)
-    translation.translate_device(info, EFFECT)
-    assert get_element(info, "Preset.Vst3Preset.ProcessorState").text == original
+    device = serum()
+    device.set_state(bytes(range(256)) * 4)
+    original = get_element(device.info, "Preset.VstPreset.Buffer").text
+    as_vst3(device)
+    assert get_element(device.info, "Preset.Vst3Preset.ProcessorState").text == original
 
 
-def test_kilohearts_state_gains_an_eight_byte_header() -> None:
-    """kHs VST3 expects the VST2 zip behind two little-endian uint32: (1, length)."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
+def test_a_mapped_plugin_carries_its_patch_through_its_own_map() -> None:
+    """The device holds what the map crosses, under the map's name; the bytes are ``test_plugin_maps``'s."""
     payload = b"PK\x03\x04" + bytes(range(64))
-    set_state(info, payload)
-    translation.translate_device(info, KILOHEARTS)
-    state = read_state(get_element(info, "Preset.Vst3Preset.ProcessorState"))
-    assert state[:8] == struct.pack("<II", 1, len(payload))
-    assert state[8:] == payload
+    device = serum_as(skeleton("11.3.42"), "kHs Distortion", KHS_DISTORTION_VST2, payload)
+    khs_distortion = CATALOG.find(Vst2Id(KHS_DISTORTION_VST2))
+    assert khs_distortion is not None
+
+    write(device, conversion.as_format(device, khs_distortion, PluginKind.VST3, parameters=no_parameters))
+    preset = get_element(device.info, "Preset.Vst3Preset")
+    crossed = khs_distortion.cross(FormatState(payload), PluginKind.VST, PluginKind.VST3)
+    assert read_state(get_element(preset, "ProcessorState")) == crossed.state
+    assert get_element(preset, "ControllerState").text is None
+    assert get_element(device.info, "Name").get("Value") == "kHs Distortion"
 
 
-def test_empty_state_stays_empty() -> None:
-    """A device saved with no state has nothing to frame."""
-    live_set = make_set("11.3.42")
-    info = vst2_info(live_set, "Serum_x64")
-    assert get_element(info, "Preset.VstPreset.Buffer").text is None
-    translation.translate_device(info, KILOHEARTS)
-    assert get_element(info, "Preset.Vst3Preset.ProcessorState").text is None
+@pytest.mark.parametrize(
+    ("name", "unique_id"), [("kHs Distortion", KHS_DISTORTION_VST2), ("FabFilter Pro-C 2", PRO_C_2_VST2)]
+)
+def test_a_device_saved_with_no_patch_stays_without_one(name: str, unique_id: int) -> None:
+    """There is nothing to frame, and nothing to build a controller state out of, whatever the map declares."""
+    device = serum_as(skeleton("11.3.42"), name, unique_id)
+    assert get_element(device.info, "Preset.VstPreset.Buffer").text is None
+    plugin_map = CATALOG.find(Vst2Id(unique_id))
+    assert plugin_map is not None
+    write(device, conversion.as_format(device, plugin_map, PluginKind.VST3, parameters=no_parameters))
+    assert get_element(device.info, "Preset.Vst3Preset.ProcessorState").text is None
+    assert get_element(device.info, "Preset.Vst3Preset.ControllerState").text is None
 
 
-# -- harvesting -------------------------------------------------------------
+def test_a_plugin_map_refuses_a_device_of_another_plugin() -> None:
+    khs_distortion = CATALOG.find(Vst2Id(KHS_DISTORTION_VST2))
+    assert khs_distortion is not None
+    with pytest.raises(ValueError, match="not kHs Distortion"):
+        conversion.as_format(serum(), khs_distortion, PluginKind.VST3, parameters=no_parameters)
 
 
-def test_harvest_set_uids_reads_every_vst3_in_a_set() -> None:
-    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
-    assert set(harvested) == {"Pro-R", "Pro-Q 3", "Pro-L 2"}
-    assert all(len(fields) == 4 for fields in harvested.values())
+# -- class ids measured in a set ----------------------------------------------
 
 
-def test_seeded_uid_matches_a_set_that_already_uses_the_vst3() -> None:
-    """Cross-check of the seed table against an independent measurement."""
-    harvested = uid_sources.harvest_set_uids(make_set("10.1.3"))
-    assert translation.KNOWN_TRANSLATIONS["FabFilter Pro-Q 3"].uid_fields == harvested["Pro-Q 3"]
-
-
-def test_class_id_round_trips_through_uid_fields() -> None:
-    """Live's four Uid fields are the class id read as big-endian signed int32."""
-    cid = "56535458667358736572756D00000000"
-    assert uid_sources.cid_to_uid_fields(cid) == (1448301656, 1718835315, 1701999981, 0)
-    assert uid_sources.uid_fields_to_cid(uid_sources.cid_to_uid_fields(cid)) == cid
-    assert translation.KNOWN_TRANSLATIONS["Serum_x64"].uid_fields == uid_sources.cid_to_uid_fields(cid)
-
-
-def write_moduleinfo(root: pathlib.Path, name: str, body: str) -> pathlib.Path:
-    bundle = root / f"{name}.vst3" / "Contents"
-    bundle.mkdir(parents=True)
-    moduleinfo = bundle / "moduleinfo.json"
-    moduleinfo.write_text(body, encoding="utf-8")
-    return moduleinfo
-
-
-def test_harvest_moduleinfo_takes_audio_modules_only(tmp_path: pathlib.Path) -> None:
-    write_moduleinfo(
-        tmp_path,
-        "Thing",
-        """
-        {
-          "Name": "Thing",
-          "Classes": [
-            {"CID": "56535458667358736572756D00000000", "Category": "Audio Module Class", "Name": "Thing"},
-            {"CID": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "Category": "Component Controller Class",
-             "Name": "Thing Controller"}
-          ]
-        }
-        """,
-    )
-    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {"Thing": (1448301656, 1718835315, 1701999981, 0)}
-
-
-def test_harvest_moduleinfo_tolerates_trailing_commas(tmp_path: pathlib.Path) -> None:
-    """Measured: some vendors ship moduleinfo.json that plain json refuses."""
-    write_moduleinfo(
-        tmp_path,
-        "Loose",
-        """
-        {
-          "Name": "Loose",
-          "Classes": [
-            {
-              "CID": "56535458667358736572756D00000000",
-              "Category": "Audio Module Class",
-              "Name": "Loose",
-            },
-          ],
-        }
-        """,
-    )
-    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {"Loose": (1448301656, 1718835315, 1701999981, 0)}
-
-
-def test_harvest_moduleinfo_ignores_single_file_plugins(tmp_path: pathlib.Path) -> None:
-    """Windows-style single-file .vst3 carries no moduleinfo.json to read."""
-    (tmp_path / "Old.vst3").write_bytes(b"")
-    assert uid_sources.harvest_moduleinfo_uids([tmp_path]) == {}
-
-
-# -- config -----------------------------------------------------------------
-
-
-def test_config_targets_are_parsed_into_targets() -> None:
-    parsed = translation.parse_config_targets(
-        {"Some Plugin.64": {"name": "Some Plugin", "uid": [1, 2, 3, 4], "state": "kilohearts"}}
-    )
-    assert parsed == {
-        "Some Plugin.64": TranslationTarget(PluginKind.VST3, "Some Plugin", (1, 2, 3, 4), StateTransform.KILOHEARTS)
+def test_a_mapped_class_id_matches_a_set_that_already_uses_the_vst3() -> None:
+    """Cross-check of a plugin map against an independent measurement: the class id Live saved."""
+    stored = {
+        device.identity.name: device.identity.uid_fields
+        for device in PluginDevices(skeleton("10.1.30"))
+        if device.kind is PluginKind.VST3
     }
-
-
-def test_config_targets_default_to_vst3_and_verbatim() -> None:
-    parsed = translation.parse_config_targets({"Old.dll": {"name": "New", "uid": [1, 2, 3, 4]}})
-    assert parsed["Old.dll"] == TranslationTarget(PluginKind.VST3, "New", (1, 2, 3, 4), StateTransform.VERBATIM)
+    assert set(stored) == {"Phase Plant", "Pro-Q 3", "Pro-L 2"}
+    pro_q_3 = stored["Pro-Q 3"]
+    assert pro_q_3 is not None
+    found = CATALOG.find(Vst3Id(pro_q_3))
+    assert found is not None and found.name == "FabFilter Pro-Q 3"
