@@ -2,9 +2,9 @@
 
 Ableton behaviors are introduced at some version and rarely end cleanly, so
 everything here works on minimum-version floors: the newest implementation
-whose floor the set's version meets wins. String-level differences (tag
-names) live in ``schema.py``; structural/logic differences use ``@versioned``
-method overrides. Same newest-floor-wins rule in both.
+whose floor the set's version meets wins. Renamed settings resolve that way in
+:mod:`abletoolz.schema.settings`; structural/logic differences use
+``@versioned`` method overrides.
 """
 
 from __future__ import annotations
@@ -32,6 +32,11 @@ def parse_creator(creator: str) -> Version:
     if not match:
         raise ValueError(f"Cannot parse Live version from Creator: {creator!r}")
     return int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
+
+
+def version_text(version: Version) -> str:
+    """A version as Live prints it: ``(11, 3, 42)`` -> ``"11.3.42"``."""
+    return ".".join(str(part) for part in version)
 
 
 class HasVersion(Protocol):

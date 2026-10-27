@@ -1,3 +1,14 @@
 # Shell scripts run on Linux even when they are edited on Windows, and a CRLF
 # in a shebang line is a "bad interpreter" error there.
 *.sh text eol=lf
+
+# Measured and generated data, and plugin state captures: Git LFS keeps them out
+# of diffs and history. A clone needs git-lfs installed to get the real files.
+abletoolz/schema/data/** filter=lfs diff=lfs merge=lfs -text
+abletoolz/plugins/**/data/** filter=lfs diff=lfs merge=lfs -text
+test/state_fixtures/** filter=lfs diff=lfs merge=lfs -text
+
+# Written by scripts/gen_vocab.py: GitHub collapses them in diffs and leaves them out
+# of the language stats, like a lock file.
+abletoolz/schema/devices.py linguist-generated=true
+abletoolz/schema/objects.py linguist-generated=true
