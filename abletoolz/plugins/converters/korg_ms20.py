@@ -10,23 +10,25 @@ and each converted device lists which:
   time (``data/ms-20-to-korg-ms-20-v.json``): VCO 2's tune (semitones on both),
   fine tune (20 cents a step) into the master tune with the measured offset
   between the two plugins' tuning, the volume (a straight gain on the legacy
-  knob) into the master volume, both filters' cutoffs by their measured -3 dB
-  corners, the MG's rate (a line in hertz), EG2's attack, decay and release by
-  the time each takes to get half way, portamento by its glide time, and the
-  pitch modulation depths from EG1 and the MG;
+  knob) into the master volume, the MG's rate (a line in hertz), portamento by
+  its glide time, and the pitch modulation depths from EG1 and the MG;
+* **matched knob by knob** -- both plugins kept loaded and rendered side by
+  side, MS-20 V's control searched at each legacy knob position for the nearest
+  sound: both filters' cutoffs and the HPF peak by their response against the
+  open filter, the VCO levels by loudness, the pulse width by its duty cycle,
+  and EG2's attack, decay, sustain, release and hold by their envelopes;
 * **rendered at a few points** -- the LPF peak at its own knob position on MS-20 V's
   MK I filter, whose resonance rises within 1.5 dB of the legacy one at four
   positions (MK II's does not);
-* **same print** -- both plugins print the same 0 to 10: the two VCO levels, the
-  MG waveform, EG1's attack and release (their times are not measured);
+* **same print** -- both plugins print the same 0 to 10: the MG waveform, EG1's
+  attack and release (their times are not measured);
 * **same switch** -- waveforms and scales, sync to tempo, key sync, the momentary
   switch, the pitch bend range, the voice mode (Mono with single trigger is
   MS-20 V's legato, with multi trigger its retrigger, Poly its voice count);
-* **matched by panel position** -- a ballpark, the same knob position: the
-  pulse width, EG1's delay, EG2's hold and sustain, the HPF peak, the four filter
-  modulation amounts (renders at the middle position put MS-20 V's swing at a
-  third to three quarters of the legacy one), the ESP, the saved wheel, and
-  calibrated controls outside their measured span;
+* **matched by panel position** -- a ballpark, the same knob position: EG1's
+  delay, the four filter modulation amounts (renders at the middle position put
+  MS-20 V's swing at a third to three quarters of the legacy one), the ESP and
+  the saved wheel;
 * **patch cables, by jack name** -- every legacy jack but two has an MS-20 V
   source or destination by the same name; renders hear the MG's triangle and
   square into the VCOs' CV the same way on both;
@@ -81,18 +83,12 @@ SAME_SWITCH: dict[str, tuple[str, dict[str, str]]] = {
     "MG Key Sync": ("MG_Retrig", {"Off": "Free", "On": "Reset"}),
 }
 SAME_PRINT = {
-    "VCO 1 Level": "MS20VCO_VolumeOsc1",
-    "VCO 2 Level": "MS20VCO_VolumeOsc2",
     "MG Wave Form": "MG_Waveform",
     "EG 1 Attack": "EG1_Attack",
     "EG 1 Release": "EG1_Release",
 }
 PANEL = {
-    "VCO 1 Pulse Width": "MS20VCO_PW",
     "EG 1 Delay": "EG1_Delay",
-    "EG 2 Hold": "EG2_Classic_Hold",
-    "EG 2 Sustain": "EG2_Sustain",
-    "HPF Peak": "VCF_ResHp",
     "HPF MG/T.Ext": "VCF_TotalAmountHp",
     "HPF EG 2/Ext": "VCF_FmAmountHp",
     "LPF MG/T.Ext": "VCF_TotalAmountLp",
@@ -155,13 +151,14 @@ _TARGET_BARS |= {"1/16": 1 / 16, "1/32": 1 / 32}
 _TARGET_TYPES = {"Bars": 1.0, "Bars Triplet": 2 / 3, "Bars Dotted": 3 / 2}
 
 MEASURED_NOTE = (
-    "Calibrated against both plugins: VCO 2 tune, fine tune, volume, both filter cutoffs, the MG rate, EG2's "
-    "attack, decay and release, portamento, and the EG1 and MG pitch modulation depths."
+    "Calibrated against both plugins: VCO 2 tune, fine tune, volume, the MG rate, portamento, and the EG1 and MG "
+    "pitch modulation depths. Matched knob by knob by sound: both filter cutoffs, the HPF peak, the VCO levels, "
+    "pulse width, and EG2's attack, decay, sustain, release and hold."
 )
 RENDERED_NOTE = (
-    "Rendered at a few points: the LPF peak on MS-20 V's MK I filter. Same print: the VCO levels, the MG "
-    "waveform, EG1 attack and release. Matched by panel position, a ballpark: pulse width, EG1 delay, EG2 hold "
-    "and sustain, the HPF peak, the filter modulation amounts, the ESP and the saved wheel. Patch cables by jack name."
+    "Rendered at a few points: the LPF peak on MS-20 V's MK I filter. Same print: the MG waveform, EG1 attack and "
+    "release. Matched by panel position, a ballpark: EG1 delay, the filter modulation amounts, the ESP and the "
+    "saved wheel. Patch cables by jack name."
 )
 NOT_HEARD_NOTE = "MS-20 to MS-20 V has not been heard in Live: audition this device."
 
@@ -193,26 +190,19 @@ def _inverse(y: float, points: Sequence[Sequence[float]], *, log_y: bool = False
     return _interp(math.log(y) if log_y else y, [(math.log(b) if log_y else b, a) for a, b in points])
 
 
-def _calibrated(knob: float, curves: dict[str, Any]) -> float | None:
-    """MS-20 V's 0 to 1 at the hertz a legacy knob measured; None outside the legacy measured span."""
-    legacy, target = curves["legacy"], curves["target"]
-    if not legacy[0][0] <= knob <= legacy[-1][0]:
-        return None
-    return _inverse(_interp(knob, legacy, log_y=True), target, log_y=True)
-
-
 def _set(values: dict[str, ArturiaValue], key: str, normalized: float) -> None:
     values[key] = controls()[key].value(min(max(normalized, 0.0), 1.0))
 
 
-def _time(values: dict[str, ArturiaValue], key: str, knob: float, curves: dict[str, Any], what: str,
-          notices: list[str] | None) -> None:  # fmt: skip
-    """A time control through the two half-way time curves; past MS-20 V's longest it is clamped and said."""
-    legacy, target = curves["legacy"], curves["target"]
-    seconds = _interp(knob, legacy)
-    if seconds > target[-1][1] * 1.02:
-        limitation(notices, f"{what} {seconds:.2f} s is longer than MS-20 V's {target[-1][1]:.2f} s, clamped")
-    _set(values, key, _inverse(seconds, target))
+def _matched(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], tables: dict[str, Any],
+             notices: list[str] | None) -> None:  # fmt: skip
+    """Each knob-by-knob table between its measured positions; a time past MS-20 V's longest is clamped and said."""
+    for key, table in tables.items():
+        knob = float(p[table["knob"]])
+        longest = table.get("longest_at")
+        if longest is not None and knob > longest:
+            limitation(notices, f"{table['what']} {knob:.1f} is longer than MS-20 V's longest, clamped")
+        values[key] = _interp(knob, table["points"], log_y=table["log"])
 
 
 def _pitch_depth(
@@ -224,11 +214,6 @@ def _pitch_depth(
     if cents > top * 1.02:
         limitation(notices, f"{what} sweeps {cents:.0f} cents, more than MS-20 V's {top:.0f}, clamped")
     _set(values, key, _inverse(min(cents, top), curves["target"]))
-
-
-def _cutoff(values: dict[str, ArturiaValue], key: str, knob: float, curves: dict[str, Any]) -> None:
-    normalized = _calibrated(knob, curves)
-    _set(values, key, knob / _KNOB if normalized is None else normalized)
 
 
 def _voices(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], notices: list[str] | None) -> None:
@@ -303,20 +288,12 @@ def plan(
     volume = controls()["Master Volume"]
     level = data["volume_db_at_full"] + (20 * math.log10(knob("Volume") / _KNOB) if knob("Volume") > 0 else -math.inf)
     values["Master Volume"] = min(max(level, volume.low), volume.high)
-    _cutoff(values, "LP Cutoff", knob("LPF Cutoff"), data["lpf_corner_hz"])
-    _cutoff(values, "HP Cutoff", knob("HPF Cutoff"), data["hpf_corner_hz"])
     rate = controls()["MG_RateUnSynced"]
     intercept, slope = data["mg_hz_line"]
     hertz = intercept + slope * knob("MG Frequency")
     if hertz > rate.high:
         limitation(notices, f"MG frequency {hertz:.1f} Hz is above MS-20 V's {rate.high:g} Hz, clamped")
     values["MG_RateUnSynced"] = min(max(hertz, rate.low), rate.high)
-    for stage, name, key in (
-        ("attack", "EG 2 Attack", "EG2_Attack"),
-        ("decay", "EG 2 Decay", "EG2_Decay"),
-        ("release", "EG 2 Release", "EG2_Release"),
-    ):
-        _time(values, key, knob(name), data["eg2_half_seconds"][stage], f"EG2 {stage}", notices)
     glide = data["glide_seconds"]
     _set(values, "Portamento_Time", _inverse(_interp(knob("Portamento Time"), glide["legacy"]), glide["target"]))
     depth = data["pitch_depth_cents"]
@@ -324,6 +301,7 @@ def plan(
     _pitch_depth(
         values, "MS20VCO_FMTotalAmount", knob("Pitch MG/T.Ext"), depth["mg"], "the MG pitch modulation", notices
     )
+    _matched(p, values, data["matched"], notices)
     # Rendered at a few points, same print, panel position.
     _set(values, "VCF_ResLp", knob("LPF Peak") / _KNOB)
     for name, key in SAME_PRINT.items():
