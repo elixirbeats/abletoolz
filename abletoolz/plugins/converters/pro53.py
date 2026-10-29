@@ -157,6 +157,12 @@ RENDERED_NOTE = (
     "Matched by display, a ballpark: oscillator A's level, the filter sustain, the Poly-Mod oscillator B amount, "
     "the wheel's LFO/noise mix and keyboard follow (rounded to on or off)."
 )
+EXPECT_NOTE = (
+    "Expect, even where every control matched: resonance sounds different (1 to 12 dB apart at the nearest "
+    "setting); the amp envelope's attack and decay have another curve shape; filter envelope amounts above 85% and "
+    "noise above 40% fall a few dB short; the filter envelope's own times and sustain are matched only by their "
+    "half-way times or display; and conversions often come out several dB quieter."
+)
 NOT_HEARD_NOTE = "Pro-53 to Prophet-5 V has not been heard in Live: audition this device."
 
 
@@ -480,7 +486,7 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
 )
 def convert(patch: bytes, program: int | None = None) -> Converted:
     """A Pro-53 bank's working patch as a Prophet-5 V state. ``program`` is not used: the working patch plays."""
-    notices = [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE]
+    notices = [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE, EXPECT_NOTE]
     values, reported = plan(Pro53Bank.parse(patch), notices)
     if reported:
         notices.append("Not carried: " + "; ".join(reported) + ".")
