@@ -19,6 +19,7 @@ from pydantic import TypeAdapter
 
 from abletoolz.plugins.identity.ids import Vst2Id
 from abletoolz.plugins.state.catalog import register
+from abletoolz.plugins.state.controls import Parameter, ParameterMap
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
@@ -84,6 +85,23 @@ def fields() -> tuple[StateField, ...]:
 def byte_map() -> FixedByteMap:
     """The complete revision-21 storage map; it makes no version-conversion claim."""
     return FixedByteMap("izotope.trash1.program/revision21", LENGTH + 4, fields())
+
+
+@dataclass(frozen=True, slots=True)
+class _ControlData:
+    source_sha256: str
+    evidence_sha256: str
+    scope: str
+    positions: tuple[float, ...]
+    controls: tuple[Parameter, ...]
+
+
+@cache
+def parameter_map() -> ParameterMap:
+    """Public-to-saved bindings with sampled values and bounded native-check status."""
+    path = Path(__file__).with_name("data") / "trash1-controls.json"
+    data = TypeAdapter(_ControlData).validate_json(path.read_bytes(), strict=True)
+    return ParameterMap(byte_map(), data.controls, data.positions, data.source_sha256, data.evidence_sha256, data.scope)
 
 
 @dataclass(frozen=True, slots=True)

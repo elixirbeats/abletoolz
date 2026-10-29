@@ -37,6 +37,8 @@ from plugin_patches import (
     REAKTOR,
     RESOURCE,
     SERATO,
+    SERUM_2,
+    SERUM_2_SAMPLE,
     SINE,
     SNARE,
     SWAMP,
@@ -53,6 +55,7 @@ from plugin_patches import (
     reaktor_plain,
     reaktor_url,
     serato,
+    serum_2_sample,
     texture_bare,
     texture_wrapped,
     xfade,
@@ -62,7 +65,7 @@ from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.plugins import dump_device
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices
 from abletoolz.plugins.conversion import as_format, write
-from abletoolz.plugins.identity.ids import PluginKind, Vst2Id
+from abletoolz.plugins.identity.ids import PluginKind, StoredId, Vst2Id, Vst3Id
 from abletoolz.plugins.identity.vst3_parameters import no_parameters
 from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.errors import StateTransformError
@@ -85,6 +88,7 @@ WITH_PATHS = {
     "Maschine 2 FX": True,
     "Reaktor 6": True,
     "Serato Sample": True,
+    "Serum 2": True,
     "Texture": True,
     "iZotope Iris": False,
     "xfadelooper": True,
@@ -167,6 +171,7 @@ READS = [
     ),
     pytest.param(IRIS, iris(SWAMP, SINE), (FileRef(SWAMP), FileRef(SINE)), id="iZotope Iris, each layer's sample"),
     pytest.param(MPC, mpc(PROJECT), (FileRef(PROJECT, "project"),), id="MPC Essentials, its project"),
+    pytest.param(SERUM_2, serum_2_sample(), (FileRef(SERUM_2_SAMPLE),), id="Serum 2, a sample oscillator's file"),
 ]
 
 
@@ -174,17 +179,19 @@ def test_every_plugin_with_paths_has_a_patch_in_the_table() -> None:
     """A plugin whose reading nothing exercises is a layout nobody has read."""
     named = set()
     for case in READS:
-        unique_id = case.values[0]
-        assert isinstance(unique_id, int)
-        plugin_map = CATALOG.find(Vst2Id(unique_id))
+        stored = case.values[0]
+        assert isinstance(stored, (int, Vst3Id))
+        plugin_map = CATALOG.find(Vst2Id(stored) if isinstance(stored, int) else stored)
         assert plugin_map is not None
         named.add(plugin_map.name)
     assert named == set(WITH_PATHS)
 
 
-@pytest.mark.parametrize(("unique_id", "patch", "refs"), READS)
-def test_a_patch_names_each_file_it_points_at_once(unique_id: int, patch: bytes, refs: tuple[FileRef, ...]) -> None:
-    assert file_paths(unique_id).read(patch) == refs
+@pytest.mark.parametrize(("stored", "patch", "refs"), READS)
+def test_a_patch_names_each_file_it_points_at_once(
+    stored: int | StoredId, patch: bytes, refs: tuple[FileRef, ...]
+) -> None:
+    assert file_paths(stored).read(patch) == refs
 
 
 NOTHING = [
@@ -220,7 +227,7 @@ def test_a_patch_that_points_at_no_file_of_the_user_s_names_nothing(unique_id: i
 class Relink:
     """A patch, the file in it to move, where to, and how the patch names it afterwards."""
 
-    unique_id: int
+    unique_id: int | StoredId
     patch: bytes
     old: str
     new: pathlib.Path
@@ -233,6 +240,7 @@ XFADE_MOVED = pathlib.Path("C:/loops/b.wav")
 CMI_MOVED = pathlib.Path("E:\\Moved\\bass loop.wav")
 TEXTURE_MOVED = pathlib.Path("D:\\A Much Longer Folder\\Moved Snare.wav")
 REAKTOR_MOVED = pathlib.Path("E:\\My Ensembles\\Monark & friends (moved).ens")
+SERUM_2_MOVED = pathlib.Path("/Volumes/Samples/Drums/Drum_Loop_170 (bounced).wav")
 REAKTOR_READS_AS = FileRef("E:/My Ensembles/Monark & friends (moved).ens", "ensemble")
 
 RELINKS = {
@@ -279,6 +287,8 @@ RELINKS = {
         REAKTOR, reaktor_plain(ENSEMBLE), ENSEMBLE, REAKTOR_MOVED, REAKTOR_READS_AS, True
     ),
     "CMI V": Relink(CMI_V, cmi_v(LOOP, FACTORY, LOOP), LOOP, CMI_MOVED, FileRef(str(CMI_MOVED)), True),
+    # The body is compressed again; the fixture was compressed by the same rewrite, so it restores.
+    "Serum 2": Relink(SERUM_2, serum_2_sample(), SERUM_2_SAMPLE, SERUM_2_MOVED, FileRef(str(SERUM_2_MOVED)), True),
 }
 
 
@@ -331,13 +341,16 @@ NOT_NAMED = [
     pytest.param(TEXTURE, texture_bare(TEXTURE_SNARE), "C:\\Elsewhere\\kick.wav", id="Texture"),
     pytest.param(REAKTOR, reaktor_url(ENSEMBLE), "D:/Elsewhere/Form.ens", id="Reaktor 6"),
     pytest.param(CMI_V, cmi_v(LOOP), "C:\\Elsewhere\\kick.wav", id="CMI V"),
+    pytest.param(SERUM_2, serum_2_sample(), "C:\\Elsewhere\\kick.wav", id="Serum 2"),
 ]
 
 
-@pytest.mark.parametrize(("unique_id", "patch", "other"), NOT_NAMED)
-def test_a_rewrite_of_a_file_the_patch_does_not_name_is_refused(unique_id: int, patch: bytes, other: str) -> None:
+@pytest.mark.parametrize(("stored", "patch", "other"), NOT_NAMED)
+def test_a_rewrite_of_a_file_the_patch_does_not_name_is_refused(
+    stored: int | StoredId, patch: bytes, other: str
+) -> None:
     with pytest.raises(StateTransformError, match="does not point at"):
-        file_paths(unique_id).rewrite(patch, FileRef(other), pathlib.Path("C:/x.wav"))
+        file_paths(stored).rewrite(patch, FileRef(other), pathlib.Path("C:/x.wav"))
 
 
 # -- Serato Sample and xfadelooper -------------------------------------------------------

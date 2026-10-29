@@ -209,10 +209,10 @@ This grows as plugins get mapped, so take it as a rough guide. `abletoolz --plug
 
 **Between VST2, VST3 and AU, keeping the patch:**
 
-- FabFilter Pro-C 2, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2 and Timeless 3
+- FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2 and Timeless 3
 - Valhalla Delay, FreqEcho, Plate, Room, Shimmer and Supermassive, Audio Units included
 - 36 Kilohearts kHs effects
-- Arturia Prophet V3, Devious Machines Texture, Goodhertz Tupe 3, Serato Sample, Xfer Serum, and Surge XT (VST3 and AU)
+- Arturia Prophet V3, Devious Machines Texture, Goodhertz Tupe 3, Serato Sample, Xfer Serum (its AU is read, not written), and Serum 2 and Surge XT (VST3 and AU)
 
 Massive, Battery 4, Trash 2, Ozone 9 Exciter and Volcano 3 can't be converted to VST3 yet, so their VST2 devices stay VST2.
 
@@ -220,11 +220,12 @@ Massive, Battery 4, Trash 2, Ozone 9 Exciter and Volcano 3 can't be converted to
 
 - FabFilter Pro-Q and Pro-Q 2 to Pro-Q 3
 - Surge to Surge XT
+- Xfer Serum to Serum 2, not finished yet. A converted device lists what it couldn't carry, like the delay's times, LFO shapes and wavetables saved inside the patch. Audition before trusting.
 - Native Instruments Pro-53 to Arturia Prophet-5 V. A converted device lists what Prophet-5 V has no match for, like the high-pass filter, the delay and analog drift, and how each setting was matched.
 
 iZotope Trash to Trash 2 is worked out too, but a plan can't offer it until abletoolz can write Trash 2's VST3.
 
-**Files inside a plugin's patch**, relinked by the sample flags: Serato Sample, xfadelooper, Battery 4, Kontakt 5, Maschine 2, Texture, CMI V and Reaktor 6. iZotope Iris and Akai MPC Essentials files are listed so you can fix them by hand.
+**Files inside a plugin's patch**, relinked by the sample flags: Serato Sample, Serum 2, xfadelooper, Battery 4, Kontakt 5, Maschine 2, Texture, CMI V and Reaktor 6. iZotope Iris and Akai MPC Essentials files are listed so you can fix them by hand.
 
 ## What converting costs
 

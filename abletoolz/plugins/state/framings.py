@@ -91,7 +91,8 @@ JUCE_MAGIC = b"VC2!"
 FABFILTER_TAGS = (b"FFBS", b"FFed", b"FabF")
 
 # Xfer's JSON opens with its own keyword rather than a brace. Serum 2 writes it
-# at offset 0 in all 474 distinct buffers the corpus holds for it.
+# at offset 0 in all 474 distinct buffers the corpus holds for it: a JSON
+# header and then a zstd body, read by xfer.XferJson.
 JSON_KEYWORD = b"XferJson"
 
 # How many bytes of leading whitespace a text format may have before its first

@@ -16,6 +16,13 @@ from pydantic import TypeAdapter
 
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
 from abletoolz.plugins.state.catalog import register
+from abletoolz.plugins.state.controls import (
+    BooleanSwitch,
+    Float32Affine,
+    ParameterBinding,
+    ParameterCurve,
+    ParameterCurves,
+)
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
 from abletoolz.plugins.state.izotope import NESTING_MEASURED, WRAPPED, IzotopeVst3
@@ -58,6 +65,28 @@ _PUBLIC_FIELDS = (
     (125, "TRASH: Stg1 Gain", FieldEncoding.FLOAT32_LE, 640),
     (128, "TRASH: Stg1 Mix", FieldEncoding.FLOAT32_LE, 632),
 )
+
+# Each public parameter's normalized value to what it saves, rounded to float32 after each
+# multiply and add. Public indices and saved-field IDs are separate even where the numbers
+# coincide. Replayed against three native reference saves and the Stg1 Pre zero crossing.
+_CURVES: dict[int, tuple[str, ParameterCurve]] = {
+    0: ("", BooleanSwitch()),
+    4: ("dB", Float32Affine(154.0, -144.0)),
+    9: ("dB", Float32Affine(154.0, -144.0)),
+    11: ("", Float32Affine(100.0, 0.0)),
+    13: ("", BooleanSwitch()),
+    14: ("", BooleanSwitch()),
+    17: ("", Float32Affine(19980.0, 20.0)),
+    18: ("", Float32Affine(60.0, -30.0)),
+    19: ("", Float32Affine(11.8, 0.2)),
+    118: ("", BooleanSwitch()),
+    120: ("", BooleanSwitch()),
+    122: ("", Float32Affine(50.0, -30.0)),
+    123: ("", Float32Affine(10.0, 0.0)),
+    124: ("", Float32Affine(1.0, 0.0)),
+    125: ("", Float32Affine(50.0, -40.0)),
+    128: ("", Float32Affine(100.0, 0.0)),
+}
 
 
 @cache
@@ -142,6 +171,12 @@ def byte_map() -> FixedByteMap:
     )
 
 
+@cache
+def parameter_curves() -> ParameterCurves:
+    bindings = tuple(ParameterBinding(ident, ident, name, *_CURVES[ident]) for ident, name, _, _ in _PUBLIC_FIELDS)
+    return ParameterCurves(byte_map(), bindings, SCOPE)
+
+
 @dataclass(frozen=True, slots=True)
 class Trash2State:
     settings: MappedState
@@ -171,6 +206,10 @@ class Trash2State:
 
     def with_values(self, changes: Mapping[FieldKey, StateValue]) -> Trash2State:
         return Trash2State(self.settings.with_values(changes))
+
+    def with_parameters(self, changes: Mapping[int, float]) -> Trash2State:
+        """Public parameters by index and normalized value, written through their measured curves."""
+        return self.with_values(parameter_curves().values(changes))
 
     def with_stage_polarity(self, stage: int, *, inverted: bool) -> Trash2State:
         """Use a native-checked full bipolar curve for the selected single-band stage."""

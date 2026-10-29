@@ -135,6 +135,7 @@ SHIPPED = {
     ("izotope.trash1", "izotope.trash2"),
     ("ni.pro-53", "arturia.prophet-5-v"),
     ("surge-synth-team.surge-1", "surge-synth-team.surge-xt"),
+    ("xfer.serum", "xfer.serum-2"),
 }
 
 

@@ -7,13 +7,23 @@ historical bank mixing revisions 21 and 22 -- are the evidence the named fields 
 from __future__ import annotations
 
 import struct
+from collections import Counter
 from pathlib import Path
 from typing import assert_type
 
 import pytest
 
+from abletoolz.plugins.state.controls import ParameterStatus
 from abletoolz.plugins.state.errors import StateTransformError
-from abletoolz.plugins.state.izotope_trash import LENGTH, MAGIC, REVISION, Bank, Program, byte_map
+from abletoolz.plugins.state.izotope_trash import (
+    LENGTH,
+    MAGIC,
+    REVISION,
+    Bank,
+    Program,
+    byte_map,
+    parameter_map,
+)
 from abletoolz.plugins.state.model import FieldEncoding, StateField
 
 FIXTURES = Path(__file__).parent / "state_fixtures" / "trash"
@@ -125,3 +135,20 @@ def test_a_mixed_revision_bank_keeps_its_opaque_programs_through_a_typed_edit() 
     for index in (-1, 16):
         with pytest.raises(ValueError, match="index"):
             model.program(index)
+
+
+def test_the_parameter_map_keeps_its_evidence_gaps_and_coupling() -> None:
+    """182 public controls over 296 saved fields; 14 still round differently and one never saves."""
+    parameters = parameter_map()
+    assert len(parameters.byte_map.fields) == 296
+    assert len(parameters.parameters) == 182
+    assert Counter(control.status for control in parameters.parameters) == {
+        ParameterStatus.NATIVE_CHECKED: 167,
+        ParameterStatus.ROUNDING_UNRESOLVED: 14,
+        ParameterStatus.NO_SAVED_CHANGE: 1,
+    }
+    assert parameters.sampled_values(1, 0.5) == {31: -5.0, 32: -5.0}
+    with pytest.raises(StateTransformError, match="no measurement"):
+        parameters.sampled_values(1, 0.51)
+    with pytest.raises(StateTransformError, match="No saved-field"):
+        parameters.sampled_values(0, 1.0)

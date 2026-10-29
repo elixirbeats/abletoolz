@@ -17,7 +17,8 @@ from abletoolz.plugins.plan.machine import Machine
 from abletoolz.plugins.plan.model import Route, Target
 from abletoolz.plugins.recovery_routes import RecoveryTarget, TargetStatus
 from abletoolz.plugins.state.all_plugins import CATALOG
-from abletoolz.plugins.state.plugin_map import PluginMap
+from abletoolz.plugins.state.measured import MeasuredState
+from abletoolz.plugins.state.plugin_map import PluginFormat, PluginMap
 
 
 def _can_rewrite(kind: PluginKind, to: PluginKind) -> bool:
@@ -51,23 +52,41 @@ def _target_id(
     return f"try {where}" if route is Route.EXPERIMENT else where
 
 
+def _crossing(written: MeasuredState, kind: PluginKind, read_from: PluginFormat | None) -> tuple[str, bool]:
+    """A format target's evidence label and whether it is proved.
+
+    The patch is read out of the device's format and written to another, and
+    both sides have to be measured for the crossing to be, so a device read out
+    of a format only the rig has asked about is labelled with that side too. A
+    converter's own evidence already covers reading its source, and a crossing
+    whose written side is unproved keeps that side's label.
+    """
+    if read_from is None or read_from.measured.predictable or not written.predictable:
+        return written.annotation, written.predictable
+    return f"{written.annotation}; read from the {FORMAT_LABELS[kind]}, {read_from.measured.annotation}", False
+
+
 def mapped_targets(source: PluginMap, kind: PluginKind, machine: Machine) -> list[Target]:
     """The plugin's own other formats, then the plugins its converters reach."""
     found: list[Target] = []
+    read_from = source.formats.get(kind)
     for converter in (None, *(item for item in CATALOG.converters() if item.source == source.id)):
         target_map = source if converter is None else _map_by_id(converter.target)
         route = Route.FORMAT if converter is None else Route.CONVERTER
         for to_kind, plugin_format in target_map.formats.items():
             if _can_rewrite(kind, to_kind) and target_map.can_write(to_kind):
-                measured = plugin_format.measured if converter is None else converter.measured
+                if converter is None:
+                    evidence, proved = _crossing(plugin_format.measured, kind, read_from)
+                else:
+                    evidence, proved = converter.measured.annotation, converter.measured.predictable
                 found.append(
                     Target(
                         id=plugin_format.plan_name,
                         route=route,
                         plugin=plugin_format.name,
                         format=to_kind,
-                        evidence=measured.annotation,
-                        proved=measured.predictable,
+                        evidence=evidence,
+                        proved=proved,
                         installed=machine.installed(plugin_format.id),
                         map_id=target_map.id,
                     )

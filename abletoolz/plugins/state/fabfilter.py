@@ -670,3 +670,28 @@ def pro_g() -> PluginMap:
         _DERIVED_CHECKED,
         ("pro_g_vst2", "pro_g_vst3"),
     )
+
+
+# Pro-DS had its table derived on 2026-08-13 and was checked on 2026-10-26
+# the way the three above were. Both distinct Pro-DS banks in the owner's sets
+# (41 devices) converted here and loaded into the installed VST3 with all 20
+# parameters agreeing with what the VST2 says the bank means. One came back
+# byte for byte; the other came back with its low-pass frequency one float32
+# step (0.8450983 against 0.8450984) from what was written, which the plugin
+# rounds to its own value. Micro's table is not shipped: the one Micro bank in
+# the owner's sets holds 8 parameters where the installed build has 9.
+PRO_DS_TABLE = read_derived_table(DERIVED_TABLES / "pro-ds.json")
+
+
+@register
+def pro_ds() -> PluginMap:
+    return _derived_plugin(
+        "pro-ds",
+        "FabFilter Pro-DS",
+        1179669362,
+        "Pro-DS",
+        (1508058320, -1897393695, -1202224895, -1142580456),
+        PRO_DS_TABLE,
+        MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime.date(2026, 10, 26)),
+        ("pro_ds_vst2", "pro_ds_vst3"),
+    )
