@@ -126,13 +126,13 @@ Changes since 2.1.0.
 - Arturia Prophet-5 V devices are recognized and their 96 core controls read
   and edit by name in the plugin's units; they write as VST2 or VST3.
 - Pro-53 converts into Prophet-5 V control by control, each by calibration,
-  short renders, a shared unit or switch, or a display match, and the
-  converted device says which. The delay goes into Prophet-5 V's FX section,
-  and master volume and the saved mod wheel carry over. Controls Prophet-5 V has
-  no counterpart for, such as velocity and the delay's invert, are listed on the
-  device. A patch that depends on
-  one it cannot imitate, such as the high-pass filter mode, converts as near as
-  Prophet-5 V allows and warns that it will likely sound different.
+  knob-by-knob renders of both plugins, a shared unit or switch, or a display
+  match, and the converted device says which. The delay goes into Prophet-5 V's
+  FX section, and master volume and the saved mod wheel carry over. Controls
+  Prophet-5 V has no counterpart for, such as velocity and the delay's invert,
+  are listed on the device. A patch that depends on one it cannot imitate, such
+  as the high-pass filter mode, converts as near as Prophet-5 V allows and warns
+  that it will likely sound different.
 - KORG's legacy MS-20 devices are recognized, including jBridge wrappers, and
   their working patch reads and edits by control name in the units the plugin
   prints, patch-panel cables included.
