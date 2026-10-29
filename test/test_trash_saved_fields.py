@@ -1,4 +1,4 @@
-"""Trash 2's saved fields, each checked against a save the plugin made itself.
+"""Trash 2's saved fields and control curves, each checked against a save the plugin made itself.
 
 Every fixture is a native save, named with its sha256 in a manifest: a write here is right when it is
 that file byte for byte. The algorithm tables come from each version's own descriptor table.
@@ -9,9 +9,12 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pytest
 
+from abletoolz.formats import hex_text
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.izotope_trash import Bank
 from abletoolz.plugins.state.izotope_trash import algorithms as source_algorithms
@@ -64,6 +67,8 @@ def test_saved_fields_predict_complete_independent_native_public_saves() -> None
         predicted = baseline.with_values({row["field"]: row["physical_value"]})
         assert predicted.encode() == saved, row["field"]
         assert Trash2State.parse(saved).encode() == saved
+    with pytest.raises(StateTransformError, match="Unmapped executable"):
+        baseline.with_parameters({141: 0.5})
     with pytest.raises(StateTransformError, match="Unknown field"):
         baseline.with_values({"TRASH: Stg1 Tension Scale": 0.5})
 
@@ -127,3 +132,51 @@ def test_a_native_preset_label_and_any_byte_map_but_the_measured_one_are_refused
     wrong = FixedByteMap("different-layout", len(baseline.encode()), baseline.settings.map.fields)
     with pytest.raises(StateTransformError, match="measured core map"):
         Trash2State(wrong.decode(baseline.encode()))
+
+
+# -- control curves --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("trial", range(3))
+def test_control_curves_replay_native_reference_saves_through_a_device(trial: int) -> None:
+    """Public control changes, written into a device's buffer, are what the plugin saved for them."""
+    manifest = json.loads((FIXTURES / "manifest.json").read_text())
+    name = f"trash2-reference{trial}.state"
+    reference = next(row for row in manifest["files"] if row["file"] == name)
+    expected = native(name, reference["sha256"])
+    changes = {index: value for index, value in reference["controls"]}
+    info = ET.fromstring(
+        '<VstPluginInfo><Preset><VstPreset><Buffer/><ProgramNumber Value="0"/></VstPreset></Preset></VstPluginInfo>'
+    )
+    processor = info.find("Preset/VstPreset/Buffer")
+    assert processor is not None
+    processor.text = hex_text.encode(native("trash2-default.state"), 5)
+    device = PluginDevice(info)
+    state = device.decode_state(Trash2State.parse)
+    device.set_state_model(state.with_parameters(changes))
+    assert device.saved_state.state == expected
+    assert device.saved_state.program_number == 0
+    assert Trash2State.parse(expected).encode() == expected
+    original = ET.tostring(info)
+    with pytest.raises(StateTransformError):
+        device.set_state_model(state.with_parameters({4: float("nan")}))
+    assert ET.tostring(info) == original
+
+
+@pytest.mark.parametrize(
+    ("normalized", "fixture"), [(0.6, "trash2-pre-center.state"), (0.6000001, "trash2-pre-next.state")]
+)
+def test_trash_pre_gain_matches_conditioned_native_zero_crossing(normalized: float, fixture: str) -> None:
+    baseline = default()
+    changed = baseline.with_parameters({122: normalized})
+    assert changed.encode() == native(fixture)
+    assert changed.settings.value(122) != baseline.settings.value(122)
+
+
+def test_a_control_write_is_checked_before_it_lands() -> None:
+    baseline = default()
+    assert baseline.with_parameters({4: 0.5}).settings.value(4) == -67.0
+    for index, value in ((5, 0.5), (4, float("nan")), (4, -0.1), (4, 1.1)):
+        with pytest.raises(StateTransformError):
+            baseline.with_parameters({index: value})
+    assert baseline.encode() == native("trash2-default.state")

@@ -54,7 +54,7 @@ def test_an_unknown_name_is_an_experiment_rather_than_an_error_and_says_so_in_on
     ("plugin", "annotation"),
     [
         ("FabFilter Volcano 2", "state: re-encode (hosted 2026-08-13)"),
-        ("FabFilter Pro-C", "state: re-encode (hosted 2026-08-15)"),
+        ("FabFilter Pro-C", "state: re-encode (hosted 2026-08-13)"),
     ],
 )
 def test_the_annotation_names_the_rung_and_the_evidence(plugin: str, annotation: str) -> None:

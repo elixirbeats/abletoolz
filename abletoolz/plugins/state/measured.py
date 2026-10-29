@@ -94,7 +94,6 @@ class MeasuredState:
 UNMEASURED = MeasuredState(StateRung.UNKNOWN, (StateEvidence.UNKNOWN,))
 
 _HOSTED_ON = datetime.date(2026, 8, 13)
-_RE_ENCODED_ON = datetime.date(2026, 8, 15)
 
 
 def _hosted(rung: StateRung) -> MeasuredState:
@@ -102,20 +101,19 @@ def _hosted(rung: StateRung) -> MeasuredState:
     return MeasuredState(rung, (StateEvidence.HOSTED,), _HOSTED_ON)
 
 
-def _re_encoded(rung: StateRung) -> MeasuredState:
-    """A rung whose re-encode the target plugin read back, on the day it did."""
-    return MeasuredState(rung, (StateEvidence.HOSTED,), _RE_ENCODED_ON)
-
-
 # Each key is the source plugin, a different plugin from the newer one it would
 # become. The host rig asked the newer plugin to read a real patch of the older
 # on 2026-08-13 and it refused, so crossing needs a re-encode written per pair.
+# A re-encode of Pro-C patches into Pro-C 2 was written and withdrawn: Pro-C's
+# own display later showed its Threshold curve differs from the one assumed
+# (0.5 reads -18 dB on Pro-C and -30 dB on Pro-C 2), so what stands about
+# Pro-C is the refusal.
 MEASURED_STATE: dict[str, MeasuredState] = {
     "FabFilter Volcano 2": _hosted(StateRung.RE_ENCODE),
     "FabFilter Timeless 2": _hosted(StateRung.RE_ENCODE),
     "FabFilter Saturn": _hosted(StateRung.RE_ENCODE),
-    "FabFilter Pro-C": _re_encoded(StateRung.RE_ENCODE),
-    "FabFilter Pro-C.64": _re_encoded(StateRung.RE_ENCODE),
+    "FabFilter Pro-C": _hosted(StateRung.RE_ENCODE),
+    "FabFilter Pro-C.64": _hosted(StateRung.RE_ENCODE),
     "iZotope Ozone 4": _hosted(StateRung.RE_ENCODE),
     "Ozone 8 Elements": _hosted(StateRung.RE_ENCODE),
 }

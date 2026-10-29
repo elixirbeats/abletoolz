@@ -282,7 +282,8 @@ def read_uid_db(path: pathlib.Path) -> dict[str, UidFields]:
 # -- installed VST3 bundles -------------------------------------------------
 
 # Some vendors ship moduleinfo.json with trailing commas, which json rejects
-# (measured on Serum 2). Cheaper than taking on a json5 dependency.
+# (Serum 1.3.6.8's does; Serum 2 2.1.4's is plain JSON). Cheaper than taking
+# on a json5 dependency.
 _TRAILING_COMMA = re.compile(r",(\s*[}\]])")
 
 

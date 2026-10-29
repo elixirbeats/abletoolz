@@ -83,8 +83,21 @@ Changes since 2.1.0.
   state framing and file references. Converters separately name source and target
   maps. Coverage includes measured AU/VST2/VST3 crossings, newer-plugin conversions
   and bounded native recovery routes; each map and converter records its own.
-- FabFilter Pro-L 2, Pro-MB and Pro-G devices convert from VST2 to VST3, like
-  Pro-C 2, and converted FabFilter states now match the plugin's own bytes.
+- FabFilter Pro-L 2, Pro-MB, Pro-G and Pro-DS devices convert from VST2 to VST3,
+  like Pro-C 2. The plugin reads every converted patch back as written; Pro-DS
+  can round one value to its own last bit.
+- Serum 2 is supported as a VST3 and an Audio Unit, and converts between the
+  two. Serum's Audio Unit from a Mac set converts to its VST2 or VST3 with the
+  patch; a plan marks that crossing unproved, since the AU side was only
+  measured in the host rig.
+- Experimental, not finished: Serum patches convert to Serum 2, rebuilt control by
+  control the way Serum 2's own importer builds them. Oscillators, filter,
+  envelopes, LFO rates, the mod matrix and the FX rack carry by what each plugin
+  displays; delay times, reverb decay, LFO shapes and embedded wavetables don't
+  yet, and each converted device names what it left out. Audition before trusting.
+- Pro-C to Pro-C 2 is labelled with Pro-C 2's refusal of Pro-C patches; the
+  re-encode it used to cite was withdrawn when Pro-C's Threshold curve turned out
+  to differ.
 - A Pro-Q 1 converted to Pro-Q 3 keeps its output gain and pan, display range,
   linear-phase mode, channel mode, bypass, MIDI and analyzer settings, measured on
   the original plugin and read back by Pro-Q 3.
@@ -93,12 +106,15 @@ Changes since 2.1.0.
 - Audio Units can be written into sets from Live 11.2 on, rather than 11.3.41,
   following Live's own schemas for each version.
 - `--check-samples` and the sample-fix flags also visit plugin-held files through
-  their maps. Serato Sample, xfadelooper, Battery 4, Kontakt 5, Maschine 2, Texture,
-  CMI V and Reaktor 6 support relinking; iZotope Iris and MPC Essentials files are
+  their maps. Serato Sample, Serum 2, xfadelooper, Battery 4, Kontakt 5, Maschine 2,
+  Texture, CMI V and Reaktor 6 support relinking; iZotope Iris and MPC Essentials files are
   reported for manual repair. `--db` also indexes the files only those plugins
   load (kits, instruments, ensembles, projects), into `plugin_files.sqlite3`
   beside the sample database. Collecting copies their audio into the project;
   those files are relinked where they are and never copied.
+- Trash 2's 16 checked controls can be set by their public values, through curves
+  that reproduce the plugin's own saves; Trash 1's 182 controls carry their sampled
+  values and how far each was checked.
 - Typed state models and byte maps support inspection and editing independently
   of conversion.
 - Native Instruments Pro-53 devices are recognized, and their working patch reads

@@ -41,6 +41,7 @@ from abletoolz.plugins.plan import (
     read_plan,
     write_plan,
 )
+from abletoolz.plugins.plan.targets import mapped_targets
 from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.fabfilter import PRO_Q1_PARAMETERS
 from abletoolz.plugins.state.fxbk import LegacyBank
@@ -121,7 +122,7 @@ def test_a_plan_names_the_main_track_a_device_sits_on(tmp_path: pathlib.Path) ->
 def test_a_mapped_plugin_offers_its_other_format_by_its_plan_name_and_picks_nothing(tmp_path: pathlib.Path) -> None:
     plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,)))
     serum = choice(plan, "Serum")
-    (target,) = serum.targets
+    (target,) = [target for target in serum.targets if target.route is Route.FORMAT]
     assert (target.id, target.route, target.format, target.installed) == (
         "serum_vst3",
         Route.FORMAT,
@@ -134,7 +135,11 @@ def test_a_mapped_plugin_offers_its_other_format_by_its_plan_name_and_picks_noth
 def test_a_target_not_installed_here_is_still_offered(tmp_path: pathlib.Path) -> None:
     """Converting for another machine, a Mac friend's AU say, needs no plugin here."""
     plan = make_plan([copy_set(tmp_path)], machine())
-    assert [(target.id, target.installed) for target in choice(plan, "Serum").targets] == [("serum_vst3", False)]
+    assert [(target.id, target.installed) for target in choice(plan, "Serum").targets] == [
+        ("serum_vst3", False),
+        ("serum_2_vst3", False),
+        ("serum_2_au", False),
+    ]
 
 
 def test_another_plugin_is_reached_through_its_converter(tmp_path: pathlib.Path) -> None:
@@ -144,6 +149,25 @@ def test_another_plugin_is_reached_through_its_converter(tmp_path: pathlib.Path)
     pro_q = choice(plan, "FabFilter Pro-Q")
     (target,) = pro_q.targets
     assert (target.id, target.route, target.proved) == ("pro_q_3_vst3", Route.CONVERTER, True)
+
+
+def test_a_crossing_is_only_as_proved_as_the_format_it_is_read_from() -> None:
+    """Serum's VST2 and VST3 were heard; its AU side only answered in the host rig."""
+    serum = CATALOG.find(Vst2Id(1483109208))
+    assert serum is not None
+    from_vst2 = {target.id: target for target in mapped_targets(serum, PluginKind.VST, machine())}
+    assert from_vst2["serum_vst3"].proved
+    from_au = mapped_targets(serum, PluginKind.AU, machine(vst3=(SERUM_VST3,)))
+    (to_vst3,) = [target for target in from_au if target.route is Route.FORMAT]
+    assert (to_vst3.id, to_vst3.format, to_vst3.proved) == ("serum_vst3", PluginKind.VST3, False)
+    assert to_vst3.evidence.endswith("; read from the AU, state: reframe (hosted 2026-10-26)")
+
+
+def test_serum_2_is_offered_by_its_plan_names() -> None:
+    serum_2 = CATALOG.by_map_id("xfer.serum-2")
+    assert serum_2 is not None
+    assert [target.id for target in mapped_targets(serum_2, PluginKind.VST3, machine())] == ["serum_2_au"]
+    assert [target.id for target in mapped_targets(serum_2, PluginKind.AU, machine())] == ["serum_2_vst3"]
 
 
 def test_every_format_the_plugin_has_is_offered(tmp_path: pathlib.Path) -> None:
@@ -166,7 +190,7 @@ def test_a_device_with_saved_control_settings_converts_and_says_what_it_loses(tm
     edit(path, automate)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
     serum = choice(plan, "Serum")
-    (target,) = serum.targets
+    (target,) = [target for target in serum.targets if target.id == "serum_vst3"]
     assert target.refused == {}
     assert target.warnings == {"its saved per-control settings were dropped": 1}
     assert "1 of 1 device(s): its saved per-control settings were dropped" in dump_plan(plan)
@@ -180,7 +204,11 @@ def test_a_device_with_saved_control_settings_converts_and_says_what_it_loses(tm
 def test_the_plan_file_lists_each_plugin_with_the_names_it_takes_above_it(tmp_path: pathlib.Path) -> None:
     text = dump_plan(make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,))))
     assert text.startswith("# abletoolz plugin plan")
-    serum = "# Serum VST2: 1 device(s), doesn't load here\n#   serum_vst3\n- plugin: Serum\n  format: VST2\n"
+    serum = (
+        "# Serum VST2: 1 device(s), doesn't load here\n#   serum_vst3\n"
+        "#   serum_2_vst3\n#       not installed here\n#   serum_2_au\n#       not installed here\n"
+        "- plugin: Serum\n  format: VST2\n"
+    )
     assert serum + "  convert_to: null\n" in text
     entries = [(entry.plugin, entry.format, entry.convert_to) for entry in load_plan(text).plugins]
     assert ("Serum", "VST2", None) in entries
@@ -209,7 +237,9 @@ def test_convert_to_takes_a_listed_name_and_null_keeps(tmp_path: pathlib.Path) -
 def test_convert_to_must_be_one_of_the_names_listed_exactly(tmp_path: pathlib.Path, typed: str) -> None:
     here = machine(vst3=(SERUM_VST3,))
     plan_file = write_and_pick(tmp_path, make_plan([copy_set(tmp_path)], here), "Serum", repr(typed))
-    with pytest.raises(ValueError, match=f"no target named '{typed}' \\(it can become serum_vst3\\)"):
+    with pytest.raises(
+        ValueError, match=f"no target named '{typed}' \\(it can become serum_vst3, serum_2_vst3, serum_2_au\\)"
+    ):
         read_plan(plan_file, machine=here)
 
 
@@ -314,7 +344,11 @@ def test_a_plan_file_never_offers_another_file_or_a_guess(tmp_path: pathlib.Path
     native = InstalledVst2("Serum_x64", SERUM_ID, tmp_path / "VST" / "Serum_x64.vst")
     lookalike = InstalledVst2("Effectrix", 42, tmp_path / "Effectrix.vst")
     plan = make_plan([copy_set(tmp_path)], machine(vst2=(native, lookalike), vst3_names={"Effectrix": (1, 2, 3, 4)}))
-    assert [target.route for target in choice(plan, "Serum").targets] == [Route.FORMAT]
+    assert [target.route for target in choice(plan, "Serum").targets] == [
+        Route.FORMAT,
+        Route.CONVERTER,
+        Route.CONVERTER,
+    ]
     assert choice(plan, "Effectrix").targets == []
 
 
@@ -532,8 +566,8 @@ def test_a_stub_device_is_refused_because_the_set_never_says_what_it_is(tmp_path
 
     edit(path, stub)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
-    (target,) = choice(plan, "Serum").targets
-    assert target.refused == {"the set never says what this device is": 1}
+    for target in choice(plan, "Serum").targets:
+        assert target.refused == {"the set never says what this device is": 1}
 
 
 def test_this_machine_says_when_two_sources_disagree_about_a_class_id(caplog: pytest.LogCaptureFixture) -> None:

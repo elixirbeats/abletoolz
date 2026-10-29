@@ -8,18 +8,20 @@ over these builders; each vendor's own test file holds what is particular to tha
 from __future__ import annotations
 
 import json
+import pathlib
 import struct
 from collections.abc import Iterable
 from typing import Any
 
 from abletoolz.formats import fastlz
 from abletoolz.formats.fxb import FxbChunkBank
-from abletoolz.plugins.identity.ids import Vst2Id
+from abletoolz.plugins.identity.ids import StoredId, Vst2Id
 from abletoolz.plugins.state import ni_container
 from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.native_instruments import CONTAINER_MAGIC
 from abletoolz.plugins.state.plugin_map import FilePaths
 from abletoolz.plugins.state.xfadelooper import LAYOUT_VERSION, MAGIC, PATH_FIELD_SIZE
+from abletoolz.plugins.state.xfer import SERUM_2_VST3
 
 # The VST2 UniqueId each plugin stores.
 SERATO = 1399681132
@@ -34,11 +36,16 @@ REAKTOR = 1315525174
 CMI_V = 1129138550
 IRIS = 1767524691
 MPC = 1299211077
+# Serum 2 is a VST3 only, so it is found by its class id.
+SERUM_2 = SERUM_2_VST3
 
 
-def file_paths(unique_id: int) -> FilePaths:
-    """The file paths of the plugin that stores ``unique_id``, found the way a set's device finds them."""
-    plugin_map = CATALOG.find(Vst2Id(unique_id))
+def file_paths(stored: int | StoredId) -> FilePaths:
+    """The file paths of the plugin that stores ``stored``, found the way a set's device finds them.
+
+    An int is a VST2 UniqueId; a plugin with no VST2 is named by its own id.
+    """
+    plugin_map = CATALOG.find(Vst2Id(stored) if isinstance(stored, int) else stored)
     assert plugin_map is not None and plugin_map.file_paths is not None
     return plugin_map.file_paths
 
@@ -242,3 +249,16 @@ def iris(*samples: str) -> bytes:
 
 def mpc(project: str) -> bytes:
     return (1).to_bytes(8, "little") + project.encode() + b"\x00Main mode\x00\x00"
+
+
+# -- Serum 2: a zstd-compressed CBOR patch ---------------------------------------
+
+SERUM_2_SAMPLE = r"C:\Samples\Drum_Loop_170.wav"
+
+
+def serum_2_sample() -> bytes:
+    """A patch whose sample oscillator plays ``SERUM_2_SAMPLE``.
+
+    Compressed, so a fixture rather than built here: see ``state_fixtures/serum2/manifest.json``.
+    """
+    return (pathlib.Path(__file__).parent / "state_fixtures" / "serum2" / "serum2-sample.vst3.state").read_bytes()
