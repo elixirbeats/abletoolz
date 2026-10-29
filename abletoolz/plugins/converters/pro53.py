@@ -10,16 +10,19 @@ converted device lists which:
 * **calibrated** -- both engines rendered one control at a time and matched
   (``data/pro53-to-prophet-5-v.json``): oscillator pitch, oscillator B's
   fine tune, master tune, amp attack and decay and the filter envelope's
-  attack, decay and release (matched at the time each stage takes to reach
-  half way; their curves differ in shape), and the filter envelope's Poly-Mod
-  depth into oscillator A's pitch;
+  release (matched at the time each stage takes to reach half way; their
+  curves differ in shape), and the filter envelope's Poly-Mod depth into
+  oscillator A's pitch;
 * **matched by renders** -- both plugins kept loaded, one control at a time
   from this converter's own output, each Pro-53 display set to the Prophet-5 V
   value that sounded nearest (``matched`` in the data): oscillator B and noise
   levels, cutoff from 22.7 to 113.4 st by the filter's response, filter
-  envelope amount by the response it holds at full sustain, amp sustain by
-  its held level and amp release by its whole curve. Prophet-5 V's noise at
-  full is quieter than Pro-53's above 40%, so louder noise is written at full;
+  envelope amount by the response it holds at full sustain, the filter
+  envelope's attack and decay by the cutoff's path over time, amp sustain by
+  its held level, amp release by its whole curve, and glide in unison by the
+  pitch's path between two notes. Prophet-5 V's noise at full is quieter than
+  Pro-53's above 40%, and its longest glide is shorter than Pro-53's above
+  93%, so those are written at Prophet-5 V's end and warn;
 * **rendered at a few points** -- short clips rendered on both (``coarse`` in
   the data): cutoff outside the matched span by its fitted corner in hertz,
   resonance by the height of its peak. The delay goes to Prophet-5
@@ -55,10 +58,8 @@ converted device lists which:
   the device converts as near as it can and warns that it will likely sound
   different: the high-pass filter mode (Prophet-5 V's filter is low-pass only;
   it is written fully open), filter envelope invert (its amount is written at
-  zero), the release switch turned off (both releases at their shortest), glide
-  in unison (Pro-53's measured half-way time, though Prophet-5 V's glide did
-  not follow its own display in the same renders), Poly-Mod depth into pulse
-  width or the filter, the delay's spread (written as Prophet-5 V's stereo
+  zero), the release switch turned off (both releases at their shortest),
+  Poly-Mod depth into pulse width or the filter, the delay's spread (written as Prophet-5 V's stereo
   width, the right echo up to 20% of the time later, where Pro-53 splits each
   side's echo in two taps), a saved wheel that bends pitch along with other
   destinations (written at its own position, so the vibrato is shallower),
@@ -147,9 +148,9 @@ LEFT_OUT = {
 
 MEASURED_NOTE = (
     "Calibrated against both plugins: oscillator pitch and fine tune, master tune, amp attack and decay and the "
-    "filter envelope's times (half-way times; the curves differ in shape) and the filter envelope's Poly-Mod "
-    "pitch depth. Matched by renders: oscillator B and noise levels, cutoff, filter envelope amount, amp sustain "
-    "and amp release."
+    "filter envelope's release (half-way times; the curves differ in shape) and the filter envelope's Poly-Mod "
+    "pitch depth. Matched by renders: oscillator B and noise levels, cutoff, filter envelope amount, attack and "
+    "decay, amp sustain and release, and glide in unison."
 )
 RENDERED_NOTE = (
     "Rendered at a few points: cutoff at its extremes, resonance, the delay (time, feedback, mix and cuts), "
@@ -158,10 +159,11 @@ RENDERED_NOTE = (
     "the wheel's LFO/noise mix and keyboard follow (rounded to on or off)."
 )
 EXPECT_NOTE = (
-    "Expect, even where every control matched: resonance sounds different (1 to 12 dB apart at the nearest "
-    "setting); the amp envelope's attack and decay have another curve shape; filter envelope amounts above 85% and "
-    "noise above 40% fall a few dB short; the filter envelope's own times and sustain are matched only by their "
-    "half-way times or display; and conversions often come out several dB quieter."
+    "Expect, even where every control matched: resonance sounds different (1 to 14 dB apart at the nearest "
+    "setting); the amp envelope's attack and decay have another curve shape, and the filter envelope's sweep "
+    "stays 1 to 2 semitones apart; filter envelope amounts above 85% and noise above 40% fall a few dB short; "
+    "glides above 93% are cut to Prophet-5 V's longest; the filter envelope's release and sustain are matched "
+    "only by their half-way time or display; and conversions often come out several dB quieter."
 )
 NOT_HEARD_NOTE = "Pro-53 to Prophet-5 V has not been heard in Live: audition this device."
 
@@ -229,13 +231,7 @@ def _amp_stage(kind: str, x: float) -> float:
 def _filter_stage(kind: str, x: float) -> float:
     model = _calibration()["filter_envelope"][kind]
     half = _half_time(model["source_half_time"], x)
-    target = model["target"]
-    if "table" in target:
-        # Half time is affine in the seconds the plugin declares; the declared table is then inverted.
-        declared = (half - target["offset_seconds"]) / target["slope"]
-        table = target["table"]
-        return _clamp(_interp(declared, [(seconds, k / (len(table) - 1)) for k, seconds in enumerate(table)]))
-    return _clamp(1 + math.log(max(half, 1e-6) / model["target_max_half_time"]) / target["rate"])
+    return _clamp(1 + math.log(max(half, 1e-6) / model["target_max_half_time"]) / model["target"]["rate"])
 
 
 def _cut_hz(points: Sequence[Sequence[float]], semitones: float) -> float:
@@ -371,12 +367,11 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
             f"noise at {p['Mixer Noise']:.0f}% is louder than Prophet-5 V's noise goes; it is written at full, "
             f"about {short:.0f} dB quieter",
         )
-    for kind, name, key in (
-        ("attack", "Filter Attack", "VCF_Prophet5ADSR_Attack"),
-        ("decay", "Filter Decay", "VCF_Prophet5ADSR_Decay"),
-        ("release", "Filter Release", "VCF_Prophet5ADSR_Release"),
-    ):
-        values[key] = target[key].value(_filter_stage(kind, knob(name)))
+    for name, key in (("Filter Attack", "VCF_Prophet5ADSR_Attack"), ("Filter Decay", "VCF_Prophet5ADSR_Decay")):
+        values[key] = _match(key, float(p[name]))
+    values["VCF_Prophet5ADSR_Release"] = target["VCF_Prophet5ADSR_Release"].value(
+        _filter_stage("release", knob("Filter Release"))
+    )
     if p["Release on/off"] is False:
         for key in ("VCA_Prophet5ADSR_Release", "VCF_Prophet5ADSR_Release"):
             values[key] = target[key].low
@@ -435,17 +430,17 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
         values[key] = control.low + float(p[name]) / 100 * (control.high - control.low)
     values["Prophet5VCF_KeyFolOn"] = float(p["Filter Keyboard Follow"]) >= 50
     values["Glider_Time"] = 0.0
-    # The data holds knob displays to one decimal; 37.0% is 47 of 127, where glide had not begun.
-    half = _interp(round(float(p["Glide Time"]), 1), rendered["glide_half_seconds_unison"]["pro53_percent"])
-    if p["Glide Time"] != 0 and not p["Unisono Mode"]:
-        reported.append(f"glide {p['Glide Time']:.0f}% (outside unison Pro-53's did not act between two notes)")
-    elif p["Unisono Mode"] and half > 0:
-        values["Glider_Time"] = min(half, target["Glider_Time"].high)
-        limitation(
-            notices,
-            f"glide in unison is written as Prophet-5 V's glide at {half:.2f} s, Pro-53's measured half-way time, "
-            "but Prophet-5 V's glide did not follow its own display in renders, so the slide will likely differ",
-        )
+    glide = float(p["Glide Time"])
+    if glide != 0 and not p["Unisono Mode"]:
+        reported.append(f"glide {glide:.0f}% (outside unison Pro-53's did not act between two notes)")
+    elif p["Unisono Mode"]:
+        values["Glider_Time"] = _match("Glider_Time", glide)
+        if glide >= _matched()["Glider_Time"]["longest_from"]:
+            limitation(
+                notices,
+                f"glide {glide:.0f}% in unison outlasts Prophet-5 V's longest glide; it is written at "
+                f"{values['Glider_Time']:g} s, so the slide will be shorter",
+            )
     if bank.sound[_PITCH_BEND] != 0.5:
         reported.append(f"the saved pitch bend ({bank.sound[_PITCH_BEND]:.2f}, centre is 0.50)")
     # The saved wheel: the same position moves pulse width as far on both, pitch half as far on Prophet-5 V.
