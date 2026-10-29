@@ -90,11 +90,14 @@ Changes since 2.1.0.
   two. Serum's Audio Unit from a Mac set converts to its VST2 or VST3 with the
   patch; a plan marks that crossing unproved, since the AU side was only
   measured in the host rig.
-- Experimental, not finished: Serum patches convert to Serum 2, rebuilt control by
-  control the way Serum 2's own importer builds them. Oscillators, filter,
-  envelopes, LFO rates, the mod matrix and the FX rack carry by what each plugin
-  displays; delay times, reverb decay, LFO shapes and embedded wavetables don't
-  yet, and each converted device names what it left out. Audition before trusting.
+- Experimental, not finished: Serum patches convert to Serum 2 the way Serum 2's
+  own Serum preset import builds them, including routing, voicing, LFO shapes and
+  modes, the mod matrix, the FX rack and embedded wavetables. Most conversions
+  sound the same as Serum 2's own import. Drawn warp and distortion curves,
+  velocity and note curves, custom tuning, and octave or semitone knobs set
+  between steps don't carry yet, and each converted device names what it left
+  out. Patches from Serum versions abletoolz hasn't measured, including its
+  earliest layout, are refused. Audition before trusting.
 - Pro-C to Pro-C 2 is labelled with Pro-C 2's refusal of Pro-C patches; the
   re-encode it used to cite was withdrawn when Pro-C's Threshold curve turned out
   to differ.
@@ -124,8 +127,10 @@ Changes since 2.1.0.
   and edit by name in the plugin's units; they write as VST2 or VST3.
 - Pro-53 converts into Prophet-5 V control by control, each by calibration,
   short renders, a shared unit or switch, or a display match, and the
-  converted device says which. Controls Prophet-5 V has no counterpart for,
-  such as the delay effect, are listed on the device. A patch that depends on
+  converted device says which. The delay goes into Prophet-5 V's FX section,
+  and master volume and the saved mod wheel carry over. Controls Prophet-5 V has
+  no counterpart for, such as velocity and the delay's invert, are listed on the
+  device. A patch that depends on
   one it cannot imitate, such as the high-pass filter mode, converts as near as
   Prophet-5 V allows and warns that it will likely sound different.
 
