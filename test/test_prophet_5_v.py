@@ -1,8 +1,9 @@
 """Prophet-5 V's patch, read and edited by control, against what the hosted plugin printed.
 
 ``state_fixtures/prophet_5_v_displays.json`` is the installed plugin's own print of
-each of its 96 core controls at seven positions, taken 2026-10-21 on the macro-free
-baseline the package builds patches from.
+each of its 96 core controls and the public ones beyond them at seven positions, taken
+on the macro-free baseline the package builds patches from. The FX switch and
+slot type are not public, so the plugin prints neither.
 """
 
 from __future__ import annotations
@@ -38,26 +39,37 @@ def prints(control: Control, value: Prophet5Value, shown: str | float) -> bool:
     return abs(value - shown) <= 0.006 * abs(shown) + 0.0006
 
 
-@pytest.mark.parametrize("key", list(controls()))
-def test_every_core_control_reads_as_the_plugin_printed_it(key: str) -> None:
+@pytest.mark.parametrize("key", list(DISPLAYS))
+def test_every_printed_control_reads_as_the_plugin_printed_it(key: str) -> None:
     control = controls()[key]
     for requested, shown in DISPLAYS[key]:
         assert prints(control, control.value(requested), shown), (requested, shown)
 
 
-@pytest.mark.parametrize("key", list(controls()))
-def test_every_core_control_writes_back_what_it_reads(key: str) -> None:
+@pytest.mark.parametrize("key", list(DISPLAYS))
+def test_every_printed_control_writes_back_what_it_reads(key: str) -> None:
     control = controls()[key]
     for requested, _ in DISPLAYS[key]:
         value = control.value(requested)
         assert control.value(control.normalized(value)) == pytest.approx(value, rel=1e-9, abs=1e-12)
 
 
+def test_only_the_fx_switch_and_slot_type_go_unprinted() -> None:
+    assert set(controls()) - set(DISPLAYS) == {"FX_Enable", "FX1_ModuleType"}
+
+
 def test_the_baseline_reads_as_the_init_patch() -> None:
     values = Prophet5Patch.parse(baseline()).values()
-    assert len(values) == 96
+    assert len(values) == 106
+    assert values["FX_Enable"] is False and values["FX1_ModuleType"] == "Chorus" and values["VST3_CtrlModWheel"] == 0
     assert values["Prophet5VCO_Freq1"] == 0 and values["Prophet5VCO_SawOn1"] is True
     assert values["Prophet5VCF_Freq"] == pytest.approx(6214.0)
+
+
+def test_a_slot_type_is_its_item_over_the_top_index() -> None:
+    patch = Prophet5Patch.parse(baseline()).with_values({"FX_Enable": True, "FX1_ModuleType": "Delay"})
+    assert patch.archives.values["section[1]/FX1_ModuleType"] == pytest.approx(2 / 16)
+    assert patch.values()["FX1_ModuleType"] == "Delay" and patch.values()["FX_Enable"] is True
 
 
 def test_an_edit_lands_in_both_archives() -> None:

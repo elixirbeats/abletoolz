@@ -20,6 +20,17 @@ store, the name the plugin shows, the unit it prints, and the curve its own
 definitions declare from the stored 0 to 1 to that unit. Every curve here
 reproduces all 672 prints the plugin makes of its controls at seven positions
 each (a selector prints its first eight characters).
+
+After them it holds the controls the Pro-53 converter writes beyond the core:
+the saved mod wheel, the FX section's switch, FX slot 1's type, bypass and
+dry/wet, and its delay's time, feedback, cuts and stereo width. The public ones
+print as their definitions say at the same seven positions. The FX switch and
+the slot type are not public: a slot type is stored as its item's index over
+the top index of 17 (None to BL-20 Flanger), and renders hear the delay at item
+2 only with the switch on. Bypass shows On while the slot plays. The hosted
+plugin restores the saved wheel, reads it back and plays it, and its delay
+echoes at the time it prints, feeds back the gain it prints, and cuts at the
+corners it prints (12 dB per octave).
 ``data/prophet-5-v-baseline.state`` is that macro-free baseline, and what a
 patch is built from.
 """
@@ -53,7 +64,7 @@ type Prophet5Value = bool | int | float | str
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Control:
-    """One core control: the key both archives store, the name the plugin shows, and its curve to ``unit``.
+    """One control: the key both archives store, the name the plugin shows, and its curve to ``unit``.
 
     Exactly one of ``choices``, ``table`` and ``curve`` says how the stored 0 to
     1 reads. ``choices`` are the floor of the value times their count, stored as
@@ -150,14 +161,14 @@ def _control(entry: Mapping[str, Any], tables: Mapping[str, list[float]]) -> Con
 
 @functools.cache
 def controls() -> dict[str, Control]:
-    """The 96 core controls by the key the archives store, in the plugin's order."""
+    """The 96 core controls, then the ones beyond them, by the key the archives store."""
     data = json.loads((DATA / "prophet-5-v.json").read_text(encoding="utf-8"))
     return {entry["key"]: _control(entry, data["tables"]) for entry in data["controls"]}
 
 
 @functools.cache
 def baseline() -> bytes:
-    """The macro-free baseline the 96 core controls were measured on."""
+    """The macro-free baseline the controls were measured on."""
     return (DATA / "prophet-5-v-baseline.state").read_bytes()
 
 
@@ -183,7 +194,7 @@ class Prophet5Patch:
         return (stored - offset) / scale
 
     def values(self) -> dict[str, Prophet5Value]:
-        """The 96 core controls by key, in the plugin's units."""
+        """Every mapped control by key, in the plugin's units."""
         return {key: control.value(self.normalized(control)) for key, control in controls().items()}
 
     def with_values(self, changes: Mapping[str, Prophet5Value]) -> Prophet5Patch:

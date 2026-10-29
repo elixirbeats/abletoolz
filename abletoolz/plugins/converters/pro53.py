@@ -13,11 +13,24 @@ converted device lists which:
   envelope attack, decay and release (matched at the time each stage takes to
   reach half way; their curves differ in shape), and the filter envelope's
   Poly-Mod depth into oscillator A's pitch;
-* **rendered at a few points** -- short noise clips rendered on both
-  (``coarse`` in the data): cutoff outside 32 to 111 by its fitted corner in
-  hertz, resonance by the height of its peak, filter envelope amount by how far
-  it moves the cutoff. The cutoff renders agree with the calibration where they
-  overlap, which also checks it on the instrument build;
+* **rendered at a few points** -- short clips rendered on both (``coarse`` in
+  the data): cutoff outside 32 to 111 by its fitted corner in hertz, resonance
+  by the height of its peak, filter envelope amount by how far it moves the
+  cutoff. The cutoff renders agree with the calibration where they overlap,
+  which also checks it on the instrument build. The delay goes to Prophet-5
+  V's FX slot 1 delay from noise-burst echoes: its time and its feedback (a
+  gain per repeat, the percent on Pro-53, the value on Prophet-5 V) are the
+  same number on both, and both filter every repeat inside the loop; its mix
+  keeps Pro-53's echo-to-dry balance (Pro-53 mixes on an equal-power curve,
+  Prophet-5 V holds each side at full to 50%) and the master volume makes up
+  the level; its low and high cut go over at their half-power corners
+  (Pro-53's fall 6 dB per octave, Prophet-5 V's 12; a corner below Prophet-5
+  V's 20 Hz is written there). Master volume: Pro-53's percent is a straight
+  gain with 50% as unity, Prophet-5 V prints its gain in dB. The saved mod
+  wheel is written as the same position, which sweeps pulse width as far on
+  both (within 3 points of duty at five positions); it bends pitch half as
+  far on Prophet-5 V, so a wheel routed to pitch alone is written at twice
+  its position;
 * **same unit** -- both plugins print the same quantity: LFO rate in hertz,
   pulse width in percent;
 * **same switch** -- the same front-panel switch on both: waveforms, sync,
@@ -26,10 +39,12 @@ converted device lists which:
 * **matched by display** -- a ballpark: mixer levels and the Poly-Mod
   oscillator B amount as a fraction of their range, the sustains, the wheel's
   LFO/noise mix, and keyboard follow rounded to Prophet-5 V's on or off;
-* **reported** -- the device converts without it and says so: the delay effect,
-  the analog drift, velocity, the external input, the saved mod wheel and pitch
-  bend, glide outside unison (where Pro-53's did not act between two notes),
-  and master volume away from the one level the calibration matched;
+* **reported** -- the device converts without it and says so: the delay's
+  invert, its time modulation (depth, rate and Sync, which Prophet-5 V's
+  delay does not have) and its MIDI sync, the analog drift, velocity (Pro-53's
+  scales the amplifier and the filter envelope; Prophet-5 V's velocity routes
+  reach no amplifier), the external input, the saved pitch bend, and glide
+  outside unison (where Pro-53's did not act between two notes);
 * **carried at a cost** -- no counterpart, and it changes what the patch is, so
   the device converts as near as it can and warns that it will likely sound
   different: the high-pass filter mode (Prophet-5 V's filter is low-pass only;
@@ -37,9 +52,13 @@ converted device lists which:
   zero), the release switch turned off (both releases at their shortest), glide
   in unison (Pro-53's measured half-way time, though Prophet-5 V's glide did
   not follow its own display in the same renders), Poly-Mod depth into pulse
-  width or the filter, settings outside Prophet-5 V's range (clamped), and LFO
-  MIDI sync, amp hold and LFO envelope trigger (left out). A direct call
-  without ``notices`` refuses these instead.
+  width or the filter, the delay's spread (written as Prophet-5 V's stereo
+  width, the right echo up to 20% of the time later, where Pro-53 splits each
+  side's echo in two taps), a saved wheel that bends pitch along with other
+  destinations (written at its own position, so the vibrato is shallower),
+  settings outside Prophet-5 V's range (clamped), and LFO MIDI sync, amp hold
+  and LFO envelope trigger (left out). A direct call without ``notices``
+  refuses these instead.
 
 The calibration rendered Pro-53's effect build; on the instrument build,
 short renders put amp attack and release half-way times within 4%
@@ -105,11 +124,19 @@ BY_DISPLAY = {
 # Pro-53 controls the core has no counterpart for, and when a device uses one.
 type Used = Callable[[Pro53Value], bool]
 REPORTED: dict[str, tuple[Used, str]] = {
-    "Delay Effect On": (lambda v: v is True, "the delay effect"),
     "Analog": (lambda v: v != 0, "the analog drift (Prophet-5 V's dispersion stays at its baseline)"),
-    "Velocity on/off": (lambda v: v is True, "velocity"),
+    "Velocity on/off": (
+        lambda v: v is True,
+        "velocity (Pro-53's scales the amplifier and the filter envelope; Prophet-5 V's routes reach no amplifier)",
+    ),
     "Mixer External Input": (lambda v: v != 0, "the external input"),
-    "Modulation Wheel": (lambda v: v != 0, "the saved mod wheel position"),
+}
+DELAY_REPORTED: dict[str, tuple[Used, str]] = {
+    "Delay Effect Invert": (lambda v: v is True, "the delay's invert (Prophet-5 V's delay has no polarity switch)"),
+    "Delay Effect MIDI Sync": (
+        lambda v: v is True,
+        "the delay's MIDI sync (Prophet-5 V's delay runs free at the time Pro-53's knob shows)",
+    ),
 }
 LEFT_OUT = {
     "LFO MIDI Sync": "LFO MIDI sync has no measured match; the LFO runs free at the rate its knob shows",
@@ -122,7 +149,8 @@ MEASURED_NOTE = (
     "envelope times (half-way times; the curves differ in shape) and the filter envelope's Poly-Mod pitch depth."
 )
 RENDERED_NOTE = (
-    "Rendered at a few points: cutoff at its extremes, resonance and filter envelope amount. "
+    "Rendered at a few points: cutoff at its extremes, resonance, filter envelope amount, the delay (time, "
+    "feedback, mix and cuts), master volume and the saved mod wheel. "
     "Matched by display, a ballpark: mixer levels, sustains, the Poly-Mod oscillator B amount, the wheel's "
     "LFO/noise mix and keyboard follow (rounded to on or off)."
 )
@@ -191,6 +219,74 @@ def _filter_stage(kind: str, x: float) -> float:
         table = target["table"]
         return _clamp(_interp(declared, [(seconds, k / (len(table) - 1)) for k, seconds in enumerate(table)]))
     return _clamp(1 + math.log(max(half, 1e-6) / model["target_max_half_time"]) / target["rate"])
+
+
+def _cut_hz(points: Sequence[Sequence[float]], semitones: float) -> float:
+    """A delay cut's half-power corner in hertz at ``semitones``: measured points, a semitone per step past them."""
+    if semitones <= points[0][0]:
+        return float(points[0][1] * 2 ** ((semitones - points[0][0]) / 12))
+    if semitones >= points[-1][0]:
+        return float(points[-1][1] * 2 ** ((semitones - points[-1][0]) / 12))
+    return math.exp(_interp(semitones, [(st, math.log(hz)) for st, hz in points]))
+
+
+def _wet(percent: float) -> tuple[float, float]:
+    """Prophet-5 V's Dry/Wet holding Pro-53's echo-to-dry balance at ``percent``, and the gain in dB that levels it.
+
+    Pro-53 mixes on an equal-power curve (dry the cosine, echo the sine of a quarter turn). Prophet-5 V keeps
+    the dry at full up to 50% and the echo at full from 50%, each falling in a straight line to its end.
+    """
+    turn = percent / 100 * math.pi / 2
+    dry, echo = math.cos(turn), math.sin(turn)
+    if echo <= dry:
+        return 50 * echo / dry, 20 * math.log10(dry)
+    return 100 - 50 * dry / echo, 20 * math.log10(echo)
+
+
+def _delay(
+    p: dict[str, Pro53Value], values: dict[str, Prophet5Value], reported: list[str], notices: list[str] | None
+) -> float:
+    """Pro-53's delay into Prophet-5 V's FX slot 1 delay; the gain in dB the master volume adds to level its mix."""
+    target = controls()
+    delay = _coarse()["delay"]
+    values["FX1_ModuleType"] = "Delay"
+    values["FX1_Bypass"] = True
+    time = target["FX1_Delay_DelayTimeMs"]
+    values["FX1_Delay_DelayTimeMs"] = max(float(p["Delay Effect Time"]), time.low)
+    if float(p["Delay Effect Time"]) < time.low:
+        limitation(
+            notices, f"delay time {p['Delay Effect Time']:.1f} ms is below Prophet-5 V's {time.low:g} ms, clamped"
+        )
+    values["FX1_Delay_Feedback"] = float(p["Delay Effect Feedback"]) / 100
+    low_pass = target["FX1_Delay_LPFreq"]
+    high_cut = _cut_hz(delay["high_cut_hz"], float(p["Delay Effect High Cut"]))
+    values["FX1_Delay_LPFreq"] = min(max(high_cut, low_pass.low), low_pass.high)
+    if high_cut < low_pass.low:
+        limitation(notices, f"delay high cut {high_cut:.0f} Hz is below Prophet-5 V's {low_pass.low:g} Hz, clamped")
+    high_pass = target["FX1_Delay_HPFreq"]
+    values["FX1_Delay_HPFreq"] = min(
+        max(_cut_hz(delay["low_cut_hz"], float(p["Delay Effect Low Cut"])), high_pass.low), high_pass.high
+    )
+    spread = float(p["Delay Effect Spread"])
+    width = target["FX1_Delay_StereoWidth"]
+    values["FX1_Delay_StereoWidth"] = min(spread / 100, width.high)
+    if spread > 0:
+        limitation(
+            notices,
+            f"delay spread {spread:.0f}% is written as Prophet-5 V's stereo width, the right echo "
+            f"{100 * float(values['FX1_Delay_StereoWidth']):.0f}% of the delay time later (its widest is "
+            f"{100 * width.high:g}%); Pro-53 splits each side's echo in two taps, so the stereo image will differ",
+        )
+    mix, gain = _wet(float(p["Delay Effect Wet"]))
+    values["FX1_Dry_Wet"] = mix
+    reported += [what for name, (used, what) in DELAY_REPORTED.items() if used(p[name])]
+    if p["Delay Effect Depth"] != CONTROL_BY_NAME["Delay Effect Depth"].curve.value(0.0):
+        synced = ", its Sync on" if p["Delay Effect Sync"] else ""
+        reported.append(
+            f"the delay's time modulation (depth {p['Delay Effect Depth']:.2g}, rate {p['Delay Effect Rate']:.3g} Hz"
+            f"{synced}; Prophet-5 V's delay has none)"
+        )
+    return gain
 
 
 def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, Prophet5Value], list[str]]:
@@ -321,10 +417,30 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
         )
     if bank.sound[_PITCH_BEND] != 0.5:
         reported.append(f"the saved pitch bend ({bank.sound[_PITCH_BEND]:.2f}, centre is 0.50)")
+    # The saved wheel: the same position moves pulse width as far on both, pitch half as far on Prophet-5 V.
+    wheel = float(p["Modulation Wheel"]) / 100
+    others = any(p[f"WheelMod Dest {name}"] for name in ("PWidth A", "PWidth B", "Filter"))
+    if wheel and (p["WheelMod Dest Freq A"] or p["WheelMod Dest Freq B"]):
+        wheel *= 1 if others else 2
+        if others or wheel > 1:
+            limitation(
+                notices,
+                f"the saved mod wheel ({p['Modulation Wheel']:.0f}%) bends pitch half as far in Prophet-5 V; it is "
+                f"written at {100 * min(wheel, 1):.0f}%, so the vibrato will be shallower",
+            )
+    values["VST3_CtrlModWheel"] = min(wheel, 1.0)
+    # Rendered at a few points: the delay and the master volume.
+    values["FX_Enable"] = p["Delay Effect On"]
+    gain = _delay(p, values, reported, notices) if p["Delay Effect On"] else 0.0
+    # Pro-53's master volume is a straight gain, 50% the unit; Prophet-5 V's prints its gain in dB.
+    volume = target["Volume"]
+    level = float(volume.value(calibration["master_volume"])) + gain
+    master = float(p["Master Volume"])
+    level += 20 * math.log10(master / 50) if master > 0 else -math.inf
+    if level < volume.low:
+        limitation(notices, f"master volume {master:.0f}% is below Prophet-5 V's {volume.low:g} dB, written there")
+    values["Volume"] = min(max(level, volume.low), volume.high)
     # Reported, left out.
-    values["Volume"] = target["Volume"].value(calibration["master_volume"])
-    if p["Master Volume"] != 50.0:
-        reported.append(f"master volume {p['Master Volume']:.0f}% (written at the level matched to 50%)")
     reported += [what for name, (used, what) in REPORTED.items() if used(p[name])]
     for name, message in LEFT_OUT.items():
         if p[name]:
@@ -335,7 +451,7 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
 @converter(
     "ni.pro-53",
     "arturia.prophet-5-v",
-    MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime.date(2026, 10, 28)),
+    MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime.date(2026, 10, 29)),
 )
 def convert(patch: bytes, program: int | None = None) -> Converted:
     """A Pro-53 bank's working patch as a Prophet-5 V state. ``program`` is not used: the working patch plays."""
