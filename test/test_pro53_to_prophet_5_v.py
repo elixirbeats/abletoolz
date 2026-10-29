@@ -82,7 +82,7 @@ def test_the_delay_goes_to_fx_slot_1_by_its_rendered_points() -> None:
     assert values["FX1_Dry_Wet"] == pytest.approx(mix) and 50 < mix < 51
     calibrated = controls()["Volume"].value(conversion._calibration()["master_volume"])
     assert values["Volume"] == pytest.approx(calibrated + gain) and gain == pytest.approx(-2.96, abs=0.01)
-    assert converted.notices[3:] == ("Not carried: the saved pitch bend (0.00, centre is 0.50).",)
+    assert converted.notices[4:] == ("Not carried: the saved pitch bend (0.00, centre is 0.50).",)
 
 
 @pytest.mark.parametrize(

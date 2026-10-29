@@ -160,6 +160,12 @@ RENDERED_NOTE = (
     "release. Matched by panel position, a ballpark: EG1 delay, the filter modulation amounts, the ESP and the "
     "saved wheel. Patch cables by jack name."
 )
+EXPECT_NOTE = (
+    "Expect, even where every control matched: MS-20 V is 3.5 to 6 dB quieter above 4 kHz with its filter open, "
+    "so conversions sound a little darker; both filters' resonance behaves differently (the HPF peak from 6 to 8 "
+    "stays up to 4 dB apart); EG2's curves have another shape; and the filter modulation amounts are a ballpark, so "
+    "patches leaning on resonance or filter modulation can come out brighter or duller, and several dB quieter."
+)
 NOT_HEARD_NOTE = "MS-20 to MS-20 V has not been heard in Live: audition this device."
 
 
@@ -356,7 +362,7 @@ _MEASURED = MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime
 @converter("korg.ms-20", "arturia.korg-ms-20-v", _MEASURED)
 def convert(patch: bytes, program: int | None = None) -> Converted:
     """An MS-20 bank's working program as an MS-20 V state. ``program`` is not used: the working program plays."""
-    return _converted(Ms20Bank.parse(patch).working, [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE])
+    return _converted(Ms20Bank.parse(patch).working, [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE, EXPECT_NOTE])
 
 
 def _cell_notices(bank: LegacyCellBank, notices: list[str] | None) -> tuple[Ms20Program, list[str]]:
@@ -387,7 +393,7 @@ def _cell_notices(bank: LegacyCellBank, notices: list[str] | None) -> tuple[Ms20
 @converter("korg.legacy-cell", "arturia.korg-ms-20-v", _MEASURED)
 def convert_cell(patch: bytes, program: int | None = None) -> Converted:
     """A Legacy Cell bank's working cell, when it holds an MS-20, as an MS-20 V state; ``program`` is not used."""
-    notices = [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE]
+    notices = [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE, EXPECT_NOTE]
     source, cell_reported = _cell_notices(LegacyCellBank.parse(patch), notices)
     values, cables, reported = plan(source, notices)
     reported = cell_reported + reported
