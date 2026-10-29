@@ -198,6 +198,14 @@ def _layout(source: bytes) -> tuple[float, dict[str, Any]]:
         raise StateTransformError(
             f"A Serum patch from patch version {version:.4f} is a layout abletoolz has not measured"
         )
+    if layout["lfo_switches"] == "blocks":
+        switches = _data()["lfo_switches"]
+        end = switches["blocks"]["first"] + switches["count"] * switches["blocks"]["stride"]
+        if len(source) < end:
+            raise StateTransformError(
+                f"A {len(source)} byte Serum patch is too short for patch version {version:.4f}, "
+                f"whose LFOs run to byte {end}"
+            )
     return version, layout
 
 
@@ -378,7 +386,12 @@ def _wavetables(chunk: SerumChunk, doc: dict[str, Any]) -> None:
         size = max(sizes[index], 0)
         if path:
             oscillator["relativePathToWT"] = path
-        if size and size % (4 * _FRAME) == 0 and start + size <= len(frames):
+        if size and (size % (4 * _FRAME) or start + size > len(frames)):
+            raise StateTransformError(
+                f"Serum's oscillator {letter.upper()} declares {size} bytes of embedded frames, "
+                f"which the chunk's {len(frames)} bytes of tables cannot hold"
+            )
+        if size:
             oscillator["embeddedWTData"] = list(struct.unpack_from(f"<{size // 4}f", frames, start))
             oscillator["interpolateAfterLoad"] = source[_EMBEDDED_INTERPOLATION + index]
             if path:

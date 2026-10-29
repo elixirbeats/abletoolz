@@ -66,8 +66,10 @@ def test_the_init_chunk_holds_its_patch_and_one_embedded_frame_per_oscillator() 
         (INIT[:100], "ends inside"),
         (b"not zlib at all", "zlib"),
         (chunk_of(bytes(20704)), "20704 byte Serum patch"),
+        (chunk_of(bytes(1 << 20)), "inflates past any Serum patch"),
+        (chunk_of(bytes(172736), bytes(16 * 1024 * 1024 + 1)), "inflates past any two tables"),
     ],
-    ids=["length cut", "stream cut", "not zlib", "earliest layout"],
+    ids=["length cut", "stream cut", "not zlib", "earliest layout", "patch too large", "tables too large"],
 )
 def test_a_chunk_off_the_measured_layouts_is_refused(chunk: bytes, message: str) -> None:
     with pytest.raises(StateTransformError, match=message):
@@ -79,6 +81,20 @@ def test_a_patch_version_not_measured_is_refused() -> None:
     put(patch, conversion._data()["versions"]["offset"], 0.1700)
     with pytest.raises(StateTransformError, match="patch version 0.1700"):
         conversion.convert(chunk_of(patch, tables), lossy=True)
+
+
+@pytest.mark.parametrize("cut", [8192, 8000], ids=["one oscillator's frames", "inside a frame"])
+def test_embedded_frames_the_tables_cannot_hold_are_refused(cut: int) -> None:
+    patch, tables = patch_of(INIT)
+    with pytest.raises(StateTransformError, match="embedded frames"):
+        conversion.convert(chunk_of(patch, tables[:cut]), lossy=True)
+
+
+@pytest.mark.parametrize("size", [33872, 28232])
+def test_a_short_patch_claiming_a_version_with_lfo_blocks_is_refused(size: int) -> None:
+    patch, tables = patch_of(INIT)
+    with pytest.raises(StateTransformError, match="too short for patch version 0.1631"):
+        conversion.convert(chunk_of(patch[:size], tables), lossy=True)
 
 
 # -- against Serum 2's own import --------------------------------------------------------

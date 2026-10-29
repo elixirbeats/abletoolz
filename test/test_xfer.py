@@ -15,6 +15,7 @@ import struct
 import zlib
 
 import pytest
+import zstandard
 from plugin_patches import SERUM_2_SAMPLE, serum_2_sample
 
 from abletoolz.formats.fxb import FxpChunkProgram
@@ -134,6 +135,17 @@ def test_a_synthesized_container_reads() -> None:
 def test_a_buffer_its_lengths_or_hash_do_not_account_for_is_refused(raw: bytes, message: str) -> None:
     with pytest.raises(StateTransformError, match=message):
         XferJson.parse(raw)
+
+
+def test_a_body_that_inflates_past_its_declared_size_is_refused_one_byte_past_it() -> None:
+    body = zstandard.ZstdCompressor().compress(bytes(1000))
+    with pytest.raises(StateTransformError, match="decodes to 11 bytes, not 10"):
+        XferJson(hashed_header(body), 10, 2, body).decoded()
+
+
+def test_a_body_declared_larger_than_any_patch_is_refused_before_it_is_inflated() -> None:
+    with pytest.raises(StateTransformError, match="more than any patch holds"):
+        XferJson(hashed_header(ZSTD_BODY), 2**31, 2, ZSTD_BODY).decoded()
 
 
 # -- the map ---------------------------------------------------------------------

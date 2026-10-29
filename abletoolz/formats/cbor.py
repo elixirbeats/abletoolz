@@ -22,6 +22,8 @@ _TAG = 6
 _SIMPLE = 7
 _INDEFINITE = 31
 _BREAK = 0xFF
+# Deeper than any Serum 2 patch nests; past it a document is refused, not recursed into.
+_MAX_DEPTH = 64
 # The bytes an additional-information value of 24 to 27 says the argument takes.
 _ARGUMENT_BYTES = {24: 1, 25: 2, 26: 4, 27: 8}
 
@@ -83,8 +85,10 @@ def _scalar_size(initial: int) -> int:
 _SCALAR_SIZE = bytes(_scalar_size(initial) for initial in range(256))
 
 
-def _walk(data: bytes, at: int, key: bytes, found: list[TextItem]) -> int:
+def _walk(data: bytes, at: int, key: bytes, found: list[TextItem], depth: int = 0) -> int:
     """Where the item at ``at`` ends, noting every text value ``key`` maps to inside it."""
+    if depth > _MAX_DEPTH:
+        raise FormatError(f"CBOR nests deeper than {_MAX_DEPTH} items at byte {at}")
     major, argument, at = _head(data, at)
     if major in (0, 1) or major == _SIMPLE:
         # An integer's or a float's argument is its whole content.
@@ -95,10 +99,10 @@ def _walk(data: bytes, at: int, key: bytes, found: list[TextItem]) -> int:
                 raise FormatError(f"a CBOR string at byte {at} runs past the end")
             return at + argument
         while data[at : at + 1] != bytes([_BREAK]):
-            at = _walk(data, at, key, found)
+            at = _walk(data, at, key, found, depth + 1)
         return at + 1
     if major == _TAG:
-        return _walk(data, at, key, found)
+        return _walk(data, at, key, found, depth + 1)
     per_entry = 2 if major == _MAP else 1
     count = 0
     end = len(data)
@@ -109,16 +113,16 @@ def _walk(data: bytes, at: int, key: bytes, found: list[TextItem]) -> int:
             return at + 1
         if major == _MAP and count % 2 == 0:
             named = _is_text(data, at, key)
-            at = _walk(data, at, key, found)
+            at = _walk(data, at, key, found, depth + 1)
             if named:
                 value = _text(data, at)
                 if value is not None:
                     found.append(value)
-            at = _walk(data, at, key, found)
+            at = _walk(data, at, key, found, depth + 1)
             count += 2
             continue
         size = _SCALAR_SIZE[data[at]]
-        at = at + size if size else _walk(data, at, key, found)
+        at = at + size if size else _walk(data, at, key, found, depth + 1)
         count += 1
     return at
 
