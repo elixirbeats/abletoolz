@@ -109,9 +109,9 @@ Changes since 2.1.0.
 - Pro-53 converts into Prophet-5 V control by control, each by calibration,
   short renders, a shared unit or switch, or a display match, and the
   converted device says which. Controls Prophet-5 V has no counterpart for,
-  such as the delay effect, are listed on the device; a patch that depends on
-  one it cannot imitate, such as the high-pass filter mode, is refused with the
-  reason.
+  such as the delay effect, are listed on the device. A patch that depends on
+  one it cannot imitate, such as the high-pass filter mode, converts as near as
+  Prophet-5 V allows and warns that it will likely sound different.
 
 ### Library and authoring
 

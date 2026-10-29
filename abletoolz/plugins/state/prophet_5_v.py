@@ -244,7 +244,9 @@ def prophet_5_v() -> PluginMap:
         version="1",
         scope="1.3.3.6106; two archives, each with its map of named numbers; the VST3 is written, not read",
         vendor="Arturia",
-        vst2=PluginFormat(PROPHET_5_V_VST2, "Prophet-5 V", VERBATIM, measured),
-        vst3=PluginFormat(PROPHET_5_V_VST3, "Prophet-5 V", _FirstArchive(), split, _SecondArchive()),
+        vst2=PluginFormat(PROPHET_5_V_VST2, "Prophet-5 V", VERBATIM, measured, plan_name="prophet_5_v_vst2"),
+        vst3=PluginFormat(
+            PROPHET_5_V_VST3, "Prophet-5 V", _FirstArchive(), split, _SecondArchive(), plan_name="prophet_5_v_vst3"
+        ),
         layouts=(Layout("two archives with their number maps", _is_two_archives),),
     )

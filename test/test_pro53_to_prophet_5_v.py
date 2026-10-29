@@ -1,4 +1,4 @@
-"""Pro-53's working patch into Prophet-5 V: what crosses and by what evidence, what is reported, what refuses."""
+"""Pro-53's working patch into Prophet-5 V: what crosses and by what evidence, what is reported, what warns."""
 
 from __future__ import annotations
 
@@ -79,33 +79,44 @@ def test_a_cutoff_past_prophet_5_v_s_top_is_written_at_its_top_and_reported() ->
     assert "cutoff above Prophet-5 V's 6214 Hz" in converted.notices[-1]
 
 
-def test_glide_outside_unison_is_reported_and_inside_unison_refused() -> None:
+def test_glide_outside_unison_is_reported_and_inside_unison_carried_with_a_warning() -> None:
     assert "glide 50%" in conversion.convert(with_values(Glide_Time=50.0)).notices[-1]
-    with pytest.raises(StateTransformError, match="glide in unison"):
-        conversion.convert(with_values(Glide_Time=50.0, Unisono_Mode=True))
+    converted = conversion.convert(with_values(Glide_Time=63.0, Unisono_Mode=True))
+    # Pro-53's glide reached half way in 0.113 s at 63% in unison.
+    assert Prophet5Patch.parse(converted.patch).values()["Glider_Time"] == pytest.approx(0.113, abs=0.002)
+    assert any("glide in unison" in notice for notice in converted.notices)
+    # Below 37% Pro-53's glide did not move at all in unison: nothing to carry or warn about.
+    quiet = conversion.convert(with_values(Glide_Time=30.0, Unisono_Mode=True))
+    assert not any("glide" in notice for notice in quiet.notices)
 
 
 @pytest.mark.parametrize(
-    ("changes", "reason"),
+    ("changes", "key", "written", "warning"),
     [
-        ({"Filter_HPF-Mode": True}, "high-pass"),
-        ({"Filter_Envelope_Invert": True}, "filter envelope invert"),
-        ({"Release_on/off": False}, "release switch"),
-        ({"PolyMod_Source_Filt_Env": 50.0, "PolyMod_Dest_Filter": True}, "Poly-Mod"),
-        ({"Oscillator_A_PulseWidth": 0.0}, "below"),
+        ({"Filter_HPF-Mode": True}, "Prophet5VCF_Freq", 6214.0, "high-pass"),
+        ({"Filter_Envelope_Invert": True, "Filter_Envelope_Amount": 48.0}, "Prophet5VCF_EnvAmt", 0.0, "invert"),
+        ({"Release_on/off": False}, "VCA_Prophet5ADSR_Release", 0.004, "release switch"),
+        ({"PolyMod_Source_Filt_Env": 50.0, "PolyMod_Dest_Filter": True}, "PolyModFilterEnvAmount", 5.04, "Poly-Mod"),
+        ({"Oscillator_A_PulseWidth": 0.0}, "Prophet5VCO_PW1", controls()["Prophet5VCO_PW1"].low, "below"),
+        ({"LFO_MIDI_Sync": True}, None, None, "LFO MIDI sync"),
     ],
 )
-def test_a_control_with_no_counterpart_refuses_the_device(changes: dict[str, object], reason: str) -> None:
-    with pytest.raises(StateTransformError, match=reason):
-        conversion.convert(with_values(**changes))
+def test_a_control_with_no_counterpart_converts_as_near_as_it_can_and_warns(
+    changes: dict[str, object], key: str | None, written: float | None, warning: str
+) -> None:
+    patch = with_values(**changes)
+    converted = conversion.convert(patch)
+    assert any(warning in notice for notice in converted.notices)
+    if key is not None:
+        assert Prophet5Patch.parse(converted.patch).values()[key] == pytest.approx(written, abs=0.01)
+    # Called directly without notices, the same setting refuses the conversion.
+    with pytest.raises(StateTransformError, match=warning):
+        conversion.plan(Pro53Bank.parse(patch))
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="the owner's Pro-53 banks live on the machine that holds the sets")
-def test_every_one_of_the_owner_s_banks_converts_or_says_why_not() -> None:
-    for path in sorted(CORPUS.glob("*.state")):
-        _, _, refused = conversion.plan(Pro53Bank.parse(path.read_bytes()))
-        if refused:
-            with pytest.raises(StateTransformError, match="cannot carry"):
-                conversion.convert(path.read_bytes())
-        else:
-            Prophet5Patch.parse(conversion.convert(path.read_bytes()).patch)
+def test_every_one_of_the_owner_s_banks_converts() -> None:
+    banks = sorted(CORPUS.glob("*.state"))
+    assert banks
+    for path in banks:
+        Prophet5Patch.parse(conversion.convert(path.read_bytes()).patch)

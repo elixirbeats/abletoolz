@@ -30,10 +30,16 @@ converted device lists which:
   the analog drift, velocity, the external input, the saved mod wheel and pitch
   bend, glide outside unison (where Pro-53's did not act between two notes),
   and master volume away from the one level the calibration matched;
-* **refused** -- no counterpart, and it changes what the patch is: the
-  high-pass filter mode, filter envelope invert, LFO MIDI sync, amp hold, LFO
-  envelope trigger, the release switch turned off, and glide in unison
-  (Prophet-5 V's glide did not follow its own display in the same renders).
+* **carried at a cost** -- no counterpart, and it changes what the patch is, so
+  the device converts as near as it can and warns that it will likely sound
+  different: the high-pass filter mode (Prophet-5 V's filter is low-pass only;
+  it is written fully open), filter envelope invert (its amount is written at
+  zero), the release switch turned off (both releases at their shortest), glide
+  in unison (Pro-53's measured half-way time, though Prophet-5 V's glide did
+  not follow its own display in the same renders), Poly-Mod depth into pulse
+  width or the filter, settings outside Prophet-5 V's range (clamped), and LFO
+  MIDI sync, amp hold and LFO envelope trigger (left out). A direct call
+  without ``notices`` refuses these instead.
 
 The calibration rendered Pro-53's effect build; on the instrument the sets hold,
 short renders on 2026-10-28 put amp attack and release half-way times within 4%
@@ -51,8 +57,8 @@ import pathlib
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from abletoolz.plugins.converters import limitation
 from abletoolz.plugins.state.catalog import Converted, converter
-from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.pro53 import CONTROL_BY_NAME, Pro53Bank, Pro53Value
 from abletoolz.plugins.state.prophet_5_v import Prophet5Patch, Prophet5Value, baseline, controls
@@ -105,13 +111,10 @@ REPORTED: dict[str, tuple[Used, str]] = {
     "Mixer External Input": (lambda v: v != 0, "the external input"),
     "Modulation Wheel": (lambda v: v != 0, "the saved mod wheel position"),
 }
-REFUSED: dict[str, tuple[Used, str]] = {
-    "Filter HPF-Mode": (lambda v: v is True, "the high-pass filter mode"),
-    "Filter Envelope Invert": (lambda v: v is True, "filter envelope invert"),
-    "LFO MIDI Sync": (lambda v: v is True, "LFO MIDI sync"),
-    "Amplifier Hold": (lambda v: v is True, "amp hold"),
-    "LFO Envelope Trigger": (lambda v: v is True, "LFO envelope trigger"),
-    "Release on/off": (lambda v: v is False, "the release switch turned off"),
+LEFT_OUT = {
+    "LFO MIDI Sync": "LFO MIDI sync has no measured match; the LFO runs free at the rate its knob shows",
+    "Amplifier Hold": "amp hold has no match in Prophet-5 V; it is left out",
+    "LFO Envelope Trigger": "LFO envelope trigger has no match in Prophet-5 V; it is left out",
 }
 
 MEASURED_NOTE = (
@@ -190,10 +193,10 @@ def _filter_stage(kind: str, x: float) -> float:
     return _clamp(1 + math.log(max(half, 1e-6) / model["target_max_half_time"]) / target["rate"])
 
 
-def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str]]:
-    """Prophet-5 V's values for ``bank``'s working patch, what is reported as not carried, and why it is refused.
+def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, Prophet5Value], list[str]]:
+    """Prophet-5 V's values for ``bank``'s working patch, by key in its units, and what is reported as not carried.
 
-    The values are by Prophet-5 V key in its units; a device with any refusal is not converted.
+    A setting Prophet-5 V cannot carry is refused without ``notices``, or carried as near as it can and said there.
     """
     p = bank.values()
     calibration = _calibration()
@@ -201,7 +204,6 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
     target = controls()
     values: dict[str, Prophet5Value] = {}
     reported: list[str] = []
-    refused: list[str] = []
 
     def knob(name: str) -> float:
         return bank.normalized(CONTROL_BY_NAME[name])
@@ -220,7 +222,14 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
     values["MasterTuneFactor"] = float(reference_hz) * 2 ** (float(p["Master Tune"]) / 1200)
     q = round(knob("Filter Cutoff") * 127)
     cutoff = target["Prophet5VCF_Freq"]
-    if _CUTOFF_MEASURED[0] <= q <= _CUTOFF_MEASURED[1]:
+    if p["Filter HPF-Mode"]:
+        values["Prophet5VCF_Freq"] = cutoff.high
+        limitation(
+            notices,
+            "the high-pass filter mode has no setting in Prophet-5 V, whose filter is low-pass only; it is written "
+            "fully open, so this patch will likely sound different",
+        )
+    elif _CUTOFF_MEASURED[0] <= q <= _CUTOFF_MEASURED[1]:
         values["Prophet5VCF_Freq"] = cutoff.value(_interp(q, calibration["cutoff"]))
     else:
         hertz = _pro53_cutoff_hz(float(p["Filter Cutoff"]))
@@ -239,10 +248,18 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
         ("release", "Filter Release", "VCF_Prophet5ADSR_Release"),
     ):
         values[key] = target[key].value(_filter_stage(kind, knob(name)))
+    if p["Release on/off"] is False:
+        for key in ("VCA_Prophet5ADSR_Release", "VCF_Prophet5ADSR_Release"):
+            values[key] = target[key].low
+        limitation(
+            notices,
+            "the release switch turned off has no setting in Prophet-5 V; both envelopes' releases are written at "
+            "their shortest, which is not measured against Pro-53",
+        )
     routes = [p["PolyMod Dest Freq A"], p["PolyMod Dest PWidth A"], p["PolyMod Dest Filter"]]
     if not any(routes) or p["PolyMod Source Filt Env"] == 0:
         values["PolyModFilterEnvAmount"] = 0.0
-    elif routes == [True, False, False]:
+    elif routes[0]:
         poly = calibration["poly_mod_envelope_pitch"]
         a, b, c = poly["source_ratio_quadratic"]
         x = knob("PolyMod Source Filt Env")
@@ -251,21 +268,23 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
         values["PolyModFilterEnvAmount"] = target["PolyModFilterEnvAmount"].value(
             _clamp((pitch_cents - intercept) / slope)
         )
+        if any(routes[1:]):
+            limitation(notices, "Poly-Mod filter envelope depth into pulse width or the filter follows its pitch depth")
     else:
-        refused.append("Poly-Mod filter envelope depth into pulse width or the filter is not measured")
+        poly_amount = target["PolyModFilterEnvAmount"]
+        values["PolyModFilterEnvAmount"] = poly_amount.high * float(p["PolyMod Source Filt Env"]) / 100
+        limitation(notices, "Poly-Mod filter envelope depth into pulse width or the filter is matched by display")
     # Same unit.
     rate = float(p["LFO Frequency"])
     lfo = target["Prophet5Lfo_RateUnSynced"]
-    if lfo.low <= rate <= lfo.high:
-        values["Prophet5Lfo_RateUnSynced"] = rate
-    else:
-        refused.append(f"LFO rate {rate:.3g} Hz is outside Prophet-5 V's {lfo.low:g}-{lfo.high:g} Hz")
+    values["Prophet5Lfo_RateUnSynced"] = min(max(rate, lfo.low), lfo.high)
+    if not lfo.low <= rate <= lfo.high:
+        limitation(notices, f"LFO rate {rate:.3g} Hz is outside Prophet-5 V's {lfo.low:g}-{lfo.high:g} Hz, clamped")
     for name, key in (("Oscillator A PulseWidth", "Prophet5VCO_PW1"), ("Oscillator B PulseWidth", "Prophet5VCO_PW2")):
         width = float(p[name])
-        if target[key].low <= width <= target[key].high:
-            values[key] = width
-        else:
-            refused.append(f"{name.lower()} {width:.0f}% is below Prophet-5 V's {target[key].low:g}%")
+        values[key] = min(max(width, target[key].low), target[key].high)
+        if not target[key].low <= width <= target[key].high:
+            limitation(notices, f"{name.lower()} {width:.0f}% is below Prophet-5 V's {target[key].low:g}%, clamped")
     # Same switch.
     for name, key in SAME_SWITCH.items():
         values[key] = p[name]
@@ -276,26 +295,41 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
     shift = rendered["env_amount_shift_st"]
     moved = _interp(float(p["Filter Envelope Amount"]), shift["pro53_display_vs_measured"])
     values["Prophet5VCF_EnvAmt"] = _interp(moved, [(st, value) for value, st in shift["prophet_value"]])
+    if p["Filter Envelope Invert"]:
+        values["Prophet5VCF_EnvAmt"] = 0.0
+        limitation(
+            notices,
+            "filter envelope invert has no setting in Prophet-5 V, whose envelope amount is positive only; the "
+            "amount is written at zero, so the cutoff stays where its knob is",
+        )
     # Matched by display.
     for name, key in BY_DISPLAY.items():
         control = target[key]
         values[key] = control.low + float(p[name]) / 100 * (control.high - control.low)
     values["Prophet5VCF_KeyFolOn"] = float(p["Filter Keyboard Follow"]) >= 50
     values["Glider_Time"] = 0.0
-    if p["Glide Time"] != 0:
-        if p["Unisono Mode"]:
-            refused.append("glide in unison, where Prophet-5 V's glide did not follow its display")
-        else:
-            reported.append(f"glide {p['Glide Time']:.0f}% (outside unison Pro-53's did not act between two notes)")
+    # The data holds knob displays to one decimal; 37.0% is 47 of 127, where glide had not begun.
+    half = _interp(round(float(p["Glide Time"]), 1), rendered["glide_half_seconds_unison"]["pro53_percent"])
+    if p["Glide Time"] != 0 and not p["Unisono Mode"]:
+        reported.append(f"glide {p['Glide Time']:.0f}% (outside unison Pro-53's did not act between two notes)")
+    elif p["Unisono Mode"] and half > 0:
+        values["Glider_Time"] = min(half, target["Glider_Time"].high)
+        limitation(
+            notices,
+            f"glide in unison is written as Prophet-5 V's glide at {half:.2f} s, Pro-53's measured half-way time, "
+            "but Prophet-5 V's glide did not follow its own display in renders, so the slide will likely differ",
+        )
     if bank.sound[_PITCH_BEND] != 0.5:
         reported.append(f"the saved pitch bend ({bank.sound[_PITCH_BEND]:.2f}, centre is 0.50)")
-    # Reported, refused.
+    # Reported, left out.
     values["Volume"] = target["Volume"].value(calibration["master_volume"])
     if p["Master Volume"] != 50.0:
         reported.append(f"master volume {p['Master Volume']:.0f}% (written at the level matched to 50%)")
     reported += [what for name, (used, what) in REPORTED.items() if used(p[name])]
-    refused += [what for name, (used, what) in REFUSED.items() if used(p[name])]
-    return values, reported, refused
+    for name, message in LEFT_OUT.items():
+        if p[name]:
+            limitation(notices, message)
+    return values, reported
 
 
 @converter(
@@ -305,10 +339,8 @@ def plan(bank: Pro53Bank) -> tuple[dict[str, Prophet5Value], list[str], list[str
 )
 def convert(patch: bytes, program: int | None = None) -> Converted:
     """A Pro-53 bank's working patch as a Prophet-5 V state. ``program`` is not used: the working patch plays."""
-    values, reported, refused = plan(Pro53Bank.parse(patch))
-    if refused:
-        raise StateTransformError("Pro-53 to Prophet-5 V cannot carry " + "; ".join(refused))
     notices = [NOT_HEARD_NOTE, MEASURED_NOTE, RENDERED_NOTE]
+    values, reported = plan(Pro53Bank.parse(patch), notices)
     if reported:
         notices.append("Not carried: " + "; ".join(reported) + ".")
     return Converted(Prophet5Patch.parse(baseline()).with_values(values).raw, tuple(notices))
