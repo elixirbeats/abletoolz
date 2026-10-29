@@ -53,21 +53,14 @@ def test_a_plan_offers_ms20_v_as_the_format_a_device_can_be_rebuilt_in(stored: A
 def test_calibrated_controls_land_where_ms20_v_measured_the_same_sound() -> None:
     values = target(
         {
-            "LPF Cutoff": 5.0, "HPF Cutoff": 4.0, "Volume": 5.0, "Fine Tune": 2.5, "VCO 2 Tune": -7.0,
-            "MG Frequency": 4.0, "EG 2 Attack": 5.0, "Portamento Time": 8.0, "Pitch MG/T.Ext": 3.0,
+            "Volume": 5.0, "Fine Tune": 2.5, "VCO 2 Tune": -7.0, "MG Frequency": 4.0, "Portamento Time": 8.0,
+            "Pitch MG/T.Ext": 3.0,
         }
     )  # fmt: skip
-    lp, hp = DATA["lpf_corner_hz"]["target"], DATA["hpf_corner_hz"]["target"]
-    u = conversion.controls()["LP Cutoff"].normalized(values["LP Cutoff"])
-    assert conversion._interp(u, lp, log_y=True) == pytest.approx(330.1, rel=0.01)
-    u = conversion.controls()["HP Cutoff"].normalized(values["HP Cutoff"])
-    assert conversion._interp(u, hp, log_y=True) == pytest.approx(250.3, rel=0.01)
     assert values["Master Volume"] == pytest.approx(-16.75 + 20 * math.log10(0.5), abs=0.01)
     assert values["Master Tune"] == pytest.approx(440 * 2 ** ((50 - 1.65) / 1200), abs=0.01)
     assert values["MS20VCO_FineTuneOsc2"] == pytest.approx(-7.0, abs=1e-5)
     assert values["MG_RateUnSynced"] == pytest.approx(0.109 + 1.8895 * 4, abs=1e-4)
-    attack = DATA["eg2_half_seconds"]["attack"]["target"]
-    assert conversion._interp(values["EG2_Attack"], attack) == pytest.approx(0.26172, rel=0.01)
     glide = DATA["glide_seconds"]["target"]
     u = conversion.controls()["Portamento_Time"].normalized(values["Portamento_Time"])
     assert conversion._interp(u, glide) == pytest.approx(0.31, rel=0.01)
@@ -76,8 +69,28 @@ def test_calibrated_controls_land_where_ms20_v_measured_the_same_sound() -> None
     assert values["VCF_Type"] == "MKI"
 
 
-def test_a_cutoff_outside_the_measured_span_goes_by_panel_position() -> None:
-    assert target({"LPF Cutoff": 1.0})["LP Cutoff"] == pytest.approx(conversion.controls()["LP Cutoff"].value(0.1))
+def test_knob_by_knob_controls_land_on_the_settings_that_sounded_nearest() -> None:
+    """Measured positions land on their own setting, and a knob between two lands between them."""
+    values = target(
+        {
+            "LPF Cutoff": 5.0, "HPF Cutoff": 8.0, "VCO 1 Pulse Width": 8.0, "EG 2 Sustain": 0.0, "EG 2 Hold": 2.5,
+            "VCO 1 Level": 3.5,
+        }
+    )  # fmt: skip
+    assert values["LP Cutoff"] == pytest.approx(539.9, rel=0.001)
+    assert values["HP Cutoff"] == pytest.approx(4213.0, rel=0.001)
+    assert values["MS20VCO_PW"] == pytest.approx(17.15, abs=0.01)
+    assert values["EG2_Sustain"] == pytest.approx(0.1023, abs=0.0001)
+    assert 0.0333 < values["EG2_Classic_Hold"] < 0.0824
+    assert 3.406 < values["MS20VCO_VolumeOsc1"] < 4.42
+
+
+def test_every_knob_by_knob_table_covers_the_whole_knob_inside_ms20_v_s_range() -> None:
+    for key, table in DATA["matched"].items():
+        knobs = [knob for knob, _ in table["points"]]
+        assert knobs == sorted(knobs) and knobs[0] == 0.0 and knobs[-1] == 10.0, key
+        for _, setting in table["points"]:
+            conversion.controls()[key].normalized(setting)
 
 
 @pytest.mark.parametrize(
@@ -104,7 +117,7 @@ def test_a_cutoff_outside_the_measured_span_goes_by_panel_position() -> None:
             {"MS20VCO_ScaleOsc1": "8'", "MS20VCO_ScaleOsc2": "4'"},
         ),
         ({"Pitch Bend Range": 7.0}, {"Pitch Bend Range": 7}),
-        ({"VCO 1 Level": 3.5, "EG 1 Attack": 6.0}, {"MS20VCO_VolumeOsc1": 3.5, "EG1_Attack": 6.0}),
+        ({"EG 1 Attack": 6.0}, {"EG1_Attack": 6.0}),
     ],
 )
 def test_switches_and_printed_positions_cross_as_the_same_setting(
