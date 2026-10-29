@@ -16,19 +16,21 @@ and each converted device lists which:
   side, MS-20 V's control searched at each legacy knob position for the nearest
   sound: both filters' cutoffs and the HPF peak by their response against the
   open filter, the VCO levels by loudness, the pulse width by its duty cycle,
-  and EG2's attack, decay, sustain, release and hold by their envelopes;
+  EG2's attack, decay, sustain, release and hold by their envelopes, the LPF's
+  EG2 amount by the response it holds at full sustain, and both filters' MG
+  amounts by how far they swing the sound's brightness;
 * **rendered at a few points** -- the LPF peak at its own knob position on MS-20 V's
-  MK I filter, whose resonance rises within 1.5 dB of the legacy one at four
-  positions (MK II's does not);
+  MK I filter, whose resonance peak rises within 1.5 dB of the legacy one at four
+  positions (MK II's does not); the rest of the filter's response differs from
+  the middle up whatever the setting, and no setting does better on average;
 * **same print** -- both plugins print the same 0 to 10: the MG waveform, EG1's
   attack and release (their times are not measured);
 * **same switch** -- waveforms and scales, sync to tempo, key sync, the momentary
   switch, the pitch bend range, the voice mode (Mono with single trigger is
   MS-20 V's legato, with multi trigger its retrigger, Poly its voice count);
 * **matched by panel position** -- a ballpark, the same knob position: EG1's
-  delay, the four filter modulation amounts (renders at the middle position put
-  MS-20 V's swing at a third to three quarters of the legacy one), the ESP and
-  the saved wheel;
+  delay, the HPF's EG2 amount (renders could not tell its settings apart), the
+  ESP and the saved wheel;
 * **patch cables, by jack name** -- every legacy jack but two has an MS-20 V
   source or destination by the same name; renders hear the MG's triangle and
   square into the VCOs' CV the same way on both;
@@ -89,10 +91,7 @@ SAME_PRINT = {
 }
 PANEL = {
     "EG 1 Delay": "EG1_Delay",
-    "HPF MG/T.Ext": "VCF_TotalAmountHp",
     "HPF EG 2/Ext": "VCF_FmAmountHp",
-    "LPF MG/T.Ext": "VCF_TotalAmountLp",
-    "LPF EG 2/Ext": "VCF_FmAmountLp",
     "ESP Signal Level": "ESP_ESPInpBandPass_InpLvl",
     "ESP Low Cut": "ESP_ESPInpBandPass_BP1Lvl",
     "ESP High Cut": "ESP_ESPInpBandPass_BP2Lvl",
@@ -153,18 +152,18 @@ _TARGET_TYPES = {"Bars": 1.0, "Bars Triplet": 2 / 3, "Bars Dotted": 3 / 2}
 MEASURED_NOTE = (
     "Calibrated against both plugins: VCO 2 tune, fine tune, volume, the MG rate, portamento, and the EG1 and MG "
     "pitch modulation depths. Matched knob by knob by sound: both filter cutoffs, the HPF peak, the VCO levels, "
-    "pulse width, and EG2's attack, decay, sustain, release and hold."
+    "pulse width, EG2's attack, decay, sustain, release and hold, the LPF's EG2 amount and both MG amounts."
 )
 RENDERED_NOTE = (
     "Rendered at a few points: the LPF peak on MS-20 V's MK I filter. Same print: the MG waveform, EG1 attack and "
-    "release. Matched by panel position, a ballpark: EG1 delay, the filter modulation amounts, the ESP and the "
-    "saved wheel. Patch cables by jack name."
+    "release. Matched by panel position, a ballpark: EG1 delay, the HPF's EG2 amount, the ESP and the saved wheel. "
+    "Patch cables by jack name."
 )
 EXPECT_NOTE = (
     "Expect, even where every control matched: MS-20 V is 3.5 to 6 dB quieter above 4 kHz with its filter open, "
     "so conversions sound a little darker; both filters' resonance behaves differently (the HPF peak from 6 to 8 "
-    "stays up to 4 dB apart); EG2's curves have another shape; and the filter modulation amounts are a ballpark, so "
-    "patches leaning on resonance or filter modulation can come out brighter or duller, and several dB quieter."
+    "stays up to 4 dB apart, the LPF peak 3 to 6 dB from the middle up, whatever the setting); EG2's curves have "
+    "another shape; and patches leaning on resonance can come out brighter or duller, and several dB quieter."
 )
 NOT_HEARD_NOTE = "MS-20 to MS-20 V has not been heard in Live: audition this device."
 
