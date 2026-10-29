@@ -74,7 +74,7 @@ def test_knob_by_knob_controls_land_on_the_settings_that_sounded_nearest() -> No
     values = target(
         {
             "LPF Cutoff": 5.0, "HPF Cutoff": 8.0, "VCO 1 Pulse Width": 8.0, "EG 2 Sustain": 0.0, "EG 2 Hold": 2.5,
-            "VCO 1 Level": 3.5,
+            "VCO 1 Level": 3.5, "LPF MG/T.Ext": 1.0,
         }
     )  # fmt: skip
     assert values["LP Cutoff"] == pytest.approx(539.9, rel=0.001)
@@ -83,6 +83,7 @@ def test_knob_by_knob_controls_land_on_the_settings_that_sounded_nearest() -> No
     assert values["EG2_Sustain"] == pytest.approx(0.1023, abs=0.0001)
     assert 0.0333 < values["EG2_Classic_Hold"] < 0.0824
     assert 3.406 < values["MS20VCO_VolumeOsc1"] < 4.42
+    assert values["VCF_TotalAmountLp"] == pytest.approx(0.3574, abs=0.0001)
 
 
 def test_every_knob_by_knob_table_covers_the_whole_knob_inside_ms20_v_s_range() -> None:
