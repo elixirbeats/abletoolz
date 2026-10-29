@@ -133,6 +133,7 @@ SHIPPED = {
     ("fabfilter.pro-q-1", "fabfilter.pro-q-3"),
     ("fabfilter.pro-q-2", "fabfilter.pro-q-3"),
     ("izotope.trash1", "izotope.trash2"),
+    ("ni.pro-53", "arturia.prophet-5-v"),
     ("surge-synth-team.surge-1", "surge-synth-team.surge-xt"),
 }
 
