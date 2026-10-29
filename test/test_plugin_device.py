@@ -234,8 +234,18 @@ def test_only_measured_formats_have_a_writer() -> None:
     device = next(device for device in PluginDevices(skeleton("11.3.42")) if device.kind is PluginKind.VST3)
     with pytest.raises(ValueError, match="no writer"):
         device.rewrite(PluginKind.VST, device.identity, device.saved_state)
-    with pytest.raises(ValueError, match="already a"):
-        device.rewrite(PluginKind.VST3, device.identity, device.saved_state)
+
+
+def test_a_vst3_rewritten_as_another_vst3_holds_only_the_new_plugin() -> None:
+    """A converter can stay in the device's format, Serum VST3 into Serum 2 VST3."""
+    device = next(device for device in PluginDevices(skeleton("11.3.42")) if device.kind is PluginKind.VST3)
+    identity = dataclasses.replace(device.identity, name="Another Plugin")
+    device.rewrite(PluginKind.VST3, identity, dataclasses.replace(device.saved_state, state=b"another patch"))
+    assert (device.identity.name, device.saved_state.state) == ("Another Plugin", b"another patch")
+    preset = device.info.find("Preset/Vst3Preset")
+    assert preset is not None
+    assert [len(element.findall(tag)) for element in (device.info, preset) for tag in ("Uid", "DeviceType")] == [1] * 4
+    assert len(device.info.findall("Name")) == 1
 
 
 # -- controls ---------------------------------------------------------------

@@ -816,6 +816,7 @@ class PluginDevice:
     def rewrite(self, kind: PluginKind, identity: Identity, preset: SavedState) -> None:
         """Rebuild this device as ``kind`` from a description, in place.
 
+        ``kind`` can be the device's own format, for another plugin in it.
         ``identity`` and ``preset`` say what the device is and holds afterwards,
         in the target format's terms; they are written as given. The element
         keeps its position, its indentation and every child the two formats
@@ -824,8 +825,6 @@ class PluginDevice:
         writer = _WRITERS.get(kind)
         if writer is None:
             raise ValueError(f"no writer for {kind.value}: nothing has measured the {INFO_TAGS[kind]} Live writes")
-        if kind is self.kind:
-            raise ValueError(f"already a {INFO_TAGS[kind]}: edit its fields instead")
         owner = None
         if PluginKind.AU in (kind, self.kind):
             # Live holds an Audio Unit in an AuPluginDevice and the rest in a

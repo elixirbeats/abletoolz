@@ -74,7 +74,9 @@ def mapped_targets(source: PluginMap, kind: PluginKind, machine: Machine) -> lis
         target_map = source if converter is None else _map_by_id(converter.target)
         route = Route.FORMAT if converter is None else Route.CONVERTER
         for to_kind, plugin_format in target_map.formats.items():
-            if _can_rewrite(kind, to_kind) and target_map.can_write(to_kind):
+            # The same plugin needs another format; another plugin can stay in this one.
+            same_format = converter is None and to_kind is kind
+            if not same_format and has_writer(to_kind) and target_map.can_write(to_kind):
                 if converter is None:
                     evidence, proved = _crossing(plugin_format.measured, kind, read_from)
                 else:

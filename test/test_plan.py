@@ -163,6 +163,13 @@ def test_a_crossing_is_only_as_proved_as_the_format_it_is_read_from() -> None:
     assert to_vst3.evidence.endswith("; read from the AU, state: reframe (hosted 2026-10-26)")
 
 
+def test_a_converter_into_the_same_format_is_offered() -> None:
+    """Only the plugin's own format is skipped: a Serum VST3 can become Serum 2's VST3."""
+    serum = CATALOG.find(Vst2Id(1483109208))
+    assert serum is not None
+    assert [target.id for target in mapped_targets(serum, PluginKind.VST3, machine())] == ["serum_2_vst3", "serum_2_au"]
+
+
 def test_serum_2_is_offered_by_its_plan_names() -> None:
     serum_2 = CATALOG.by_map_id("xfer.serum-2")
     assert serum_2 is not None
