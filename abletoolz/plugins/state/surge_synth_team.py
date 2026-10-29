@@ -29,7 +29,14 @@ _REFRAMED = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED,), datetime.d
 
 
 def _surge(
-    key: str, name: str, au: AuId, vst3_id: tuple[int, int, int, int], own_bypass: bool, plan_names: tuple[str, str]
+    key: str,
+    name: str,
+    au: AuId,
+    vst3_id: tuple[int, int, int, int],
+    own_bypass: bool,
+    *,
+    vst3_plan: str | None = None,
+    au_plan: str | None = None,
 ) -> PluginMap:
     return PluginMap(
         id=f"surge-synth-team.{key}",
@@ -37,16 +44,20 @@ def _surge(
         version="1",
         scope="Build 1.3.4 in VST3 and AU, measured headless with edited patches both ways",
         vendor="Surge Synth Team",
-        vst3=PluginFormat(
-            Vst3Id(vst3_id), name, JuceTrailer(own_bypass), _REFRAMED, NO_CONTROLLER_STATE, plan_name=plan_names[0]
+        vst3=None
+        if vst3_plan is None
+        else PluginFormat(
+            Vst3Id(vst3_id), name, JuceTrailer(own_bypass), _REFRAMED, NO_CONTROLLER_STATE, plan_name=vst3_plan
         ),
-        au=PluginFormat(
+        au=None
+        if au_plan is None
+        else PluginFormat(
             au,
             name,
             JuceClassInfo(au.identifier),
             _REFRAMED,
             registration=AuRegistration("Surge Synth Team", 2),
-            plan_name=plan_names[1],
+            plan_name=au_plan,
         ),
     )
 
@@ -59,7 +70,8 @@ def surge_xt() -> PluginMap:
         AuId.of("aumu", "SgXT", "VmbA"),
         (-1412567295, -1853687061, 1450009153, 1399281748),
         own_bypass=True,
-        plan_names=("surge_xt_vst3", "surge_xt_au"),
+        vst3_plan="surge_xt_vst3",
+        au_plan="surge_xt_au",
     )
 
 
@@ -71,7 +83,8 @@ def surge_xt_effects() -> PluginMap:
         AuId.of("aufx", "SFXT", "VmbA"),
         (-1412567295, -1853687061, 1450009153, 1397119060),
         own_bypass=False,
-        plan_names=("surge_xt_effects_vst3", "surge_xt_effects_au"),
+        vst3_plan="surge_xt_effects_vst3",
+        au_plan="surge_xt_effects_au",
     )
 
 

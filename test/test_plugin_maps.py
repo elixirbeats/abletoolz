@@ -38,6 +38,7 @@ from abletoolz.plugins.state.fabfilter import (
     FfbsState,
 )
 from abletoolz.plugins.state.framings import VERBATIM
+from abletoolz.plugins.state.kilohearts import _khs
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.plugin_map import FormatState, PluginFormat, PluginMap
 from abletoolz.plugins.state.surge_synth_team import SURGE_1_UNIQUE_ID
@@ -93,6 +94,11 @@ def test_two_plugins_claiming_one_identity_are_refused(second: PluginMap) -> Non
     catalog.register(lambda: second)
     with pytest.raises(StateTransformError, match="registered as|both claim|both use the plan name"):
         catalog.find(Vst2Id(1))
+
+
+def test_a_map_factory_builds_only_the_formats_it_is_given_names_for() -> None:
+    bitcrush = _khs("Bitcrush", 1802723939, (1912498557, 12601455, 4795924, 5368217), vst3_plan="khs_bitcrush_vst3")
+    assert list(bitcrush.formats) == [PluginKind.VST3]
 
 
 def test_a_plugin_registered_after_the_catalog_is_built_is_refused() -> None:
