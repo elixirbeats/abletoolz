@@ -41,8 +41,7 @@ from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
 
-from abletoolz.elements import get_element
-from abletoolz.live_set import sections
+from abletoolz.elements import drop_envelopes, get_element
 from abletoolz.live_set.domain import Domain
 from abletoolz.live_set.settings import Setting, resolve
 from abletoolz.live_set.xml_edit import (
@@ -127,24 +126,6 @@ def _inner_chain(track_root: ET.Element) -> ET.Element:
     return get_element(track_root, path(Tag.DEVICE_CHAIN, Tag.DEVICE_CHAIN))
 
 
-def _drop_envelopes(track_root: ET.Element, target_ids: set[str | None]) -> None:
-    """Remove every envelope on the track whose target is one of ``target_ids``.
-
-    That is the track's own automation and the ``ClipEnvelope`` of every clip
-    on it, wherever they sit, the way ``save_as`` drops orphaned envelopes.
-    ``sections.remove_children`` keeps each list closing on its parent's indent.
-    """
-    for holder in list(track_root.iter()):
-        doomed = [
-            envelope
-            for envelope in holder
-            if (target := envelope.find(path(Tag.ENVELOPE_TARGET, Tag.POINTEE_ID))) is not None
-            and target.get(Attr.VALUE) in target_ids
-        ]
-        if doomed:
-            sections.remove_children(holder, doomed)
-
-
 class Devices(Domain):
     """Device chains of one set: what they hold, and grafting them around."""
 
@@ -218,7 +199,7 @@ class Devices(Domain):
                     if owns_pointee_id(element.tag) and element.get(Attr.ID) is not None
                 }
                 del devices[:]
-                _drop_envelopes(track_root, removed_ids)
+                drop_envelopes(track_root, removed_ids)
 
             child_indent = (chain.text or "") + "\t"
             next_device_id = (

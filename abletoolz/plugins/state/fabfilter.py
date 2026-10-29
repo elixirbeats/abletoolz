@@ -457,6 +457,7 @@ def _ffbs_plugin(
     vst3_id: tuple[int, int, int, int],
     measured: MeasuredState,
     controller: FfbsControllerState | None,
+    plan_names: tuple[str, str],
 ) -> PluginMap:
     """An FFBS-generation FabFilter: VST2 holds its own chunk, VST3 the reframed halves."""
     return PluginMap(
@@ -465,8 +466,8 @@ def _ffbs_plugin(
         version=None,
         scope="VST2 chunk to VST3 processor and controller halves, measured in the host rig",
         vendor="FabFilter",
-        vst2=PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured),
-        vst3=PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller),
+        vst2=PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured, plan_name=plan_names[0]),
+        vst3=PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller, plan_name=plan_names[1]),
         layouts=_FFBS_LAYOUTS,
     )
 
@@ -484,6 +485,7 @@ def pro_q_3() -> PluginMap:
         (1925503857, 2051884442, -1182903948, 1568977821),
         _REFRAMED,
         PRO_Q3_CONTROLLER,
+        ("pro_q_3_vst2", "pro_q_3_vst3"),
     )
 
 
@@ -497,6 +499,7 @@ def saturn_2() -> PluginMap:
         (-1928956621, -660584163, -1163695098, 1282063355),
         _REFRAMED,
         SATURN_2_CONTROLLER,
+        ("saturn_2_vst2", "saturn_2_vst3"),
     )
 
 
@@ -511,6 +514,7 @@ def timeless_3() -> PluginMap:
         (-756127758, -984465363, -1876879981, 452832875),
         MeasuredState(StateRung.REFRAME, (StateEvidence.EAR, StateEvidence.HOSTED), _HOSTED_ON),
         TIMELESS_3_CONTROLLER,
+        ("timeless_3_vst2", "timeless_3_vst3"),
     )
 
 
@@ -526,10 +530,11 @@ def volcano_3() -> PluginMap:
         (698034028, -495235247, -1785296369, -2046760495),
         _REFRAMED,
         None,
+        ("volcano_3_vst2", "volcano_3_vst3"),
     )
 
 
-def _host_bank_plugin(key: str, name: str, unique_id: int, parameters: int) -> PluginMap:
+def _host_bank_plugin(key: str, name: str, unique_id: int, parameters: int, plan_name: str) -> PluginMap:
     """An older FabFilter whose VST2 exposes no chunk, so a set holds the host's bank."""
     return PluginMap(
         id=f"fabfilter.{key}",
@@ -537,7 +542,7 @@ def _host_bank_plugin(key: str, name: str, unique_id: int, parameters: int) -> P
         version=None,
         scope=f"VST2 host bank of {parameters} parameters, read in the host rig",
         vendor="FabFilter",
-        vst2=PluginFormat(Vst2Id(unique_id), name, VERBATIM, _BANK_READ),
+        vst2=PluginFormat(Vst2Id(unique_id), name, VERBATIM, _BANK_READ, plan_name=plan_name),
         layouts=(_bank_of(parameters),),
     )
 
@@ -549,13 +554,13 @@ _BANK_READ = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), _HOSTED_
 @register
 def pro_q_1() -> PluginMap:
     # "FabFilter Pro-Q.64", a jBridged 32-bit build, stores the same id.
-    return _host_bank_plugin("pro-q-1", "FabFilter Pro-Q", 1179668850, PRO_Q1_PARAMETERS)
+    return _host_bank_plugin("pro-q-1", "FabFilter Pro-Q", 1179668850, PRO_Q1_PARAMETERS, "pro_q_vst2")
 
 
 @register
 def pro_q_2() -> PluginMap:
     # So do "FabFilter Pro-Q 2 x64" and the jBridged ".64" builds.
-    return _host_bank_plugin("pro-q-2", "FabFilter Pro-Q 2", 1179726448, PRO_Q2_PARAMETERS)
+    return _host_bank_plugin("pro-q-2", "FabFilter Pro-Q 2", 1179726448, PRO_Q2_PARAMETERS, "pro_q_2_vst2")
 
 
 def _derived_plugin(
@@ -566,10 +571,13 @@ def _derived_plugin(
     vst3_id: tuple[int, int, int, int],
     table: DerivedTable,
     measured: MeasuredState,
+    plan_names: tuple[str, str],
 ) -> PluginMap:
     """A FabF-generation FabFilter: the VST2 holds the host's bank, the VST3 what the derived table writes."""
-    vst2 = PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured)
-    vst3 = PluginFormat(Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER)
+    vst2 = PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured, plan_name=plan_names[0])
+    vst3 = PluginFormat(
+        Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER, plan_name=plan_names[1]
+    )
     return PluginMap(
         id=f"fabfilter.{key}",
         name=name,
@@ -599,6 +607,7 @@ def pro_c_2() -> PluginMap:
         (2046039523, -924366841, -1386372145, 1881470488),
         PRO_C_2_TABLE,
         MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), _HOSTED_ON),
+        ("pro_c_2_vst2", "pro_c_2_vst3"),
     )
 
 
@@ -629,6 +638,7 @@ def pro_l_2() -> PluginMap:
         (-1344721038, -1710995529, -1243033131, 1759422853),
         PRO_L_2_TABLE,
         _DERIVED_CHECKED,
+        ("pro_l_2_vst2", "pro_l_2_vst3"),
     )
 
 
@@ -643,6 +653,7 @@ def pro_mb() -> PluginMap:
         (-1011449534, -946321678, -2101920597, -552365962),
         PRO_MB_TABLE,
         _DERIVED_CHECKED,
+        ("pro_mb_vst2", "pro_mb_vst3"),
     )
 
 
@@ -657,4 +668,5 @@ def pro_g() -> PluginMap:
         (-1658991369, -1853209745, -1546791151, 1569397051),
         PRO_G_TABLE,
         _DERIVED_CHECKED,
+        ("pro_g_vst2", "pro_g_vst3"),
     )

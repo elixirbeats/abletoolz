@@ -64,14 +64,21 @@ Changes since 2.1.0.
 
 ### Plugins
 
-- `plugins plan` and `plugins apply` provide a single conversion workflow with
-  explicit picks, per-device overrides, evidence and refusal reasons. Edited
-  picks can carry forward with `--from`. A plan whose sets or overrides point at
-  nothing is refused when read, and apply refuses a device that holds another
-  plugin than the plan lists there.
-- For a plugin nothing maps, a plan suggests a similarly named installed plugin
-  to try, never one from another company. The vendor comes from Live's plugin
-  database, or from the set for an Audio Unit.
+- `plugins plan` writes a short file listing every plugin in the sets, each with
+  `plugin`, `format` and `convert_to: null`, and the names it can become in a
+  comment above it. Writing one of those names, exactly, converts every device of
+  that plugin; `plugins apply` reads the sets again and converts. Every format in
+  a plugin map carries its plan name, written by hand (`serum_vst3`), and two that
+  share one stop the catalog loading.
+- A conversion never refuses over what it can't carry: automation and clip
+  envelopes, MIDI and macro mappings and an arranged list of controls are removed,
+  settings with no match in the target are left out, and each is said in the plan
+  and under the device after apply; see
+  [what converting costs](doc/PLUGIN_CONVERSION.md#what-converting-costs). Only a
+  device that can't be converted at all stays as it was, with the reason.
+- In Python, `file_targets` and `experiments` add what a plan file never offers:
+  another installed file of the same VST2, and an installed plugin named like an
+  unmapped one, never from another company.
 - Plugin maps are found by stored identity and describe supported formats,
   state framing and file references. Converters separately name source and target
   maps. Coverage includes measured AU/VST2/VST3 crossings, newer-plugin conversions
@@ -81,11 +88,10 @@ Changes since 2.1.0.
 - A Pro-Q 1 converted to Pro-Q 3 keeps its output gain and pan, display range,
   linear-phase mode, channel mode, bypass, MIDI and analyzer settings, measured on
   the original plugin and read back by Pro-Q 3.
-- A device whose only controls in use are the list Live made for it by itself
-  now converts to VST3 and gets the list Live makes for that VST3, read from the
-  installed plugin. Devices with automation, macros or MIDI mappings on their
-  controls are still refused; see
-  [what doesn't convert](doc/PLUGIN_CONVERSION.md#what-doesnt-convert).
+- A converted device gets the list of controls Live would make for the new VST3,
+  read from the installed plugin.
+- Audio Units can be written into sets from Live 11.2 on, rather than 11.3.41,
+  following Live's own schemas for each version.
 - `--check-samples` and the sample-fix flags also visit plugin-held files through
   their maps. Serato Sample, xfadelooper, Battery 4, Kontakt 5, Maschine 2, Texture,
   CMI V and Reaktor 6 support relinking; iZotope Iris and MPC Essentials files are
@@ -138,7 +144,7 @@ Changes since 2.1.0.
   `--dump-plugins` for inspection, the sample flags for plugin-held files, and
   `--plugin-maps` for supported capabilities.
 - The `plugin_translation.targets`, `plugin_upgrades` and `plugin_parsers` sections
-  of config.yaml are ignored, with a warning; a plan carries choices forward with `--from`.
+  of config.yaml are ignored, with a warning; a plan's `convert_to` holds the choices.
 - Python modules have moved into `samples`, `run`, `schema`, `formats` and
   `plugins`. Update internal imports using the current library examples and
   [library guide](doc/LIBRARY.md).

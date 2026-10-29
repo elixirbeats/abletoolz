@@ -63,7 +63,7 @@ def test_bank_selection_is_required_and_never_implicitly_program_zero() -> None:
 def test_active_unmapped_modules_are_refused_without_dropping_them(module: str) -> None:
     bank = source().with_values(0, {f"{module}: Bypass": False})
     raw = bank.encode()
-    with pytest.raises(StateTransformError, match=f"Active {module}"):
+    with pytest.raises(StateTransformError, match=f"active {module} module"):
         convert_single_band_distortion(bank, program=0)
     assert bank.encode() == raw
 
@@ -76,8 +76,8 @@ def test_unmapped_modes_are_refused(mode: str) -> None:
 
 def test_unknown_correspondence_ranges_and_revision_stay_explicit() -> None:
     cases: tuple[tuple[dict[FieldKey, StateValue], str], ...] = (
-        ({"Trash: First Algorithm": 36}, "No Trash 2 counterpart"),
-        ({"Gain: Input Left": 11.0}, "target range"),
+        ({"Trash: First Algorithm": 36}, "has no Trash 2 counterpart"),
+        ({"Gain: Input Left": 11.0}, "outside the measured range"),
         ({"Bypass Gain": -3.0}, "bypass gain"),
     )
     for changes, reason in cases:
@@ -87,6 +87,18 @@ def test_unknown_correspondence_ranges_and_revision_stay_explicit() -> None:
     index = next(i for i, program in enumerate(mixed.programs) if program.revision == 22)
     with pytest.raises(StateTransformError, match="unmapped"):
         convert_single_band_distortion(mixed, program=index)
+
+
+def test_a_plan_converts_what_has_no_match_by_leaving_it_out_and_saying_so() -> None:
+    """Called by a plan (``lossy``), nothing a converter cannot carry refuses the device."""
+    bank = source().with_values(
+        0, {"PreFilter: Bypass": False, "Gain: Input Left": 11.0, "Gain: Input Right": 11.0, "Bypass Gain": -3.0}
+    )
+    converted = convert_single_band_distortion(bank, program=0, lossy=True)
+    assert "the active PreFilter module has no measured match in Trash 2; it is left out" in converted.notices
+    assert "the bypass gain has no measured match in Trash 2; it is left out" in converted.notices
+    assert any("Input Left gain of 11.0 is outside the measured range" in notice for notice in converted.notices)
+    assert converted.state.settings.value("GAIN: Input L (unlocked)") == 10.0
 
 
 def test_known_tonal_differences_are_returned_alongside_an_usable_state() -> None:

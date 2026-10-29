@@ -317,9 +317,7 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
     set_commands = any(getattr(args, name) for name in COMMAND_FLAGS + AUTHORING_FLAGS)
     if args.db and (args.plugin_maps or args.plugin_db or set_commands):
         parser.error("--db/--database cannot be used with other commands!")
-    if args.search_samples is not None and (
-        args.db or args.plugin_maps or args.plugin_db or set_commands or args.srcs
-    ):
+    if args.search_samples is not None and (args.db or args.plugin_maps or args.plugin_db or set_commands or args.srcs):
         parser.error("--search-samples searches the sample database; it takes no folders, sets, or other command.")
     if args.db_prune and (
         args.db or args.plugin_maps or args.plugin_db or set_commands or args.srcs or args.search_samples is not None

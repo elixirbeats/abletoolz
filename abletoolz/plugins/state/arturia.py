@@ -29,13 +29,14 @@ def prophet_v3() -> PluginMap:
         version="3",
         scope="VST2 and VST3 save the same patch",
         vendor="Arturia",
-        vst2=PluginFormat(Vst2Id(1347571507), "Prophet V3", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1347571507), "Prophet V3", VERBATIM, measured, plan_name="prophet_v3_vst2"),
         vst3=PluginFormat(
             Vst3Id((1098019957, 1096173907, 1347571507, 1349676899)),
             "Prophet V3",
             VERBATIM,
             measured,
             NO_CONTROLLER_STATE,
+            plan_name="prophet_v3_vst3",
         ),
     )
 
@@ -118,6 +119,6 @@ def cmi_v() -> PluginMap:
         version="5",
         scope="text archive of objects; each voice's sample in a fixed 256 byte path field",
         vendor="Arturia",
-        vst2=PluginFormat(Vst2Id(1129138550), "CMI V", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1129138550), "CMI V", VERBATIM, measured, plan_name="cmi_v_vst2"),
         file_paths=CmiSamplePaths(),
     )

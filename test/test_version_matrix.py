@@ -195,8 +195,8 @@ def test_a_vst3_target_is_refused_below_the_schema_that_declares_vst3(key: str) 
     Below the measured floor the answer must be a refusal: a set whose schema
     never declared ``Vst3PluginInfo`` is rejected by Live outright once one is
     written into it, so the whole document is at stake, not the one device. At
-    or above the floor, configured controls still need a parameter map, and a
-    guess cannot rebuild Live's own list of them either.
+    or above the floor nothing refuses: controls in use are a cost, said in
+    the answer's warnings.
     """
     ableton_set = skeleton_set(key)
     version = tuple(EXPECTED[key]["version"])
@@ -218,18 +218,7 @@ def test_a_vst3_target_is_refused_below_the_schema_that_declares_vst3(key: str) 
     answers = [carry(device, choice, guess, machine) for device in devices]
     reasons = [answer if isinstance(answer, str) else None for answer in answers]
     if set_supports(PluginKind.VST3, version):
-        configured_devices = {
-            "10.1.18": 8,
-            "10.1.30": 3,
-            "11.0.0": 4,
-            "11.0.12": 9,
-            "11.3.42": 0,
-            "12.2.6": 1,
-            "12.4.5b": 2,
-        }
-        controls = ("parameter map", "Live's own list")
-        assert sum(any(text in (reason or "") for text in controls) for reason in reasons) == configured_devices[key]
-        assert not any(reason is not None and "too old" in reason for reason in reasons)
+        assert reasons == [None] * len(devices)
     else:
         assert all(reason is not None and "too old" in reason for reason in reasons)
 

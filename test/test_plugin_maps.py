@@ -75,19 +75,23 @@ def test_a_plugin_nobody_mapped_is_not_found() -> None:
     assert CATALOG.find(Vst2Id(1)) is None
 
 
-def _map(map_id: str, stored: Vst2Id) -> PluginMap:
+def _map(map_id: str, stored: Vst2Id, plan_name: str | None = None) -> PluginMap:
     measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,))
-    return PluginMap(map_id, map_id, None, "fixture", vst2=PluginFormat(stored, map_id, VERBATIM, measured))
+    vst2 = PluginFormat(stored, map_id, VERBATIM, measured, plan_name=plan_name or f"{map_id}_vst2")
+    return PluginMap(map_id, map_id, None, "fixture", vst2=vst2)
 
 
 @pytest.mark.parametrize(
-    "second", [_map("one", Vst2Id(2)), _map("two", Vst2Id(1))], ids=["same map id", "same stored id"]
+    "second",
+    [_map("one", Vst2Id(2)), _map("two", Vst2Id(1)), _map("two", Vst2Id(2), plan_name="one_vst2")],
+    ids=["same map id", "same stored id", "same plan name"],
 )
 def test_two_plugins_claiming_one_identity_are_refused(second: PluginMap) -> None:
+    """A plan file names a target by its plan name, so two formats sharing one would make convert_to ambiguous."""
     catalog = Catalog()
     catalog.register(lambda: _map("one", Vst2Id(1)))
     catalog.register(lambda: second)
-    with pytest.raises(StateTransformError, match="registered as|both claim"):
+    with pytest.raises(StateTransformError, match="registered as|both claim|both use the plan name"):
         catalog.find(Vst2Id(1))
 
 
@@ -155,13 +159,15 @@ def test_the_trash_translation_needs_the_program_the_device_plays() -> None:
 def test_a_format_must_hold_its_own_kind_of_id() -> None:
     measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,))
     with pytest.raises(StateTransformError, match="holds a Vst2Id"):
-        PluginMap("x", "x", None, "fixture", vst3=PluginFormat(Vst2Id(1), "x", VERBATIM, measured))
+        PluginMap("x", "x", None, "fixture", vst3=PluginFormat(Vst2Id(1), "x", VERBATIM, measured, plan_name="x_vst3"))
 
 
 @pytest.mark.parametrize("change", ["no_formats", "bad_digest", "duplicate_digest", "blank_scope"])
 def test_a_plugin_map_refuses_ambiguous_identity_and_scope(change: str) -> None:
     measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,))
-    knowledge = PluginMap("x", "x", None, "fixture", vst2=PluginFormat(Vst2Id(1), "x", VERBATIM, measured))
+    knowledge = PluginMap(
+        "x", "x", None, "fixture", vst2=PluginFormat(Vst2Id(1), "x", VERBATIM, measured, plan_name="x_vst2")
+    )
     with pytest.raises(StateTransformError):
         match change:
             case "no_formats":
@@ -237,17 +243,18 @@ def test_a_surge_1_patch_goes_into_a_surge_xt_au_preset_as_it_is() -> None:
     assert SURGE_1_UNIQUE_ID not in {getattr(item.id, "unique_id", None) for item in surge_xt.formats.values()}
 
 
+def test_a_chunk_that_is_not_surge_1_is_refused() -> None:
+    with pytest.raises(StateTransformError, match="opens with"):
+        import_surge_1(b"sub2" + legacy_surge()[4:])
+
+
 @pytest.mark.parametrize(
-    ("chunk", "match"),
-    [
-        (b"sub2" + legacy_surge()[4:], "opens with"),
-        (legacy_surge(revision=9), "revision 9"),
-        (b"sub3" + bytes(28), "revision None"),
-    ],
+    ("chunk", "revision"), [(legacy_surge(revision=9), "revision 9"), (b"sub3" + bytes(28), "revision None")]
 )
-def test_a_surge_1_chunk_nobody_measured_is_refused(chunk: bytes, match: str) -> None:
-    with pytest.raises(StateTransformError, match=match):
-        import_surge_1(chunk)
+def test_a_surge_1_revision_nobody_measured_converts_and_says_to_listen(chunk: bytes, revision: str) -> None:
+    imported = import_surge_1(chunk)
+    assert imported.patch == chunk
+    assert f"Surge XT was not measured importing Surge 1.x {revision}; listen to it first" in imported.notices
 
 
 # -- FabFilter -----------------------------------------------------------------

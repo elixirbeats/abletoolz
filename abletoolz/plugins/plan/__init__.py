@@ -1,32 +1,22 @@
 """Plan what every plugin device in a set becomes, then apply the plan.
 
-A plan is a file you read and edit. It lists every plugin found in the sets it
-covers, one entry per plugin, with every target that plugin can become here,
-what proves each and whether it is installed on this machine:
+A plan file lists every plugin found in the sets it covers, one entry per plugin
+and format, with three fields: ``plugin``, ``format`` and ``convert_to``. Above
+each entry a comment lists the names ``convert_to`` takes: the plugin's own
+other formats and the plugins its converters reach, each by the ``plan_name``
+written by hand in its map, and a verified native recovery route by its id.
+``null`` leaves a plugin as it is; a name converts every device of it.
 
-* the same plugin in another format, its patch carried by the plugin's map;
-* the same plugin in another installed file (same VST2 UniqueId, e.g. its
-  64-bit build), the patch kept as it is;
-* a verified native recovery route, for the saved patches it was measured on;
-* another plugin, through a converter someone worked out;
-* an installed plugin with a similar name and no other vendor, for a plugin
-  abletoolz has not mapped: an experiment that copies the patch as it is,
-  never picked for you.
-
-``pick`` is the target a plugin's devices become, or ``keep``; an override
-gives one device a different pick. A new plan starts from a policy
-(:class:`Pick`): only plugins this machine cannot load get a target, nothing
-does, or every plugin gets its best target. Best means the same plugin before
-another plugin, then stronger evidence, then the format order the plan was made
-with.
-
-Applying reads each set again, skips one that changed since it was planned,
-rewrites every device whose pick is not ``keep`` and leaves a device that
-cannot take its pick exactly as it was, saying why.
+Applying reads each set again, so the file holds no device numbers or hashes,
+converts every device whose plugin names a target, and leaves a device that
+cannot take it exactly as it was, saying why.
 
 On this computer, :func:`plan_sets`, :func:`write_plan`, :func:`read_plan` and
-:func:`apply_in_place` are ``abletoolz plugins plan`` and ``apply``. A plan is
-the plan file as an object: the same entries with the same fields.
+:func:`apply_in_place` are ``abletoolz plugins plan`` and ``apply``. In Python
+a :class:`Plan` holds more than the file: every device, every target with its
+evidence, and per-device overrides. :func:`file_targets` (another installed
+file of the same VST2) and :func:`experiments` (an installed plugin named like
+an unmapped one) add targets the file never offers.
 """
 
 from abletoolz.plugins.plan.apply import SetOutcome, apply_plan
@@ -34,16 +24,27 @@ from abletoolz.plugins.plan.carry import carry
 from abletoolz.plugins.plan.evidence import known_state
 from abletoolz.plugins.plan.here import apply_in_place, plan_sets, read_plan, this_machine, write_plan
 from abletoolz.plugins.plan.machine import InstalledVst2, Machine
-from abletoolz.plugins.plan.make import make_plan, seed_from_plan
-from abletoolz.plugins.plan.model import KEEP, Override, Pick, Plan, PluginChoice, Route, Target, dump_plan, load_plan
+from abletoolz.plugins.plan.make import make_plan
+from abletoolz.plugins.plan.model import (
+    KEEP,
+    Override,
+    Plan,
+    PlanFile,
+    PluginChoice,
+    Route,
+    Target,
+    dump_plan,
+    load_plan,
+)
+from abletoolz.plugins.plan.targets import experiments, file_targets
 
 __all__ = [
     "KEEP",
     "InstalledVst2",
     "Machine",
     "Override",
-    "Pick",
     "Plan",
+    "PlanFile",
     "PluginChoice",
     "Route",
     "SetOutcome",
@@ -52,12 +53,13 @@ __all__ = [
     "apply_plan",
     "carry",
     "dump_plan",
+    "experiments",
+    "file_targets",
     "known_state",
     "load_plan",
     "make_plan",
     "plan_sets",
     "read_plan",
-    "seed_from_plan",
     "this_machine",
     "write_plan",
 ]

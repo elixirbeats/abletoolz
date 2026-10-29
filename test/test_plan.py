@@ -27,18 +27,18 @@ from abletoolz.plugins.plan import (
     InstalledVst2,
     Machine,
     Override,
-    Pick,
     Plan,
     PluginChoice,
     Route,
     apply_in_place,
     apply_plan,
     dump_plan,
+    experiments,
+    file_targets,
     load_plan,
     make_plan,
     plan_sets,
     read_plan,
-    seed_from_plan,
     write_plan,
 )
 from abletoolz.plugins.state.all_plugins import CATALOG
@@ -118,37 +118,23 @@ def test_a_plan_names_the_main_track_a_device_sits_on(tmp_path: pathlib.Path) ->
     assert first.track == main.get("Value")
 
 
-def test_a_broken_mapped_plugin_is_picked_its_installed_other_format(tmp_path: pathlib.Path) -> None:
+def test_a_mapped_plugin_offers_its_other_format_by_its_plan_name_and_picks_nothing(tmp_path: pathlib.Path) -> None:
     plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,)))
     serum = choice(plan, "Serum")
     (target,) = serum.targets
     assert (target.id, target.route, target.format, target.installed) == (
-        "Serum (VST3)",
+        "serum_vst3",
         Route.FORMAT,
         PluginKind.VST3,
         True,
     )
-    assert serum.pick == "Serum (VST3)"
-
-
-@pytest.mark.parametrize(
-    ("policy", "broken", "picked"),
-    [
-        (Pick.BROKEN, False, KEEP),
-        (Pick.KEEP, True, KEEP),
-        (Pick.BEST, False, "Serum (VST3)"),
-    ],
-)
-def test_the_starting_pick_follows_the_policy(tmp_path: pathlib.Path, policy: Pick, broken: bool, picked: str) -> None:
-    plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,), broken=broken), pick=policy)
-    assert choice(plan, "Serum").pick == picked
-
-
-def test_a_target_not_installed_here_is_listed_but_not_picked(tmp_path: pathlib.Path) -> None:
-    plan = make_plan([copy_set(tmp_path)], machine())
-    serum = choice(plan, "Serum")
-    assert [target.installed for target in serum.targets] == [False]
     assert serum.pick == KEEP
+
+
+def test_a_target_not_installed_here_is_still_offered(tmp_path: pathlib.Path) -> None:
+    """Converting for another machine, a Mac friend's AU say, needs no plugin here."""
+    plan = make_plan([copy_set(tmp_path)], machine())
+    assert [(target.id, target.installed) for target in choice(plan, "Serum").targets] == [("serum_vst3", False)]
 
 
 def test_another_plugin_is_reached_through_its_converter(tmp_path: pathlib.Path) -> None:
@@ -157,29 +143,18 @@ def test_another_plugin_is_reached_through_its_converter(tmp_path: pathlib.Path)
     plan = make_plan([path], machine(vst3=(PRO_Q3_VST3,)))
     pro_q = choice(plan, "FabFilter Pro-Q")
     (target,) = pro_q.targets
-    assert (target.id, target.route, target.proved) == ("Pro-Q 3 (VST3)", Route.CONVERTER, True)
-    assert pro_q.pick == "Pro-Q 3 (VST3)"
+    assert (target.id, target.route, target.proved) == ("pro_q_3_vst3", Route.CONVERTER, True)
 
 
-@pytest.mark.parametrize(
-    ("formats", "picked"),
-    [
-        ((PluginKind.VST3, PluginKind.AU), "ValhallaShimmer (VST3)"),
-        ((PluginKind.AU, PluginKind.VST3), "ValhallaShimmer (AU)"),
-    ],
-)
-def test_equal_evidence_is_decided_by_the_format_order(
-    tmp_path: pathlib.Path, formats: tuple[PluginKind, ...], picked: str
-) -> None:
+def test_every_format_the_plugin_has_is_offered(tmp_path: pathlib.Path) -> None:
     path = copy_set(tmp_path)
     edit(path, make_shimmer)
-    plan = make_plan([path], machine(vst3=(SHIMMER_VST3,), au=(SHIMMER_AU,)), formats=formats)
-    shimmer = choice(plan, "ValhallaShimmer")
-    assert {target.id for target in shimmer.targets} == {"ValhallaShimmer (VST3)", "ValhallaShimmer (AU)"}
-    assert shimmer.pick == picked
+    shimmer = choice(make_plan([path], machine(vst3=(SHIMMER_VST3,), au=(SHIMMER_AU,))), "ValhallaShimmer")
+    assert [target.id for target in shimmer.targets] == ["valhalla_shimmer_vst3", "valhalla_shimmer_au"]
 
 
-def test_a_device_with_automation_is_counted_as_refused(tmp_path: pathlib.Path) -> None:
+def test_a_device_with_saved_control_settings_converts_and_says_what_it_loses(tmp_path: pathlib.Path) -> None:
+    """Nothing a converter can't carry refuses a device: the plan shows the cost, and applying reports it."""
     path = copy_set(tmp_path)
 
     def automate(root: ET.Element) -> None:
@@ -190,20 +165,72 @@ def test_a_device_with_automation_is_counted_as_refused(tmp_path: pathlib.Path) 
 
     edit(path, automate)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
-    (target,) = choice(plan, "Serum").targets
-    assert target.refused == {"it has automation or mapped controls, which need a parameter map": 1}
+    serum = choice(plan, "Serum")
+    (target,) = serum.targets
+    assert target.refused == {}
+    assert target.warnings == {"its saved per-control settings were dropped": 1}
+    assert "1 of 1 device(s): its saved per-control settings were dropped" in dump_plan(plan)
+
+    serum.pick = "serum_vst3"
+    (outcome,) = apply_plan(plan, machine=machine(), save=write_to_disk)
+    (device,) = outcome.devices
+    assert device.done and device.warnings == ["its saved per-control settings were dropped"]
 
 
-def test_a_plan_survives_its_yaml_file(tmp_path: pathlib.Path) -> None:
-    plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,)))
-    text = dump_plan(plan)
+def test_the_plan_file_lists_each_plugin_with_the_names_it_takes_above_it(tmp_path: pathlib.Path) -> None:
+    text = dump_plan(make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,))))
     assert text.startswith("# abletoolz plugin plan")
-    assert load_plan(text) == plan
+    serum = "# Serum VST2: 1 device(s), doesn't load here\n#   serum_vst3\n- plugin: Serum\n  format: VST2\n"
+    assert serum + "  convert_to: null\n" in text
+    entries = [(entry.plugin, entry.format, entry.convert_to) for entry in load_plan(text).plugins]
+    assert ("Serum", "VST2", None) in entries
+
+
+def write_and_pick(tmp_path: pathlib.Path, plan: Plan, plugin: str, convert_to: str) -> pathlib.Path:
+    """The plan written to disk with one plugin's convert_to filled in, the way a person edits it."""
+    plan_file = tmp_path / "plan.yaml"
+    write_plan(plan, plan_file)
+    text = plan_file.read_text(encoding="utf-8")
+    entry = f"- plugin: {plugin}\n  format: VST2\n  convert_to: null"
+    assert entry in text
+    plan_file.write_text(text.replace(entry, entry.replace("null", convert_to)), encoding="utf-8")
+    return plan_file
+
+
+def test_convert_to_takes_a_listed_name_and_null_keeps(tmp_path: pathlib.Path) -> None:
+    here = machine(vst3=(SERUM_VST3,))
+    plan_file = write_and_pick(tmp_path, make_plan([copy_set(tmp_path)], here), "Serum", "serum_vst3")
+    plan = read_plan(plan_file, machine=here)
+    assert choice(plan, "Serum").pick == "serum_vst3"
+    assert all(item.pick == KEEP for item in plan.plugins if item.plugin != "Serum")
+
+
+@pytest.mark.parametrize("typed", ["Serum_VST3", "serum vst3", "serum_au"])
+def test_convert_to_must_be_one_of_the_names_listed_exactly(tmp_path: pathlib.Path, typed: str) -> None:
+    here = machine(vst3=(SERUM_VST3,))
+    plan_file = write_and_pick(tmp_path, make_plan([copy_set(tmp_path)], here), "Serum", repr(typed))
+    with pytest.raises(ValueError, match=f"no target named '{typed}' \\(it can become serum_vst3\\)"):
+        read_plan(plan_file, machine=here)
+
+
+def test_an_entry_for_a_plugin_the_sets_no_longer_hold_is_refused(tmp_path: pathlib.Path) -> None:
+    path = copy_set(tmp_path)
+    here = machine(vst3=(SERUM_VST3,))
+    plan_file = write_and_pick(tmp_path, make_plan([path], here), "Serum", "serum_vst3")
+    edit(path, make_shimmer)
+    with pytest.raises(ValueError, match="Serum VST2 is not in these sets any more"):
+        read_plan(plan_file, machine=here)
+
+
+def test_a_plan_file_from_another_version_is_refused() -> None:
+    with pytest.raises(ValueError, match="version 1, not 2; make a fresh plan"):
+        load_plan("abletoolz_plan: 1\nsets: []\nplugins: []\n")
 
 
 def test_applying_rewrites_the_picked_devices_and_saves_the_set(tmp_path: pathlib.Path) -> None:
     path = copy_set(tmp_path)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
+    choice(plan, "Serum").pick = "serum_vst3"
     saved: list[pathlib.Path] = []
 
     def save(target: pathlib.Path, root: ET.Element) -> None:
@@ -222,6 +249,7 @@ def test_an_override_keeps_one_device(tmp_path: pathlib.Path) -> None:
     path = copy_set(tmp_path)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
     serum = choice(plan, "Serum")
+    serum.pick = "serum_vst3"
     serum.overrides.append(Override(set=0, device=0, pick=KEEP))
     (outcome,) = apply_plan(plan, machine=machine(), save=nothing_saved)
     assert outcome.changed == 0
@@ -242,12 +270,13 @@ def test_a_hand_edited_override_naming_nothing_in_the_plan_is_refused(
     plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,)))
     choice(plan, "Serum").overrides.append(override)
     with pytest.raises(ValueError, match=f"Serum: .*{message}"):
-        load_plan(dump_plan(plan))
+        Plan.model_validate(plan.model_dump())
 
 
 def test_a_set_that_cannot_be_saved_is_reported_and_the_rest_still_applied(tmp_path: pathlib.Path) -> None:
     first, second = copy_set(tmp_path, name="a.als"), copy_set(tmp_path, name="b.als")
     plan = make_plan([first, second], machine(vst3=(SERUM_VST3,)))
+    choice(plan, "Serum").pick = "serum_vst3"
 
     def save(target: pathlib.Path, root: ET.Element) -> None:
         if target.name == "a.als":
@@ -262,6 +291,7 @@ def test_a_set_that_cannot_be_saved_is_reported_and_the_rest_still_applied(tmp_p
 def test_a_set_that_changed_since_planning_is_skipped(tmp_path: pathlib.Path) -> None:
     path = copy_set(tmp_path)
     plan = make_plan([path], machine(vst3=(SERUM_VST3,)))
+    choice(plan, "Serum").pick = "serum_vst3"
     edit(path, make_shimmer)
     (outcome,) = apply_plan(plan, machine=machine(), save=nothing_saved)
     assert outcome.skipped is not None and "changed since it was planned" in outcome.skipped
@@ -269,8 +299,8 @@ def test_a_set_that_changed_since_planning_is_skipped(tmp_path: pathlib.Path) ->
 
 def test_a_pick_naming_no_target_is_refused_before_anything_is_written(tmp_path: pathlib.Path) -> None:
     plan = make_plan([copy_set(tmp_path)], machine(vst3=(SERUM_VST3,)))
-    choice(plan, "Serum").pick = "Serum (AU)"
-    with pytest.raises(ValueError, match="no target named 'Serum \\(AU\\)'"):
+    choice(plan, "Serum").pick = "serum_au"
+    with pytest.raises(ValueError, match="no target named 'serum_au'"):
         apply_plan(plan, machine=machine(), save=nothing_saved)
 
 
@@ -279,26 +309,23 @@ def test_a_pick_naming_no_target_is_refused_before_anything_is_written(tmp_path:
 SERUM_ID = 1483109208
 
 
-def test_another_file_of_the_same_plugin_is_a_target_and_wins_when_nothing_else_is_installed(
-    tmp_path: pathlib.Path,
-) -> None:
+def test_a_plan_file_never_offers_another_file_or_a_guess(tmp_path: pathlib.Path) -> None:
+    """Both are Python only: a plan file offers what a plugin map names by hand."""
     native = InstalledVst2("Serum_x64", SERUM_ID, tmp_path / "VST" / "Serum_x64.vst")
-    plan = make_plan([copy_set(tmp_path)], machine(vst2=(native,)))
-    serum = choice(plan, "Serum")
-    assert [target.route for target in serum.targets] == [Route.FORMAT, Route.FILE]
-    assert serum.pick == f"file {native.path}"
-
-
-def test_a_heard_other_format_beats_another_file_of_the_same_plugin(tmp_path: pathlib.Path) -> None:
-    native = InstalledVst2("Serum_x64", SERUM_ID, tmp_path / "Serum_x64.vst")
-    plan = make_plan([copy_set(tmp_path)], machine(vst2=(native,), vst3=(SERUM_VST3,)))
-    assert choice(plan, "Serum").pick == "Serum (VST3)"
+    lookalike = InstalledVst2("Effectrix", 42, tmp_path / "Effectrix.vst")
+    plan = make_plan([copy_set(tmp_path)], machine(vst2=(native, lookalike), vst3_names={"Effectrix": (1, 2, 3, 4)}))
+    assert [target.route for target in choice(plan, "Serum").targets] == [Route.FORMAT]
+    assert choice(plan, "Effectrix").targets == []
 
 
 def test_applying_a_file_target_points_the_device_at_it_and_keeps_its_id(tmp_path: pathlib.Path) -> None:
     path = copy_set(tmp_path)
     native = InstalledVst2("Serum_x64", SERUM_ID, tmp_path / "Plug-Ins" / "Serum_x64.vst")
-    plan = make_plan([path], machine(vst2=(native,)))
+    here = machine(vst2=(native,))
+    plan = make_plan([path], here)
+    serum = choice(plan, "Serum")
+    serum.targets += file_targets(SERUM_ID, here)
+    serum.pick = serum.targets[-1].id
     (outcome,) = apply_plan(plan, machine=machine(), save=write_to_disk)
     assert outcome.changed == 1
     device = next(item for item in PluginDevices(live_document.read(path)) if item.identity.unique_id == SERUM_ID)
@@ -310,8 +337,11 @@ def test_a_pick_is_refused_on_a_device_that_holds_another_plugin(tmp_path: pathl
     serum_set, shimmer_set = copy_set(tmp_path, name="a.als"), copy_set(tmp_path, name="b.als")
     edit(shimmer_set, make_shimmer)
     native = InstalledVst2("Serum_x64", SERUM_ID, tmp_path / "Plug-Ins" / "Serum_x64.vst")
-    plan = make_plan([serum_set, shimmer_set], machine(vst2=(native,)))
-    assert choice(plan, "Serum").pick == f"file {native.path}"
+    here = machine(vst2=(native,))
+    plan = make_plan([serum_set, shimmer_set], here)
+    serum = choice(plan, "Serum")
+    serum.targets += file_targets(SERUM_ID, here)
+    serum.pick = f"file {native.path}"
     before = shimmer_set.read_bytes()
     del plan.sets[0]
 
@@ -323,28 +353,14 @@ def test_a_pick_is_refused_on_a_device_that_holds_another_plugin(tmp_path: pathl
     assert shimmer_set.read_bytes() == before
 
 
-def test_an_unmapped_plugin_gets_guesses_that_are_never_picked_for_you(tmp_path: pathlib.Path) -> None:
-    lookalike = InstalledVst2("Effectrix", 42, tmp_path / "Effectrix.vst")
-    plan = make_plan(
-        [copy_set(tmp_path)],
-        machine(vst2=(lookalike,), vst3_names={"Effectrix": (1, 2, 3, 4)}),
-        pick=Pick.BEST,
-    )
-    effectrix = choice(plan, "Effectrix")
-    assert [(target.id, target.route) for target in effectrix.targets] == [
-        ("try Effectrix (VST3)", Route.EXPERIMENT),
-        (f"try file {lookalike.path}", Route.EXPERIMENT),
-    ]
-    assert all(not target.proved for target in effectrix.targets)
-    assert effectrix.pick == KEEP
-
-
 @pytest.mark.parametrize("pick", ["try Effectrix (VST3)", "try file"])
 def test_a_picked_guess_writes_the_installed_plugins_identity(tmp_path: pathlib.Path, pick: str) -> None:
     path = copy_set(tmp_path)
     lookalike = InstalledVst2("Effectrix", 42, tmp_path / "Effectrix.vst")
-    plan = make_plan([path], machine(vst2=(lookalike,), vst3_names={"Effectrix": (1, 2, 3, 4)}))
+    here = machine(vst2=(lookalike,), vst3_names={"Effectrix": (1, 2, 3, 4)})
+    plan = make_plan([path], here)
     effectrix = choice(plan, "Effectrix")
+    effectrix.targets += experiments(device_named(live_document.read(path), "Effectrix").identity, here)
     effectrix.pick = next(target.id for target in effectrix.targets if target.id.startswith(pick))
 
     (outcome,) = apply_plan(plan, machine=machine(), save=write_to_disk)
@@ -364,13 +380,8 @@ def test_a_verified_recovery_route_is_a_target_and_applying_it_relinks_the_nativ
     plan = make_plan([source], dataclasses.replace(machine(), recovery=(route_target,)))
     legacy = choice(plan, "Legacy.64")
     (target,) = legacy.targets
-    assert (target.id, target.route, target.installed, target.refused) == (
-        "recovery test-native",
-        Route.RECOVERY,
-        True,
-        {},
-    )
-    assert legacy.pick == "recovery test-native"
+    assert (target.id, target.route, target.installed, target.refused) == ("test-native", Route.RECOVERY, True, {})
+    legacy.pick = "test-native"
 
     (outcome,) = apply_plan(
         plan,
@@ -381,22 +392,6 @@ def test_a_verified_recovery_route_is_a_target_and_applying_it_relinks_the_nativ
     assert outcome.changed == 1, outcome
     (device,) = PluginDevices(live_document.read(source))
     assert device.reference.file_name == "Native.dll"
-
-
-# -- starting from earlier choices ------------------------------------------------------
-
-
-def test_from_carries_picks_and_overrides_for_unchanged_sets(tmp_path: pathlib.Path) -> None:
-    path = copy_set(tmp_path)
-    first = make_plan([path], machine(vst3=(SERUM_VST3,)))
-    serum = choice(first, "Serum")
-    serum.pick = KEEP
-    serum.overrides.append(Override(set=0, device=0, pick="Serum (VST3)"))
-    second = make_plan([copy_set(tmp_path, name="other.als"), path], machine(vst3=(SERUM_VST3,)))
-    seed_from_plan(second, first)
-    seeded = choice(second, "Serum")
-    assert seeded.pick == KEEP
-    assert [(override.set, override.device) for override in seeded.overrides] == [(1, 0)]
 
 
 # -- the command line ------------------------------------------------------------------
@@ -420,16 +415,21 @@ def test_plan_writes_a_file_and_apply_rewrites_the_set_keeping_a_backup(
 
     assert plugins_command(locations, "plan", str(sets), "-o", str(plan_file)) == 0
     assert path.read_bytes() == original
-    assert "pick: Serum (VST3)" in plan_file.read_text()
-    assert plugins_command(locations, "plan", str(sets), "-o", str(plan_file)) == 1
-    assert plugins_command(locations, "plan", str(sets), "-o", str(plan_file), "--from", str(plan_file)) == 0
+    assert plugins_command(locations, "plan", str(sets), "-o", str(plan_file)) == 1  # exists: --force to overwrite
+    assert plugins_command(locations, "plan", str(sets), "-o", str(plan_file), "--force") == 0
+    assert plugins_command(locations, "apply", str(plan_file)) == 0  # every convert_to is null: nothing happens
+    assert path.read_bytes() == original
 
+    entry = "- plugin: Serum\n  format: VST2\n  convert_to: null"
+    text = plan_file.read_text(encoding="utf-8")
+    assert "#   serum_vst3" in text and entry in text
+    plan_file.write_text(text.replace(entry, entry.replace("null", "serum_vst3")), encoding="utf-8")
     assert plugins_command(locations, "apply", str(plan_file)) == 0
     (backup,) = (sets / "abletoolz_backup").iterdir()
     assert backup.read_bytes() == original
     kinds = {device.identity.name: device.kind for device in PluginDevices(live_document.read(path))}
     assert kinds["Serum"] is PluginKind.VST3
-    assert plugins_command(locations, "apply", str(plan_file)) == 0  # changed since planned: skipped
+    assert plugins_command(locations, "apply", str(plan_file)) == 1  # its Serum VST2 is gone now
 
 
 def test_a_set_that_is_not_one_fails_the_plan_without_writing_it(tmp_path: pathlib.Path, locations: Locations) -> None:
@@ -448,7 +448,11 @@ def test_a_recovery_route_found_under_plugin_dir_is_planned_and_applied_from_the
     monkeypatch.setattr("abletoolz.plugins.plan.here.load_recovery_routes", lambda: (route,))
     plan_file = tmp_path / "plan.yaml"
     folder = ["--plugin-dir", str(route_target.path.parent)]
-    assert plugins_command(locations, "plan", str(source), "-o", str(plan_file), "--pick", "best", *folder) == 0
+    assert plugins_command(locations, "plan", str(source), "-o", str(plan_file), *folder) == 0
+    entry = "- plugin: Legacy.64\n  format: VST2\n  convert_to: null"
+    text = plan_file.read_text(encoding="utf-8")
+    assert "#   test-native" in text and entry in text
+    plan_file.write_text(text.replace(entry, entry.replace("null", "test-native")), encoding="utf-8")
     assert plugins_command(locations, "apply", str(plan_file), *folder) == 0
     (device,) = PluginDevices(live_document.read(source))
     assert device.identity.name == "Native"
@@ -464,10 +468,10 @@ def test_a_plan_in_python_is_the_plan_file_planned_edited_and_applied_like_the_c
     here = machine(vst3=(SERUM_VST3,))
     plan_file = tmp_path / "plan.yaml"
 
-    write_plan(plan_sets([sets], pick=Pick.KEEP, machine=here), plan_file)
+    write_plan(plan_sets([sets], machine=here), plan_file)
     assert path.read_bytes() == original
-    plan = read_plan(plan_file)
-    choice(plan, "Serum").pick = "Serum (VST3)"
+    plan = read_plan(plan_file, machine=here)
+    choice(plan, "Serum").pick = "serum_vst3"
     (outcome,) = apply_in_place(plan, machine=here)
 
     assert outcome.changed == 1
@@ -493,6 +497,7 @@ def test_applying_a_converter_writes_the_other_plugins_patch(tmp_path: pathlib.P
     path = copy_set(tmp_path)
     edit(path, make_pro_q1)
     plan = make_plan([path], machine(vst3=(PRO_Q3_VST3,)))
+    choice(plan, "FabFilter Pro-Q").pick = "pro_q_3_vst3"
     (outcome,) = apply_plan(plan, machine=machine(), save=write_to_disk)
     assert outcome.changed == 1
     device = device_named(live_document.read(path), "Pro-Q 3")
@@ -508,6 +513,7 @@ def test_a_set_older_than_vst3_refuses_every_vst3_target(tmp_path: pathlib.Path)
     (target,) = pro_q.targets
     (reason,) = target.refused
     assert "too old to hold a VST3 device" in reason
+    pro_q.pick = "pro_q_3_vst3"
     before = path.read_bytes()
     (outcome,) = apply_plan(plan, machine=machine(), save=nothing_saved)
     assert outcome.changed == 0 and all("too old" in (device.reason or "") for device in outcome.devices)

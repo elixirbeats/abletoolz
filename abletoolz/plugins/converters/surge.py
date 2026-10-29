@@ -34,12 +34,10 @@ def import_surge_1(chunk: bytes, program: int | None = None) -> Converted:
         raise StateTransformError(f"a Surge 1.x chunk opens with {SURGE_1_MAGIC!r}, and this one does not")
     found = _REVISION.search(chunk[:_REVISION_WINDOW])
     revision = None if found is None else int(found[1])
+    notices = [
+        "Surge XT migrates the patch to its current format when it loads it.",
+        "The patch's voice limit becomes Surge XT's default of 16; the legacy patch saved 8.",
+    ]
     if revision not in _SURGE_1_REVISIONS:
-        raise StateTransformError(f"Surge XT was not measured importing Surge 1.x revision {revision}")
-    return Converted(
-        chunk,
-        (
-            "Surge XT migrates the patch to its current format when it loads it.",
-            "The patch's voice limit becomes Surge XT's default of 16; the legacy patch saved 8.",
-        ),
-    )
+        notices.append(f"Surge XT was not measured importing Surge 1.x revision {revision}; listen to it first")
+    return Converted(chunk, tuple(notices))

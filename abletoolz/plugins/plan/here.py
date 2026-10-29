@@ -2,24 +2,23 @@
 
 ``plan_sets`` is ``abletoolz plugins plan``, ``write_plan`` and ``read_plan``
 are the plan file, and ``apply_in_place`` is ``abletoolz plugins apply``. Each
-builds this computer's :class:`Machine` unless it is handed one, so a plan made
-here is applied against what was checked here.
+builds this computer's :class:`Machine` unless it is handed one. ``read_plan``
+reads the sets again, so what is applied is what is on disk now.
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 
 from abletoolz.live_set.persistence import is_backup_set, save_in_place
 from abletoolz.machine import Locations
 from abletoolz.plugins.config import AbletoolzConfig, load_config
-from abletoolz.plugins.identity.ids import PluginKind
 from abletoolz.plugins.plan.apply import SetOutcome, apply_plan
 from abletoolz.plugins.plan.machine import Machine
-from abletoolz.plugins.plan.make import make_plan, seed_from_plan
-from abletoolz.plugins.plan.model import DEFAULT_FORMATS, Pick, Plan, dump_plan, load_plan
+from abletoolz.plugins.plan.make import make_plan
+from abletoolz.plugins.plan.model import Plan, dump_plan, load_plan, take_picks
 from abletoolz.plugins.recovery_routes import RecoveryTarget, load_recovery_routes, resolve_recovery_targets
 
 
@@ -52,22 +51,9 @@ def this_machine(
     return Machine.here(routes, config=config, locations=locations)
 
 
-def plan_sets(
-    sources: Iterable[str | os.PathLike[str]],
-    *,
-    pick: Pick = Pick.BROKEN,
-    formats: Sequence[PluginKind] = DEFAULT_FORMATS,
-    picks_from: Plan | None = None,
-    machine: Machine | None = None,
-) -> Plan:
-    """Plan every plugin device in the sets ``sources`` name, folders searched recursively; nothing is written.
-
-    ``picks_from`` carries an edited plan's picks and overrides over, like ``--from``.
-    """
-    plan = make_plan(_set_paths(sources), this_machine() if machine is None else machine, pick=pick, formats=formats)
-    if picks_from is not None:
-        seed_from_plan(plan, picks_from)
-    return plan
+def plan_sets(sources: Iterable[str | os.PathLike[str]], *, machine: Machine | None = None) -> Plan:
+    """Plan every plugin device in the sets ``sources`` name, folders searched recursively; nothing is written."""
+    return make_plan(_set_paths(sources), this_machine() if machine is None else machine)
 
 
 def write_plan(plan: Plan, path: str | os.PathLike[str]) -> None:
@@ -75,9 +61,12 @@ def write_plan(plan: Plan, path: str | os.PathLike[str]) -> None:
     pathlib.Path(path).write_text(dump_plan(plan), encoding="utf-8")
 
 
-def read_plan(path: str | os.PathLike[str]) -> Plan:
-    """Read a plan file, edits included."""
-    return load_plan(pathlib.Path(path).read_text(encoding="utf-8"))
+def read_plan(path: str | os.PathLike[str], *, machine: Machine | None = None) -> Plan:
+    """The sets a plan file names, planned again as they are now, with the file's convert_to as each pick."""
+    file = load_plan(pathlib.Path(path).read_text(encoding="utf-8"))
+    plan = plan_sets(file.sets, machine=machine)
+    take_picks(plan, file)
+    return plan
 
 
 def apply_in_place(plan: Plan, *, machine: Machine | None = None) -> list[SetOutcome]:

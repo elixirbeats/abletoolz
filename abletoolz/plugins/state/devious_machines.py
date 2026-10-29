@@ -132,13 +132,14 @@ def texture() -> PluginMap:
         version=None,
         scope="JUCE XML state; a user sample is named by its absolute path",
         vendor="Devious Machines",
-        vst2=PluginFormat(Vst2Id(1484419439), "Texture", VERBATIM, _STRUCTURAL),
+        vst2=PluginFormat(Vst2Id(1484419439), "Texture", VERBATIM, _STRUCTURAL, plan_name="texture_vst2"),
         vst3=PluginFormat(
             Vst3Id((1448301656, 2054254452, 1702392949, 1919221760)),
             "Texture",
             VERBATIM,
             _STRUCTURAL,
             NO_CONTROLLER_STATE,
+            plan_name="texture_vst3",
         ),
         file_paths=TexturePaths(),
     )

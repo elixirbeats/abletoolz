@@ -47,7 +47,7 @@ import enum
 from collections.abc import Callable, Sequence
 from xml.etree import ElementTree as ET
 
-from abletoolz.elements import get_element
+from abletoolz.elements import get_element, remove_children
 from abletoolz.live_set import sample_ref, sections
 from abletoolz.live_set.domain import Domain
 from abletoolz.live_set.sections import CopiedPlacement, SkippedStraddler
@@ -765,7 +765,7 @@ class Clips(Domain):
             for target, events, cloned in clones:
                 if cloned:
                     doomed = sections.span_occupants(events, dest_start, dest_end)
-                    sections.remove_children(events.element, doomed)
+                    remove_children(events.element, doomed)
                     replaced += len(doomed)
                 for clone in cloned:
                     start = sections.event_time(clone) + delta
@@ -858,7 +858,7 @@ class Clips(Domain):
                     )
                     for clip in doomed
                 )
-                sections.remove_children(events.element, doomed)
+                remove_children(events.element, doomed)
             return sections.SectionRemoveReport(removed=tuple(removed), kept=tuple(kept))
 
         return run

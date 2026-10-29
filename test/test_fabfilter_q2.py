@@ -77,11 +77,15 @@ def test_globals_keep_units_and_new_dynamics_keep_defaults() -> None:
 
 
 @pytest.mark.parametrize("index", [176, 179, 188, 190])
-def test_unresolved_modes_fail_before_writing(index: int) -> None:
+def test_unresolved_modes_are_refused_directly_and_left_off_with_a_notice_for_a_plan(index: int) -> None:
     bank = pro_q2_bank()
     bank[index] = 1.0
-    with pytest.raises(StateTransformError, match="unresolved"):
+    with pytest.raises(StateTransformError, match="has no measured match in Pro-Q 3"):
         pro_q2_to_pro_q3_parameters(bank)
+    notices: list[str] = []
+    pro_q2_to_pro_q3_parameters(bank, notices)
+    (notice,) = notices
+    assert notice.endswith("was on, and has no measured match in Pro-Q 3; it is off")
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), -0.001, 1.001])

@@ -29,6 +29,7 @@ class DeviceOutcome(pydantic.BaseModel):
     done: bool
     reason: str | None = None
     evidence: str | None = None
+    warnings: list[str] = pydantic.Field(default_factory=list)
 
 
 class SetOutcome(pydantic.BaseModel):
@@ -78,6 +79,7 @@ def apply_to_root(plan: Plan, set_index: int, root: ET.Element, machine: Machine
                 plugin=choice.plugin,
                 pick=pick,
                 done=reason is None,
+                warnings=list(answer.warnings) if reason is None and not isinstance(answer, str) else [],
                 reason=reason,
                 evidence=target.evidence,
             )

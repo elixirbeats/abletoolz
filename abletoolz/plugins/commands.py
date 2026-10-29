@@ -1,8 +1,8 @@
 """``abletoolz plugins``: plan what plugin devices become, apply the plan, list recovery routes.
 
-``plan`` reads sets and writes a plan file listing every plugin in them, what
-each can become on this machine and what proves it; ``apply`` rewrites the sets
-the plan covers as it says, in place, keeping the usual backup. ``routes``
+``plan`` reads sets and writes a plan file listing every plugin in them, with
+what each can become on this machine above it; ``apply`` converts every plugin
+whose ``convert_to`` names a target, in place, keeping the usual backup. ``routes``
 lists the measured native recovery routes and the binaries found for them.
 See :mod:`abletoolz.plugins.plan`.
 """
@@ -18,10 +18,8 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.machine import Locations
 from abletoolz.plugins.config import AbletoolzConfig
-from abletoolz.plugins.identity.ids import PluginKind
-from abletoolz.plugins.plan import Pick, apply_in_place, plan_sets, read_plan, this_machine, write_plan
+from abletoolz.plugins.plan import apply_in_place, plan_sets, read_plan, this_machine, write_plan
 from abletoolz.plugins.plan.here import recovery_targets
-from abletoolz.plugins.plan.model import DEFAULT_FORMATS
 from abletoolz.run import console
 
 DEFAULT_PLAN = pathlib.Path("plugin_plan.yaml")
@@ -60,42 +58,16 @@ def _parser() -> argparse.ArgumentParser:
         metavar="PLAN.yaml",
         help=f"Where the plan is written (default: {DEFAULT_PLAN})",
     )
-    plan.add_argument(
-        "--pick",
-        type=Pick,
-        choices=list(Pick),
-        default=Pick.BROKEN,
-        help="What the plan picks before you edit it: broken (default) gives a target only to plugins this "
-        "machine cannot load, keep picks nothing, best gives every plugin its best installed target",
-    )
-    plan.add_argument(
-        "--formats",
-        default=",".join(kind.value for kind in DEFAULT_FORMATS),
-        metavar="vst3,au,vst",
-        help="Preferred format order when two targets are equally proved (default: vst3,au,vst)",
-    )
-    plan.add_argument(
-        "--from",
-        dest="seed",
-        type=pathlib.Path,
-        metavar="OLD_PLAN.yaml",
-        help="Carry the picks and overrides of an edited plan over to this one",
-    )
     plan.add_argument("--force", action="store_true", help="Overwrite an existing plan file")
     recovery_options(plan)
 
-    apply = verbs.add_parser("apply", help="Rewrite the sets a plan covers as it says, keeping a backup of each")
+    apply = verbs.add_parser(
+        "apply", help="Convert every plugin whose convert_to names a target, keeping a backup of each set"
+    )
     apply.add_argument("plan", type=pathlib.Path, metavar="PLAN.yaml")
     apply.add_argument("--json", action="store_true", help="Print what was done as JSON")
     recovery_options(apply)
     return parser
-
-
-def _formats(raw: str) -> list[PluginKind]:
-    try:
-        return [PluginKind(item.strip()) for item in raw.split(",") if item.strip()]
-    except ValueError as error:
-        raise ValueError(f"--formats takes vst3, au and vst, not {raw!r}") from error
 
 
 def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locations: Locations) -> int:
@@ -112,20 +84,16 @@ def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locatio
             else:
                 console.render_recovery_routes(routes)
             return 0
+        machine = this_machine(args.plugin_dir, config=config, locations=locations)
         if args.command == "plan":
             output = args.output.resolve()
-            seed = None if args.seed is None else read_plan(args.seed)
-            if output.exists() and not args.force and (args.seed is None or args.seed.resolve() != output):
-                raise FileExistsError(f"{output} exists; pass --force to overwrite it, or --from it to build on it")
-            machine = this_machine(args.plugin_dir, config=config, locations=locations)
-            plan = plan_sets(
-                args.srcs, pick=args.pick, formats=_formats(args.formats), picks_from=seed, machine=machine
-            )
+            if output.exists() and not args.force:
+                raise FileExistsError(f"{output} exists; pass --force to overwrite it")
+            plan = plan_sets(args.srcs, machine=machine)
             write_plan(plan, output)
             console.render_plan(plan, output)
             return 0
-        plan = read_plan(args.plan)
-        outcomes = apply_in_place(plan, machine=this_machine(args.plugin_dir, config=config, locations=locations))
+        outcomes = apply_in_place(read_plan(args.plan, machine=machine), machine=machine)
     except (OSError, ValueError, ET.ParseError) as error:
         print(f"abletoolz plugins {args.command} failed: {error}", file=sys.stderr)
         return 1

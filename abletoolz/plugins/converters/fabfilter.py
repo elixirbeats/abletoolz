@@ -14,6 +14,7 @@ import datetime
 import math
 from collections.abc import Sequence
 
+from abletoolz.plugins.converters import limitation
 from abletoolz.plugins.state.catalog import Converted, converter
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.fabfilter import (
@@ -121,14 +122,15 @@ def _setting(value: float, count: int) -> int:
     return math.floor(value * (count - 1) + 0.5)
 
 
-def pro_q1_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
+def pro_q1_to_pro_q3_parameters(bank: Sequence[float], notices: list[str] | None = None) -> tuple[float, ...]:
     """Remap Pro-Q 1's normalized parameter bank onto Pro-Q 3's plugin-unit floats.
 
     Slot 0 of the bank is the used-band count over 24; each band that count
     covers is read out of its seven slots and written into Pro-Q 3's thirteen.
     The eight globals after the bands each land on their Pro-Q 3 counterpart.
     Bands past the count, and every Pro-Q 3 field Pro-Q 1 has no counterpart for,
-    keep :data:`PRO_Q3_DEFAULT_PARAMETERS`.
+    keep :data:`PRO_Q3_DEFAULT_PARAMETERS`. A band placed off stereo is refused,
+    or with ``notices`` written stereo and said there.
     """
     if len(bank) != PRO_Q1_PARAMETERS:
         raise StateTransformError(
@@ -146,7 +148,9 @@ def pro_q1_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
         start = 1 + band * PRO_Q1_BAND_SLOTS
         source = bank[start : start + PRO_Q1_BAND_SLOTS]
         if source[Q1BandField.PLACEMENT] != 1.0:
-            raise StateTransformError("Pro-Q 1 non-stereo band placement is unmapped")
+            limitation(
+                notices, f"band {band + 1}'s left, right, mid or side placement has no measured match; it is stereo"
+            )
         target = band * PRO_Q3_BAND_SLOTS
         frequency = _Q1_FREQUENCY_FLOOR_HZ * _Q1_FREQUENCY_DECADES ** source[Q1BandField.FREQUENCY]
         parameters[target + Q3BandField.USED] = 1.0
@@ -196,11 +200,12 @@ def pro_q1_to_pro_q3(patch: bytes, program: int | None = None) -> Converted:
     and read back by Pro-Q 3 in the host rig on 2026-08-13.
     """
     bank = LegacyBank.parse(patch)
-    return Converted(_pro_q3_chunk(bank, pro_q1_to_pro_q3_parameters(bank.parameters)))
+    notices: list[str] = []
+    return Converted(_pro_q3_chunk(bank, pro_q1_to_pro_q3_parameters(bank.parameters, notices)), tuple(notices))
 
 
-def pro_q2_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
-    """Convert a measured Pro-Q 2 bank, refusing unresolved monitoring modes.
+def pro_q2_to_pro_q3_parameters(bank: Sequence[float], notices: list[str] | None = None) -> tuple[float, ...]:
+    """Convert a measured Pro-Q 2 bank; an unresolved monitoring mode left on is refused, or with ``notices`` left off.
 
     Source enumeration and sweeps use the recovered native x64 Pro-Q 2 DLL.
     Thirteen wrapped-device buffers restored all 191 source floats unchanged.
@@ -215,7 +220,7 @@ def pro_q2_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
         raise StateTransformError("Pro-Q 2 parameters must be finite normalized values between 0 and 1")
     for index, name in ((176, "Auto Gain"), (179, "Analyzer Side-chain"), (188, "Solo Band"), (190, "Ex Auto Gain")):
         if bank[index] != 0:
-            raise StateTransformError(f"Pro-Q 2 {name} conversion is unresolved; refusing a changed mode")
+            limitation(notices, f"{name} was on, and has no measured match in Pro-Q 3; it is off")
 
     parameters = list(PRO_Q3_DEFAULT_PARAMETERS)
     mid_side = _setting(bank[170], 2)
@@ -268,4 +273,5 @@ def pro_q2_to_pro_q3_parameters(bank: Sequence[float]) -> tuple[float, ...]:
 def pro_q2_to_pro_q3(patch: bytes, program: int | None = None) -> Converted:
     """A Pro-Q 2 host bank as Pro-Q 3's own patch, its VST2 chunk."""
     bank = LegacyBank.parse(patch)
-    return Converted(_pro_q3_chunk(bank, pro_q2_to_pro_q3_parameters(bank.parameters)))
+    notices: list[str] = []
+    return Converted(_pro_q3_chunk(bank, pro_q2_to_pro_q3_parameters(bank.parameters, notices)), tuple(notices))

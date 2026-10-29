@@ -163,6 +163,7 @@ def plugin_map() -> PluginMap:
             "iZotope Trash",
             VERBATIM,
             MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), datetime.date(2026, 10, 22)),
+            plan_name="trash_vst2",
         ),
         binary_sha256=(ENGINE_SHA256,),
     )

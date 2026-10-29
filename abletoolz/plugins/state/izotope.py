@@ -66,9 +66,15 @@ def ozone_9_exciter() -> PluginMap:
         version="9",
         scope="VST2 wrapper around the VST3 processor state; controller half not measured",
         vendor="iZotope",
-        vst2=PluginFormat(Vst2Id(1515141464), "Ozone 9 Exciter", VERBATIM, NESTING_MEASURED),
+        vst2=PluginFormat(
+            Vst2Id(1515141464), "Ozone 9 Exciter", VERBATIM, NESTING_MEASURED, plan_name="ozone_9_exciter_vst2"
+        ),
         vst3=PluginFormat(
-            Vst3Id((1448301658, 1329158223, 2054123109, 540614725)), "Ozone 9 Exciter", IzotopeVst3(), NESTING_MEASURED
+            Vst3Id((1448301658, 1329158223, 2054123109, 540614725)),
+            "Ozone 9 Exciter",
+            IzotopeVst3(),
+            NESTING_MEASURED,
+            plan_name="ozone_9_exciter_vst3",
         ),
         layouts=(WRAPPED,),
     )
@@ -124,7 +130,11 @@ def iris() -> PluginMap:
         scope="VST2 wrapper; each layer's sample named by absolute path",
         vendor="iZotope",
         vst2=PluginFormat(
-            Vst2Id(1767524691), "iZotope Iris", VERBATIM, MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,))
+            Vst2Id(1767524691),
+            "iZotope Iris",
+            VERBATIM,
+            MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,)),
+            plan_name="iris_vst2",
         ),
         file_paths=IrisSamplePaths(),
     )

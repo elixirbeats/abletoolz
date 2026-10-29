@@ -31,6 +31,7 @@ at, which is what :class:`Controls` is read from.
 
 from __future__ import annotations
 
+import collections
 import dataclasses
 import enum
 import functools
@@ -44,6 +45,7 @@ from abletoolz.formats import hex_text, path_data
 from abletoolz.formats.path_data import SetOperatingSystem
 from abletoolz.plugins.identity.ids import Identity, PluginKind, UidFields, fourcc
 from abletoolz.schema import Attr, Tag, path
+from abletoolz.schema.live_schemas import live_schemas
 from abletoolz.schema.versioning import MIN_SUPPORTED, Version, parse_creator
 
 
@@ -357,13 +359,16 @@ def _set_hex(element: ET.Element, parent: ET.Element, payload: bytes) -> None:
 # while 10.0_377 -- the schema Live 10.1 writes -- carries 129 across 23 sets.
 # By Creator the same line falls between 10.0.6 and 10.1.
 #
-# The Audio Unit floor is the oldest AuPluginInfo anything here has read: the one
-# Live 11.3.41 wrote, which is what the AU writer below copies. Older schemas
-# lack ComponentFlags, NumAudioInputs and the rest, and are not measured.
+# An Audio Unit has no floor of its own: every schema Live 12.4.7 ships, from
+# 8.1_220 on, declares AuPluginInfo and AuPluginDevice. What decides is whether
+# the AU writer can fill the AuPluginInfo the document's schema declares (see
+# _au_info_order): every schema before 11.0_11202 (Live 11.2), and the 12.0_12000
+# beta, also declares a ParameterCount, and some a ComponentVersion, which no
+# device converted from another format has a value for.
 _FORMAT_FLOORS: dict[PluginKind, Version] = {
     PluginKind.VST: MIN_SUPPORTED,
     PluginKind.VST3: (10, 1, 0),
-    PluginKind.AU: (11, 3, 41),
+    PluginKind.AU: MIN_SUPPORTED,
 }
 _SCHEMA = re.compile(r"(\d+)\.(\d+)_(\d+)")
 _VST3_SCHEMA_FLOOR = (10, 0, 377)
@@ -384,6 +389,8 @@ def set_supports(kind: PluginKind, version: Version, *, minor_version: str | Non
         if schema is None:
             return False
         return tuple(int(part) for part in schema.groups()) >= _VST3_SCHEMA_FLOOR
+    if kind is PluginKind.AU:
+        return _au_info_order(version, minor_version) is not None
     return True
 
 
@@ -505,6 +512,9 @@ def _write_vst3(device: PluginDevice, identity: Identity, preset: SavedState) ->
 # Everything an AuPluginInfo holds, in the order Live 11.3.41 writes it, read off
 # the AUBandpass device in that fixture. The VST2 and VST3 identity fields go;
 # Name and Manufacturer are the component's registered name, split at its colon.
+# Every schema Live ships from 11.0_11202 on (12.0_12000 aside) declares a subset
+# of these, in this order: read off the AbletonSchema resources of Live 12.4.7,
+# whose packed copy keeps which members a schema declares but not their order.
 _AU_INFO_ORDER = (
     Tag.WIN_POS_X,
     Tag.WIN_POS_Y,
@@ -520,6 +530,24 @@ _AU_INFO_ORDER = (
     Tag.PRESET,
     Tag.IS_UNUSABLE,
 )
+_AU_MEASURED: Version = (11, 3, 41)
+
+
+def _au_info_order(version: Version, minor_version: str | None) -> tuple[str, ...] | None:
+    """The AuPluginInfo children a set of that schema holds, in Live's order; None when the writer cannot fill them.
+
+    The schema says which: a member it lacks is left out. One it declares
+    beyond :data:`_AU_INFO_ORDER` -- ParameterCount, ComponentVersion -- has no
+    value in a device of another format, so that schema is refused rather
+    than guessed at. A schema Live does not ship gets the layout measured on 11.3.41.
+    """
+    declared = None if minor_version is None else live_schemas().members_of(minor_version, Tag.AU_PLUGIN_INFO)
+    if declared is None:
+        return _AU_INFO_ORDER if version >= _AU_MEASURED else None
+    if not declared <= set(_AU_INFO_ORDER):
+        return None
+    return tuple(tag for tag in _AU_INFO_ORDER if tag in declared)
+
 
 # The 13 shared preset tags, then the preset bytes and the preset's own record
 # of its component: the same three codes as the info element, as integers.
@@ -544,6 +572,13 @@ def _write_au(device: PluginDevice, identity: Identity, preset: SavedState) -> N
     if identity.name is None or identity.au is None or identity.manufacturer is None or identity.flags is None:
         raise ValueError("an Audio Unit device needs a name, a manufacturer, its three codes and its flags")
     component_type, subtype, manufacturer = (str(code) for code in identity.au)
+    document = device._document()
+    info_order = _au_info_order(document.version, document.minor_version)
+    if info_order is None:
+        raise ValueError(
+            f"Live's schema {document.minor_version or '(none)'} declares an {Tag.AU_PLUGIN_INFO} "
+            "this writer cannot fill: a ParameterCount or ComponentVersion nothing here has a value for"
+        )
     info = device.info
     info_closing = info[-1].tail
     preset_element = device._require_preset()
@@ -569,7 +604,7 @@ def _write_au(device: PluginDevice, identity: Identity, preset: SavedState) -> N
         (Tag.IS_UNUSABLE, "false"),
     ):
         info.append(ET.Element(tag, {Attr.VALUE: value}))
-    _rebuild(info, _AU_INFO_ORDER, info_closing)
+    _rebuild(info, info_order, info_closing)
     info.tag = Tag.AU_PLUGIN_INFO
 
 
@@ -867,11 +902,21 @@ class PluginDevices:
         return {child: parent for parent in self.root.iter() for child in parent}
 
     @functools.cached_property
-    def referenced_ids(self) -> frozenset[str]:
-        """Every automation or modulation target id something in the document points at."""
-        return frozenset(
+    def pointees(self) -> collections.Counter[str]:
+        """How often something in the document points at each automation or modulation target id."""
+        return collections.Counter(
             element.attrib[Attr.VALUE] for element in self.root.iter(Tag.POINTEE_ID) if Attr.VALUE in element.attrib
         )
+
+    @property
+    def referenced_ids(self) -> frozenset[str]:
+        """Every automation or modulation target id something in the document points at."""
+        return frozenset(self.pointees)
+
+    def changed(self) -> None:
+        """Forget what was read off the document, after an edit moved or removed elements."""
+        for cached in ("parents", "pointees"):
+            self.__dict__.pop(cached, None)
 
     def track_of(self, element: ET.Element) -> ET.Element | None:
         """The track element holding ``element``, of any kind, or None outside every track."""

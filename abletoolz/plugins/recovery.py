@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 from abletoolz.formats.errors import FormatError
 from abletoolz.plugins.container.device import PluginDevice, ReferenceForm
-from abletoolz.plugins.container.rewritable import refusal
+from abletoolz.plugins.container.rewritable import control_losses
 from abletoolz.plugins.conversion import Answer, Edit
 from abletoolz.plugins.identity.ids import PluginKind, fourcc
 from abletoolz.plugins.recovery_routes import RecoveryTarget, StateMode, TargetStatus, fingerprint_binary
@@ -107,14 +107,6 @@ def recover(device: PluginDevice, target: RecoveryTarget) -> Answer:
     state = next((state for state in route.states if state.sha256 == digest), None)
     if state is None or program not in state.program_numbers:
         return "Saved bank and selected program have not been verified"
-    if route.state_mode is not StateMode.REFERENCE:
-        # Recovery carries no parameter list of its own, so Live's is refused like any other.
-        try:
-            reason = refusal(device, device.kind, can_rebuild_live_list=False)
-        except ValueError as error:
-            return str(error)
-        if reason is not None:
-            return reason
     if target.status is not TargetStatus.AVAILABLE or target.path is None or target.binary is None:
         return target.reason
     binary = target.binary
@@ -124,4 +116,7 @@ def recover(device: PluginDevice, target: RecoveryTarget) -> Answer:
     except OSError as error:  # the binary is gone
         return str(error)
     programs = binary.program_count if route.state_mode is StateMode.REFERENCE_WITH_PROGRAM_CAPACITY else None
-    return Edit(target.path, binary.name, programs=programs)
+    # A route that carries a patch carries no list of controls, so links to the old ones go.
+    renumbered = route.state_mode is not StateMode.REFERENCE
+    losses = control_losses(device) if renumbered else ()
+    return Edit(target.path, binary.name, programs=programs, forget_controls=renumbered, warnings=losses)
