@@ -457,7 +457,9 @@ def _ffbs_plugin(
     vst3_id: tuple[int, int, int, int],
     measured: MeasuredState,
     controller: FfbsControllerState | None,
-    plan_names: tuple[str, str],
+    *,
+    vst2_plan: str | None = None,
+    vst3_plan: str | None = None,
 ) -> PluginMap:
     """An FFBS-generation FabFilter: VST2 holds its own chunk, VST3 the reframed halves."""
     return PluginMap(
@@ -466,8 +468,12 @@ def _ffbs_plugin(
         version=None,
         scope="VST2 chunk to VST3 processor and controller halves, measured in the host rig",
         vendor="FabFilter",
-        vst2=PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured, plan_name=plan_names[0]),
-        vst3=PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller, plan_name=plan_names[1]),
+        vst2=None
+        if vst2_plan is None
+        else PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured, plan_name=vst2_plan),
+        vst3=None
+        if vst3_plan is None
+        else PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller, plan_name=vst3_plan),
         layouts=_FFBS_LAYOUTS,
     )
 
@@ -485,7 +491,8 @@ def pro_q_3() -> PluginMap:
         (1925503857, 2051884442, -1182903948, 1568977821),
         _REFRAMED,
         PRO_Q3_CONTROLLER,
-        ("pro_q_3_vst2", "pro_q_3_vst3"),
+        vst2_plan="pro_q_3_vst2",
+        vst3_plan="pro_q_3_vst3",
     )
 
 
@@ -499,7 +506,8 @@ def saturn_2() -> PluginMap:
         (-1928956621, -660584163, -1163695098, 1282063355),
         _REFRAMED,
         SATURN_2_CONTROLLER,
-        ("saturn_2_vst2", "saturn_2_vst3"),
+        vst2_plan="saturn_2_vst2",
+        vst3_plan="saturn_2_vst3",
     )
 
 
@@ -514,7 +522,8 @@ def timeless_3() -> PluginMap:
         (-756127758, -984465363, -1876879981, 452832875),
         MeasuredState(StateRung.REFRAME, (StateEvidence.EAR, StateEvidence.HOSTED), _HOSTED_ON),
         TIMELESS_3_CONTROLLER,
-        ("timeless_3_vst2", "timeless_3_vst3"),
+        vst2_plan="timeless_3_vst2",
+        vst3_plan="timeless_3_vst3",
     )
 
 
@@ -530,7 +539,8 @@ def volcano_3() -> PluginMap:
         (698034028, -495235247, -1785296369, -2046760495),
         _REFRAMED,
         None,
-        ("volcano_3_vst2", "volcano_3_vst3"),
+        vst2_plan="volcano_3_vst2",
+        vst3_plan="volcano_3_vst3",
     )
 
 
@@ -571,12 +581,18 @@ def _derived_plugin(
     vst3_id: tuple[int, int, int, int],
     table: DerivedTable,
     measured: MeasuredState,
-    plan_names: tuple[str, str],
+    *,
+    vst2_plan: str | None = None,
+    vst3_plan: str | None = None,
 ) -> PluginMap:
     """A FabF-generation FabFilter: the VST2 holds the host's bank, the VST3 what the derived table writes."""
-    vst2 = PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured, plan_name=plan_names[0])
-    vst3 = PluginFormat(
-        Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER, plan_name=plan_names[1]
+    vst2 = None if vst2_plan is None else PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured, plan_name=vst2_plan)
+    vst3 = (
+        None
+        if vst3_plan is None
+        else PluginFormat(
+            Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER, plan_name=vst3_plan
+        )
     )
     return PluginMap(
         id=f"fabfilter.{key}",
@@ -607,7 +623,8 @@ def pro_c_2() -> PluginMap:
         (2046039523, -924366841, -1386372145, 1881470488),
         PRO_C_2_TABLE,
         MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), _HOSTED_ON),
-        ("pro_c_2_vst2", "pro_c_2_vst3"),
+        vst2_plan="pro_c_2_vst2",
+        vst3_plan="pro_c_2_vst3",
     )
 
 
@@ -638,7 +655,8 @@ def pro_l_2() -> PluginMap:
         (-1344721038, -1710995529, -1243033131, 1759422853),
         PRO_L_2_TABLE,
         _DERIVED_CHECKED,
-        ("pro_l_2_vst2", "pro_l_2_vst3"),
+        vst2_plan="pro_l_2_vst2",
+        vst3_plan="pro_l_2_vst3",
     )
 
 
@@ -653,7 +671,8 @@ def pro_mb() -> PluginMap:
         (-1011449534, -946321678, -2101920597, -552365962),
         PRO_MB_TABLE,
         _DERIVED_CHECKED,
-        ("pro_mb_vst2", "pro_mb_vst3"),
+        vst2_plan="pro_mb_vst2",
+        vst3_plan="pro_mb_vst3",
     )
 
 
@@ -668,7 +687,8 @@ def pro_g() -> PluginMap:
         (-1658991369, -1853209745, -1546791151, 1569397051),
         PRO_G_TABLE,
         _DERIVED_CHECKED,
-        ("pro_g_vst2", "pro_g_vst3"),
+        vst2_plan="pro_g_vst2",
+        vst3_plan="pro_g_vst3",
     )
 
 
@@ -692,5 +712,6 @@ def pro_ds() -> PluginMap:
         (1508058320, -1897393695, -1202224895, -1142580456),
         PRO_DS_TABLE,
         MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED,), datetime.date(2026, 10, 26)),
-        ("pro_ds_vst2", "pro_ds_vst3"),
+        vst2_plan="pro_ds_vst2",
+        vst3_plan="pro_ds_vst3",
     )

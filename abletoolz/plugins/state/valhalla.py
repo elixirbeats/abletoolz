@@ -36,7 +36,10 @@ def _valhalla(
     version: int,
     vst3_id: tuple[int, int, int, int],
     build: str,
-    plan_names: tuple[str, str, str],
+    *,
+    vst2_plan: str | None = None,
+    vst3_plan: str | None = None,
+    au_plan: str | None = None,
 ) -> PluginMap:
     au = AuId.of("aufx", au_subtype, "oDin")
     return PluginMap(
@@ -45,12 +48,16 @@ def _valhalla(
         version=build.split(".")[0],
         scope=f"Build {build} in VST2, VST3 and AU, measured headless with edited patches both ways",
         vendor="Valhalla DSP",
-        vst2=PluginFormat(Vst2Id(vst2_id), name, VERBATIM, _CHUNK, plan_name=plan_names[0]),
-        vst3=PluginFormat(
-            Vst3Id(vst3_id), name, JuceVstw(vst2_id, version), _REFRAMED, NO_CONTROLLER_STATE, plan_name=plan_names[1]
+        vst2=None if vst2_plan is None else PluginFormat(Vst2Id(vst2_id), name, VERBATIM, _CHUNK, plan_name=vst2_plan),
+        vst3=None
+        if vst3_plan is None
+        else PluginFormat(
+            Vst3Id(vst3_id), name, JuceVstw(vst2_id, version), _REFRAMED, NO_CONTROLLER_STATE, plan_name=vst3_plan
         ),
-        au=PluginFormat(
-            au, name, JuceClassInfo(au.identifier), _REFRAMED, registration=_REGISTRATION, plan_name=plan_names[2]
+        au=None
+        if au_plan is None
+        else PluginFormat(
+            au, name, JuceClassInfo(au.identifier), _REFRAMED, registration=_REGISTRATION, plan_name=au_plan
         ),
     )
 
@@ -64,7 +71,9 @@ def supermassive() -> PluginMap:
         327680,
         (1448301683, 1298232182, 1634494561, 1819042163),
         "5.0.0",
-        ("valhalla_supermassive_vst2", "valhalla_supermassive_vst3", "valhalla_supermassive_au"),
+        vst2_plan="valhalla_supermassive_vst2",
+        vst3_plan="valhalla_supermassive_vst3",
+        au_plan="valhalla_supermassive_au",
     )
 
 
@@ -77,7 +86,9 @@ def freq_echo() -> PluginMap:
         66056,
         (1448301638, 1900374134, 1634494561, 1819042150),
         "1.2.8",
-        ("valhalla_freq_echo_vst2", "valhalla_freq_echo_vst3", "valhalla_freq_echo_au"),
+        vst2_plan="valhalla_freq_echo_vst2",
+        vst3_plan="valhalla_freq_echo_vst3",
+        au_plan="valhalla_freq_echo_au",
     )
 
 
@@ -90,7 +101,9 @@ def room() -> PluginMap:
         67080,
         (1448301650, 1970630006, 1634494561, 1819042162),
         "1.6.8",
-        ("valhalla_room_vst2", "valhalla_room_vst3", "valhalla_room_au"),
+        vst2_plan="valhalla_room_vst2",
+        vst3_plan="valhalla_room_vst3",
+        au_plan="valhalla_room_au",
     )
 
 
@@ -103,7 +116,9 @@ def shimmer() -> PluginMap:
         66304,
         (1448301683, 1752003190, 1634494561, 1819042163),
         "1.3.0",
-        ("valhalla_shimmer_vst2", "valhalla_shimmer_vst3", "valhalla_shimmer_au"),
+        vst2_plan="valhalla_shimmer_vst2",
+        vst3_plan="valhalla_shimmer_vst3",
+        au_plan="valhalla_shimmer_au",
     )
 
 
@@ -116,7 +131,9 @@ def delay() -> PluginMap:
         132353,
         (1448301668, 1281456502, 1634494561, 1819042148),
         "2.5.1",
-        ("valhalla_delay_vst2", "valhalla_delay_vst3", "valhalla_delay_au"),
+        vst2_plan="valhalla_delay_vst2",
+        vst3_plan="valhalla_delay_vst3",
+        au_plan="valhalla_delay_au",
     )
 
 
@@ -129,5 +146,7 @@ def plate() -> PluginMap:
         67080,
         (1448301680, 1818326134, 1634494561, 1819042160),
         "1.6.8",
-        ("valhalla_plate_vst2", "valhalla_plate_vst3", "valhalla_plate_au"),
+        vst2_plan="valhalla_plate_vst2",
+        vst3_plan="valhalla_plate_vst3",
+        au_plan="valhalla_plate_au",
     )
