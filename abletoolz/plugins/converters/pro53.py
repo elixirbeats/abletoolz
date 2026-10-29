@@ -7,17 +7,17 @@ macro removed, the state its map was measured on) from both plugins' maps, in
 the units each one prints. Every Pro-53 control goes one of these ways, and each
 converted device lists which:
 
-* **calibrated** -- both engines rendered one control at a time on 2026-10-21 and
-  matched (``data/pro53-to-prophet-5-v.json``): oscillator pitch, oscillator B's
+* **calibrated** -- both engines rendered one control at a time and matched
+  (``data/pro53-to-prophet-5-v.json``): oscillator pitch, oscillator B's
   fine tune, master tune, cutoff inside 32 to 111 of 127, amp and filter
   envelope attack, decay and release (matched at the time each stage takes to
   reach half way; their curves differ in shape), and the filter envelope's
   Poly-Mod depth into oscillator A's pitch;
-* **rendered at a few points** -- short noise clips on both on 2026-10-28
+* **rendered at a few points** -- short noise clips rendered on both
   (``coarse`` in the data): cutoff outside 32 to 111 by its fitted corner in
   hertz, resonance by the height of its peak, filter envelope amount by how far
   it moves the cutoff. The cutoff renders agree with the calibration where they
-  overlap, which also checks it on the instrument build the sets hold;
+  overlap, which also checks it on the instrument build;
 * **same unit** -- both plugins print the same quantity: LFO rate in hertz,
   pulse width in percent;
 * **same switch** -- the same front-panel switch on both: waveforms, sync,
@@ -41,8 +41,8 @@ converted device lists which:
   MIDI sync, amp hold and LFO envelope trigger (left out). A direct call
   without ``notices`` refuses these instead.
 
-The calibration rendered Pro-53's effect build; on the instrument the sets hold,
-short renders on 2026-10-28 put amp attack and release half-way times within 4%
+The calibration rendered Pro-53's effect build; on the instrument build,
+short renders put amp attack and release half-way times within 4%
 of it at two settings each, cutoff on its curve, and pitch within 2 cents.
 Nothing here has been heard in Live.
 """

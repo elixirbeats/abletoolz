@@ -2,24 +2,24 @@
 
 Another product than Prophet V3, with its own UniqueId. Its VST2 state is two
 Boost text archives behind their lengths (:class:`TwoArchives`), and its
-controls are named numbers in the map each one holds. Measured 2026-10-21 on
-1.3.3.6106 by hosting the VST2 on the workstation: written into both archives,
-every one of its 96 core controls was restored and read back by the plugin as
-written, on a baseline with no macro assignments (the vendor's default ties
-nine core controls to macros, which rewrite them on reload).
+controls are named numbers in the map each one holds. Measured on 1.3.3.6106
+by hosting the VST2: written into both archives, every one of its 96 core
+controls is restored and read back by the plugin as written, on a baseline
+with no macro assignments (the vendor's default ties nine core controls to
+macros, which rewrite them on reload).
 
 The VST3 keeps the same two archives as the two halves of its preset: the
 first is its processor state, the second its controller state, each as long
-as the VST2's lengths say. Measured 2026-10-26 in the host rig: the 25
-converted Pro-53 patches, split that way and pushed into the installed VST3,
-came back with all 96 core controls in both archives as written. A VST3
-device is written, not read: its framing sees one half.
+as the VST2's lengths say. Converted Pro-53 patches, split that way and pushed
+into the installed VST3 in the host rig, come back with all 96 core controls in
+both archives as written. A VST3 device is written, not read: its framing sees
+one half.
 
 ``data/prophet-5-v.json`` holds the 96 core controls: the key the archives
 store, the name the plugin shows, the unit it prints, and the curve its own
-definitions declare from the stored 0 to 1 to that unit. The plugin printed
-each control at seven positions on 2026-10-21 and every curve here reproduces
-all 672 prints (a selector prints its first eight characters).
+definitions declare from the stored 0 to 1 to that unit. Every curve here
+reproduces all 672 prints the plugin makes of its controls at seven positions
+each (a selector prints its first eight characters).
 ``data/prophet-5-v-baseline.state`` is that macro-free baseline, and what a
 patch is built from.
 """

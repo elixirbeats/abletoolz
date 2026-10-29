@@ -6,7 +6,7 @@ one sorted map of control names to numbers, which is where the controls live:
 
     N 0 0 0    then N times:    length name    number
 
-Measured on Prophet-5 V 1.3.3.6106 on 2026-10-21 (a VST2 state holds two such
+Measured on Prophet-5 V 1.3.3.6106 (a VST2 state holds two such
 archives behind two little-endian u64 lengths, :class:`TwoArchives`): the
 plugin restored every one of its 96 core controls from a state whose numbers
 were rewritten here, and read them back to within 2e-6. Everything around the

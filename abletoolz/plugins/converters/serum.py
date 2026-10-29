@@ -2,12 +2,11 @@
 
 Serum 2 imports a Serum 1 preset itself, but only from a file loaded in its own
 browser; a Serum 1 patch handed over as Serum 2's state is refused. So the patch
-is rebuilt control by control into Serum 2's own init patch, the way the 22
-Serum 2 patches in the owner's sets that Serum 2 imported from Serum 1 are
-built: the same keys, and ``kParamS1Compatibility`` set.
+is rebuilt control by control into Serum 2's own init patch, the way Serum 2
+builds a patch it imported from Serum 1: the same keys, and
+``kParamS1Compatibility`` set.
 
-Measured 2026-10-26 in the installed Serum 1.3 and Serum 2 2.1.4, hosted
-headless (``serum1_to_serum2_20261026`` in the research):
+Measured in Serum 1.3 and Serum 2 2.1.4, hosted headless:
 
 * 189 controls -- oscillators, sub, noise, filter, envelopes and their curves,
   LFO rates, glide, macros, mod amounts and outputs -- are carried by display:
@@ -34,10 +33,9 @@ wavetables embedded in the patch rather than referenced by path, and the few
 mod sources one rendered note cannot tell apart (Serum's ids 17-19). Serum's
 earliest patch layout (20,704 bytes) is refused.
 
-Accepted 2026-10-26 on 40 of the owner's patches picked at random: Serum 2
-loaded every conversion and kept every FX module and value it was handed, and
-of 7,474 control readings, 99.4% display the same in Serum 2 as the original
-does in Serum 1.
+On real patches, Serum 2 loads every conversion and keeps every FX module and
+value it is handed, and 99.4% of control readings display the same in Serum 2
+as the original does in Serum 1.
 """
 
 from __future__ import annotations

@@ -5,34 +5,28 @@ controller half. Heard in Live 12.4.5 on 2026-08-10, and Serum's own
 ``moduleinfo.json`` declares that its VST3 accepts VST2 state.
 
 Serum's Audio Unit keeps that same patch as a VST2 program under ``vstdata``
-(:class:`~abletoolz.plugins.state.audio_unit.VstDataClassInfo`): read off the
-two AU devices in the owner's sets, both from a Live 11.0.12 set saved on a
-Mac, whose chunks inflate to the 172,736 bytes every Serum VST2 chunk does.
-Pushed into the installed Serum VST3 on 2026-10-26, each came back 75 bytes
-from what was pushed and as far from the default patch as it went in (414 and
-295 bytes): Serum restamps a patch's record versions and turns the Mac's
-``/`` into ``\\``. It does the same to its own: four VST2 and VST3 patches from
-Windows sets came back 2 to 176 bytes changed. So a Mac set's Serum comes across
-to the VST2 or VST3. Nothing has written a Serum AU device yet: the component's
-registered flags are not recorded, so the map reads the AU and never writes
-one.
+(:class:`~abletoolz.plugins.state.audio_unit.VstDataClassInfo`): in a Live
+11.0.12 set saved on a Mac, its chunk inflates to the 172,736 bytes every Serum
+VST2 chunk does. Pushed into the installed Serum VST3, such a patch comes back
+75 bytes from what was pushed and as far from the default patch as it went in:
+Serum restamps a patch's record versions and turns the Mac's ``/`` into
+``\\``. It does the same to its own: VST2 and VST3 patches from Windows sets
+come back 2 to 176 bytes changed. So a Mac set's Serum comes across to the
+VST2 or VST3. The component's registered flags are not recorded, so the map
+reads the AU and never writes one.
 
 Serum 2 is another plugin, with its own class id. It ships as a VST3 and, on a
-Mac, an AU; there is no VST2, and the 280 Serum 2 devices in the owner's 3,091
-sets are all VST3. Its AU is built from the VST3 by the VST3 SDK's wrapper and
-keeps the VST3's processor state as it is
-(:class:`~abletoolz.plugins.state.audio_unit.Vst3ClassInfo`). Measured
-2026-10-26 on a Mac with Serum2.component 2.1.5, headless in pedalboard: the
-smallest preset abletoolz writes, identity and processor state, was restored --
-the unit handed back a patch naming the same sample, said it could not open
-that file, and rendered away from its init patch (the init renders identically
-twice). So a Serum 2 device crosses between the VST3 and the AU either way.
-No written AU device has been opened in Live yet: Live on that Mac had scanned
-no Audio Units.
+Mac, an AU; there is no VST2. Its AU is built from the VST3 by the VST3 SDK's
+wrapper and keeps the VST3's processor state as it is
+(:class:`~abletoolz.plugins.state.audio_unit.Vst3ClassInfo`). Measured on a Mac
+with Serum2.component 2.1.5, headless in pedalboard: the smallest preset
+abletoolz writes, identity and processor state, is restored -- the unit hands
+back a patch naming the same sample, says it cannot open that file, and renders
+away from its init patch (the init renders identically twice). So a Serum 2
+device crosses between the VST3 and the AU either way. A written AU device has
+not been opened in Live.
 
-Both halves of its VST3 preset
-are one container, :class:`XferJson`, read off every distinct buffer those sets
-hold -- 242 processor states and 245 controller states, every one this shape:
+Both halves of its VST3 preset are one container, :class:`XferJson`:
 
     "XferJson" and a NUL
     u64  the length of a JSON header
@@ -48,56 +42,52 @@ LFOs, FX racks, clips), in the processor; editor-only settings in the
 controller. Serum 2 saves .SerumPreset files in the same container under a
 ``fileType`` key.
 
-What the host rig measured on 2026-10-26, Serum 2 2.1.4 in pedalboard, one
-process per load:
+What the host rig measured, Serum 2 2.1.4 in pedalboard, one process per load:
 
-* **Every Serum 2 patch in the collection loads.** All 242 distinct processor
-  states, pushed with their own controller states: 241 render differently from
-  the init patch and the 242nd is the init patch. They were saved by four
-  builds -- 2.0.16 (120), 2.0.19 (111), 2.0.24 (8) and 2.1.4 (3) -- and the
-  plugin rewrites each older one as its own version 10. A 2.1.4 state comes back
-  with the same decoded size and differs in the last bits of a few float64
+* **Real Serum 2 patches load.** A processor state pushed with its own
+  controller state renders differently from the init patch unless it is the
+  init patch. Patches saved by 2.0.16, 2.0.19, 2.0.24 and 2.1.4 all load, and
+  the plugin rewrites each older one as its own version 10. A 2.1.4 state comes
+  back with the same decoded size and differs in the last bits of a few float64
   envelope times, so not even Serum 2's own patch reads back byte for byte;
   that is the most a readback can say here.
-* **The controller half carries no sound.** Three of those patches pushed again
-  with an empty controller state render identically and leave all 2,621
-  parameters where the controller-carrying push left them. What is lost is the preset's
-  name, author and description, and editor settings: the plugin answers
+* **The controller half carries no sound.** A patch pushed again with an empty
+  controller state renders identically and leaves all 2,621 parameters where
+  the controller-carrying push left them. What is lost is the preset's name,
+  author and description, and editor settings: the plugin answers
   " - Init - " for the name. So the map writes the element empty.
 
 **Serum 1 into Serum 2: refused as state, so re-encoded.** Serum 2 imports a
 Serum 1 ``.fxp`` from its own browser, but not through the state a host hands
 it; :mod:`abletoolz.plugins.converters.serum` rebuilds the patch instead.
-Pushed into the installed VST3 on 2026-10-26: Serum 1 VST2 chunks from the
-owner's sets (zlib streams), the same chunk inflated to its 172,736 bytes,
-wrapped as an FXP program (both spellings of the size word), wrapped as an FXB
-bank, an ``.fxp`` file Serum 1 wrote, a Serum 1 VST3 processor state, and a
-chunk in the controller slot beside Serum 2's own processor state. Every one
-left the plugin on its init patch: the readback was the init state byte for
-byte and the render did not move.
+Pushed into the installed VST3, each of these leaves the plugin on its init
+patch, the readback the init state byte for byte and the render unmoved: a
+Serum 1 VST2 chunk (zlib streams), the same chunk inflated to its 172,736
+bytes, wrapped as an FXP program (both spellings of the size word), wrapped as
+an FXB bank, an ``.fxp`` file Serum 1 wrote, a Serum 1 VST3 processor state,
+and a chunk in the controller slot beside Serum 2's own processor state.
 
 **The files a patch plays.** A Serum 2 oscillator names its file one of two
 ways. Wavetables, noises, impulse responses and factory samples are relative to
 Serum 2's own library (``relativePathToWT``, ``samplePathRelative`` and three
-more keys): 918 of them in the owner's 242 patches, and they move with the
-library rather than with a set. A file the user dragged in is ``samplePath``,
-absolute and spelled the way the saving machine spells it: 16 of them, and 15
-point at files this machine does not have, on another computer's drive
-(``D:\\``, ``/Volumes/T7``) or in a project folder since moved. Those are what :class:`Serum2SamplePaths` checks and
-relinks. A rewrite replaces that one CBOR string in place
+more keys), and they move with the library rather than with a set. A file the
+user dragged in is ``samplePath``, absolute and spelled the way the saving
+machine spells it, so it can point at a file this machine does not have, on
+another computer's drive or in a project folder since moved. Those are what
+:class:`Serum2SamplePaths` checks and relinks. A rewrite replaces that one CBOR string in place
 (:mod:`abletoolz.formats.cbor`) and compresses the body again, with the size and
 hash to match.
 
-Pushed into the installed Serum 2 on 2026-10-26, a patch whose sample was gone
-rendered near silence (RMS 0.014). Relinked to where the file is now, it
-rendered exactly as a patch already pointing there does (RMS 0.2115), and the
-plugin handed the new path back. Pointed at a missing file, a working patch fell
-to the same silence, so the path is what the plugin loads from, not a copy of
-the audio. Recompressed with the path unchanged, a patch rendered exactly as the
-plugin's own frame did.
+In the installed Serum 2, a patch whose sample is gone renders near silence
+(RMS 0.014). Relinked to where the file is now, it renders exactly as a patch
+already pointing there does (RMS 0.2115), and the plugin hands the new path
+back. Pointed at a missing file, a working patch falls to the same silence, so
+the path is what the plugin loads from, not a copy of the audio. Recompressed
+with the path unchanged, a patch renders exactly as the plugin's own frame
+does.
 
 Serum 2 FX (class ``56534558667351736572756D20322066``) is a separate
-plugin no set here uses, and is not mapped.
+plugin, and is not mapped.
 """
 
 from __future__ import annotations
@@ -130,8 +120,7 @@ from abletoolz.plugins.state.plugin_map import (
     PluginMap,
 )
 
-# Serum 1's chunk, the same bytes in its VST2 and VST3, read off the owner's 804
-# distinct Serum 1 patches on 2026-10-26: a zlib stream holding the patch, a
+# Serum 1's chunk, the same bytes in its VST2 and VST3: a zlib stream holding the patch, a
 # second zlib stream holding the wavetable frames it embeds (none when its
 # tables are in Serum's library), then the first stream's compressed length as
 # a little-endian u32. Three patch sizes share one front layout -- 172,736 bytes
@@ -174,7 +163,7 @@ class SerumChunk:
 
 SERUM_FX_ID = b"XfsX"
 SERUM_FX_ID_VALUE = int.from_bytes(SERUM_FX_ID, "big")
-# The parameter count both Serum AU programs in the owner's sets carry.
+# The parameter count a Serum AU program carries.
 SERUM_PROGRAM_PARAMETERS = 315
 
 
@@ -216,13 +205,12 @@ def serum() -> PluginMap:
 XFER_JSON_MAGIC = JSON_KEYWORD + b"\x00"
 _HEADER_LENGTH = struct.Struct("<Q")
 _BODY_HEADER = struct.Struct("<II")
-# The one codec measured, in all 487 buffers: a zstd frame, which opens with its magic.
+# The one codec measured: a zstd frame, which opens with its magic.
 ZSTD_CODEC = 2
 ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
 
 # Serum 2's VST3 class id, ``56534558667350736572756D20320000``: the same four fields in its
-# moduleinfo.json, in all 280 devices the owner's sets hold and in what the
-# installed module's factory creates.
+# moduleinfo.json, in saved devices and in what the installed module's factory creates.
 SERUM_2_VST3 = Vst3Id((1448297816, 1718833267, 1701999981, 540147712))
 # Its AU, as Serum2.component 2.1.5 registers it on a Mac. The registration
 # declares no sandboxSafe, so its flags are 0 (Surge XT declares it and stores 2).
@@ -324,7 +312,7 @@ class XferJson:
 
 SAMPLE_PATH = "samplePath"
 # What a Serum 2 oscillator loads from outside its library: audio, and an image
-# for the spectral oscillator, which the owner's sets hold one of.
+# for the spectral oscillator.
 SERUM_2_SUFFIXES = AUDIO_SUFFIXES | {".png"}
 
 

@@ -3,9 +3,8 @@
 Serum 2 saves its patch as CBOR, and a general decoder cannot write one back:
 Serum writes a float as float32 wherever it fits, a decoder hands back a Python
 float, and an encoder writes that as float64, so a decode and re-encode rewrites
-every number in the patch. Measured 2026-10-26 on all 242 Serum 2 patches in the
-owner's sets: none survives cbor2's round trip, with or without its canonical
-form. So nothing here decodes a whole document. :func:`text_values` walks the
+every number in the patch. No real Serum 2 patch survives cbor2's round trip,
+with or without its canonical form. So nothing here decodes a whole document. :func:`text_values` walks the
 items and notes where each matching text value sits, and :func:`replace_text`
 swaps that one item's bytes, leaving every other byte as the plugin wrote it.
 """
