@@ -44,9 +44,8 @@ def test_a_patch_of_measured_and_shared_controls_converts_and_reads_back_in_prop
     assert values["Prophet5VCO_PW1"] == pytest.approx(100 * 64 / 127)
     assert values["Prophet5Lfo_RateUnSynced"] == pytest.approx(CONTROL_BY_NAME["LFO Frequency"].curve.value(0.0))
     assert values["VCA_Prophet5ADSR_Sustain"] == pytest.approx(1.0)
-    # Cutoff 70 of 127 sits between the calibration's 64 and 79.
-    cutoff = controls()["Prophet5VCF_Freq"]
-    assert cutoff.value(0.5115) < values["Prophet5VCF_Freq"] < cutoff.value(0.6395)  # type: ignore[operator]
+    # Cutoff 70 of 127 is 66.1 st, between the matched 60.5 st (224 Hz) and 68.0 st (358 Hz).
+    assert 224.0 < values["Prophet5VCF_Freq"] < 358.0  # type: ignore[operator]
     assert converted.notices[0] == conversion.NOT_HEARD_NOTE
 
 
@@ -125,21 +124,44 @@ def test_the_saved_wheel_is_written_where_it_moves_its_destinations_as_far(
     assert any("half as far" in notice for notice in converted.notices) is warned
 
 
-def test_resonance_envelope_amount_and_levels_cross_by_their_coarse_evidence() -> None:
-    values = Prophet5Patch.parse(
-        conversion.convert(
-            with_values(
-                Filter_Resonance=100.0, Filter_Envelope_Amount=48.0, Mixer_Oscillator_B=50.0, Filter_Sustain=25.0
-            )
-        ).patch
-    ).values()
+def test_resonance_and_the_filter_sustain_cross_by_their_coarse_evidence() -> None:
+    values = Prophet5Patch.parse(conversion.convert(with_values(Filter_Resonance=100.0, Filter_Sustain=25.0)).patch)
     # 100% resonance rose 47 dB on Pro-53, between Prophet-5 V's 8 (45 dB) and 10 (50 dB).
-    assert 8.0 < values["Prophet5VCF_Res"] < 10.0  # type: ignore[operator]
-    # 48 st of envelope moved Pro-53's cutoff about 46 st, Prophet-5 V's 4.
-    assert values["Prophet5VCF_EnvAmt"] == pytest.approx(4.0, abs=0.2)
-    # Pro-53 knobs hold 127 steps, so 50% lands on 50.4%.
-    assert values["Prophet5VCO_Osc2Level"] == pytest.approx(5.0, abs=0.05)
-    assert values["VCF_Prophet5ADSR_Sustain"] == pytest.approx(0.25, abs=0.005)
+    assert 8.0 < values.values()["Prophet5VCF_Res"] < 10.0  # type: ignore[operator]
+    # Pro-53 knobs hold 127 steps, so 25% lands on 25.2%.
+    assert values.values()["VCF_Prophet5ADSR_Sustain"] == pytest.approx(0.252, abs=0.001)
+
+
+def test_matched_controls_take_the_value_that_sounded_nearest() -> None:
+    changes = {
+        "Filter_Envelope_Amount": 48.0,
+        "Mixer_Oscillator_B": 50.0,
+        "Amplifier_Sustain": 50.0,
+        "Amplifier_Release": 70.0,
+    }
+    values = Prophet5Patch.parse(conversion.convert(with_values(**changes)).patch).values()
+    # Each sits between its two matched neighbours: 48.4 st of envelope at 3.54, the rest interpolated.
+    assert values["Prophet5VCF_EnvAmt"] == pytest.approx(3.54, abs=0.01)
+    assert 4.088 < values["Prophet5VCO_Osc2Level"] < 5.669  # type: ignore[operator]
+    # Prophet-5 V holds a little lower than Pro-53 at the same sustain fraction.
+    assert 0.4338 < values["VCA_Prophet5ADSR_Sustain"] < 0.5406  # type: ignore[operator]
+    # Prophet-5 V's release runs longer than the half-way calibration put it, to end where Pro-53's does.
+    assert 1.116 < values["VCA_Prophet5ADSR_Release"] < 3.266  # type: ignore[operator]
+
+
+def test_noise_louder_than_prophet_5_v_s_goes_is_written_at_full_and_warns() -> None:
+    quiet = conversion.convert(with_values(Mixer_Noise=25.0))
+    assert Prophet5Patch.parse(quiet.patch).values()["Prophet5VCO_NoiseLevel"] == pytest.approx(8.24, abs=0.02)
+    assert not any("louder than" in notice for notice in quiet.notices)
+    loud = conversion.convert(with_values(Mixer_Noise=100.0))
+    assert Prophet5Patch.parse(loud.patch).values()["Prophet5VCO_NoiseLevel"] == pytest.approx(10.0)
+    assert any("about 8 dB quieter" in notice for notice in loud.notices)
+
+
+def test_a_cutoff_below_the_matched_span_falls_back_to_its_fitted_corner() -> None:
+    low = conversion.convert(with_values(Filter_Cutoff=10.0))
+    expected = min(max(conversion._pro53_cutoff_hz(120 * 11 / 127), 6.9), 6214.0)
+    assert Prophet5Patch.parse(low.patch).values()["Prophet5VCF_Freq"] == pytest.approx(expected, rel=0.01)
 
 
 def test_a_cutoff_past_prophet_5_v_s_top_is_written_at_its_top_and_reported() -> None:

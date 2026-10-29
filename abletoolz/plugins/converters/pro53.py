@@ -9,15 +9,20 @@ converted device lists which:
 
 * **calibrated** -- both engines rendered one control at a time and matched
   (``data/pro53-to-prophet-5-v.json``): oscillator pitch, oscillator B's
-  fine tune, master tune, cutoff inside 32 to 111 of 127, amp and filter
-  envelope attack, decay and release (matched at the time each stage takes to
-  reach half way; their curves differ in shape), and the filter envelope's
-  Poly-Mod depth into oscillator A's pitch;
+  fine tune, master tune, amp attack and decay and the filter envelope's
+  attack, decay and release (matched at the time each stage takes to reach
+  half way; their curves differ in shape), and the filter envelope's Poly-Mod
+  depth into oscillator A's pitch;
+* **matched by renders** -- both plugins kept loaded, one control at a time
+  from this converter's own output, each Pro-53 display set to the Prophet-5 V
+  value that sounded nearest (``matched`` in the data): oscillator B and noise
+  levels, cutoff from 22.7 to 113.4 st by the filter's response, filter
+  envelope amount by the response it holds at full sustain, amp sustain by
+  its held level and amp release by its whole curve. Prophet-5 V's noise at
+  full is quieter than Pro-53's above 40%, so louder noise is written at full;
 * **rendered at a few points** -- short clips rendered on both (``coarse`` in
-  the data): cutoff outside 32 to 111 by its fitted corner in hertz, resonance
-  by the height of its peak, filter envelope amount by how far it moves the
-  cutoff. The cutoff renders agree with the calibration where they overlap,
-  which also checks it on the instrument build. The delay goes to Prophet-5
+  the data): cutoff outside the matched span by its fitted corner in hertz,
+  resonance by the height of its peak. The delay goes to Prophet-5
   V's FX slot 1 delay from noise-burst echoes: its time and its feedback (a
   gain per repeat, the percent on Pro-53, the value on Prophet-5 V) are the
   same number on both, and both filter every repeat inside the loop; its mix
@@ -36,9 +41,10 @@ converted device lists which:
 * **same switch** -- the same front-panel switch on both: waveforms, sync,
   oscillator B's low and keyboard switches, the Poly-Mod and wheel
   destinations, the LFO shapes, unison;
-* **matched by display** -- a ballpark: mixer levels and the Poly-Mod
-  oscillator B amount as a fraction of their range, the sustains, the wheel's
-  LFO/noise mix, and keyboard follow rounded to Prophet-5 V's on or off;
+* **matched by display** -- a ballpark: oscillator A's level and the Poly-Mod
+  oscillator B amount as a fraction of their range, the filter sustain, the
+  wheel's LFO/noise mix, and keyboard follow rounded to Prophet-5 V's on or
+  off;
 * **reported** -- the device converts without it and says so: the delay's
   invert, its time modulation (depth, rate and Sync, which Prophet-5 V's
   delay does not have) and its MIDI sync, the analog drift, velocity (Pro-53's
@@ -61,9 +67,8 @@ converted device lists which:
   refuses these instead.
 
 The calibration rendered Pro-53's effect build; on the instrument build,
-short renders put amp attack and release half-way times within 4%
-of it at two settings each, cutoff on its curve, and pitch within 2 cents.
-Nothing here has been heard in Live.
+short renders put amp attack half-way times within 4% of it at two settings,
+and pitch within 2 cents. Nothing here has been heard in Live.
 """
 
 from __future__ import annotations
@@ -83,7 +88,6 @@ from abletoolz.plugins.state.pro53 import CONTROL_BY_NAME, Pro53Bank, Pro53Value
 from abletoolz.plugins.state.prophet_5_v import Prophet5Patch, Prophet5Value, baseline, controls
 
 DATA = pathlib.Path(__file__).with_name("data")
-_CUTOFF_MEASURED = (32, 111)
 _PITCH_BEND = 69
 
 # Pro-53 switch -> the same Prophet-5 V switch.
@@ -113,11 +117,8 @@ SAME_SWITCH = {
 # Pro-53 percentage -> the Prophet-5 V control showing the same fraction of its range.
 BY_DISPLAY = {
     "Mixer Oscillator A": "Prophet5VCO_Osc1Level",
-    "Mixer Oscillator B": "Prophet5VCO_Osc2Level",
-    "Mixer Noise": "Prophet5VCO_NoiseLevel",
     "PolyMod Source Osc B": "Prophet5VCO_Osc2FMAmount",
     "Filter Sustain": "VCF_Prophet5ADSR_Sustain",
-    "Amplifier Sustain": "VCA_Prophet5ADSR_Sustain",
     "WheelMod LFO-Noise Mix": "Prophet5Lfo_SourceMix",
 }
 
@@ -145,14 +146,16 @@ LEFT_OUT = {
 }
 
 MEASURED_NOTE = (
-    "Calibrated against both plugins: oscillator pitch and fine tune, master tune, cutoff, amp and filter "
-    "envelope times (half-way times; the curves differ in shape) and the filter envelope's Poly-Mod pitch depth."
+    "Calibrated against both plugins: oscillator pitch and fine tune, master tune, amp attack and decay and the "
+    "filter envelope's times (half-way times; the curves differ in shape) and the filter envelope's Poly-Mod "
+    "pitch depth. Matched by renders: oscillator B and noise levels, cutoff, filter envelope amount, amp sustain "
+    "and amp release."
 )
 RENDERED_NOTE = (
-    "Rendered at a few points: cutoff at its extremes, resonance, filter envelope amount, the delay (time, "
-    "feedback, mix and cuts), master volume and the saved mod wheel. "
-    "Matched by display, a ballpark: mixer levels, sustains, the Poly-Mod oscillator B amount, the wheel's "
-    "LFO/noise mix and keyboard follow (rounded to on or off)."
+    "Rendered at a few points: cutoff at its extremes, resonance, the delay (time, feedback, mix and cuts), "
+    "master volume and the saved mod wheel. "
+    "Matched by display, a ballpark: oscillator A's level, the filter sustain, the Poly-Mod oscillator B amount, "
+    "the wheel's LFO/noise mix and keyboard follow (rounded to on or off)."
 )
 NOT_HEARD_NOTE = "Pro-53 to Prophet-5 V has not been heard in Live: audition this device."
 
@@ -179,6 +182,18 @@ def _calibration() -> dict[str, Any]:
     return data["calibration"]
 
 
+@functools.cache
+def _matched() -> dict[str, Any]:
+    data: dict[str, dict[str, Any]] = json.loads((DATA / "pro53-to-prophet-5-v.json").read_text(encoding="utf-8"))
+    controls_: dict[str, Any] = data["matched"]["controls"]
+    return controls_
+
+
+def _match(key: str, shown: float) -> float:
+    """Prophet-5 V's ``key`` at the Pro-53 display ``shown``, through its matched points."""
+    return _interp(shown, _matched()[key]["points"])
+
+
 def _interp(x: float, points: Sequence[Sequence[float]]) -> float:
     """Piecewise linear through ``points`` (sorted by x), held flat past either end."""
     if x <= points[0][0]:
@@ -202,11 +217,7 @@ def _half_time(fit: Sequence[float], x: float) -> float:
 def _amp_stage(kind: str, x: float) -> float:
     model = _calibration()["amp_envelope"][kind]
     half = _half_time(model["source_half_time"], x)
-    curve = sorted(model["target_half_times"])
-    if model["log_time"]:
-        # Release is interpolated on log time, as the calibration fitted it.
-        return _interp(math.log(max(half, curve[0][1])), sorted((math.log(t), u) for u, t in curve))
-    return _interp(half, sorted((t, u) for u, t in curve))
+    return _interp(half, sorted((t, u) for u, t in model["target_half_times"]))
 
 
 def _filter_stage(kind: str, x: float) -> float:
@@ -316,7 +327,8 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
     values["Prophet5VCO_FineTune"] = min(max((cents - coarse * 100) / 100, -0.6), 0.6)
     reference_hz = target["MasterTuneFactor"].value(calibration["master_tune"])
     values["MasterTuneFactor"] = float(reference_hz) * 2 ** (float(p["Master Tune"]) / 1200)
-    q = round(knob("Filter Cutoff") * 127)
+    shown = float(p["Filter Cutoff"])
+    matched = _matched()["Prophet5VCF_Freq"]["points"]
     cutoff = target["Prophet5VCF_Freq"]
     if p["Filter HPF-Mode"]:
         values["Prophet5VCF_Freq"] = cutoff.high
@@ -325,19 +337,34 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
             "the high-pass filter mode has no setting in Prophet-5 V, whose filter is low-pass only; it is written "
             "fully open, so this patch will likely sound different",
         )
-    elif _CUTOFF_MEASURED[0] <= q <= _CUTOFF_MEASURED[1]:
-        values["Prophet5VCF_Freq"] = cutoff.value(_interp(q, calibration["cutoff"]))
+    elif matched[0][0] <= shown <= matched[-1][0]:
+        values["Prophet5VCF_Freq"] = _match("Prophet5VCF_Freq", shown)
     else:
-        hertz = _pro53_cutoff_hz(float(p["Filter Cutoff"]))
+        hertz = _pro53_cutoff_hz(shown)
         values["Prophet5VCF_Freq"] = min(max(hertz, cutoff.low), cutoff.high)
         if hertz > cutoff.high:
             reported.append(f"cutoff above Prophet-5 V's {cutoff.high:g} Hz (Pro-53's measured {hertz:.0f} Hz)")
     for kind, name, key in (
         ("attack", "Amplifier Attack", "VCA_Prophet5ADSR_Attack"),
         ("decay", "Amplifier Decay", "VCA_Prophet5ADSR_Decay"),
-        ("release", "Amplifier Release", "VCA_Prophet5ADSR_Release"),
     ):
         values[key] = target[key].value(_clamp(_amp_stage(kind, knob(name))))
+    # Matched by renders.
+    for name, key in (
+        ("Amplifier Release", "VCA_Prophet5ADSR_Release"),
+        ("Amplifier Sustain", "VCA_Prophet5ADSR_Sustain"),
+        ("Mixer Oscillator B", "Prophet5VCO_Osc2Level"),
+        ("Mixer Noise", "Prophet5VCO_NoiseLevel"),
+    ):
+        values[key] = _match(key, float(p[name]))
+    noise = _matched()["Prophet5VCO_NoiseLevel"]
+    if float(p["Mixer Noise"]) > noise["loudest_at"]:
+        short = _interp(float(p["Mixer Noise"]), noise["quieter_db"])
+        limitation(
+            notices,
+            f"noise at {p['Mixer Noise']:.0f}% is louder than Prophet-5 V's noise goes; it is written at full, "
+            f"about {short:.0f} dB quieter",
+        )
     for kind, name, key in (
         ("attack", "Filter Attack", "VCF_Prophet5ADSR_Attack"),
         ("decay", "Filter Decay", "VCF_Prophet5ADSR_Decay"),
@@ -388,9 +415,7 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
     peaks = rendered["resonance_peak_db"]
     peak = _interp(float(p["Filter Resonance"]), peaks["pro53_percent"])
     values["Prophet5VCF_Res"] = _interp(peak, [(db, value) for value, db in peaks["prophet_value"]])
-    shift = rendered["env_amount_shift_st"]
-    moved = _interp(float(p["Filter Envelope Amount"]), shift["pro53_display_vs_measured"])
-    values["Prophet5VCF_EnvAmt"] = _interp(moved, [(st, value) for value, st in shift["prophet_value"]])
+    values["Prophet5VCF_EnvAmt"] = _match("Prophet5VCF_EnvAmt", float(p["Filter Envelope Amount"]))
     if p["Filter Envelope Invert"]:
         values["Prophet5VCF_EnvAmt"] = 0.0
         limitation(
