@@ -101,6 +101,17 @@ Changes since 2.1.0.
   those files are relinked where they are and never copied.
 - Typed state models and byte maps support inspection and editing independently
   of conversion.
+- Native Instruments Pro-53 devices are recognized, and their working patch reads
+  and edits by control name in the units the plugin prints (semitones, cents,
+  milliseconds, hertz, percent, on/off).
+- Arturia Prophet-5 V devices are recognized and their 96 core controls read
+  and edit by name in the plugin's units; they write as VST2 or VST3.
+- Pro-53 converts into Prophet-5 V control by control, each by calibration,
+  short renders, a shared unit or switch, or a display match, and the
+  converted device says which. Controls Prophet-5 V has no counterpart for,
+  such as the delay effect, are listed on the device; a patch that depends on
+  one it cannot imitate, such as the high-pass filter mode, is refused with the
+  reason.
 
 ### Library and authoring
 

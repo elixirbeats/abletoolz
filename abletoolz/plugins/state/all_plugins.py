@@ -8,6 +8,7 @@ unmapped, never one it quietly handles differently.
 
 from abletoolz.plugins.converters import fabfilter as _fabfilter_conversions  # noqa: F401
 from abletoolz.plugins.converters import izotope_trash as _trash_conversion  # noqa: F401
+from abletoolz.plugins.converters import pro53 as _pro53_conversion  # noqa: F401
 from abletoolz.plugins.converters import surge as _surge_conversion  # noqa: F401
 from abletoolz.plugins.state import (  # noqa: F401
     akai,
@@ -20,6 +21,8 @@ from abletoolz.plugins.state import (  # noqa: F401
     izotope_trash2,
     kilohearts,
     native_instruments,
+    pro53,
+    prophet_5_v,
     serato,
     surge_synth_team,
     valhalla,
