@@ -133,6 +133,17 @@ Changes since 2.1.0.
   device. A patch that depends on
   one it cannot imitate, such as the high-pass filter mode, converts as near as
   Prophet-5 V allows and warns that it will likely sound different.
+- KORG's legacy MS-20 devices are recognized, including jBridge wrappers, and
+  their working patch reads and edits by control name in the units the plugin
+  prints, patch-panel cables included.
+- KORG Legacy Cell devices are recognized: each cell's synths, effects and the
+  MS-20 patch inside it can be read.
+- Arturia MS-20 V devices are recognized and their controls, voice mode and
+  patch bay read and edit by name; they write as VST2 or VST3.
+- Experimental: MS-20 and Legacy Cell patches convert into MS-20 V, calibrated by
+  renders where the two plugins differ and matched by panel position elsewhere;
+  cables carry by jack name. A cell's effects and mixer, and cables MS-20 V has
+  no jack for, are listed on the device. A cell holding only Polysix is refused.
 
 ### Library and authoring
 

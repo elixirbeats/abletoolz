@@ -139,6 +139,8 @@ SHIPPED = {
     ("fabfilter.pro-q-1", "fabfilter.pro-q-3"),
     ("fabfilter.pro-q-2", "fabfilter.pro-q-3"),
     ("izotope.trash1", "izotope.trash2"),
+    ("korg.legacy-cell", "arturia.korg-ms-20-v"),
+    ("korg.ms-20", "arturia.korg-ms-20-v"),
     ("ni.pro-53", "arturia.prophet-5-v"),
     ("surge-synth-team.surge-1", "surge-synth-team.surge-xt"),
     ("xfer.serum", "xfer.serum-2"),
