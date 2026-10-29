@@ -170,15 +170,26 @@ def test_a_cutoff_past_prophet_5_v_s_top_is_written_at_its_top_and_reported() ->
     assert "cutoff above Prophet-5 V's 6214 Hz" in converted.notices[-1]
 
 
-def test_glide_outside_unison_is_reported_and_inside_unison_carried_with_a_warning() -> None:
+def test_glide_outside_unison_is_reported_and_inside_unison_carried_by_its_pitch_path() -> None:
     assert "glide 50%" in conversion.convert(with_values(Glide_Time=50.0)).notices[-1]
     converted = conversion.convert(with_values(Glide_Time=63.0, Unisono_Mode=True))
-    # Pro-53's glide reached half way in 0.113 s at 63% in unison.
-    assert Prophet5Patch.parse(converted.patch).values()["Glider_Time"] == pytest.approx(0.113, abs=0.002)
-    assert any("glide in unison" in notice for notice in converted.notices)
-    # Below 37% Pro-53's glide did not move at all in unison: nothing to carry or warn about.
+    # 63% in unison sits between the matched 61.4% (0.191 s) and 69.3% (0.376 s).
+    assert 0.1907 < Prophet5Patch.parse(converted.patch).values()["Glider_Time"] < 0.3757  # type: ignore[operator]
+    assert not any("outlasts" in notice for notice in converted.notices)
+    # Below 37% Pro-53's glide did not move at all in unison.
     quiet = conversion.convert(with_values(Glide_Time=30.0, Unisono_Mode=True))
-    assert not any("glide" in notice for notice in quiet.notices)
+    assert Prophet5Patch.parse(quiet.patch).values()["Glider_Time"] == 0.0
+    # Above 93% Pro-53's glide outlasts Prophet-5 V's longest, which is written and said.
+    long = conversion.convert(with_values(Glide_Time=95.0, Unisono_Mode=True))
+    assert Prophet5Patch.parse(long.patch).values()["Glider_Time"] == pytest.approx(2.0)
+    assert any("outlasts Prophet-5 V's longest glide" in notice for notice in long.notices)
+
+
+def test_the_filter_envelope_s_attack_and_decay_follow_the_cutoff_s_matched_path() -> None:
+    values = Prophet5Patch.parse(conversion.convert(with_values(Filter_Attack=70.0, Filter_Decay=70.0)).patch).values()
+    # 70% sits between the matched 63.8% and 74.0%: attack 0.455 to 1.33 s, decay 1.43 to 3.89 s.
+    assert 0.4549 < values["VCF_Prophet5ADSR_Attack"] < 1.333  # type: ignore[operator]
+    assert 1.432 < values["VCF_Prophet5ADSR_Decay"] < 3.893  # type: ignore[operator]
 
 
 @pytest.mark.parametrize(
