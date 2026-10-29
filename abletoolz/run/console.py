@@ -31,6 +31,7 @@ from abletoolz.live_set.xml_edit import number_value
 from abletoolz.plugins.identity.ids import PluginKind
 from abletoolz.plugins.identity.plugin_db import FORMAT_LABELS, PluginDatabase
 from abletoolz.plugins.plan import Plan, SetOutcome
+from abletoolz.plugins.plan.model import entries
 from abletoolz.plugins.recovery_routes import RecoveryTarget
 from abletoolz.plugins.state.catalog import Catalog
 
@@ -249,20 +250,12 @@ def render_recovery_routes(routes: Sequence[RecoveryTarget]) -> None:
 
 
 def render_plan(plan: Plan, output: pathlib.Path) -> None:
-    """Each plugin of a plan with its pick and targets, and what to do with the file."""
-    for choice in plan.plugins:
-        devices = len(choice.devices)
-        sets = len({ref.set for ref in choice.devices})
-        state = "broken" if choice.broken else "loads"
-        print(f"{choice.plugin} ({choice.format.value}), {devices} device(s) in {sets} set(s), {state}: {choice.pick}")
-        for target in choice.targets:
-            refused = sum(target.refused.values())
-            notes = [] if target.installed else ["not installed"]
-            if refused:
-                notes.append(f"{refused} refused")
-            extra = f" [{', '.join(notes)}]" if notes else ""
-            print(f"    {target.id}: {target.evidence}{extra}")
-    print(f"Plan written to {output}. Edit `pick`, then run: abletoolz plugins apply {output}")
+    """Each plugin of a plan with the names its convert_to takes, and what to do with the file."""
+    for name, choice in entries(plan):
+        state = ", doesn't load here" if choice.broken else ""
+        options = ", ".join(target.id for target in choice.targets) or "nothing here"
+        print(f"{name} {FORMAT_LABELS[choice.format]}, {len(choice.devices)} device(s){state}: {options}")
+    print(f"Plan written to {output}. Set convert_to, then run: abletoolz plugins apply {output}")
 
 
 def render_applied_plan(outcomes: Sequence[SetOutcome]) -> None:
@@ -277,3 +270,5 @@ def render_applied_plan(outcomes: Sequence[SetOutcome]) -> None:
             mark = "->" if device.done else "kept, because"
             detail = device.pick if device.done else device.reason
             print(f"  [{device.device}] {device.plugin} on {device.track} {mark} {detail}")
+            for warning in device.warnings:
+                print(f"      warning: {warning}")

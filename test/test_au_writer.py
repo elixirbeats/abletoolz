@@ -14,7 +14,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from conftest import AU_UNITS, au_fixture, serum_as, skeleton
 
-from abletoolz.formats import hex_text
+from abletoolz.formats import hex_text, live_document
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices
 from abletoolz.plugins.conversion import as_format, write
 from abletoolz.plugins.identity.ids import PluginKind
@@ -23,6 +23,7 @@ from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.audio_unit import ClassInfo
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.plugin_map import PluginMap
+from abletoolz.schema.live_schemas import live_schemas
 
 SUPERMASSIVE = AU_UNITS["valhalla-supermassive"]
 
@@ -103,6 +104,70 @@ def test_an_au_device_becomes_a_vst3_in_a_plugin_device() -> None:
     state = info.find("Preset/Vst3Preset/ProcessorState")
     assert state is not None
     assert hex_text.decode(state.text) == au_fixture("valhalla-supermassive", "vst3.state")
+
+
+def vst2_supermassive_in(root: ET.Element) -> PluginDevice:
+    """The first VST2 device of ``root``, its parameter list emptied, made into a Valhalla Supermassive.
+
+    It holds a real patch; the emptied list keeps Live's own list out of the way.
+    """
+    device = next(item for item in PluginDevices(root) if item.kind is PluginKind.VST and item.complete)
+    owner = device.owner
+    assert owner is not None
+    parameters = owner.find("ParameterList")
+    assert parameters is not None
+    parameters[:] = []
+    assert not device.controls.in_use
+    device.set_name("ValhallaSupermassive")
+    device.set_unique_id(1934451059)
+    device.set_state(au_fixture("valhalla-supermassive", "vst2.chunk"))
+    return device
+
+
+@pytest.mark.parametrize(("key", "relabel"), [("11.3.42", "11.0_11202"), ("12.4.5b", None)], ids=["11.2", "12.4.5b"])
+def test_a_vst2_device_becomes_the_au_its_sets_schema_declares(key: str, relabel: str | None) -> None:
+    """Exactly the AuPluginInfo and AuPreset members that schema declares, in Live's order.
+
+    Schema-checked, not opened in Live. No fixture of 11.2's schema (11.0_11202)
+    holds a plugin device, so the 11.3.42 set stands in, labelled as one.
+    """
+    root = skeleton(key)
+    if relabel is not None:
+        root.set("MinorVersion", relabel)
+        root.set("Creator", "Ableton Live 11.2.10")
+    device = vst2_supermassive_in(root)
+    assert PluginDevices(root).supports(PluginKind.AU)
+
+    write(device, as_format(device, supermassive(), PluginKind.AU, parameters=no_parameters))
+
+    schemas = live_schemas()
+    minor_version = root.get("MinorVersion", "")
+    declared = schemas.members_of(minor_version, "AuPluginInfo")
+    assert declared is not None
+    assert [child.tag for child in device.info] == [
+        tag for tag in children(live_au_device(), "AuPluginInfo") if tag in declared
+    ]
+    assert {child.tag for child in device.info} == declared
+    preset = device.info.find("Preset/AuPreset")
+    assert preset is not None
+    assert {child.tag for child in preset} == schemas.members_of(minor_version, "AuPreset")
+    (written,) = [
+        item for item in PluginDevices(live_document.parse(live_document.encode(root))) if item.kind is PluginKind.AU
+    ]
+    assert written.identity.au == SUPERMASSIVE.identifier
+
+
+@pytest.mark.parametrize("key", ["9.0.1", "9.6.0", "10.0.6", "10.1.18", "11.0.12"])
+def test_an_older_schema_whose_au_info_holds_a_parameter_count_is_refused(key: str) -> None:
+    """Those schemas declare a ParameterCount, which a device of another format has no AU value for."""
+    root = skeleton(key)
+    assert "ParameterCount" in (live_schemas().members_of(root.get("MinorVersion", ""), "AuPluginInfo") or ())
+    device = vst2_supermassive_in(root)
+    assert not PluginDevices(root).supports(PluginKind.AU)
+    before = ET.tostring(device.info)
+    with pytest.raises(ValueError, match="ParameterCount"):
+        write(device, as_format(device, supermassive(), PluginKind.AU, parameters=no_parameters))
+    assert ET.tostring(device.info) == before
 
 
 def test_moving_a_device_into_an_au_needs_its_owner() -> None:

@@ -12,7 +12,7 @@ from abletoolz.elements import get_element
 from abletoolz.formats import hex_text
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices
 from abletoolz.plugins.container.parameter_list import UNASSIGNED_VISUAL_INDEX
-from abletoolz.plugins.container.rewritable import CONTROLS_IN_USE, LIVE_LIST_IN_USE, refusal
+from abletoolz.plugins.container.rewritable import control_losses
 from abletoolz.plugins.conversion import as_format, write
 from abletoolz.plugins.identity.ids import PluginKind
 from abletoolz.plugins.identity.vst3_host import class_id
@@ -74,30 +74,37 @@ def as_pro_c_2_vst3(device: PluginDevice, parameters: ParameterSource) -> None:
 
 
 @pytest.mark.parametrize(
-    ("listed", "visual_offset", "can_rebuild", "reason"),
+    ("listed", "visual_offset", "losses"),
     [
-        pytest.param(PRO_C_2_PARAMETERS, 0, True, None, id="live's own list, a route that rebuilds it"),
-        pytest.param(PRO_C_2_PARAMETERS, 0, False, LIVE_LIST_IN_USE, id="live's own list, a route that can't"),
-        pytest.param(3, 1, True, CONTROLS_IN_USE, id="a list someone arranged"),
-        pytest.param(0, 0, True, None, id="no list at all"),
+        pytest.param(PRO_C_2_PARAMETERS, 0, (), id="live's own list"),
+        pytest.param(3, 1, ("the list of its controls arranged in Live was replaced",), id="a list someone arranged"),
+        pytest.param(0, 0, (), id="no list at all"),
     ],
 )
-def test_only_live_s_own_list_is_rebuilt_for_the_target(
-    listed: int, visual_offset: int, can_rebuild: bool, reason: str | None
-) -> None:
+def test_only_a_list_someone_arranged_is_a_loss(listed: int, visual_offset: int, losses: tuple[str, ...]) -> None:
     """Slot ``i`` naming parameter ``i`` at position ``i`` is the list nobody chose; anything else is a choice."""
     _root, device = pro_c_2_device(listed, visual_offset=visual_offset)
-    assert refusal(device, PluginKind.VST3, can_rebuild_live_list=can_rebuild) == reason
+    assert control_losses(device) == losses
 
 
-def test_a_list_something_points_at_is_not_live_s_to_rebuild() -> None:
+def test_converting_removes_the_automation_pointing_at_the_device_and_says_so() -> None:
+    """Another format numbers the controls differently, so a lane left behind would drive the wrong control."""
     root, device = pro_c_2_device(PRO_C_2_PARAMETERS)
     target = slots(device)[1].find("ParameterValue/AutomationTarget")
     assert target is not None
-    envelope = ET.SubElement(root, "AutomationEnvelope")
+    envelopes = ET.SubElement(root, "Envelopes")
+    envelope = ET.SubElement(envelopes, "AutomationEnvelope")
     ET.SubElement(ET.SubElement(envelope, "EnvelopeTarget"), "PointeeId", Value=target.attrib["Id"])
     assert device.ordinal is not None
-    assert refusal(PluginDevices(root)[device.ordinal], PluginKind.VST3, can_rebuild_live_list=True) == CONTROLS_IN_USE
+    device = PluginDevices(root)[device.ordinal]
+
+    answer = as_format(device, pro_c_2(), PluginKind.VST3, parameters=installed)
+    assert any("automation and clip envelopes removed" in warning for warning in answer.warnings)
+    write(device, answer)
+
+    pointed_at = {pointee.get("Value") for pointee in root.iter("PointeeId")}
+    assert target.attrib["Id"] not in pointed_at
+    assert device.owner is not None and device.owner.find("PluginDesc/Vst3PluginInfo") is not None
 
 
 VST3_LIST = (
@@ -143,13 +150,12 @@ def test_a_device_with_live_s_list_crosses_with_the_list_live_makes_for_the_vst3
     assert [get_element(slot, "ParameterValue.AutomationTarget").attrib["Id"] for slot in after] == targets_before
 
 
-def test_a_device_with_live_s_list_is_left_as_it_was_when_the_vst3_cannot_be_read() -> None:
+def test_a_device_whose_vst3_cannot_be_read_converts_with_its_list_left_empty() -> None:
     _root, device = pro_c_2_device(PRO_C_2_PARAMETERS)
-    assert device.owner is not None
-    before = ET.tostring(device.owner)
-    with pytest.raises(StateTransformError, match="could not be read"):
-        as_pro_c_2_vst3(device, no_parameters)
-    assert ET.tostring(device.owner) == before
+    answer = as_format(device, pro_c_2(), PluginKind.VST3, parameters=no_parameters)
+    assert answer.warnings == ("its list of controls in Live was left empty: the VST3 could not be read here",)
+    write(device, answer)
+    assert all(get_element(slot, "ParameterId", attribute="Value") == "-1" for slot in slots(device))
 
 
 def test_a_bank_still_has_to_be_the_plugins_own() -> None:

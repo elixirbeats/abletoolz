@@ -10,18 +10,10 @@ import pathlib
 import pydantic
 
 from abletoolz.plugins.identity.ids import PluginKind, UidFields
+from abletoolz.plugins.identity.plugin_db import FORMAT_LABELS
 
-PLAN_VERSION = 1
+PLAN_VERSION = 2
 KEEP = "keep"
-DEFAULT_FORMATS = (PluginKind.VST3, PluginKind.AU, PluginKind.VST)
-
-
-class Pick(enum.StrEnum):
-    """What a new plan picks before anyone edits it."""
-
-    BROKEN = "broken"
-    KEEP = "keep"
-    BEST = "best"
 
 
 class Route(enum.StrEnum):
@@ -44,8 +36,9 @@ class Target(pydantic.BaseModel):
     the plugin map written (format, converter), ``route_id`` the recovery route,
     ``path`` the installed file (file, a VST2 experiment), ``unique_id`` and
     ``uid_fields`` an experiment's identity. ``refused`` counts this plan's
-    devices that cannot take this target, by reason, as worked out when the
-    plan was made; applying checks again.
+    devices that cannot take this target, by reason, and ``warnings`` those that
+    take it at a cost, by what it costs, as worked out when the plan was made;
+    applying checks again.
     """
 
     model_config = pydantic.ConfigDict(extra="forbid")
@@ -63,6 +56,7 @@ class Target(pydantic.BaseModel):
     unique_id: int | None = None
     uid_fields: UidFields | None = None
     refused: dict[str, int] = pydantic.Field(default_factory=dict)
+    warnings: dict[str, int] = pydantic.Field(default_factory=dict)
 
 
 class DeviceRef(pydantic.BaseModel):
@@ -102,14 +96,16 @@ class PluginChoice(pydantic.BaseModel):
     overrides: list[Override] = pydantic.Field(default_factory=list)
 
     def target(self, pick: str) -> Target | None:
-        """The target ``pick`` names, None for keep; an unknown name is refused."""
+        """The target ``pick`` names exactly, None for keep; an unknown name is refused with the names there are."""
         if pick == KEEP:
             return None
         for target in self.targets:
             if target.id == pick:
                 return target
-        known = ", ".join([KEEP, *(target.id for target in self.targets)])
-        raise ValueError(f"{self.plugin}: no target named {pick!r} (choose from {known})")
+        known = ", ".join(target.id for target in self.targets) or "nothing here"
+        raise ValueError(
+            f"{self.plugin} {FORMAT_LABELS[self.format]}: no target named {pick!r} (it can become {known})"
+        )
 
     def pick_for(self, set_index: int, device: int) -> str:
         for override in self.overrides:
@@ -139,8 +135,6 @@ class Plan(pydantic.BaseModel):
 
     abletoolz_plan: int = PLAN_VERSION
     made: datetime.datetime
-    pick: Pick
-    formats: list[PluginKind]
     sets: list[PlannedSet]
     plugins: list[PluginChoice]
 
@@ -161,21 +155,107 @@ class Plan(pydantic.BaseModel):
         return self
 
 
-# -- reading and writing the file -----------------------------------------------------
+# -- the file people edit -----------------------------------------------------------
+#
+# Three fields per plugin: plugin, format, convert_to. Everything a plugin can
+# become is a comment above its entry, so the file explains itself and reading it
+# back ignores it. Apply reads the sets again, so the file holds no device numbers
+# or hashes that an edit could knock out of step with the sets.
+
+
+class PlanEntry(pydantic.BaseModel):
+    """One plugin in the file: null leaves it as it is, a target's name converts it."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    plugin: str
+    format: str
+    convert_to: str | None = None
+
+
+class PlanFile(pydantic.BaseModel):
+    """The plan file as written: the sets it covers and what each plugin in them becomes."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    abletoolz_plan: int
+    sets: list[pathlib.Path]
+    plugins: list[PlanEntry]
+
+    @pydantic.field_validator("abletoolz_plan")
+    @classmethod
+    def _this_version(cls, version: int) -> int:
+        if version != PLAN_VERSION:
+            raise ValueError(f"a plan file of version {version}, not {PLAN_VERSION}; make a fresh plan")
+        return version
+
+
+def entries(plan: Plan) -> list[tuple[str, PluginChoice]]:
+    """Each plugin with the name its file entry uses; a second plugin of the same name and format gets " (2)"."""
+    seen: dict[tuple[str, PluginKind], int] = {}
+    named: list[tuple[str, PluginChoice]] = []
+    for choice in plan.plugins:
+        count = seen[(choice.plugin, choice.format)] = seen.get((choice.plugin, choice.format), 0) + 1
+        named.append((choice.plugin if count == 1 else f"{choice.plugin} ({count})", choice))
+    return named
+
+
+def take_picks(plan: Plan, file: PlanFile) -> None:
+    """Set each plugin's pick from the file; a plugin the sets no longer hold, or an unknown name, is refused."""
+    by_entry = {(name, FORMAT_LABELS[choice.format].casefold()): choice for name, choice in entries(plan)}
+    for entry in file.plugins:
+        choice = by_entry.get((entry.plugin, entry.format.casefold()))
+        if choice is None:
+            raise ValueError(f"{entry.plugin} {entry.format} is not in these sets any more; make a fresh plan")
+        choice.pick = KEEP if entry.convert_to is None else entry.convert_to
+        choice.target(choice.pick)
+
+
+def _target_notes(target: Target, devices: int) -> list[str]:
+    """What the plan file says under a target's name: where it is, and what taking it costs."""
+    notes = [] if target.path is None else [str(target.path)]
+    if not target.installed:
+        notes.append("not installed here")
+    if target.route is Route.EXPERIMENT:
+        notes.append(f"a guess, {target.evidence}")
+    notes.extend(f"{count} of {devices} device(s) can't: {reason}" for reason, count in target.refused.items())
+    notes.extend(f"{count} of {devices} device(s): {cost}" for cost, count in target.warnings.items())
+    return notes
 
 
 def dump_plan(plan: Plan) -> str:
-    """The plan as the YAML file you edit."""
+    """The plan as the file people edit: each plugin, what it can become in a comment above it, and its convert_to."""
     import yaml
 
-    header = (
-        "# abletoolz plugin plan. Edit `pick` for a plugin, or add an override for one device,\n"
-        "# then run `abletoolz plugins apply` on this file. `keep` leaves devices as they are.\n"
-    )
-    return header + yaml.safe_dump(plan.model_dump(mode="json"), sort_keys=False, allow_unicode=True, width=120)
+    def scalar(value: object) -> str:
+        return yaml.safe_dump(value, allow_unicode=True, width=10_000).removesuffix("...\n").strip()
+
+    lines = [
+        "# abletoolz plugin plan. Set convert_to to one of the names listed above a plugin,",
+        "# then run: abletoolz plugins apply <this file>. null leaves a plugin as it is.",
+        f"abletoolz_plan: {PLAN_VERSION}",
+        "sets:",
+        *(f"- {scalar(str(planned.path))}" for planned in plan.sets),
+        "plugins:" if plan.plugins else "plugins: []",
+    ]
+    for name, choice in entries(plan):
+        devices = len(choice.devices)
+        state = ", doesn't load here" if choice.broken else ""
+        lines += ["", f"# {name} {FORMAT_LABELS[choice.format]}: {devices} device(s){state}"]
+        for target in choice.targets:
+            lines += [f"#   {target.id}", *(f"#       {note}" for note in _target_notes(target, devices))]
+        if not choice.targets:
+            lines.append("#   nothing it can become here")
+        convert_to = None if choice.pick == KEEP else choice.pick
+        lines += [
+            f"- plugin: {scalar(name)}",
+            f"  format: {FORMAT_LABELS[choice.format]}",
+            f"  convert_to: {scalar(convert_to)}",
+        ]
+    return "\n".join(lines) + "\n"
 
 
-def load_plan(text: str) -> Plan:
+def load_plan(text: str) -> PlanFile:
     """A plan file read back; a file that is not one is refused as a :class:`ValueError`."""
     import yaml
 
@@ -183,4 +263,4 @@ def load_plan(text: str) -> Plan:
         document = yaml.safe_load(text)
     except yaml.YAMLError as error:
         raise ValueError(f"not a plan file: {error}") from error
-    return Plan.model_validate(document)
+    return PlanFile.model_validate(document)

@@ -54,9 +54,9 @@ from __future__ import annotations
 import copy
 import dataclasses
 import enum
-from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
+from abletoolz.elements import remove_children
 from abletoolz.live_set.settings import Setting, find, resolve
 from abletoolz.live_set.xml_edit import number_value
 from abletoolz.schema import Attr, Tag, path
@@ -332,17 +332,6 @@ def insert_in_time_order(container: ET.Element, element: ET.Element, *, indent: 
         # The last child's tail closes the list; the new last child inherits it.
         previous.tail = children[position - 2].tail if position >= 2 else container.text
     container.insert(position, element)
-
-
-def remove_children(container: ET.Element, doomed: Sequence[ET.Element]) -> None:
-    """Drop elements from a list, keeping the list's own closing indentation."""
-    for element in doomed:
-        children = list(container)
-        if children[-1] is element and len(children) > 1:
-            children[-2].tail = element.tail
-        container.remove(element)
-    if not len(container):
-        container.text = None
 
 
 def track_envelopes(track_root: ET.Element) -> list[ET.Element]:

@@ -41,13 +41,18 @@ def _int(slot: ET.Element, tag: str) -> int:
 
 
 def is_automatic(parameters: ET.Element) -> bool:
-    """Whether the named slots are only Live's own list: slot ``i`` names parameter ``i``, shown at ``i``."""
-    named = [
-        (position, _int(slot, Tag.PARAMETER_ID), _int(slot, Tag.VISUAL_INDEX))
+    """Whether the named slots are only Live's own list: slot ``i`` names parameter ``i``, shown at ``i``.
+
+    A named slot without a ``VisualIndex`` is a layout no list Live made by itself is known in.
+    """
+    named = [slot for slot in parameters if _int(slot, Tag.PARAMETER_ID) != UNASSIGNED]
+    if not named or any(slot.find(Tag.VISUAL_INDEX) is None for slot in named):
+        return False
+    return all(
+        position == _int(slot, Tag.PARAMETER_ID) == _int(slot, Tag.VISUAL_INDEX)
         for position, slot in enumerate(parameters)
         if _int(slot, Tag.PARAMETER_ID) != UNASSIGNED
-    ]
-    return bool(named) and all(position == index == visual for position, index, visual in named)
+    )
 
 
 def _set(slot: ET.Element, tag_path: str, value: str, *, optional: bool = False) -> None:

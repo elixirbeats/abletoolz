@@ -63,6 +63,7 @@ def mpc_essentials() -> PluginMap:
             "MPC Essentials",
             VERBATIM,
             MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,)),
+            plan_name="mpc_essentials_vst2",
         ),
         file_paths=MpcProjectPaths(),
     )

@@ -92,13 +92,14 @@ def sample() -> PluginMap:
         version=None,
         scope="VST2 and VST3 save the same patch",
         vendor="Serato",
-        vst2=PluginFormat(Vst2Id(1399681132), "Serato Sample", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1399681132), "Serato Sample", VERBATIM, measured, plan_name="serato_sample_vst2"),
         vst3=PluginFormat(
             Vst3Id((1448301651, 1836084339, 1701994868, 1864397665)),
             "Serato Sample",
             VERBATIM,
             measured,
             NO_CONTROLLER_STATE,
+            plan_name="serato_sample_vst3",
         ),
         file_paths=SeratoSamplePaths(),
     )

@@ -322,9 +322,16 @@ def test_the_floor_is_read_off_the_document(key: str, vst3: bool) -> None:
         (PluginKind.VST3, (11, 3, 42), "10.0_370", False),
         (PluginKind.VST3, (11, 3, 42), "unknown", False),
         (PluginKind.VST3, (10, 0, 6), None, False),
-        # An Audio Unit only goes into a set as new as the layout measured.
+        # An Audio Unit goes into a schema whose AuPluginInfo the writer can fill;
+        # one that declares a ParameterCount it has no value for is refused.
+        (PluginKind.AU, (11, 2, 10), "11.0_11202", True),
+        (PluginKind.AU, (11, 0, 12), "11.0_433", False),
+        (PluginKind.AU, (10, 1, 18), "10.0_377", False),
+        (PluginKind.AU, (12, 0, 0), "12.0_12000", False),
+        # Without a schema Live ships, only the layout measured on 11.3.41.
         (PluginKind.AU, (11, 3, 41), None, True),
         (PluginKind.AU, (11, 2, 10), None, False),
+        (PluginKind.AU, (12, 9, 0), "12.0_19999", True),
     ],
 )
 def test_the_floor_of_a_set_that_says_its_schema_or_only_its_creator(

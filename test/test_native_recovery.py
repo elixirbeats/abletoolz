@@ -189,7 +189,11 @@ def test_program_capacity_recovery_updates_only_measured_counts_and_reference(tm
         value = element(root, ".//ParameterValue")
         value.remove(element(value, "KeyMidi"))
     if configured:
-        assert "need a parameter map" in refused(root, target)
+        # The native build numbers its controls its own way, so links to the wrapped one's go, said up front.
+        answer = planned(root, target)
+        assert isinstance(answer, Edit) and answer.forget_controls
+        assert any("MIDI and macro mappings removed" in warning for warning in answer.warnings)
+        assert recovered(root, answer).find(".//KeyMidi") is None
         return
     answer = planned(root, target)
     assert isinstance(answer, Edit) and answer.programs == 4

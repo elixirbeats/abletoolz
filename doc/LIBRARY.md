@@ -186,33 +186,21 @@ for plugin in song.plugins.scan(can_load):  # --check-plugins
         print("missing:", plugin.name, "-- closest installed:", plugin.alternative)
 ```
 
-Converting works like the command line: make a plan, change its picks, apply it. A plan in Python is the same thing as the YAML file, with the same entries and fields; [Converting plugins](PLUGIN_CONVERSION.md#2-make-a-plan) explains them. The simplest plan picks a target for every plugin this computer can't load, the same as `abletoolz plugins plan`:
+Converting works like the command line: make a plan, choose what each plugin becomes, apply it. [Converting plugins](PLUGIN_CONVERSION.md) walks through the plan file. In Python, a plugin's `pick` is its `convert_to`, one of the names in its `targets`; every plugin starts as `"keep"`. This converts every Serum VST2 in a folder of sets to Serum's VST3:
 
 ```python
 from abletoolz.plugins.plan import apply_in_place, plan_sets
 
-plan = plan_sets([Path("D:/sets/my song.als")])  # abletoolz plugins plan
-for outcome in apply_in_place(plan):  # abletoolz plugins apply: originals are copied to abletoolz_backup
-    print(outcome.path.name, outcome.skipped or f"{outcome.changed} plugins switched")
-```
-
-To choose for yourself, change a `pick` the way you would in the file. This converts every Serum VST2 in a folder of sets to Serum's VST3, and writes the plan out so you can read it first:
-
-```python
-from abletoolz.plugins.plan import read_plan, write_plan
-
-plan = plan_sets(["D:/Ableton Projects"])
-for entry in plan.plugins:  # one entry per plugin, like the YAML
+plan = plan_sets(["D:/Ableton Projects"])  # abletoolz plugins plan
+for entry in plan.plugins:  # one entry per plugin, like the plan file
     if entry.plugin == "Serum" and entry.format == "vst":
-        entry.pick = "Serum (VST3)"  # an id from entry.targets
-write_plan(plan, "plan.yaml")  # like -o plan.yaml
-
-for outcome in apply_in_place(read_plan("plan.yaml")):  # abletoolz plugins apply plan.yaml
+        entry.pick = "serum_vst3"  # a name from entry.targets
+for outcome in apply_in_place(plan):  # abletoolz plugins apply: originals are copied to abletoolz_backup
     for device in outcome.devices:
-        print(outcome.path.name, device.plugin, "done" if device.done else device.reason)
+        print(outcome.path.name, device.plugin, "done" if device.done else device.reason, device.warnings)
 ```
 
-`plan_sets` takes the command's options too: `pick=Pick.BEST`, `formats=` and `picks_from=` an older edited plan. Each call reads this computer's plugins. To look for old plugins' recovery files only in some folders, like `--plugin-dir`, pass `machine=this_machine(["D:/VstPlugins"])` to both `plan_sets` and `apply_in_place`.
+`device.warnings` says what each converted device lost, like its automation; [what converting costs](PLUGIN_CONVERSION.md#what-converting-costs) explains why. `write_plan(plan, "plan.yaml")` and `read_plan("plan.yaml")` are the plan file. Each call reads this computer's plugins. To look for old plugins' recovery files only in some folders, like `--plugin-dir`, pass `machine=this_machine(["D:/VstPlugins"])` to both `plan_sets` and `apply_in_place`.
 
 ## 9. Going further
 

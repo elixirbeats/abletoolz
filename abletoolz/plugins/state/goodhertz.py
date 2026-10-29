@@ -25,12 +25,13 @@ def tupe_3() -> PluginMap:
         version=None,
         scope="VST2 and VST3 save the same patch",
         vendor="Goodhertz",
-        vst2=PluginFormat(Vst2Id(1414542168), "Ghz Tupe 3", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1414542168), "Ghz Tupe 3", VERBATIM, measured, plan_name="tupe_3_vst2"),
         vst3=PluginFormat(
             Vst3Id((1448301652, 1345542247, 1752834164, 1970300192)),
             "Ghz Tupe 3",
             VERBATIM,
             measured,
             NO_CONTROLLER_STATE,
+            plan_name="tupe_3_vst3",
         ),
     )

@@ -89,6 +89,14 @@ class LiveSchemas:
                 return kind
         return None
 
+    def members_of(self, minor_version: str, owner: str) -> frozenset[str] | None:
+        """Every member ``owner`` declares in that schema; None when Live ships no schema of that ``MinorVersion``."""
+        bit = self.bit(minor_version)
+        if bit is None:
+            return None
+        per_class = self.members.get(owner, {})
+        return frozenset(member for member, types in per_class.items() if any(mask & bit for mask in types.values()))
+
     def declares_class(self, minor_version: str, name: str) -> bool:
         bit = self.bit(minor_version)
         return bit is not None and bool(self.classes.get(name, 0) & bit)

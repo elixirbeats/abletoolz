@@ -111,8 +111,14 @@ def massive() -> PluginMap:
         version="1",
         scope="VST2 and VST3 hold the same NI item container",
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315523937), "Massive", VERBATIM, measured),
-        vst3=PluginFormat(Vst3Id((1448301646, 1766678893, 1634956137, 1986330624)), "Massive", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1315523937), "Massive", VERBATIM, measured, plan_name="massive_vst2"),
+        vst3=PluginFormat(
+            Vst3Id((1448301646, 1766678893, 1634956137, 1986330624)),
+            "Massive",
+            VERBATIM,
+            measured,
+            plan_name="massive_vst3",
+        ),
     )
 
 
@@ -409,7 +415,7 @@ def maschine_2() -> PluginMap:
         version="2",
         scope=_MASCHINE_SCOPE,
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315523890), "Maschine 2", VERBATIM, _MASCHINE_MEASURED),
+        vst2=PluginFormat(Vst2Id(1315523890), "Maschine 2", VERBATIM, _MASCHINE_MEASURED, plan_name="maschine_2_vst2"),
         file_paths=MaschinePaths(),
     )
 
@@ -423,7 +429,9 @@ def maschine_2_fx() -> PluginMap:
         version="2",
         scope=_MASCHINE_SCOPE,
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315523900), "Maschine 2 FX", VERBATIM, _MASCHINE_MEASURED),
+        vst2=PluginFormat(
+            Vst2Id(1315523900), "Maschine 2 FX", VERBATIM, _MASCHINE_MEASURED, plan_name="maschine_2_fx_vst2"
+        ),
         file_paths=MaschinePaths(),
     )
 
@@ -515,9 +523,13 @@ def battery_4() -> PluginMap:
         version="4",
         scope="NI item container; sample and kit paths inside its compressed subtree",
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1312973108), "Battery 4", VERBATIM, _BATTERY_MEASURED),
+        vst2=PluginFormat(Vst2Id(1312973108), "Battery 4", VERBATIM, _BATTERY_MEASURED, plan_name="battery_4_vst2"),
         vst3=PluginFormat(
-            Vst3Id((1448301646, 1113666658, 1635021925, 1920540724)), "Battery 4", VERBATIM, _BATTERY_MEASURED
+            Vst3Id((1448301646, 1113666658, 1635021925, 1920540724)),
+            "Battery 4",
+            VERBATIM,
+            _BATTERY_MEASURED,
+            plan_name="battery_4_vst3",
         ),
         file_paths=SegmentPaths(BATTERY_SUFFIXES),
     )
@@ -534,7 +546,7 @@ def kontakt_5() -> PluginMap:
         version="5",
         scope="NI item container; library paths inside its compressed subtree, unless the library encrypts it",
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315524405), "Kontakt 5", VERBATIM, _BATTERY_MEASURED),
+        vst2=PluginFormat(Vst2Id(1315524405), "Kontakt 5", VERBATIM, _BATTERY_MEASURED, plan_name="kontakt_5_vst2"),
         file_paths=_KONTAKT_PATHS,
     )
 
@@ -548,7 +560,9 @@ def kontakt_5_16out() -> PluginMap:
         version="5",
         scope="NI item container; library paths inside its compressed subtree, unless the library encrypts it",
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315524407), "Kontakt 5 16out", VERBATIM, _BATTERY_MEASURED),
+        vst2=PluginFormat(
+            Vst2Id(1315524407), "Kontakt 5 16out", VERBATIM, _BATTERY_MEASURED, plan_name="kontakt_5_16out_vst2"
+        ),
         file_paths=_KONTAKT_PATHS,
     )
 
@@ -644,6 +658,6 @@ def reaktor_6() -> PluginMap:
         version="6",
         scope="the snapshot of an ensemble, which it names by path in its head",
         vendor="Native Instruments",
-        vst2=PluginFormat(Vst2Id(1315525174), "Reaktor 6", VERBATIM, _BATTERY_MEASURED),
+        vst2=PluginFormat(Vst2Id(1315525174), "Reaktor 6", VERBATIM, _BATTERY_MEASURED, plan_name="reaktor_6_vst2"),
         file_paths=EnsemblePaths(),
     )

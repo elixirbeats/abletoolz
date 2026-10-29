@@ -253,12 +253,12 @@ def test_a_band_slot_lands_on_what_pro_q3_prints(
 
 
 @pytest.mark.parametrize("placement", [0.0, 0.25, 0.5, 0.75])
-def test_pro_q1_unmapped_placement_refuses_conversion(placement: float) -> None:
-    source = LegacyBank("Non-stereo", q1_bank(with_field(Q1_DEFAULT_BAND, Q1BandField.PLACEMENT, placement)))
-    raw = source.encode()
-    with pytest.raises(StateTransformError, match="non-stereo band placement"):
-        pro_q1_to_pro_q3(raw)
-    assert source.encode() == raw
+def test_pro_q1_unmapped_placement_is_refused_directly_and_carried_as_stereo_by_a_plan(placement: float) -> None:
+    bank = q1_bank(with_field(Q1_DEFAULT_BAND, Q1BandField.PLACEMENT, placement))
+    with pytest.raises(StateTransformError, match="placement has no measured match"):
+        pro_q1_to_pro_q3_parameters(bank)
+    converted = pro_q1_to_pro_q3(LegacyBank("Non-stereo", bank).encode())
+    assert converted.notices == ("band 1's left, right, mid or side placement has no measured match; it is stereo",)
 
 
 @pytest.mark.parametrize("field", [Q1BandField.SHAPE, Q1BandField.SLOPE])

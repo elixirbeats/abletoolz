@@ -28,8 +28,13 @@ def serum() -> PluginMap:
         version="1",
         scope="VST2 and VST3 save the same patch",
         vendor="Xfer Records",
-        vst2=PluginFormat(Vst2Id(1483109208), "Serum", VERBATIM, measured),
+        vst2=PluginFormat(Vst2Id(1483109208), "Serum", VERBATIM, measured, plan_name="serum_vst2"),
         vst3=PluginFormat(
-            Vst3Id((1448301656, 1718835315, 1701999981, 0)), "Serum", VERBATIM, measured, NO_CONTROLLER_STATE
+            Vst3Id((1448301656, 1718835315, 1701999981, 0)),
+            "Serum",
+            VERBATIM,
+            measured,
+            NO_CONTROLLER_STATE,
+            plan_name="serum_vst3",
         ),
     )

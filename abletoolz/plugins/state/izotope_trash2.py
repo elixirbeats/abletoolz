@@ -216,10 +216,14 @@ def plugin_map() -> PluginMap:
         version=None,
         scope=SCOPE,
         vendor="iZotope",
-        vst2=PluginFormat(Vst2Id(1517179954), "iZotope Trash 2", VERBATIM, NESTING_MEASURED),
+        vst2=PluginFormat(Vst2Id(1517179954), "iZotope Trash 2", VERBATIM, NESTING_MEASURED, plan_name="trash_2_vst2"),
         # Trash 2 reverts to its defaults without its controller half, which is not measured.
         vst3=PluginFormat(
-            Vst3Id((1448301658, 1851011689, 1517253743, 1885675604)), "iZotope Trash 2", IzotopeVst3(), NESTING_MEASURED
+            Vst3Id((1448301658, 1851011689, 1517253743, 1885675604)),
+            "iZotope Trash 2",
+            IzotopeVst3(),
+            NESTING_MEASURED,
+            plan_name="trash_2_vst3",
         ),
         layouts=(WRAPPED,),
         binary_sha256=(WRAPPER_SHA256, ENGINE_SHA256),

@@ -131,6 +131,7 @@ class Catalog:
             if self._by_id is None:
                 maps: dict[str, PluginMap] = {}
                 by_id: dict[StoredId, PluginMap] = {}
+                plan_names: dict[str, PluginMap] = {}
                 for factory in self._factories:
                     plugin_map = factory()
                     if plugin_map.id in maps:
@@ -143,6 +144,12 @@ class Catalog:
                                 f"{plugin_map.name} and {claimed.name} both claim {plugin_format.id}"
                             )
                         by_id[plugin_format.id] = plugin_map
+                        named = plan_names.get(plugin_format.plan_name)
+                        if named is not None:
+                            raise StateTransformError(
+                                f"{plugin_map.name} and {named.name} both use the plan name {plugin_format.plan_name!r}"
+                            )
+                        plan_names[plugin_format.plan_name] = plugin_map
                 for converter in self._converters.values():
                     self._check_converter(converter, maps)
                 self._maps = maps

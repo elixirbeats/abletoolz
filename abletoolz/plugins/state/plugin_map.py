@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import pathlib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from abletoolz.plugins.container.controller import ControllerState
@@ -77,7 +77,9 @@ class PluginFormat:
     writing that format is refused: some plugins revert to their defaults
     without it. ``registration`` is what an AU device repeats from the
     component's registration; None on an AU format means it is not recorded,
-    and writing that format is refused.
+    and writing that format is refused. ``plan_name`` is what a plan file calls
+    this format, ``serum_vst3``: written by hand per plugin, because the names
+    Live shows are not always the ones a musician would type.
     """
 
     id: StoredId
@@ -86,6 +88,7 @@ class PluginFormat:
     measured: MeasuredState
     controller: ControllerState | None = None
     registration: AuRegistration | None = None
+    plan_name: str = field(kw_only=True)
 
 
 @dataclass(frozen=True, slots=True)

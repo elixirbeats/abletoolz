@@ -98,6 +98,7 @@ def xfadelooper() -> PluginMap:
             "xfadelooper",
             VERBATIM,
             MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,)),
+            plan_name="xfadelooper_vst2",
         ),
         layouts=(Layout("layout 00 02 03 00", _measured_layout),),
         file_paths=XfadeLooperPaths(),

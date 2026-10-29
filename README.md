@@ -210,11 +210,11 @@ A set made on another machine often has plugins this one can't load: an Audio Un
 
 ```
 abletoolz --plugin-db                                   # once: lists the plugins installed here
-abletoolz plugins plan "D:/sets" -o plan.yaml           # writes what each plugin can become
-abletoolz plugins apply plan.yaml                       # after you've read and edited the plan
+abletoolz plugins plan "D:/sets" -o plan.yaml           # lists every plugin and what it can become
+abletoolz plugins apply plan.yaml                       # after you've written convert_to for the ones to change
 ```
 
-[Converting plugins](doc/PLUGIN_CONVERSION.md) walks through a real plan.
+Nothing converts unless you write a name in its `convert_to`. A converted device keeps its sound, but its automation and MIDI mappings are removed, because another format numbers the plugin's controls differently; the plan says so before you apply. [Converting plugins](doc/PLUGIN_CONVERSION.md) walks through a real plan.
 
 `--plugin-maps` Lists every plugin abletoolz knows how to convert or fix, and what it can do with each.
 
