@@ -416,7 +416,7 @@ def pro53() -> PluginMap:
         version="3",
         scope="VST2 only; the plain bank layout the 25 banks in the owner's sets share",
         vendor="Native Instruments",
-        vst2=PluginFormat(PRO53_VST2, "Pro-53", VERBATIM, measured),
+        vst2=PluginFormat(PRO53_VST2, "Pro-53", VERBATIM, measured, plan_name="pro_53_vst2"),
         layouts=(Layout("Pro-53 3 bank", _is_bank),),
         binary_sha256=(PRO53_SHA256,),
     )
