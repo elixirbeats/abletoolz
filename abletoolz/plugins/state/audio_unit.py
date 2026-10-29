@@ -17,14 +17,14 @@ then whatever the unit saves. Four keys carry the patch:
   measured, so it is never where a JUCE patch lives.
 * ``jucePluginState`` is a JUCE unit's own state, which is where it does live.
 * ``vstdata`` is a VST2 program file holding the plugin's VST2 chunk, in a unit
-  built over its VST2 rather than on JUCE. Serum's is one: both Serum AU
-  devices in the owner's sets hold an ``FPCh`` program for fxID ``XfsX``, the
+  built over its VST2 rather than on JUCE. Serum's is one: a Serum AU
+  device holds an ``FPCh`` program for fxID ``XfsX``, the
   VST2's UniqueId, whose chunk inflates to the 172,736 bytes a Serum VST2 chunk
   inflates to. :class:`VstDataClassInfo` reads it.
 * ``Processor State`` is the VST3's processor state, in a unit the VST3 SDK's
   wrapper builds from the VST3 (``AUWrapperFactory`` in its registration),
-  with the controller's beside it under ``Controller State``. Serum 2's is one,
-  read 2026-10-26 off the installed 2.1.5 AU on a Mac: both halves are the
+  with the controller's beside it under ``Controller State``. Serum 2's 2.1.5 AU
+  on a Mac is one: both halves are the
   XferJson containers its VST3 writes. :class:`Vst3ClassInfo` reads and writes it.
 
 A unit answers a restored dictionary with ``kAudioUnitErr_InvalidPropertyValue``

@@ -2,7 +2,7 @@
 
 Pro-53 is a 32-bit VST2 only. Live stores its whole bank: 512 factory programs,
 the program the device has selected, and the working patch the device plays.
-The layout, measured 2026-10-21 on the 25 distinct banks in the owner's sets:
+The layout:
 
     3a 01 01 00 00, "PRO-53" length-prefixed, a u32 304, then that block:
         float32 master tune and volume at bytes 19 and 23, the selected
@@ -21,27 +21,26 @@ Each control is saved twice, and the two do different jobs. The snapshot is
 what the engine plays: a cutoff written only there changed the sound and not
 the knob. The working byte is what the knob shows, a 7-bit value over 127.
 Written together they agree with the plugin's own setter, sample for sample
-(measured on the effect build, 2026-10-21). In the owner's banks the two agree
-on 1,673 of 1,675 knobs, and the other two by less than half a step. A value
-here is read off the knob, which is what the plugin's own getter and display
-report; an edit writes both.
+(measured on the effect build). In saved banks the two agree, or differ by
+less than half a step. A value here is read off the knob, which is what the
+plugin's own getter and display report; an edit writes both.
 
-The controls, their names, order and display curves were measured 2026-10-28 by
-hosting the instrument itself -- ``Pro-53.dll`` 3.0.0.13, x86, the ``P3SF`` every
-device in the sets stores -- without an editor or audio, setting every control
-to 255 positions and reading its getter and display back. It reports 69
+The controls, their names, order and display curves were measured by hosting
+the instrument itself -- ``Pro-53.dll`` 3.0.0.13, x86, the ``P3SF`` build --
+without an editor or audio, setting every control to 255 positions and reading
+its getter and display back. It reports 69
 controls; no control moves another. Pitch bend is the snapshot's 70th float and
 is not one of them, though Live's own record of these devices, written through
-jBridge, counts 70 parameters, so it is read here but never edited. All 25 real
-banks restored in it read back, control by control, the values this module
-reads, and so do 11 banks it edited, every control set (`test/test_pro53.py`).
+jBridge, counts 70 parameters, so it is read here but never edited. Real banks
+restored in it read back, control by control, the values this module reads,
+and so do banks it edited, every control set (`test/test_pro53.py`).
 
 Units are what the plugin prints. Envelope times, glide and the mixer print a
 percentage, so a percentage is what they are here; their time and gain curves
 are not measured. The oscillator pitch knobs print whole semitones.
 
 Pro-53's own save (``effGetChunk``), hosted, is a scrambled form flagged with a
-1 in byte 4 and the same length; every bank in the sets is the plain form, which
+1 in byte 4 and the same length; a bank Live saves is the plain form, which
 the plugin restores. Only the plain form is read and written.
 """
 
@@ -72,8 +71,8 @@ _SNAPSHOT = 39
 _SELECTED = 35
 _GLOBAL_FLOATS = {66: 19, 67: 23}
 _DIRECTORY_VERSION = 301
-# Each control's record opens with its own id, and the plugin files a record by that id (measured
-# 2026-10-28: a bank whose ids were renumbered restored into other controls). The three saved
+# Each control's record opens with its own id, and the plugin files a record by that id (a bank
+# whose ids were renumbered restored into other controls). The three saved
 # only as floats carry FFFFFFFF.
 RECORD_IDS = (
     1029, 1030, 1031, 1032, 1033, 1001, 1002, 1003, 1000, 1004, 1026, 1025, 1027, 1101, 1022, 1023, 1021, 1024,
@@ -194,7 +193,7 @@ class Control:
     curve: Curve
 
 
-# Measured 2026-10-28 on the hosted instrument: each display read at 255 positions.
+# Measured on the hosted instrument: each display read at 255 positions.
 # Percentages print round-half-up of 100 x the value, the other lines likewise in
 # their unit; delay time prints whole milliseconds; the two rates print six
 # significant digits and agree with these exponentials to 1.5e-5. Delay depth
@@ -414,7 +413,7 @@ def pro53() -> PluginMap:
         id="ni.pro-53",
         name="Pro-53",
         version="3",
-        scope="VST2 only; the plain bank layout the 25 banks in the owner's sets share",
+        scope="VST2 only; the plain bank layout",
         vendor="Native Instruments",
         vst2=PluginFormat(PRO53_VST2, "Pro-53", VERBATIM, measured, plan_name="pro_53_vst2"),
         layouts=(Layout("Pro-53 3 bank", _is_bank),),

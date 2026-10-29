@@ -672,14 +672,13 @@ def pro_g() -> PluginMap:
     )
 
 
-# Pro-DS had its table derived on 2026-08-13 and was checked on 2026-10-26
-# the way the three above were. Both distinct Pro-DS banks in the owner's sets
-# (41 devices) converted here and loaded into the installed VST3 with all 20
-# parameters agreeing with what the VST2 says the bank means. One came back
-# byte for byte; the other came back with its low-pass frequency one float32
-# step (0.8450983 against 0.8450984) from what was written, which the plugin
-# rounds to its own value. Micro's table is not shipped: the one Micro bank in
-# the owner's sets holds 8 parameters where the installed build has 9.
+# Pro-DS's table is derived and checked the way the three above are. Real
+# Pro-DS banks converted here load into the installed VST3 with all 20
+# parameters agreeing with what the VST2 says the bank means, and come back
+# byte for byte or with the low-pass frequency one float32 step (0.8450983
+# against 0.8450984) from what was written, which the plugin rounds to its own
+# value. Micro's table is not shipped: a saved Micro bank holds 8 parameters
+# where the installed build has 9.
 PRO_DS_TABLE = read_derived_table(DERIVED_TABLES / "pro-ds.json")
 
 
