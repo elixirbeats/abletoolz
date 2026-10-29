@@ -216,7 +216,7 @@ abletoolz plugins apply plan.yaml                       # after you've read and 
 
 [Converting plugins](doc/PLUGIN_CONVERSION.md) walks through a real plan.
 
-`--list-plugins` Lists every plugin abletoolz knows how to convert or fix, and what it can do with each.
+`--plugin-maps` Lists every plugin abletoolz knows how to convert or fix, and what it can do with each.
 
 `--plugin-db` Records the plugins installed on this computer. Run it again after installing plugins. Extra plugin folders go in your `config.yaml`:
 

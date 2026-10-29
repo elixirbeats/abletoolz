@@ -1,7 +1,7 @@
 # Changelog
 
 User-facing changes and migration notes, newest first. Current usage belongs in
-the [README](README.md); `abletoolz --list-plugins` prints plugin-by-plugin support.
+the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin support.
 
 ## 2.2.0 — unreleased
 
@@ -136,7 +136,7 @@ Changes since 2.1.0.
   retired in favor of `plugins plan` / `plugins apply`.
 - `--analyze-plugins`, `--fix-plugins` and `--list-parsers` are retired. Use
   `--dump-plugins` for inspection, the sample flags for plugin-held files, and
-  `--list-plugins` for supported capabilities.
+  `--plugin-maps` for supported capabilities.
 - The `plugin_translation.targets`, `plugin_upgrades` and `plugin_parsers` sections
   of config.yaml are ignored, with a warning; a plan carries choices forward with `--from`.
 - Python modules have moved into `samples`, `run`, `schema`, `formats` and

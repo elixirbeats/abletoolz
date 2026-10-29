@@ -11,7 +11,7 @@ abletoolz plugins plan "D:/sets/Impact.als" -o plan.yaml  # reads the set, chang
 abletoolz plugins apply plan.yaml                         # rewrites the set, keeps a backup
 ```
 
-The steps below go through it in order. Steps 7 to 9 do the same from Python, for when you want to pick by your own rules.
+The steps below go through it in order. Steps 7 to 9 do the same from Python, for when you want to pick by your own rules. [What abletoolz can convert today](#what-abletoolz-can-convert-today) lists the plugins it knows.
 
 ## 1. Find the plugins on this computer
 
@@ -272,6 +272,29 @@ outcomes = apply_plan(plan, save=save_copy, machine=this_machine())
 
 A plan only offers what abletoolz already knows how to do: another format or file of a plugin, or an upgrade it has a converter for. Anything else, like turning a plugin into a different one or changing its settings, is code you write for that plugin: [Change a plugin's own settings](LIBRARY.md#change-a-plugins-own-settings) and [Rebuild a plugin as Live's own devices](LIBRARY.md#rebuild-a-plugin-as-lives-own-devices) show how.
 
+## What abletoolz can convert today
+
+This grows as plugins get mapped, so take it as a rough guide. `abletoolz --plugin-maps` prints the current list, with how each one was measured.
+
+**Between VST2, VST3 and AU, keeping the patch:**
+
+- FabFilter Pro-C 2, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2 and Timeless 3
+- Valhalla Delay, FreqEcho, Plate, Room, Shimmer and Supermassive, Audio Units included
+- 36 Kilohearts kHs effects
+- Arturia Prophet V3, Devious Machines Texture, Goodhertz Tupe 3, Serato Sample, Xfer Serum, and Surge XT (VST3 and AU)
+
+Massive, Battery 4, Trash 2, Ozone 9 Exciter and Volcano 3 can't be converted to VST3 yet, so their VST2 devices stay VST2.
+
+**Into a newer plugin:**
+
+- FabFilter Pro-Q and Pro-Q 2 to Pro-Q 3
+- Surge to Surge XT
+- Native Instruments Pro-53 to Arturia Prophet-5 V, for patches Prophet-5 V can play. A Pro-53 using its high-pass filter, an inverted filter envelope, glide in unison or the release switch off stays as it is. A converted device lists what it couldn't carry, like the delay and analog drift, and how each setting was matched.
+
+iZotope Trash to Trash 2 is worked out too, but a plan can't offer it until abletoolz can write Trash 2's VST3.
+
+**Files inside a plugin's patch**, relinked by the sample flags: Serato Sample, xfadelooper, Battery 4, Kontakt 5, Maschine 2, Texture, CMI V and Reaktor 6. iZotope Iris and Akai MPC Essentials files are listed so you can fix them by hand.
+
 ## What doesn't convert
 
 A converted device keeps its patch, every setting that shapes the sound. These are the things around it.
@@ -284,7 +307,7 @@ A converted device keeps its patch, every setting that shapes the sound. These a
 
 **A setting with no place in the target refuses the patch**, or the converter says what it loses.
 
-**Some formats are read but not written yet.** `--list-plugins` marks them `(read)`, and a plan offers no target in them.
+**Some formats are read but not written yet.** `--plugin-maps` marks them `(read)`, and a plan offers no target in them.
 
 ## Why some plugins convert and others don't
 
@@ -298,4 +321,4 @@ Live stores a plugin's settings as bytes, and VST2, VST3 and AU only say how the
 | Change a sound setting | Which saved fields it changes, their encoding, units and curves |
 | Turn one plugin into another | Both patch formats and a worked-out match between their controls |
 
-Plugins from the same maker often wrap their patches the same way, so one discovery can cover a family. Turning one plugin into another is a sound translation every time and needs its own converter. That is why support is per plugin, per format and per operation. `abletoolz --list-plugins` shows what abletoolz knows, and [Mapping a new plugin](DEVELOPMENT.md#mapping-a-new-plugin) covers adding one.
+Plugins from the same maker often wrap their patches the same way, so one discovery can cover a family. Turning one plugin into another is a sound translation every time and needs its own converter. That is why support is per plugin, per format and per operation. `abletoolz --plugin-maps` shows what abletoolz knows, and [Mapping a new plugin](DEVELOPMENT.md#mapping-a-new-plugin) covers adding one.

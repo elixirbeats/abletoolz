@@ -54,8 +54,8 @@ def test_conflicting_flags_rejected(tmp_path: pathlib.Path) -> None:
 
 
 def test_db_excludes_the_other_machine_commands() -> None:
-    """The set commands are refused by the parametrized test below; --list-plugins is not one of them."""
-    assert run_cli("--db", "--list-plugins") == 2
+    """The set commands are refused by the parametrized test below; --plugin-maps is not one of them."""
+    assert run_cli("--db", "--plugin-maps") == 2
 
 
 def test_sample_catalog_options_are_validated(tmp_path: pathlib.Path) -> None:
@@ -88,8 +88,8 @@ def test_cli_builds_and_searches_sample_catalog(tmp_path: pathlib.Path, child_en
     assert json.loads(result.stdout) == [str(sample)]
 
 
-def test_list_plugins_exits_zero() -> None:
-    assert run_cli("--list-plugins") == 0
+def test_plugin_maps_exits_zero() -> None:
+    assert run_cli("--plugin-maps") == 0
 
 
 def test_output_requires_save_or_apply_ops(tmp_path: pathlib.Path) -> None:

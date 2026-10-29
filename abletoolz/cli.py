@@ -252,7 +252,7 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
         help="Plugin database file to create/use. Default: plugin_db.json in the abletoolz config directory.",
     )
     plugin_tools.add_argument(
-        "--list-plugins",
+        "--plugin-maps",
         action="store_true",
         default=False,
         help="List every plugin abletoolz knows: the formats it can read and write, whether it relinks files "
@@ -315,17 +315,17 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
     except ValueError as error:
         parser.error(str(error))
     set_commands = any(getattr(args, name) for name in COMMAND_FLAGS + AUTHORING_FLAGS)
-    if args.db and (args.list_plugins or args.plugin_db or set_commands):
+    if args.db and (args.plugin_maps or args.plugin_db or set_commands):
         parser.error("--db/--database cannot be used with other commands!")
     if args.search_samples is not None and (
-        args.db or args.list_plugins or args.plugin_db or set_commands or args.srcs
+        args.db or args.plugin_maps or args.plugin_db or set_commands or args.srcs
     ):
         parser.error("--search-samples searches the sample database; it takes no folders, sets, or other command.")
     if args.db_prune and (
-        args.db or args.list_plugins or args.plugin_db or set_commands or args.srcs or args.search_samples is not None
+        args.db or args.plugin_maps or args.plugin_db or set_commands or args.srcs or args.search_samples is not None
     ):
         parser.error("--db-prune cleans the sample database; it takes no folders, sets, or other command.")
-    if args.plugin_db and (args.list_plugins or set_commands or args.srcs):
+    if args.plugin_db and (args.plugin_maps or set_commands or args.srcs):
         parser.error(
             "--plugin-db/--plugin-database reads this machine's plugins; it takes no set and no other command!"
         )
@@ -340,7 +340,7 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
         parser.error("--apply-ops takes exactly one input set (not a directory).")
     # These answer questions about this machine, not a set, so none takes one;
     # --db without folders scans the ones in config.yaml.
-    machine_command = args.db or args.db_prune or args.list_plugins or args.plugin_db or args.search_samples is not None
+    machine_command = args.db or args.db_prune or args.plugin_maps or args.plugin_db or args.search_samples is not None
     if not machine_command and not args.srcs:
         parser.error("No sets or directories given, nothing to do.")
     return args
@@ -505,7 +505,7 @@ def main(
 
     machine_readable = bool(args.describe or args.apply_ops or args.search_samples is not None)
     console.configure_logging(machine_readable=machine_readable, verbose=args.verbose)
-    if args.list_plugins:
+    if args.plugin_maps:
         console.render_catalog(CATALOG)
         return 0
     if args.apply_ops:
