@@ -128,6 +128,10 @@ from abletoolz.plugins.state.plugin_map import (
 # format with another layout, and is refused.
 SERUM_PATCH_SIZES = frozenset({172736, 33872, 28232})
 _STREAM_LENGTH = struct.Struct("<I")
+# Inflating stops one byte past the most a stream holds, so a chunk that inflates further is refused, not held:
+# the largest patch, and four times two full 256-frame tables (Serum appends a little after the frames).
+_PATCH_LIMIT = max(SERUM_PATCH_SIZES) + 1
+_TABLES_LIMIT = 16 * 1024 * 1024 + 1
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -141,14 +145,18 @@ class SerumChunk:
     def parse(cls, chunk: bytes) -> SerumChunk:
         try:
             first = zlib.decompressobj()
-            patch = first.decompress(chunk)
+            patch = first.decompress(chunk, _PATCH_LIMIT)
             rest = first.unused_data
+            if len(patch) == _PATCH_LIMIT:
+                raise StateTransformError("This Serum chunk's patch stream inflates past any Serum patch")
             if not first.eof:
                 raise StateTransformError("This Serum chunk ends inside its patch stream")
             tables = b""
             if len(rest) > _STREAM_LENGTH.size:
                 second = zlib.decompressobj()
-                tables = second.decompress(rest)
+                tables = second.decompress(rest, _TABLES_LIMIT)
+                if len(tables) == _TABLES_LIMIT:
+                    raise StateTransformError("This Serum chunk's wavetable stream inflates past any two tables")
                 if not second.eof:
                     raise StateTransformError("This Serum chunk ends inside its wavetable stream")
                 rest = second.unused_data
@@ -205,6 +213,8 @@ def serum() -> PluginMap:
 XFER_JSON_MAGIC = JSON_KEYWORD + b"\x00"
 _HEADER_LENGTH = struct.Struct("<Q")
 _BODY_HEADER = struct.Struct("<II")
+# Far past any Serum 2 patch, embedded samples included; a larger declared body is refused before it is inflated.
+_BODY_LIMIT = 256 * 1024 * 1024
 # The one codec measured: a zstd frame, which opens with its magic.
 ZSTD_CODEC = 2
 ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
@@ -250,9 +260,15 @@ class XferJson:
         return value if isinstance(value, str) else None
 
     def decoded(self) -> bytes:
-        """The body decompressed: the patch as CBOR."""
+        """The body decompressed: the patch as CBOR.
+
+        Reading stops one byte past the size the state declares, whatever size the zstd frame claims for itself.
+        """
+        if self.size > _BODY_LIMIT:
+            raise StateTransformError(f"This Serum 2 state declares a {self.size} byte body, more than any patch holds")
         try:
-            body = zstandard.ZstdDecompressor().decompress(self.body, max_output_size=self.size)
+            with zstandard.ZstdDecompressor().stream_reader(self.body) as reader:
+                body = reader.read(self.size + 1)
         except zstandard.ZstdError as error:
             raise StateTransformError(f"This Serum 2 state's body is not a zstd frame that decodes: {error}") from None
         if len(body) != self.size:
