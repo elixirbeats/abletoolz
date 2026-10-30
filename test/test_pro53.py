@@ -3,8 +3,8 @@
 The banks built here follow the measured layout with made-up program names, so no
 factory content goes into the tests. ``state_fixtures/pro53_hosted.json`` is the
 original instrument's own readings on the legacy desktop: every control's display at
-each of its 128 knob steps, and its getter and display after restoring banks from
-real sets and banks this module edited.
+each of its 128 knob steps, and its getter and display after restoring banks this
+module built and edited. Its readings of real sets' banks sit beside those banks.
 """
 
 from __future__ import annotations
@@ -238,9 +238,15 @@ def test_banks_this_module_edited_read_as_the_plugin_read_them(hosted: dict[str,
         _agrees_with_the_plugin(parsed, edit)
 
 
+def _corpus_readings() -> dict[str, Any]:
+    """The hosted plugin's readings of the corpus banks, kept beside them."""
+    readings: dict[str, Any] = json.loads((CORPUS / "hosted_readings.json").read_text(encoding="utf-8"))
+    return readings
+
+
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="real sets' Pro-53 banks live on the machine that holds the sets")
-def test_banks_from_real_sets_round_trip_and_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
-    for digest, readings in hosted["real_banks"].items():
+def test_banks_from_real_sets_round_trip_and_read_as_the_plugin_read_them() -> None:
+    for digest, readings in _corpus_readings()["real_banks"].items():
         raw = (CORPUS / f"{digest}.state").read_bytes()
         parsed = Pro53Bank.parse(raw)
         assert parsed.encode() == raw
@@ -248,10 +254,8 @@ def test_banks_from_real_sets_round_trip_and_read_as_the_plugin_read_them(hosted
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="real sets' Pro-53 banks live on the machine that holds the sets")
-def test_banks_from_real_sets_edited_here_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
-    if not hosted["edited_real"]:
-        pytest.skip("the plugin has not restored an edited bank yet")
-    for edit in hosted["edited_real"]:
+def test_banks_from_real_sets_edited_here_read_as_the_plugin_read_them() -> None:
+    for edit in _corpus_readings()["edited_real"]:
         parsed = Pro53Bank.parse((CORPUS / f"{edit['source']}.state").read_bytes()).with_values(edit["changes"])
         assert hashlib.sha256(parsed.raw).hexdigest() == edit["sha256"]
         _agrees_with_the_plugin(parsed, edit)

@@ -363,8 +363,14 @@ class Ms20Program:
         return float(_F32.unpack_from(self.raw, _SLOTS_AT + 4 * slot)[0])
 
     def values(self) -> dict[str, Ms20Value]:
-        """Every measured control by name, in the plugin's units."""
-        return {control.name: control.curve.value(self.slot(control.slot)) for control in CONTROLS}
+        """Every measured control by name, in the plugin's units, as the plugin restores them.
+
+        A second external-mod source equal to the first is restored as None.
+        """
+        values = {control.name: control.curve.value(self.slot(control.slot)) for control in CONTROLS}
+        if values["EXT.Mod.Src.2"] == values["EXT.Mod.Src.1"]:
+            values["EXT.Mod.Src.2"] = "None"
+        return values
 
     @property
     def cables(self) -> tuple[Cable, ...]:

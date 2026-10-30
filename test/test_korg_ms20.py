@@ -1,8 +1,8 @@
 """The legacy KORG MS-20's program, read and edited by control name, against what the hosted plugin printed.
 
 ``state_fixtures/korg_ms20/ms20_hosted.json`` is the original plugin's own readings:
-every control's display after restoring each distinct working program of
-MS-20 and Legacy Cell devices in real sets, and each line slot's display at 21 restored values.
+every control's display after restoring its init program and programs built from a seeded
+random draw, and each line slot's display at 21 restored values.
 The banks built here follow the measured layout around those programs, with made-up
 program names, so no factory content goes into the tests.
 """
@@ -74,7 +74,8 @@ def shows(control_name: str, value: Ms20Value, display: str) -> bool:
     if isinstance(curve, Line):
         text = text.replace("+", "").replace("CENTER", "0")
         number = -float(text[1:]) if text.startswith("L") else float(text.lstrip("R"))
-        return abs(number - float(value)) <= 0.0051 * max(1.0, (curve.high - curve.low) / 10)
+        printed = 0.51 * 10 ** -len(text.partition(".")[2])  # half the last digit the plugin printed
+        return abs(number - float(value)) <= max(printed, 0.0051 * max(1.0, (curve.high - curve.low) / 10))
     try:
         return int(text) == value
     except ValueError:
@@ -82,7 +83,7 @@ def shows(control_name: str, value: Ms20Value, display: str) -> bool:
 
 
 @pytest.mark.parametrize("entry", HOSTED["programs"], ids=lambda entry: entry["slots"][:12])
-def test_every_real_working_program_reads_as_the_plugin_printed_it(entry: dict[str, Any]) -> None:
+def test_every_hosted_program_reads_as_the_plugin_printed_it(entry: dict[str, Any]) -> None:
     values = Ms20Program.parse(program(entry)).values()
     for control in CONTROLS:
         assert shows(control.name, values[control.name], entry["displays"][str(control.index)]), control.name
@@ -119,9 +120,17 @@ def test_every_slot_is_a_control_or_named_as_unmeasured_or_unused() -> None:
 
 def test_the_cables_read_one_output_to_one_input_by_jack_name() -> None:
     cables = max((Ms20Program.parse(program(entry)).cables for entry in HOSTED["programs"]), key=len)
-    assert len(cables) == 8
+    assert len(cables) == 9
     assert all(cable.out.endswith(" OUT") and cable.to.endswith(" IN") for cable in cables)
-    assert Cable("MG TRI OUT", "SAMPLE HOLD CLOCK IN", 2) in cables
+    assert Cable("PINK NOISE OUT", "TOTAL IN", 2) in cables
+
+
+def test_a_second_external_mod_source_equal_to_the_first_reads_as_none() -> None:
+    """Restored in the plugin: five pairs of equal sources each printed None for the second."""
+    twice = plain().with_values({"EXT.Mod.Src.1": "EG 1", "EXT.Mod.Src.2": "EG 1"})
+    assert twice.values()["EXT.Mod.Src.2"] == "None"
+    apart = plain().with_values({"EXT.Mod.Src.1": "EG 1", "EXT.Mod.Src.2": "EG 2"})
+    assert apart.values()["EXT.Mod.Src.2"] == "EG 2"
 
 
 def test_rewriting_a_program_s_own_cables_keeps_every_byte() -> None:
