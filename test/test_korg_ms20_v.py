@@ -106,6 +106,13 @@ def test_an_edit_the_plugin_cannot_hold_is_refused(
         Ms20VPatch.parse(baseline()).with_values(change, cables)
 
 
+@pytest.mark.parametrize(("key", "stored"), [("LP Cutoff", -0.5), ("LP Cutoff", 2.0), ("MS20VCO_WaveformOsc1", -0.3)])
+def test_a_stored_value_outside_0_to_1_is_refused_not_read_as_a_setting(key: str, stored: float) -> None:
+    """-0.5 used to read as a 1,100 Hz cutoff, and -0.3 as the Pulse waveform."""
+    with pytest.raises(StateTransformError, match="outside 0 to 1"):
+        controls()[key].value(stored)
+
+
 def test_an_ms20_v_device_finds_its_map_and_writes_both_vst3_halves() -> None:
     found = CATALOG.find(MS20_V_VST2)
     assert found is not None and found.id == "arturia.korg-ms-20-v"

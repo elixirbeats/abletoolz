@@ -35,8 +35,8 @@ def _surge(
     vst3_id: tuple[int, int, int, int],
     own_bypass: bool,
     *,
-    vst3_plan: str | None = None,
-    au_plan: str | None = None,
+    vst3_plan: str,
+    au_plan: str,
 ) -> PluginMap:
     return PluginMap(
         id=f"surge-synth-team.{key}",
@@ -44,14 +44,10 @@ def _surge(
         version="1",
         scope="Build 1.3.4 in VST3 and AU, measured headless with edited patches both ways",
         vendor="Surge Synth Team",
-        vst3=None
-        if vst3_plan is None
-        else PluginFormat(
+        vst3=PluginFormat(
             Vst3Id(vst3_id), name, JuceTrailer(own_bypass), _REFRAMED, NO_CONTROLLER_STATE, plan_name=vst3_plan
         ),
-        au=None
-        if au_plan is None
-        else PluginFormat(
+        au=PluginFormat(
             au,
             name,
             JuceClassInfo(au.identifier),

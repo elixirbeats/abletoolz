@@ -458,8 +458,8 @@ def _ffbs_plugin(
     measured: MeasuredState,
     controller: FfbsControllerState | None,
     *,
-    vst2_plan: str | None = None,
-    vst3_plan: str | None = None,
+    vst2_plan: str,
+    vst3_plan: str,
 ) -> PluginMap:
     """An FFBS-generation FabFilter: VST2 holds its own chunk, VST3 the reframed halves."""
     return PluginMap(
@@ -468,12 +468,8 @@ def _ffbs_plugin(
         version=None,
         scope="VST2 chunk to VST3 processor and controller halves, measured in the host rig",
         vendor="FabFilter",
-        vst2=None
-        if vst2_plan is None
-        else PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured, plan_name=vst2_plan),
-        vst3=None
-        if vst3_plan is None
-        else PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller, plan_name=vst3_plan),
+        vst2=PluginFormat(Vst2Id(vst2_id), vst2_name, VERBATIM, measured, plan_name=vst2_plan),
+        vst3=PluginFormat(Vst3Id(vst3_id), vst3_name, FfbsVst3(), measured, controller, plan_name=vst3_plan),
         layouts=_FFBS_LAYOUTS,
     )
 
@@ -582,17 +578,13 @@ def _derived_plugin(
     table: DerivedTable,
     measured: MeasuredState,
     *,
-    vst2_plan: str | None = None,
-    vst3_plan: str | None = None,
+    vst2_plan: str,
+    vst3_plan: str,
 ) -> PluginMap:
     """A FabF-generation FabFilter: the VST2 holds the host's bank, the VST3 what the derived table writes."""
-    vst2 = None if vst2_plan is None else PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured, plan_name=vst2_plan)
-    vst3 = (
-        None
-        if vst3_plan is None
-        else PluginFormat(
-            Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER, plan_name=vst3_plan
-        )
+    vst2 = PluginFormat(Vst2Id(vst2_id), name, VERBATIM, measured, plan_name=vst2_plan)
+    vst3 = PluginFormat(
+        Vst3Id(vst3_id), vst3_name, DerivedFabF(table), measured, FABFILTER_CONSTANT_CONTROLLER, plan_name=vst3_plan
     )
     return PluginMap(
         id=f"fabfilter.{key}",

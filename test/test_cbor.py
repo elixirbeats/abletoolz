@@ -67,7 +67,8 @@ def test_an_item_that_is_not_where_it_says_is_refused() -> None:
         (b"\x82" + KEY + b"\x1a\x00", "ends at byte"),
         (b"\x81" * 5000 + KEY, "nests deeper"),
         (b"\xc0" * 5000 + KEY, "nests deeper"),
-        (b"\x7f" * 5000 + KEY, "nests deeper"),
+        (b"\x7f" * 5000 + KEY, "not a definite string"),
+        (b"\xa1" + KEY + b"\x7f\x41a\xff", "not a definite string"),
     ],
     ids=[
         "truncated",
@@ -77,8 +78,9 @@ def test_an_item_that_is_not_where_it_says_is_refused() -> None:
         "number cut short",
         "deep arrays",
         "deep tags",
-        "deep strings",
-    ],  # fmt: skip
+        "nested strings",
+        "byte chunk in a text string",
+    ],
 )
 def test_bytes_that_are_not_one_item_are_refused(data: bytes, message: str) -> None:
     with pytest.raises(FormatError, match=message):

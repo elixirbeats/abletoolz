@@ -12,7 +12,7 @@ import struct
 import pytest
 
 from abletoolz.formats import FormatError
-from abletoolz.formats.fxb import FXB_HEADER_BYTES, FxbChunkBank
+from abletoolz.formats.fxb import FXB_HEADER_BYTES, FXP_HEADER_BYTES, FxbChunkBank, FxpChunkProgram
 
 # The first 160 bytes of a Massive bank Live 12 saved from a VST2 device's
 # header (2026-09-26), whose chunk is 8,576 bytes.
@@ -80,3 +80,31 @@ def test_bytes_after_the_chunk_are_not_the_bank_s() -> None:
 def test_a_buffer_that_is_not_a_chunk_bank_says_so(buffer: bytes) -> None:
     with pytest.raises(FormatError):
         FxbChunkBank.parse(buffer)
+
+
+A_PROGRAM = FxpChunkProgram(b"XfsX", 1, 315, b" - Init - ", b"the plugin's own chunk")
+
+
+def test_a_chunk_program_round_trips_and_keeps_its_name() -> None:
+    encoded = A_PROGRAM.encode()
+    assert len(encoded) == FXP_HEADER_BYTES + len(A_PROGRAM.chunk)
+    assert FxpChunkProgram.parse(encoded) == A_PROGRAM
+
+
+@pytest.mark.parametrize(
+    ("buffer", "message"),
+    [
+        (A_PROGRAM.encode()[:20], "shorter than a program header"),
+        (with_bytes(A_PROGRAM.encode(), 0, b"VstW"), "not a VST2 program"),
+        (with_bytes(A_PROGRAM.encode(), 8, b"FxCk"), "holds parameters"),
+        (A_PROGRAM.encode() + b"!", "declares a 22 byte chunk and holds 23"),
+    ],
+)
+def test_a_buffer_that_is_not_one_chunk_program_is_refused(buffer: bytes, message: str) -> None:
+    with pytest.raises(FormatError, match=message):
+        FxpChunkProgram.parse(buffer)
+
+
+def test_a_program_name_longer_than_its_field_is_refused() -> None:
+    with pytest.raises(FormatError, match="28 bytes, not 29"):
+        FxpChunkProgram(b"XfsX", 1, 0, b"n" * 29, b"").encode()

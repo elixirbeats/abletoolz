@@ -37,9 +37,9 @@ def _valhalla(
     vst3_id: tuple[int, int, int, int],
     build: str,
     *,
-    vst2_plan: str | None = None,
-    vst3_plan: str | None = None,
-    au_plan: str | None = None,
+    vst2_plan: str,
+    vst3_plan: str,
+    au_plan: str,
 ) -> PluginMap:
     au = AuId.of("aufx", au_subtype, "oDin")
     return PluginMap(
@@ -48,15 +48,11 @@ def _valhalla(
         version=build.split(".")[0],
         scope=f"Build {build} in VST2, VST3 and AU, measured headless with edited patches both ways",
         vendor="Valhalla DSP",
-        vst2=None if vst2_plan is None else PluginFormat(Vst2Id(vst2_id), name, VERBATIM, _CHUNK, plan_name=vst2_plan),
-        vst3=None
-        if vst3_plan is None
-        else PluginFormat(
+        vst2=PluginFormat(Vst2Id(vst2_id), name, VERBATIM, _CHUNK, plan_name=vst2_plan),
+        vst3=PluginFormat(
             Vst3Id(vst3_id), name, JuceVstw(vst2_id, version), _REFRAMED, NO_CONTROLLER_STATE, plan_name=vst3_plan
         ),
-        au=None
-        if au_plan is None
-        else PluginFormat(
+        au=PluginFormat(
             au, name, JuceClassInfo(au.identifier), _REFRAMED, registration=_REGISTRATION, plan_name=au_plan
         ),
     )

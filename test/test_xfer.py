@@ -58,7 +58,7 @@ def hashed_header(body: bytes, component: str = "processor") -> bytes:
 
 
 def test_a_serum_2_device_finds_its_own_map_not_serums() -> None:
-    """The class id every Serum 2 device in the owner's sets stores, and its moduleinfo.json declares."""
+    """The class id every Serum 2 device in real sets stores, and its moduleinfo.json declares."""
     assert SERUM_2_VST3 == Vst3Id((1448297816, 1718833267, 1701999981, 540147712))
     assert CATALOG.find(SERUM_2_VST3) is serum_2()
     serum = CATALOG.find(Vst3Id((1448301656, 1718835315, 1701999981, 0)))
@@ -211,7 +211,7 @@ def serum() -> PluginMap:
 
 
 def au_state(chunk: bytes = SERUM_CHUNK, fx_id: bytes = b"XfsX") -> bytes:
-    """A Serum AU preset laid out as the two in the owner's sets are: a VST2 program under ``vstdata``."""
+    """A Serum AU preset laid out as the ones in real sets are: a VST2 program under ``vstdata``."""
     return plistlib.dumps(
         {
             "ProgramNumber": 0,

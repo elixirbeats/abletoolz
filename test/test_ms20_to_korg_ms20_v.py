@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from typing import Any
 
 import pytest
@@ -104,6 +105,7 @@ def test_every_knob_by_knob_table_covers_the_whole_knob_inside_ms20_v_s_range() 
         ({"Poly Mode": "Mono", "Trigger Mode": "Single"}, {"Play Mode": "Mono Legato"}),
         ({"Poly Mode": "Mono", "Trigger Mode": "Multi"}, {"Play Mode": "Mono Retrig"}),
         ({"Poly Mode": "Poly", "Poly Voices": 4}, {"Play Mode": "4"}),
+        ({"Poly Mode": "Poly", "Poly Voices": 1}, {"Play Mode": "Mono Retrig"}),  # rendered: plays the same
         (
             {"MG Tempo Sync": "On", "MG Base Note": "1/16", "MG Times": 1},
             {"MG_MidiSync": "Sync", "MG_RateSynced": "1/16"},
@@ -148,8 +150,18 @@ def test_what_ms20_v_has_no_counterpart_for_is_reported() -> None:
     assert reported.startswith("Not carried:")
     assert "analog drift" in reported and "the pan" in reported and "transpose +7" in reported
     assert "external modulation routes" not in reported
-    edited = INIT.with_values({"ExtMod1 > LPF Cutoff": 2.0})
-    assert "external modulation routes" in conversion.convert(bank(edited.raw)).notices[-1]
+    edited = INIT.with_values({"EXT.Mod.Src.1": "EG 1", "ExtMod1 > LPF Cutoff": 2.0})
+    assert "external modulation routes from EG 1 (" in conversion.convert(bank(edited.raw)).notices[-1]
+    offscale = converted({"VCO 1 Scale": "4'", "Transpose": 12}).notices[-1]
+    assert "transpose +12 st (VCO 1 at 4' has no scale that far in MS-20 V)" in offscale
+
+
+def test_an_external_modulation_amount_without_a_source_or_that_the_plugin_resets_is_not_reported() -> None:
+    no_source = INIT.with_values({"EXT.Mod.Src.1": "None", "ExtMod1 > LPF Cutoff": 2.0})
+    assert "external modulation" not in conversion.convert(bank(no_source.raw)).notices[-1]
+    raw = bytearray(INIT.with_values({"EXT.Mod.Src.1": "EG 1"}).raw)
+    struct.pack_into("<f", raw, 0x30 + 4 * 58, 0.8)  # ExtMod1 > FM MG/T.Ext, reset to centre on restore
+    assert "external modulation" not in conversion.convert(bank(bytes(raw))).notices[-1]
 
 
 @pytest.mark.parametrize(
@@ -157,7 +169,7 @@ def test_what_ms20_v_has_no_counterpart_for_is_reported() -> None:
     [
         ({"MG Frequency": 10.0}, "MG_RateUnSynced", 17.8, "MG frequency"),
         ({"Poly Mode": "Poly", "Poly Voices": 12}, "Play Mode", "6", "12 voices"),
-        ({"EG 2 Decay": 10.0, "EG 2 Sustain": 0.0}, "EG2_Decay", 1.0, "EG2 decay"),
+        ({"EG 2 Decay": 10.0, "EG 2 Sustain": 0.0}, "EG2_Decay", 1.0, "EG2 decay 10.00 reaches past"),
         ({"Pitch EG 1/Ext": 10.0}, "MS20VCO_FMAmount", 1.0, "EG1 pitch modulation"),
         ({"Pitch Bend Range": 0.2}, "Pitch Bend Range", 1, "pitch bend range"),
     ],
@@ -207,3 +219,9 @@ def test_every_bank_from_real_sets_converts_or_is_refused_for_holding_no_ms20() 
             Ms20VPatch.parse(conversion.convert_cell(raw).patch)
         else:
             Ms20VPatch.parse(conversion.convert(raw).patch)
+
+
+def test_a_decay_short_of_the_first_knob_position_matched_at_ms20_v_s_longest_converts_without_a_warning() -> None:
+    result = converted({"EG 2 Decay": 9.5, "EG 2 Sustain": 0.0})
+    assert not any("EG2 decay" in notice for notice in result.notices)
+    assert 0.959 < Ms20VPatch.parse(result.patch).values()["EG2_Decay"] < 1.0  # type: ignore[operator]

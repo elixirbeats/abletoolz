@@ -149,13 +149,64 @@ def test_matched_controls_take_the_value_that_sounded_nearest() -> None:
     assert 1.116 < values["VCA_Prophet5ADSR_Release"] < 3.266  # type: ignore[operator]
 
 
+# Rendered on both plugins at these settings: pitch within 2 cents, the amp's half-way times within 2%
+# (decay at 60% is 18% shorter on Prophet-5 V), the filter envelope's release path within 1.4 semitones.
+@pytest.mark.parametrize(
+    ("name", "value", "expected"),
+    [
+        ("Oscillator B Freq Fine", 25.2, {"Prophet5VCO_Freq2": 0, "Prophet5VCO_FineTune": 0.2526}),
+        ("Oscillator B Freq Fine", 74.8, {"Prophet5VCO_Freq2": 1, "Prophet5VCO_FineTune": -0.2835}),
+        ("Master Tune", -35.0, {"MasterTuneFactor": 430.40}),
+        ("Master Tune", 35.0, {"MasterTuneFactor": 448.16}),
+        ("PolyMod Source Filt Env", 25.2, {"PolyModFilterEnvAmount": 1.792}),
+        ("PolyMod Source Filt Env", 60.0, {"PolyModFilterEnvAmount": 5.182}),
+        ("Amplifier Attack", 30.0, {"VCA_Prophet5ADSR_Attack": 0.01708}),
+        ("Amplifier Attack", 60.0, {"VCA_Prophet5ADSR_Attack": 0.3179}),
+        ("Amplifier Decay", 30.0, {"VCA_Prophet5ADSR_Decay": 0.03084}),
+        ("Amplifier Decay", 80.0, {"VCA_Prophet5ADSR_Decay": 5.822}),
+        ("Filter Release", 30.0, {"VCF_Prophet5ADSR_Release": 0.03774}),
+        ("Filter Release", 60.0, {"VCF_Prophet5ADSR_Release": 0.5496}),
+    ],
+)
+def test_each_fitted_path_writes_the_value_that_rendered_alike(
+    name: str, value: float, expected: dict[str, float]
+) -> None:
+    on_keys = {"PolyMod Dest Freq A": True, "Oscillator B Key Follow": True}  # as rendered
+    raw = Pro53Bank.parse(bank(CARRIED)).with_values({name: value, **on_keys}).encode()
+    values = Prophet5Patch.parse(conversion.convert(raw).patch).values()
+    for key, written in expected.items():
+        assert values[key] == pytest.approx(written, rel=1e-3), key
+
+
+@pytest.mark.parametrize(("coarse", "written"), [(0, 18), (6, 30)])
+def test_oscillator_b_off_the_keyboard_is_written_where_prophet_5_v_holds_the_same_pitch(
+    coarse: int, written: int
+) -> None:
+    """Rendered: off the keyboard Pro-53 steps oscillator B twice as fine as it prints, 17 st above Prophet-5 V."""
+    off = {"Oscillator B Key Follow": False, "Oscillator B Frequency": coarse}
+    raw = Pro53Bank.parse(bank(CARRIED)).with_values(off)
+    values = Prophet5Patch.parse(conversion.convert(raw.encode()).patch).values()
+    assert (values["Prophet5VCO_Freq2"], values["Prophet5VCO_KeyOn2"]) == (written, False)
+    assert values["Prophet5VCO_FineTune"] == pytest.approx(-0.4617, abs=1e-3)
+
+
+def test_oscillator_b_off_the_keyboard_past_prophet_5_v_s_coarse_is_written_at_its_end_and_warns() -> None:
+    raw = Pro53Bank.parse(bank(CARRIED)).with_values({"Oscillator B Key Follow": False, "Oscillator B Frequency": 18})
+    converted = conversion.convert(raw.encode())
+    assert Prophet5Patch.parse(converted.patch).values()["Prophet5VCO_Freq2"] == 36
+    assert any("coarse at +54 st, past its -24 to +36" in notice for notice in converted.notices)
+
+
 def test_noise_louder_than_prophet_5_v_s_goes_is_written_at_full_and_warns() -> None:
     quiet = conversion.convert(with_values(Mixer_Noise=25.0))
     assert Prophet5Patch.parse(quiet.patch).values()["Prophet5VCO_NoiseLevel"] == pytest.approx(8.24, abs=0.02)
     assert not any("louder than" in notice for notice in quiet.notices)
     loud = conversion.convert(with_values(Mixer_Noise=100.0))
     assert Prophet5Patch.parse(loud.patch).values()["Prophet5VCO_NoiseLevel"] == pytest.approx(10.0)
-    assert any("about 8 dB quieter" in notice for notice in loud.notices)
+    assert any("about 8.2 dB quieter" in notice for notice in loud.notices)
+    # Rendered on both: 0.5 dB short at 40%, 1.4 dB at 45%, 3.2 dB at 55%.
+    just = conversion.convert(with_values(Mixer_Noise=45.0))
+    assert any("about 1.3 dB quieter" in notice for notice in just.notices)
 
 
 def test_a_cutoff_below_the_matched_span_falls_back_to_its_fitted_corner() -> None:
@@ -220,8 +271,8 @@ def test_a_control_with_no_counterpart_converts_as_near_as_it_can_and_warns(
         conversion.plan(Pro53Bank.parse(patch))
 
 
-@pytest.mark.skipif(not CORPUS.is_dir(), reason="the owner's Pro-53 banks live on the machine that holds the sets")
-def test_every_one_of_the_owner_s_banks_converts() -> None:
+@pytest.mark.skipif(not CORPUS.is_dir(), reason="real sets' Pro-53 banks live on the machine that holds the sets")
+def test_every_bank_from_real_sets_converts() -> None:
     banks = sorted(CORPUS.glob("*.state"))
     assert banks
     for path in banks:

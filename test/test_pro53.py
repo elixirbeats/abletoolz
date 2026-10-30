@@ -2,10 +2,9 @@
 
 The banks built here follow the measured layout with made-up program names, so no
 factory content goes into the tests. ``state_fixtures/pro53_hosted.json`` is the
-original instrument's own readings, taken 2026-10-28 on the legacy desktop: every
-control's display at each of its 128 knob steps, its getter and display after
-restoring each of the 25 real banks in the owner's sets, and after restoring 11
-banks this module edited: 6 of the owner's and 5 built here.
+original instrument's own readings on the legacy desktop: every control's display at
+each of its 128 knob steps, and its getter and display after restoring banks from
+real sets and banks this module edited.
 """
 
 from __future__ import annotations
@@ -43,7 +42,7 @@ from abletoolz.plugins.state.pro53 import (
 )
 
 FIXTURE = pathlib.Path(__file__).parent / "state_fixtures" / "pro53_hosted.json"
-# The owner's banks, harvested 2026-10-21 and named by their SHA-256; only the machine that holds the sets has them.
+# Real sets' Pro-53 banks, named by their SHA-256; only the machine that holds the sets has them.
 CORPUS = pathlib.Path(
     os.environ.get(
         "ABLETOOLZ_PRO53_BANKS",
@@ -174,6 +173,15 @@ def test_master_tune_and_volume_land_exactly_in_both_their_floats() -> None:
     assert struct.unpack_from("<ff", after.raw, 19) == (after.sound[66], after.sound[67])
 
 
+@pytest.mark.parametrize("stray", [1.5, math.nan])
+def test_master_tune_and_volume_read_from_the_snapshot_the_engine_plays(stray: float) -> None:
+    """Rendered: a 1.0 in the other copy left the pitch and level as they were, and the snapshot's moved them."""
+    raw = bytearray(bank())
+    struct.pack_into("<ff", raw, 19, stray, stray)
+    values = Pro53Bank.parse(bytes(raw)).values()
+    assert values["Master Tune"] == 0.0 and values["Master Volume"] == 50.0
+
+
 @pytest.mark.parametrize(
     ("change", "message"),
     [
@@ -230,8 +238,8 @@ def test_banks_this_module_edited_read_as_the_plugin_read_them(hosted: dict[str,
         _agrees_with_the_plugin(parsed, edit)
 
 
-@pytest.mark.skipif(not CORPUS.is_dir(), reason="the owner's Pro-53 banks live on the machine that holds the sets")
-def test_the_owner_s_banks_round_trip_and_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
+@pytest.mark.skipif(not CORPUS.is_dir(), reason="real sets' Pro-53 banks live on the machine that holds the sets")
+def test_banks_from_real_sets_round_trip_and_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
     for digest, readings in hosted["real_banks"].items():
         raw = (CORPUS / f"{digest}.state").read_bytes()
         parsed = Pro53Bank.parse(raw)
@@ -239,8 +247,8 @@ def test_the_owner_s_banks_round_trip_and_read_as_the_plugin_read_them(hosted: d
         _agrees_with_the_plugin(parsed, readings)
 
 
-@pytest.mark.skipif(not CORPUS.is_dir(), reason="the owner's Pro-53 banks live on the machine that holds the sets")
-def test_the_owner_s_banks_edited_here_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
+@pytest.mark.skipif(not CORPUS.is_dir(), reason="real sets' Pro-53 banks live on the machine that holds the sets")
+def test_banks_from_real_sets_edited_here_read_as_the_plugin_read_them(hosted: dict[str, Any]) -> None:
     if not hosted["edited_real"]:
         pytest.skip("the plugin has not restored an edited bank yet")
     for edit in hosted["edited_real"]:

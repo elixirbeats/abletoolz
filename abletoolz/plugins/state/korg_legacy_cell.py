@@ -36,6 +36,7 @@ import datetime
 import struct
 from collections.abc import Iterator
 
+from abletoolz.formats.ansi import decode_ansi
 from abletoolz.plugins.identity.ids import Vst2Id
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
@@ -106,7 +107,7 @@ def _effect(record: Record) -> str:
         return ""
     if record.tag != _EFFECT:
         raise StateTransformError(f"a Legacy Cell effect place holds {record.tag!r}")
-    return record.data[:24].split(b"\0", 1)[0].decode("cp1252")
+    return decode_ansi(record.data[:24].split(b"\0", 1)[0])
 
 
 def _slot(synth: Record, first: Record, second: Record) -> Slot:
@@ -131,7 +132,7 @@ def _cell(raw: bytes, at: int, *, read_programs: bool) -> tuple[Cell | None, int
     (length,) = struct.unpack_from("<I", raw, at)
     if not 4 + _NAME_BYTES <= length <= 0x1000:
         raise StateTransformError(f"a Legacy Cell header at byte {at} is {length} bytes long")
-    name = raw[at + 4 : at + 4 + _NAME_BYTES].split(b"\0", 1)[0].decode("cp1252")
+    name = decode_ansi(raw[at + 4 : at + 4 + _NAME_BYTES].split(b"\0", 1)[0])
     records = _records(raw, at + length)
     places = [next(records) for _ in range(12)]
     if [place.tag for place in places[8:]] != list(_MIXER):

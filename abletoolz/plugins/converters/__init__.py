@@ -8,6 +8,8 @@ registered converters a plan runs carry everything else and say what they left
 out, through :func:`limitation`.
 """
 
+from collections.abc import Sequence
+
 from abletoolz.plugins.state.errors import StateTransformError
 
 
@@ -16,3 +18,13 @@ def limitation(notices: list[str] | None, message: str) -> None:
     if notices is None:
         raise StateTransformError(message)
     notices.append(message)
+
+
+def interp(x: float, points: Sequence[Sequence[float]]) -> float:
+    """Piecewise linear through ``points`` (sorted by x), held flat past either end."""
+    if x <= points[0][0]:
+        return float(points[0][1])
+    for (x0, y0), (x1, y1) in zip(points, points[1:], strict=False):
+        if x <= x1:
+            return float(y0 + (x - x0) / (x1 - x0) * (y1 - y0))
+    return float(points[-1][1])

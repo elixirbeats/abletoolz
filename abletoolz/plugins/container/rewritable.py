@@ -71,22 +71,3 @@ def control_losses(device: PluginDevice) -> tuple[str, ...]:
     if device.saved_state.has_parameter_settings:
         losses.append("its saved per-control settings were dropped")
     return tuple(losses)
-
-
-def carries_live_list(device: PluginDevice) -> bool:
-    """Whether the only controls this device has in use are the list Live made for it by itself.
-
-    That list -- every parameter of a small plugin, in order -- is no choice
-    anyone made, and nothing points at it here: no automation or modulation,
-    no MIDI or macro mapping (both are ``KeyMidi``), no stored settings. Such a
-    device can become a VST3 with the list Live would make for that VST3
-    instead; see :mod:`abletoolz.plugins.container.parameter_list`.
-    """
-    controls = device.controls
-    if not controls.owner_known or device.saved_state.has_parameter_settings:
-        return False
-    if controls.malformed or controls.mapped or controls.referenced or not controls.configured:
-        return False
-    owner = device.owner
-    parameters = None if owner is None else owner.find(Tag.PARAMETER_LIST)
-    return parameters is not None and is_automatic(parameters)
