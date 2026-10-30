@@ -1,7 +1,7 @@
 """Legacy Cell's bank: which synth sits in each slot of the working cell, its effects, and the MS-20 inside.
 
 The banks built here follow the measured layout with made-up names and empty
-effect and mixer bodies; their MS-20 programs are real sets' working programs from
+effect and mixer bodies; their MS-20 programs are the programs in
 ``state_fixtures/korg_ms20/ms20_hosted.json``.
 """
 

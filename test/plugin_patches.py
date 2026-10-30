@@ -13,6 +13,8 @@ import struct
 from collections.abc import Iterable
 from typing import Any
 
+import cbor2
+
 from abletoolz.formats import fastlz
 from abletoolz.formats.fxb import FxbChunkBank
 from abletoolz.plugins.identity.ids import StoredId, Vst2Id
@@ -21,7 +23,7 @@ from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.native_instruments import CONTAINER_MAGIC
 from abletoolz.plugins.state.plugin_map import FilePaths
 from abletoolz.plugins.state.xfadelooper import LAYOUT_VERSION, MAGIC, PATH_FIELD_SIZE
-from abletoolz.plugins.state.xfer import SERUM_2_VST3
+from abletoolz.plugins.state.xfer import SERUM_2_VST3, XferJson
 
 # The VST2 UniqueId each plugin stores.
 SERATO = 1399681132
@@ -257,8 +259,9 @@ SERUM_2_SAMPLE = r"C:\Samples\Drum_Loop_170.wav"
 
 
 def serum_2_sample() -> bytes:
-    """A patch whose sample oscillator plays ``SERUM_2_SAMPLE``.
-
-    Compressed, so a fixture rather than built here: see ``state_fixtures/serum2/manifest.json``.
-    """
-    return (pathlib.Path(__file__).parent / "state_fixtures" / "serum2" / "serum2-sample.vst3.state").read_bytes()
+    """Serum 2's init patch with oscillator A's sample playing ``SERUM_2_SAMPLE``, written as a converter writes one."""
+    init_state = pathlib.Path(__file__).parent / "state_fixtures" / "serum2" / "serum2-init.vst3.state"
+    init = XferJson.parse(init_state.read_bytes())
+    doc = cbor2.loads(init.decoded())
+    doc["Oscillator0"]["SampleOsc0"]["samplePath"] = SERUM_2_SAMPLE
+    return init.with_body(cbor2.dumps(doc)).encode()
