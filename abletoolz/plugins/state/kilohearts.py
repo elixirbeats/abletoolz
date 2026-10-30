@@ -166,8 +166,8 @@ def _khs(
     vst2_id: int,
     vst3_id: tuple[int, int, int, int],
     *,
-    vst2_plan: str | None = None,
-    vst3_plan: str | None = None,
+    vst2_plan: str,
+    vst3_plan: str,
 ) -> PluginMap:
     full = f"kHs {name}"
     measured = _HEARD.get(name, _STRUCTURAL)
@@ -177,12 +177,8 @@ def _khs(
         version=None,
         scope="VST2 zip and VST3 header",
         vendor="Kilohearts",
-        vst2=None
-        if vst2_plan is None
-        else PluginFormat(Vst2Id(vst2_id), full, VERBATIM, measured, plan_name=vst2_plan),
-        vst3=None
-        if vst3_plan is None
-        else PluginFormat(
+        vst2=PluginFormat(Vst2Id(vst2_id), full, VERBATIM, measured, plan_name=vst2_plan),
+        vst3=PluginFormat(
             Vst3Id(vst3_id), full, KiloheartsHeader(), measured, NO_CONTROLLER_STATE, plan_name=vst3_plan
         ),
     )

@@ -124,6 +124,13 @@ def test_the_cables_read_one_output_to_one_input_by_jack_name() -> None:
     assert Cable("MG TRI OUT", "SAMPLE HOLD CLOCK IN", 2) in cables
 
 
+def test_rewriting_a_program_s_own_cables_keeps_every_byte() -> None:
+    """Some real records name the input first; rewriting them output first used to change the program."""
+    for entry in HOSTED["programs"]:
+        parsed = Ms20Program.parse(program(entry))
+        assert parsed.with_cables(parsed.cables).raw == parsed.raw
+
+
 def test_an_edit_writes_the_slot_and_the_cables_and_reads_back() -> None:
     edited = (
         plain()

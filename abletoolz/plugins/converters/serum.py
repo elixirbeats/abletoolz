@@ -49,6 +49,7 @@ import datetime
 import functools
 import gzip
 import json
+import math
 import pathlib
 import struct
 from typing import Any
@@ -65,9 +66,8 @@ DATA = pathlib.Path(__file__).with_name("data")
 _FLOAT = struct.Struct("<f")
 _INT = struct.Struct("<i")
 _SLOT = struct.Struct("<IHH")
-# A mod slot's record: amount and output (floats), polarity (a byte), source and destination, switches
-# (bit 0 inverts the aux source, bit 1 bypasses the slot), then the curves (bytes).
-_SLOT_RECORD = 40
+# Offsets in a mod slot's 40-byte record: amount and output (floats), polarity (a byte), source and destination,
+# switches (bit 0 inverts the aux source, bit 1 bypasses the slot), then the curves (bytes).
 _SLOT_AMOUNT = 4
 _SLOT_BIPOLAR = 12
 _SLOT_SOURCE = 20
@@ -159,6 +159,20 @@ def _slot_offset(slot: int) -> int:
 def _value(source: bytes, offset: int) -> float:
     (x,) = _FLOAT.unpack_from(source, offset)
     return float(x)
+
+
+def _finite(value: Any) -> bool:
+    """Whether every float in a decoded Serum 2 document is a number."""
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(_finite(item) for item in value.values())
+    if isinstance(value, list):
+        try:
+            return all(map(math.isfinite, value))  # a wavetable's samples, millions of them, in one C loop
+        except TypeError:  # a list of documents or text, not numbers
+            return all(_finite(item) for item in value)
+    return True
 
 
 def _curve(byte: int) -> float | None:
@@ -317,11 +331,9 @@ def _fx_rack(
     modules = fx["modules"]
     targeted = set()
     for slot in range(slots):
-        record = _slot_offset(slot)
-        if record + _SLOT_RECORD <= len(source):
-            fx_target = fx["destinations"].get(str(_SLOT.unpack_from(source, record + _SLOT_SOURCE)[2]))
-            if fx_target is not None:
-                targeted.add(fx_target["module"])
+        fx_target = fx["destinations"].get(str(_SLOT.unpack_from(source, _slot_offset(slot) + _SLOT_SOURCE)[2]))
+        if fx_target is not None:
+            targeted.add(fx_target["module"])
     order = _positions(list(_ORDER.unpack_from(source, fx["order"])))
     used = [k for k, module in enumerate(modules) if source[module["present"]] or k in targeted]
     used.sort(key=lambda k: order[k])
@@ -434,11 +446,9 @@ def convert(patch: bytes, *, lossy: bool = False) -> Converted:
     modules = data["fx"]["modules"]
 
     sources, destinations = data["sources"], data["destinations"]
-    unmapped_sources = unmapped_destinations = 0
+    unmapped_sources = unmapped_destinations = unmapped_aux = 0
     for slot in range(slots):
         record = _slot_offset(slot)
-        if record + _SLOT_RECORD > len(source):
-            continue
         word, _, destination = _SLOT.unpack_from(source, record + _SLOT_SOURCE)
         main, aux = word & 0xFFFF, word >> 16
         if main == 0:
@@ -455,6 +465,8 @@ def convert(patch: bytes, *, lossy: bool = False) -> Converted:
         if target is None:
             unmapped_destinations += 1
             continue
+        if aux and str(aux) not in sources:
+            unmapped_aux += 1
         doc[f"ModSlot{slot}"] = {
             "destModuleID": target["id"],
             "destModuleParamID": target["param_id"],
@@ -467,6 +479,8 @@ def convert(patch: bytes, *, lossy: bool = False) -> Converted:
         left_out.append(f"{unmapped_sources} mod routing(s) from a source not yet told apart")
     if unmapped_destinations:
         left_out.append(f"{unmapped_destinations} mod routing(s) into a control not carried")
+    if unmapped_aux:
+        left_out.append(f"the aux source of {unmapped_aux} mod routing(s), a source not yet told apart")
 
     _wavetables(chunk, doc)
     tables = data["wavetables"]
@@ -493,6 +507,8 @@ def convert(patch: bytes, *, lossy: bool = False) -> Converted:
 
     if left_out:
         limitation(notices if lossy else None, "Not carried yet: " + "; ".join(left_out) + ".")
+    if not _finite(doc):
+        raise StateTransformError("this Serum patch holds a setting that is not a number")
     try:
         state = _baseline().with_body(cbor2.dumps(doc)).encode()
     except (ValueError, TypeError) as error:

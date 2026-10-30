@@ -52,6 +52,7 @@ import math
 import struct
 from collections.abc import Mapping
 
+from abletoolz.formats.ansi import decode_ansi
 from abletoolz.plugins.identity.ids import Vst2Id
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
@@ -351,7 +352,7 @@ class Pro53Bank:
             )
         if selected >= PROGRAMS:
             raise StateTransformError(f"this Pro-53 bank selects program {selected} of {PROGRAMS}")
-        return cls(raw, name.decode("cp1252"), selected, tuple(knobs), tuple(offsets))
+        return cls(raw, decode_ansi(name), selected, tuple(knobs), tuple(offsets))
 
     @property
     def sound(self) -> tuple[float, ...]:
@@ -359,10 +360,13 @@ class Pro53Bank:
         return struct.unpack_from(f"<{SNAPSHOT_FLOATS}f", self.raw, _SNAPSHOT)
 
     def normalized(self, control: Control) -> float:
-        """``control`` as the plugin's getter reports it, 0 to 1."""
+        """``control`` as the plugin plays it, 0 to 1: its knob, or for master tune and volume the snapshot.
+
+        Those two are also saved as floats of their own, which the engine ignores when rendering.
+        """
         knob = self.knobs[control.index]
         if knob is None:
-            return float(_F32.unpack_from(self.raw, _GLOBAL_FLOATS[control.index])[0])
+            return self.sound[control.index]
         return knob / _STEPS
 
     def values(self) -> dict[str, Pro53Value]:

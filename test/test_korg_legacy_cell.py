@@ -38,8 +38,9 @@ def ms20(entry: int = 0) -> Place:
 POLYSIX: Place = (b"VPLK", b"prog".ljust(PROGRAM_BYTES, b"\0"))
 
 
-def cell(name: str, a: Place, b: Place = None, effects: tuple[str, str] = ("No Effect", "No Effect")) -> bytes:
-    header = struct.pack("<I", 0x40) + name.encode().ljust(28, b"\0") + bytes(0x40 - 32)
+def cell(name: str | bytes, a: Place, b: Place = None, effects: tuple[str, str] = ("No Effect", "No Effect")) -> bytes:
+    saved = name if isinstance(name, bytes) else name.encode()
+    header = struct.pack("<I", 0x40) + saved.ljust(28, b"\0") + bytes(0x40 - 32)
     places = [a, *([effect(e) for e in effects] if a else [None, None])]
     places += [b, *([effect("4 Band EQ"), effect("No Effect")] if b else [None, None])]
     places += [effect("Reverb Hall"), effect("No Effect")]
@@ -62,6 +63,21 @@ def test_the_working_cell_names_its_synths_effects_and_reads_its_ms20() -> None:
         "No Effect",
     )
     assert working.slots[0].ms20 == Ms20Program.parse(program(HOSTED["programs"][2]))
+
+
+@pytest.mark.parametrize(
+    ("saved", "shown"),
+    [
+        ("ベース".encode("cp932"), "ベース"),
+        ("音色".encode("cp932"), "音色"),
+        ("Crème".encode("cp1252"), "Crème"),
+        (b"Bass\x81", "Bass\x81"),
+    ],
+    ids=["kana", "kanji", "accent", "no code page"],
+)
+def test_a_cell_name_in_any_code_page_reads(saved: bytes, shown: str) -> None:
+    """A byte Windows-1252 has no character for used to refuse the whole bank."""
+    assert LegacyCellBank.parse(bank(cell(saved, ms20()))).working.name == shown
 
 
 def test_an_ms20_edit_lands_in_the_working_cell_only() -> None:

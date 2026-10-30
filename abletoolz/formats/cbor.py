@@ -98,8 +98,14 @@ def _walk(data: bytes, at: int, key: bytes, found: list[TextItem], depth: int = 
             if at + argument > len(data):
                 raise FormatError(f"a CBOR string at byte {at} runs past the end")
             return at + argument
+        # An indefinite string is definite strings of its own kind, up to the break.
         while data[at : at + 1] != bytes([_BREAK]):
-            at = _walk(data, at, key, found, depth + 1)
+            chunk, length, content = _head(data, at)
+            if chunk != major or length is None:
+                raise FormatError(f"a CBOR string at byte {at} holds a chunk that is not a definite string of its kind")
+            if content + length > len(data):
+                raise FormatError(f"a CBOR string at byte {at} runs past the end")
+            at = content + length
         return at + 1
     if major == _TAG:
         return _walk(data, at, key, found, depth + 1)

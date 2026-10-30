@@ -47,7 +47,12 @@ class Control:
     high: float = 1.0
 
     def value(self, normalized: float) -> ArturiaValue:
-        """What the plugin shows for the stored ``normalized``."""
+        """What the plugin shows for the stored ``normalized``; a value outside 0 to 1 is refused.
+
+        Every factory preset of both instruments stays within 0 to 1 but for float rounding (2.4e-9 at most).
+        """
+        if not -1e-6 <= normalized <= 1 + 1e-6:
+            raise StateTransformError(f"{self.key} stores {normalized}, outside 0 to 1")
         if self.choices:
             item = self.choices[min(math.floor(normalized * len(self.choices)), len(self.choices) - 1)]
             if self.choices == ("Off", "On"):

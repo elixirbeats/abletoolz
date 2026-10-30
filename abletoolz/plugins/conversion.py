@@ -117,7 +117,8 @@ class _Forgetting:
 
     def apply(self) -> None:
         """Remove every envelope pointing at the old controls and swap in the rebuilt list; nothing here can fail."""
-        drop_envelopes(self.document.root, self.targets)
+        if not self.targets.isdisjoint(self.document.referenced_ids):  # most devices are automated by nothing
+            drop_envelopes(self.document.root, self.targets)
         if self.current is not None and self.rebuilt is not None:
             self.current[:] = list(self.rebuilt)
         self.document.changed()

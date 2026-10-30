@@ -58,12 +58,12 @@ import pathlib
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from abletoolz.plugins.converters import limitation
+from abletoolz.plugins.converters import interp, limitation
 from abletoolz.plugins.state.arturia_v import ArturiaValue
 from abletoolz.plugins.state.catalog import Converted, converter
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.korg_legacy_cell import LegacyCellBank
-from abletoolz.plugins.state.korg_ms20 import EXT_MOD_SLOTS, Ms20Bank, Ms20Program, Ms20Value
+from abletoolz.plugins.state.korg_ms20 import Ms20Bank, Ms20Program, Ms20Value
 from abletoolz.plugins.state.korg_ms20_v import Ms20VPatch, baseline, controls
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 
@@ -175,24 +175,15 @@ def _calibration() -> dict[str, Any]:
 
 
 def _interp(x: float, points: Sequence[Sequence[float]], *, log_y: bool = False) -> float:
-    """Piecewise linear through ``points`` (sorted by x), in log y when asked, held flat past either end."""
-    pairs = [(float(a), math.log(b) if log_y else float(b)) for a, b in points]
-    if x <= pairs[0][0]:
-        y = pairs[0][1]
-    elif x >= pairs[-1][0]:
-        y = pairs[-1][1]
-    else:
-        y = next(
-            y0 + (x - x0) / (x1 - x0) * (y1 - y0)
-            for (x0, y0), (x1, y1) in zip(pairs, pairs[1:], strict=False)
-            if x <= x1
-        )
-    return math.exp(y) if log_y else y
+    """:func:`interp`, in log y when asked."""
+    if log_y:
+        return math.exp(interp(x, [(a, math.log(b)) for a, b in points]))
+    return interp(x, points)
 
 
-def _inverse(y: float, points: Sequence[Sequence[float]], *, log_y: bool = False) -> float:
+def _inverse(y: float, points: Sequence[Sequence[float]]) -> float:
     """The x at which the increasing ``points`` reach ``y``, held at either end."""
-    return _interp(math.log(y) if log_y else y, [(math.log(b) if log_y else b, a) for a, b in points])
+    return interp(y, [(b, a) for a, b in points])
 
 
 def _set(values: dict[str, ArturiaValue], key: str, normalized: float) -> None:
@@ -201,12 +192,12 @@ def _set(values: dict[str, ArturiaValue], key: str, normalized: float) -> None:
 
 def _matched(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], tables: dict[str, Any],
              notices: list[str] | None) -> None:  # fmt: skip
-    """Each knob-by-knob table between its measured positions; a time past MS-20 V's longest is clamped and said."""
+    """Each knob-by-knob table between its measured positions; a time that reaches MS-20 V's longest is said."""
     for key, table in tables.items():
         knob = float(p[table["knob"]])
         longest = table.get("longest_at")
-        if longest is not None and knob > longest:
-            limitation(notices, f"{table['what']} {knob:.1f} is longer than MS-20 V's longest, clamped")
+        if longest is not None and knob >= longest:
+            limitation(notices, f"{table['what']} {knob:.2f} reaches past MS-20 V's longest, written at its longest")
         values[key] = _interp(knob, table["points"], log_y=table["log"])
 
 
@@ -226,9 +217,12 @@ def _voices(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], notices
         values["Play Mode"] = "Mono Legato" if p["Trigger Mode"] == "Single" else "Mono Retrig"
         return
     voices = int(str(p["Poly Voices"]))
+    if voices == 1:
+        values["Play Mode"] = "Mono Retrig"  # rendered: one-voice Poly plays exactly as mono with retrigger
+        return
     if voices > 6:
         limitation(notices, f"{voices} voices are more than MS-20 V's 6; it plays 6")
-    values["Play Mode"] = str(min(max(voices, 2), 6))
+    values["Play Mode"] = str(min(voices, 6))
 
 
 def _sync(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], reported: list[str]) -> None:
@@ -249,15 +243,19 @@ def _sync(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], reported:
 def _transpose(p: Mapping[str, Ms20Value], values: dict[str, ArturiaValue], reported: list[str]) -> None:
     semitones = int(str(p["Transpose"]))
     octaves, rest = divmod(semitones, 12)
-    shifted: dict[str, str] = {}
-    for key in ("MS20VCO_ScaleOsc1", "MS20VCO_ScaleOsc2"):
-        choices = controls()[key].choices
-        index = choices.index(str(values[key])) + octaves
-        if 0 <= index < len(choices):
-            shifted[key] = choices[index]
-    if rest or len(shifted) < 2:
+    if rest:
         reported.append(f"transpose {semitones:+d} st (MS-20 V transposes by its VCO scales only, a whole octave each)")
         return
+    shifted: dict[str, str] = {}
+    for number, key in enumerate(("MS20VCO_ScaleOsc1", "MS20VCO_ScaleOsc2"), start=1):
+        choices = controls()[key].choices
+        index = choices.index(str(values[key])) + octaves
+        if not 0 <= index < len(choices):
+            reported.append(
+                f"transpose {semitones:+d} st (VCO {number} at {values[key]} has no scale that far in MS-20 V)"
+            )
+            return
+        shifted[key] = choices[index]
     values.update(shifted)
 
 
@@ -326,11 +324,14 @@ def plan(
         reported.append(f"the analog drift ({knob('Analog'):.2f}; MS-20 V's dispersion stays at 0)")
     if knob("Pan"):
         reported.append(f"the pan ({knob('Pan'):+.2f})")
-    if any(program.slot(slot) != 0.5 for slot in EXT_MOD_SLOTS):
-        reported.append(
-            f"the external modulation routes from {p['EXT.Mod.Src.1']} and {p['EXT.Mod.Src.2']} "
-            "(MS-20 V has no such routing)"
-        )
+    sources = [
+        str(p[f"EXT.Mod.Src.{route}"])
+        for route in (1, 2)
+        if p[f"EXT.Mod.Src.{route}"] != "None"
+        and any(p[name] != 0 for name in p if name.startswith(f"ExtMod{route} > "))
+    ]
+    if sources:
+        reported.append(f"the external modulation routes from {' and '.join(sources)} (MS-20 V has no such routing)")
     if program.slot(41):
         reported.append("unison (its voice count is not measured, so MS-20 V plays without it)")
     unnamed = [
@@ -366,27 +367,25 @@ def convert(patch: bytes, program: int | None = None) -> Converted:
 
 def _cell_notices(bank: LegacyCellBank, notices: list[str] | None) -> tuple[Ms20Program, list[str]]:
     cell = bank.working
-    ms20 = [index for index, slot in enumerate(cell.slots) if slot.ms20 is not None]
+    ms20 = [(index, slot.ms20) for index, slot in enumerate(cell.slots) if slot.ms20 is not None]
     if not ms20:
         raise StateTransformError(
             f"Legacy Cell {cell.name!r} plays {' and '.join(cell.synths) or 'nothing'}, no MS-20: MS-20 V has "
             "nothing to carry"
         )
-    first = cell.slots[ms20[0]]
+    first, program = ms20[0]
     for index, slot in enumerate(cell.slots):
-        if index != ms20[0] and slot.synth is not None:
+        if index != first and slot.synth is not None:
             limitation(
                 notices,
                 f"the cell's {slot.synth} in slot {'AB'[index]} is not carried; only the MS-20 in slot "
-                f"{'AB'[ms20[0]]} converts, so this device will sound different",
+                f"{'AB'[first]} converts, so this device will sound different",
             )
     effects = [name for slot in cell.slots for name in slot.effects if name and name != "No Effect"]
     effects += [name for name in cell.master_effects if name and name != "No Effect"]
     reported = [f"the cell's effects ({', '.join(effects)})"] if effects else []
     reported.append("the cell's mixer and key zones (not decoded)")
-    if first.ms20 is None:
-        raise StateTransformError("a Legacy Cell MS-20 slot holds no program")
-    return first.ms20, reported
+    return program, reported
 
 
 @converter("korg.legacy-cell", "arturia.korg-ms-20-v", _MEASURED)

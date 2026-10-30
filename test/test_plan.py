@@ -232,6 +232,29 @@ def write_and_pick(tmp_path: pathlib.Path, plan: Plan, plugin: str, convert_to: 
     return plan_file
 
 
+def test_two_plugins_of_one_name_are_named_by_their_devices_whatever_their_order() -> None:
+    """Apply plans again, and a plugin that loads in between moves; a numbered name would then mark the other one."""
+
+    def plugin(name: str, stored: str | None) -> PluginChoice:
+        return PluginChoice(plugin="Serum", format=PluginKind.VST, name=name, stored=stored, broken=False, devices=[])
+
+    first, second, third = plugin("Serum", "1"), plugin("Serum_x64", "1"), plugin("Serum_x64", "2")
+    made = datetime.datetime.now(datetime.UTC)
+    names = [
+        sorted(line for line in dump_plan(Plan(made=made, sets=[], plugins=order)).splitlines() if "- plugin:" in line)
+        for order in ([first, second, third], [third, second, first])
+    ]
+    assert (
+        names[0]
+        == names[1]
+        == [
+            "- plugin: Serum (Serum)",
+            "- plugin: Serum (Serum_x64, 1)",
+            "- plugin: Serum (Serum_x64, 2)",
+        ]
+    )
+
+
 def test_convert_to_takes_a_listed_name_and_null_keeps(tmp_path: pathlib.Path) -> None:
     here = machine(vst3=(SERUM_VST3,))
     plan_file = write_and_pick(tmp_path, make_plan([copy_set(tmp_path)], here), "Serum", "serum_vst3")

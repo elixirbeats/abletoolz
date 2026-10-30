@@ -9,7 +9,8 @@ converted device lists which:
 
 * **calibrated** -- both engines rendered one control at a time and matched
   (``data/pro53-to-prophet-5-v.json``): oscillator pitch, oscillator B's
-  fine tune, master tune, amp attack and decay and the filter envelope's
+  fine tune and its pitch off the keyboard (Prophet-5 V holds it 17
+  semitones lower there), master tune, amp attack and decay and the filter envelope's
   release (matched at the time each stage takes to reach half way; their
   curves differ in shape), and the filter envelope's Poly-Mod depth into
   oscillator A's pitch;
@@ -52,8 +53,9 @@ converted device lists which:
   invert, its time modulation (depth, rate and Sync, which Prophet-5 V's
   delay does not have) and its MIDI sync, the analog drift, velocity (Pro-53's
   scales the amplifier and the filter envelope; Prophet-5 V's velocity routes
-  reach no amplifier), the external input, the saved pitch bend, and glide
-  outside unison (where Pro-53's did not act between two notes);
+  reach no amplifier), the external input, the saved pitch bend, glide outside
+  unison (where Pro-53's did not act between two notes), and a cutoff above
+  Prophet-5 V's top (written at its top);
 * **carried at a cost** -- no counterpart, and it changes what the patch is, so
   the device converts as near as it can and warns that it will likely sound
   different: the high-pass filter mode (Prophet-5 V's filter is low-pass only;
@@ -63,7 +65,7 @@ converted device lists which:
   width, the right echo up to 20% of the time later, where Pro-53 splits each
   side's echo in two taps), a saved wheel that bends pitch along with other
   destinations (written at its own position, so the vibrato is shallower),
-  settings outside Prophet-5 V's range (clamped), and LFO MIDI sync, amp hold
+  other settings outside Prophet-5 V's range (clamped), and LFO MIDI sync, amp hold
   and LFO envelope trigger (left out). A direct call without ``notices``
   refuses these instead.
 
@@ -82,7 +84,7 @@ import pathlib
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from abletoolz.plugins.converters import limitation
+from abletoolz.plugins.converters import interp, limitation
 from abletoolz.plugins.state.catalog import Converted, converter
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.pro53 import CONTROL_BY_NAME, Pro53Bank, Pro53Value
@@ -161,7 +163,7 @@ RENDERED_NOTE = (
 EXPECT_NOTE = (
     "Expect, even where every control matched: resonance sounds different (1 to 14 dB apart at the nearest "
     "setting); the amp envelope's attack and decay have another curve shape, and the filter envelope's sweep "
-    "stays 1 to 2 semitones apart; filter envelope amounts above 85% and noise above 40% fall a few dB short; "
+    "stays 1 to 2 semitones apart; filter envelope amounts above 85 st and noise above 40% fall a few dB short; "
     "glides above 93% are cut to Prophet-5 V's longest; the filter envelope's release and sustain are matched "
     "only by their half-way time or display; and conversions often come out several dB quieter."
 )
@@ -175,41 +177,31 @@ def _pro53_cutoff_hz(semitones: float) -> float:
     if semitones <= top[0][0]:
         base, offset = model["model"]
         return float(base * 2 ** ((semitones - offset) / 12))
-    return _interp(semitones, top)
+    return interp(semitones, top)
 
 
 @functools.cache
+def _data() -> dict[str, dict[str, Any]]:
+    data: dict[str, dict[str, Any]] = json.loads((DATA / "pro53-to-prophet-5-v.json").read_text(encoding="utf-8"))
+    return data
+
+
 def _coarse() -> dict[str, Any]:
-    data: dict[str, dict[str, Any]] = json.loads((DATA / "pro53-to-prophet-5-v.json").read_text(encoding="utf-8"))
-    return data["coarse"]
+    return _data()["coarse"]
 
 
-@functools.cache
 def _calibration() -> dict[str, Any]:
-    data: dict[str, dict[str, Any]] = json.loads((DATA / "pro53-to-prophet-5-v.json").read_text(encoding="utf-8"))
-    return data["calibration"]
+    return _data()["calibration"]
 
 
-@functools.cache
 def _matched() -> dict[str, Any]:
-    data: dict[str, dict[str, Any]] = json.loads((DATA / "pro53-to-prophet-5-v.json").read_text(encoding="utf-8"))
-    controls_: dict[str, Any] = data["matched"]["controls"]
+    controls_: dict[str, Any] = _data()["matched"]["controls"]
     return controls_
 
 
 def _match(key: str, shown: float) -> float:
     """Prophet-5 V's ``key`` at the Pro-53 display ``shown``, through its matched points."""
-    return _interp(shown, _matched()[key]["points"])
-
-
-def _interp(x: float, points: Sequence[Sequence[float]]) -> float:
-    """Piecewise linear through ``points`` (sorted by x), held flat past either end."""
-    if x <= points[0][0]:
-        return float(points[0][1])
-    for (x0, y0), (x1, y1) in zip(points, points[1:], strict=False):
-        if x <= x1:
-            return float(y0 + (x - x0) / (x1 - x0) * (y1 - y0))
-    return float(points[-1][1])
+    return interp(shown, _matched()[key]["points"])
 
 
 def _clamp(u: float) -> float:
@@ -225,7 +217,7 @@ def _half_time(fit: Sequence[float], x: float) -> float:
 def _amp_stage(kind: str, x: float) -> float:
     model = _calibration()["amp_envelope"][kind]
     half = _half_time(model["source_half_time"], x)
-    return _interp(half, sorted((t, u) for u, t in model["target_half_times"]))
+    return interp(half, sorted((t, u) for u, t in model["target_half_times"]))
 
 
 def _filter_stage(kind: str, x: float) -> float:
@@ -240,7 +232,7 @@ def _cut_hz(points: Sequence[Sequence[float]], semitones: float) -> float:
         return float(points[0][1] * 2 ** ((semitones - points[0][0]) / 12))
     if semitones >= points[-1][0]:
         return float(points[-1][1] * 2 ** ((semitones - points[-1][0]) / 12))
-    return math.exp(_interp(semitones, [(st, math.log(hz)) for st, hz in points]))
+    return math.exp(interp(semitones, [(st, math.log(hz)) for st, hz in points]))
 
 
 def _wet(percent: float) -> tuple[float, float]:
@@ -320,13 +312,29 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
     # Measured.
     values["Prophet5VCO_Freq1"] = p["Oscillator A Frequency"]
     rows = calibration["osc_b_fine"]
-    fine_cents = _interp(
+    fine_cents = interp(
         knob("Oscillator B Freq Fine"), [(r["q"] / 127, r["coarse"] * 100 + (r["fine"] - 0.5) * 120) for r in rows]
     )
-    cents = int(p["Oscillator B Frequency"]) * 100 + fine_cents
-    coarse = min(max(round(cents / 100), -24), 36)
+    if p["Oscillator B Key Follow"]:
+        cents = int(p["Oscillator B Frequency"]) * 100 + fine_cents
+    else:
+        # Rendered: off the keyboard Pro-53 steps oscillator B in semitones twice as fine as it prints, 48 down to
+        # 48 up, and Prophet-5 V holds it about 17 semitones lower than Pro-53 at the same setting.
+        step = round(knob("Oscillator B Frequency") * 127)
+        cents = ((3 * step + 3) // 4 - 48) * 100 + fine_cents + calibration["osc_b_key_off_cents"]
+    coarse = round(cents / 100)
+    freq2 = target["Prophet5VCO_Freq2"].choices
+    low, high = int(freq2[0]), int(freq2[-1])
+    if not low <= coarse <= high:
+        limitation(
+            notices,
+            f"oscillator B off the keyboard needs Prophet-5 V's coarse at {coarse:+d} st, past its {low:+d} to "
+            f"{high:+d}; it is written at the nearest end, so it will sound at another pitch",
+        )
+        coarse = min(max(coarse, low), high)
+        cents = coarse * 100.0
     values["Prophet5VCO_Freq2"] = coarse
-    values["Prophet5VCO_FineTune"] = min(max((cents - coarse * 100) / 100, -0.6), 0.6)
+    values["Prophet5VCO_FineTune"] = (cents - coarse * 100) / 100
     reference_hz = target["MasterTuneFactor"].value(calibration["master_tune"])
     values["MasterTuneFactor"] = float(reference_hz) * 2 ** (float(p["Master Tune"]) / 1200)
     shown = float(p["Filter Cutoff"])
@@ -361,11 +369,11 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
         values[key] = _match(key, float(p[name]))
     noise = _matched()["Prophet5VCO_NoiseLevel"]
     if float(p["Mixer Noise"]) > noise["loudest_at"]:
-        short = _interp(float(p["Mixer Noise"]), noise["quieter_db"])
+        short = interp(float(p["Mixer Noise"]), noise["quieter_db"])
         limitation(
             notices,
             f"noise at {p['Mixer Noise']:.0f}% is louder than Prophet-5 V's noise goes; it is written at full, "
-            f"about {short:.0f} dB quieter",
+            f"about {short:.1f} dB quieter",
         )
     for name, key in (("Filter Attack", "VCF_Prophet5ADSR_Attack"), ("Filter Decay", "VCF_Prophet5ADSR_Decay")):
         values[key] = _match(key, float(p[name]))
@@ -414,8 +422,8 @@ def plan(bank: Pro53Bank, notices: list[str] | None = None) -> tuple[dict[str, P
         values[key] = p[name]
     # Rendered at a few points.
     peaks = rendered["resonance_peak_db"]
-    peak = _interp(float(p["Filter Resonance"]), peaks["pro53_percent"])
-    values["Prophet5VCF_Res"] = _interp(peak, [(db, value) for value, db in peaks["prophet_value"]])
+    peak = interp(float(p["Filter Resonance"]), peaks["pro53_percent"])
+    values["Prophet5VCF_Res"] = interp(peak, [(db, value) for value, db in peaks["prophet_value"]])
     values["Prophet5VCF_EnvAmt"] = _match("Prophet5VCF_EnvAmt", float(p["Filter Envelope Amount"]))
     if p["Filter Envelope Invert"]:
         values["Prophet5VCF_EnvAmt"] = 0.0

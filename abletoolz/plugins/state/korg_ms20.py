@@ -50,6 +50,7 @@ import pathlib
 import struct
 from collections.abc import Mapping, Sequence
 
+from abletoolz.formats.ansi import decode_ansi
 from abletoolz.plugins.identity.ids import Vst2Id
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
@@ -293,7 +294,6 @@ UNMEASURED = {
 }
 # Slots a restore leaves without effect on any control.
 UNUSED = (38, 81, 82, 83)
-EXT_MOD_SLOTS = tuple(range(56, 72))
 
 
 # -- the patch panel -------------------------------------------------------------
@@ -354,7 +354,7 @@ class Ms20Program:
 
     @property
     def name(self) -> str:
-        return self.raw[_NAME].split(b"\0", 1)[0].decode("cp1252")
+        return decode_ansi(self.raw[_NAME].split(b"\0", 1)[0])
 
     def slot(self, slot: int) -> float:
         """The stored 0 to 1 at ``slot``, measured or not."""
@@ -388,7 +388,9 @@ class Ms20Program:
         jacks = [jack for cable in cables for jack in (cable.out, cable.to)]
         if len(set(jacks)) != len(jacks):
             raise StateTransformError("an MS-20 jack takes one cable")
-        records = b"".join(bytes((JACKS.index(c.out), JACKS.index(c.to), c.colour, 0)) for c in cables)
+        # A cable the program already holds keeps its record, which the plugin may have stored input first.
+        held = {_cable(self.raw[at : at + 4]): self.raw[at : at + 4] for at in range(_CABLES_AT, _CABLES_END, 4)}
+        records = b"".join(held.get(c) or bytes((JACKS.index(c.out), JACKS.index(c.to), c.colour, 0)) for c in cables)
         records += bytes((_NO_CABLE, _NO_CABLE, 0, 0)) * (CABLES - len(cables))
         return Ms20Program.parse(self.raw[:_CABLES_AT] + records + self.raw[_CABLES_END:])
 

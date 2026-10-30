@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import datetime
 import enum
 import hashlib
@@ -191,12 +192,22 @@ class PlanFile(pydantic.BaseModel):
 
 
 def entries(plan: Plan) -> list[tuple[str, PluginChoice]]:
-    """Each plugin with the name its file entry uses; a second plugin of the same name and format gets " (2)"."""
-    seen: dict[tuple[str, PluginKind], int] = {}
+    """Each plugin with the name its file entry uses.
+
+    Plugins sharing a name and format are told apart by the name their devices store, and the stored id when
+    that is shared too, never by their order: the order can change between planning and applying.
+    """
+    groups = collections.Counter((choice.plugin, choice.format) for choice in plan.plugins)
+    stored_names = collections.Counter((choice.plugin, choice.format, choice.name) for choice in plan.plugins)
     named: list[tuple[str, PluginChoice]] = []
     for choice in plan.plugins:
-        count = seen[(choice.plugin, choice.format)] = seen.get((choice.plugin, choice.format), 0) + 1
-        named.append((choice.plugin if count == 1 else f"{choice.plugin} ({count})", choice))
+        name = choice.plugin
+        if groups[(choice.plugin, choice.format)] > 1:
+            detail = choice.name
+            if stored_names[(choice.plugin, choice.format, choice.name)] > 1:
+                detail += f", {choice.stored or 'no id'}"
+            name = f"{name} ({detail})"
+        named.append((name, choice))
     return named
 
 

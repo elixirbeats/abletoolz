@@ -8,6 +8,7 @@ fields edited, so no one's sound goes into the tests.
 
 from __future__ import annotations
 
+import math
 import pathlib
 import re
 import struct
@@ -244,6 +245,22 @@ def test_a_mod_slot_crosses_from_its_own_record() -> None:
     }
 
 
+def test_an_aux_source_not_told_apart_is_named_with_the_routings_it_leaves() -> None:
+    patch, tables = patch_of(INIT)
+    record = slot_record(patch, 0, 1, A_VOL, 0.5)
+    struct.pack_into("<I", patch, record + conversion._SLOT_SOURCE, 1 | 0xFFFF << 16)
+    doc, notices = converted(patch, tables)
+    assert doc["ModSlot0"]["source"] == [conversion._data()["sources"]["1"], 0]
+    assert any("the aux source of 1 mod routing(s)" in note for note in notices)
+
+
+def test_a_setting_that_is_not_a_number_is_refused() -> None:
+    patch, tables = patch_of(INIT)
+    slot_record(patch, 0, 1, A_VOL, math.nan)
+    with pytest.raises(StateTransformError, match="not a number"):
+        converted(patch, tables)
+
+
 @pytest.mark.parametrize(("byte", "curve"), [(0, -100.0), (64, -50.0), (128, None), (255, 99.6078431)])
 def test_a_mod_curve_byte_crosses_as_the_importer_scales_it(byte: int, curve: float | None) -> None:
     assert conversion._curve(byte) == (curve if curve is None else pytest.approx(curve))
@@ -371,6 +388,28 @@ def test_an_lfos_mode_and_shape_cross_from_its_block() -> None:
         [0.0, 0.25, 1.0, 1.0],
         [1.0, 0.0, 0.5, 1.0],
     )
+
+
+def test_an_earlier_version_s_lfos_cross_from_its_flags_and_shared_arrays() -> None:
+    flags = conversion._data()["lfo_switches"]["flags"]
+    patch, tables = patch_of(INIT)
+    put(patch, conversion._data()["versions"]["offset"], 0.1561)
+    patch[flags["trig"]] = patch[flags["env"]] = 1  # LFO 1 an envelope
+    patch[flags["points"]] = 2
+    struct.pack_into("<3d", patch, flags["x"], 0.0, 0.5, 1.0)
+    struct.pack_into("<3d", patch, flags["y"], 1.0, 0.0, 1.0)
+    patch[flags["free"] + 1], patch[flags["trig"] + 1], patch[flags["env"] + 1] = 1, 0, 0  # LFO 2 free running
+    put(patch, control("LFO2 Rate")["offset"], 0.5)
+    doc, notices = converted(patch, tables)
+    first, second = doc["LFO0"], doc["LFO1"]["plainParams"]
+    assert first["plainParams"]["kParamMode"] == "Envelope"
+    assert (first["curveData"]["numPoints"], first["curveData"]["xVals"], first["curveData"]["yVals"]) == (
+        2,
+        [0.0, 0.5, 1.0],
+        [1.0, 0.0, 1.0],
+    )
+    assert (second["kParamBeatSync"], second["kParamRate"]) == (0.0, pytest.approx(6.25))
+    assert any("LFO rise and delay, LFOs 5-8" in note for note in notices)
 
 
 def test_wavetables_and_noise_cross_by_their_library_path() -> None:
