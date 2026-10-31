@@ -177,6 +177,7 @@ class FfbsState:
 # :class:`FfbsVst3` cuts a VST2 chunk at, because the half it cuts off is this.
 PRO_Q3_EDITOR_MAGIC = b"FQ3p"
 SATURN_2_EDITOR_MAGIC = b"FS2a"
+VOLCANO_3_EDITOR_MAGIC = b"FV3l"
 TIMELESS_3_EDITOR_MAGIC = b"F3Ts"
 
 # The version every editor state measured declares. Nothing to do with the FFBS
@@ -293,6 +294,7 @@ def default_editor_state(magic: bytes, preset_name: str) -> EditorState:
 PRO_Q3_CONTROLLER = FfbsControllerState(PRO_Q3_EDITOR_MAGIC)
 SATURN_2_CONTROLLER = FfbsControllerState(SATURN_2_EDITOR_MAGIC)
 TIMELESS_3_CONTROLLER = FfbsControllerState(TIMELESS_3_EDITOR_MAGIC)
+VOLCANO_3_CONTROLLER = FfbsControllerState(VOLCANO_3_EDITOR_MAGIC)
 
 # What the FabF-generation products -- Pro-C 2, Pro-L 2, Pro-MB, Pro-R and their
 # siblings -- write. Their VST2 exposes no chunk, so there is no editor half to
@@ -436,8 +438,12 @@ class DerivedFabF:
 _HOSTED_ON = datetime.date(2026, 8, 13)
 
 
+# Every FFBS-generation VST2 patch is version 1, and so is each successor's default.
+FFBS_VERSION = 1
+
+
 def _ffbs_version_1(patch: bytes) -> bool:
-    return len(patch) >= _FFBS_HEADER.size and patch[:4] == FFBS_MAGIC and _U32.unpack_from(patch, 4)[0] == 1
+    return len(patch) >= _FFBS_HEADER.size and patch[:4] == FFBS_MAGIC and _U32.unpack_from(patch, 4)[0] == FFBS_VERSION
 
 
 def _bank_of(count: int) -> Layout:
@@ -445,7 +451,6 @@ def _bank_of(count: int) -> Layout:
     return Layout(f"{count}-parameter host bank", lambda patch: len(patch) == LEGACY_NAME_BYTES + 4 * count)
 
 
-# Every FFBS-generation VST2 patch in the user's sets is version 1.
 _FFBS_LAYOUTS = (Layout("FFBS version 1", _ffbs_version_1),)
 
 
@@ -525,8 +530,7 @@ def timeless_3() -> PluginMap:
 
 @register
 def volcano_3() -> PluginMap:
-    # The processor half is measured; Volcano 3's controller half is not, so its
-    # VST3 is refused as a target until someone measures it.
+    # A Volcano 3 VST3 device writes its editor half and the trailer as its ControllerState, as Saturn 2 does.
     return _ffbs_plugin(
         "volcano-3",
         "FabFilter Volcano 3",
@@ -534,7 +538,7 @@ def volcano_3() -> PluginMap:
         "Volcano 3",
         (698034028, -495235247, -1785296369, -2046760495),
         _REFRAMED,
-        None,
+        VOLCANO_3_CONTROLLER,
         vst2_plan="volcano_3_vst2",
         vst3_plan="volcano_3_vst3",
     )
@@ -567,6 +571,46 @@ def pro_q_1() -> PluginMap:
 def pro_q_2() -> PluginMap:
     # So do "FabFilter Pro-Q 2 x64" and the jBridged ".64" builds.
     return _host_bank_plugin("pro-q-2", "FabFilter Pro-Q 2", 1179726448, PRO_Q2_PARAMETERS, "pro_q_2_vst2")
+
+
+# Pro-C 1's banks are a name and 31 floats, and the original x86 VST2 reports 31 controls.
+PRO_C1_PARAMETERS = 31
+
+
+@register
+def pro_c_1() -> PluginMap:
+    # "FabFilter Pro-C.64", the jBridged 32-bit build, stores the same id.
+    return _host_bank_plugin("pro-c-1", "FabFilter Pro-C", 1179677251, PRO_C1_PARAMETERS, "pro_c_vst2")
+
+
+@register
+def pro_l_1() -> PluginMap:
+    # Pro-L's banks are a name and 19 floats; "FabFilter Pro-L.64", the jBridged copy, shares the id.
+    return _host_bank_plugin("pro-l-1", "FabFilter Pro-L", 1179667570, 19, "pro_l_vst2")
+
+
+@register
+def saturn_1() -> PluginMap:
+    # Saturn's banks are a name and 899 floats, from the original and its x64 and jBridged builds.
+    return _host_bank_plugin("saturn-1", "FabFilter Saturn", 1179869556, 899, "saturn_vst2")
+
+
+@register
+def volcano_2() -> PluginMap:
+    # The banks of the Volcano 2 build the legacy desktop hosts are a name and 666 floats; a later build's 757 are not
+    # read, so those devices are left as they are.
+    return _host_bank_plugin("volcano-2", "FabFilter Volcano 2", 1180054124, 666, "volcano_2_vst2")
+
+
+@register
+def timeless_2() -> PluginMap:
+    return _host_bank_plugin("timeless-2", "FabFilter Timeless 2", 1179938163, 705, "timeless_2_vst2")
+
+
+@register
+def pro_c_1_sc() -> PluginMap:
+    # Pro-C's side-chain build: the same 31 controls, every one printing as Pro-C's does.
+    return _host_bank_plugin("pro-c-1-sc", "FabFilter Pro-C (SC)", 1179677236, PRO_C1_PARAMETERS, "pro_c_sc_vst2")
 
 
 def _derived_plugin(

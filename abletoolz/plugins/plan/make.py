@@ -29,48 +29,67 @@ def _track_name(device: PluginDevice) -> str:
 
 def make_plan(paths: Iterable[pathlib.Path], machine: Machine) -> Plan:
     """Read ``paths`` and plan every plugin device in them, every pick ``keep``; nothing is written."""
+    return merge_plans(plan_set(index, path, machine) for index, path in enumerate(paths))
 
+
+def plan_set(index: int, path: pathlib.Path, machine: Machine) -> tuple[PlannedSet, list[PluginChoice]]:
+    """The set at ``path``, the ``index``-th of a plan, and its plugins planned; ``merge_plans`` joins sets."""
+    path = path.resolve()
+    planned = PlannedSet(path=path, sha256=set_sha256(path))
+    choices: dict[tuple[PluginKind, str | None, str], PluginChoice] = {}
+    for device in PluginDevices(live_document.read(path)):
+        assert device.ordinal is not None
+        identity = device.identity
+        stored = stored_id(identity)
+        key = device_key(device)
+        if key not in choices:
+            plugin_map = None if stored is None else CATALOG.find(stored)
+            targets = [] if plugin_map is None else mapped_targets(plugin_map, device.kind, machine)
+            route = route_for(device.kind, identity.name or "", identity.unique_id, machine.recovery)
+            if route is not None:
+                targets.append(recovery_target(route))
+            targets.sort(key=lambda target: _ROUTE_ORDER.index(target.route))
+            choices[key] = PluginChoice(
+                plugin=(identity.name or "<unknown>") if plugin_map is None else plugin_map.name,
+                format=device.kind,
+                name=identity.name or "",
+                stored=key[1],
+                map_id=None if plugin_map is None else plugin_map.id,
+                broken=False,
+                devices=[],
+                targets=targets,
+            )
+        choice = choices[key]
+        choice.devices.append(DeviceRef(set=index, device=device.ordinal, track=_track_name(device)))
+        if not machine.loadable(device.info):
+            choice.broken = True
+        # Counted while this set is loaded, so a plan over a library holds one parsed set at a time.
+        for target in choice.targets:
+            answer = carry(device, choice, target, machine)
+            if isinstance(answer, str):
+                target.refused[answer] = target.refused.get(answer, 0) + 1
+                continue
+            for cost in answer.warnings:
+                target.warnings[cost] = target.warnings.get(cost, 0) + 1
+    return planned, list(choices.values())
+
+
+def merge_plans(parts: Iterable[tuple[PlannedSet, list[PluginChoice]]]) -> Plan:
+    """One plan from ``plan_set``'s answers, in set order: each plugin's devices, breakage and counts added up."""
     sets: list[PlannedSet] = []
     choices: dict[tuple[PluginKind, str | None, str], PluginChoice] = {}
-    for index, path in enumerate(paths):
-        path = path.resolve()
-        sets.append(PlannedSet(path=path, sha256=set_sha256(path)))
-        root = live_document.read(path)
-        for device in PluginDevices(root):
-            assert device.ordinal is not None
-            identity = device.identity
-            stored = stored_id(identity)
-            key = device_key(device)
-            if key not in choices:
-                plugin_map = None if stored is None else CATALOG.find(stored)
-                targets = [] if plugin_map is None else mapped_targets(plugin_map, device.kind, machine)
-                route = route_for(device.kind, identity.name or "", identity.unique_id, machine.recovery)
-                if route is not None:
-                    targets.append(recovery_target(route))
-                choices[key] = PluginChoice(
-                    plugin=(identity.name or "<unknown>") if plugin_map is None else plugin_map.name,
-                    format=device.kind,
-                    name=identity.name or "",
-                    stored=key[1],
-                    map_id=None if plugin_map is None else plugin_map.id,
-                    broken=False,
-                    devices=[],
-                    targets=targets,
-                )
-            choice = choices[key]
-            choice.devices.append(DeviceRef(set=index, device=device.ordinal, track=_track_name(device)))
-            if not machine.loadable(device.info):
-                choice.broken = True
-            # Counted while this set is loaded, so a plan over a library holds one parsed set at a time.
-            for target in choice.targets:
-                answer = carry(device, choice, target, machine)
-                if isinstance(answer, str):
-                    target.refused[answer] = target.refused.get(answer, 0) + 1
-                    continue
-                for cost in answer.warnings:
-                    target.warnings[cost] = target.warnings.get(cost, 0) + 1
-    for choice in choices.values():
-        choice.targets.sort(key=lambda target: _ROUTE_ORDER.index(target.route))
+    for planned, part in parts:
+        sets.append(planned)
+        for choice in part:
+            seen = choices.setdefault(choice_key(choice), choice)
+            if seen is choice:
+                continue
+            seen.devices.extend(choice.devices)
+            seen.broken = seen.broken or choice.broken
+            for total, target in zip(seen.targets, choice.targets, strict=True):
+                for count, more in ((total.refused, target.refused), (total.warnings, target.warnings)):
+                    for reason, number in more.items():
+                        count[reason] = count.get(reason, 0) + number
     ordered = sorted(choices.values(), key=lambda choice: (not choice.broken, choice.plugin.lower(), choice.format))
     return Plan(made=datetime.datetime.now(datetime.UTC), sets=sets, plugins=ordered)
 

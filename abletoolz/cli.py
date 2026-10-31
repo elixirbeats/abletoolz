@@ -32,21 +32,9 @@ from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.run import batch, console, meta, report
 from abletoolz.run.job import COMMAND_FLAGS, SetJob
 from abletoolz.samples import database
+from abletoolz.workers import set_workers, worker_argument
 
 logger = logging.getLogger(__name__)
-
-
-def worker_argument(value: str) -> int | None:
-    """Accept auto or a positive worker override."""
-    if value == "auto":
-        return None
-    try:
-        count = int(value)
-    except ValueError as error:
-        raise argparse.ArgumentTypeError("Expected auto or a positive worker count") from error
-    if count < 1:
-        raise argparse.ArgumentTypeError("Worker count must be positive")
-    return count
 
 
 # The set command that is not a SetJob command: --apply-ops writes through its
@@ -436,7 +424,7 @@ def process(args: argparse.Namespace, config: AbletoolzConfig, locations: Locati
             logger.info("%sError, no sets to process!", R)
             return 1
         try:
-            jobs = batch.set_workers(args.jobs, len(pathlib_objects))
+            jobs = set_workers(args.jobs, len(pathlib_objects))
         except ValueError as error:
             logger.error("%s%s", R, error)
             return 2

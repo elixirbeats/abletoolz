@@ -216,4 +216,8 @@ def read_parameters(path: pathlib.Path, uid_fields: tuple[int, int, int, int]) -
 
 if __name__ == "__main__":
     fields = (int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
-    print(json.dumps(read_parameters(pathlib.Path(sys.argv[1]), fields)))
+    print(json.dumps(read_parameters(pathlib.Path(sys.argv[1]), fields)), flush=True)
+    # Some plugins (Prophet-5 V) hang in their DLL detach, which even os._exit runs; the answer is out, so skip it.
+    kernel32 = ctypes.WinDLL("kernel32")
+    kernel32.GetCurrentProcess.restype = c_void_p
+    kernel32.TerminateProcess(c_void_p(kernel32.GetCurrentProcess()), 0)

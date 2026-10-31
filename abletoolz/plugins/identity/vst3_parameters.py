@@ -74,6 +74,16 @@ def _read_cache(cache_path: pathlib.Path) -> dict[str, list[dict[str, object]]]:
         return {}
 
 
+def _write_cache(cache_path: pathlib.Path, key: str, parameters: list[dict[str, object]]) -> None:
+    """Add one module's answer to the cache, keeping what other planning processes wrote meanwhile."""
+    temporary = cache_path.with_name(f"{cache_path.name}.{os.getpid()}")
+    temporary.write_text(json.dumps(_read_cache(cache_path) | {key: parameters}), encoding="utf-8")
+    try:
+        os.replace(temporary, cache_path)
+    except PermissionError:  # another process has the cache open; this answer is asked for again next run
+        temporary.unlink()
+
+
 def read(module: pathlib.Path, uid_fields: UidFields, cache_path: pathlib.Path) -> tuple[Vst3Parameter, ...]:
     """Every parameter of the class ``uid_fields`` in ``module``, read once and then kept in ``cache_path``.
 
@@ -103,7 +113,7 @@ def read(module: pathlib.Path, uid_fields: UidFields, cache_path: pathlib.Path) 
             last = (done.stderr.strip().splitlines() or ["no message"])[-1]
             raise OSError(f"{module.name} could not be read: {last}")
         cache[key] = json.loads(done.stdout)
-        cache_path.write_text(json.dumps(cache), encoding="utf-8")
+        _write_cache(cache_path, key, cache[key])
     return tuple(
         Vst3Parameter(
             id=int(str(entry["id"])),

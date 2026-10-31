@@ -34,10 +34,12 @@ from abletoolz.plugins.state.fabfilter import (
     PRO_Q3_EDITOR_MAGIC,
     SATURN_2_EDITOR_MAGIC,
     TIMELESS_3_EDITOR_MAGIC,
+    VOLCANO_3_EDITOR_MAGIC,
     EditorState,
     FfbsState,
 )
 from abletoolz.plugins.state.framings import VERBATIM
+from abletoolz.plugins.state.fxbk import LegacyBank
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.plugin_map import FormatState, PluginFormat, PluginMap
 from abletoolz.plugins.state.surge_synth_team import SURGE_1_UNIQUE_ID
@@ -130,8 +132,14 @@ def test_a_translation_into_the_same_plugin_is_its_map_s_job() -> None:
 
 
 SHIPPED = {
+    ("fabfilter.pro-c-1", "fabfilter.pro-c-2"),
+    ("fabfilter.pro-c-1-sc", "fabfilter.pro-c-2"),
+    ("fabfilter.pro-l-1", "fabfilter.pro-l-2"),
     ("fabfilter.pro-q-1", "fabfilter.pro-q-3"),
     ("fabfilter.pro-q-2", "fabfilter.pro-q-3"),
+    ("fabfilter.saturn-1", "fabfilter.saturn-2"),
+    ("fabfilter.timeless-2", "fabfilter.timeless-3"),
+    ("fabfilter.volcano-2", "fabfilter.volcano-3"),
     ("izotope.trash1", "izotope.trash2"),
     ("korg.legacy-cell", "arturia.korg-ms-20-v"),
     ("korg.ms-20", "arturia.korg-ms-20-v"),
@@ -148,6 +156,28 @@ def test_every_shipped_translation_is_found_from_its_two_plugins_and_goes_one_wa
         assert converter is not None
         assert converter.measured.date is not None
         assert CATALOG.converter(target, source) is None
+
+
+@pytest.mark.parametrize(
+    ("uid", "source", "target", "controls"),
+    [
+        (1179677251, "fabfilter.pro-c-1", "fabfilter.pro-c-2", 31),
+        (1179677236, "fabfilter.pro-c-1-sc", "fabfilter.pro-c-2", 31),
+        (1179667570, "fabfilter.pro-l-1", "fabfilter.pro-l-2", 19),
+        (1179869556, "fabfilter.saturn-1", "fabfilter.saturn-2", 899),
+        (1180054124, "fabfilter.volcano-2", "fabfilter.volcano-3", 666),
+        (1179938163, "fabfilter.timeless-2", "fabfilter.timeless-3", 705),
+    ],
+)
+def test_an_older_fabfilter_bank_converts_keeping_its_name_and_one_of_another_size_is_refused(
+    uid: int, source: str, target: str, controls: int
+) -> None:
+    assert plugin(Vst2Id(uid)).id == source
+    converter = CATALOG.converter(source, target)
+    assert converter is not None
+    assert b"Glue" in converter.convert(LegacyBank("Glue", (0.0,) * controls).encode(), None).patch
+    with pytest.raises(StateTransformError, match=f"{controls} controls, not {controls - 1}"):
+        converter.convert(LegacyBank("Glue", (0.0,) * (controls - 1)).encode(), None)
 
 
 def test_the_trash_translation_needs_the_program_the_device_plays() -> None:
@@ -267,6 +297,7 @@ FFBS_EDITORS = {
     "Pro-Q 3": PRO_Q3_EDITOR_MAGIC,
     "Saturn 2": SATURN_2_EDITOR_MAGIC,
     "Timeless 3": TIMELESS_3_EDITOR_MAGIC,
+    "Volcano 3": VOLCANO_3_EDITOR_MAGIC,
 }
 
 
@@ -312,11 +343,12 @@ def test_a_pro_q_3_layout_nobody_recorded_is_refused() -> None:
 
 
 def test_a_vst3_whose_controller_half_nobody_measured_is_not_written() -> None:
-    """Volcano 3's processor half is measured; its controller half is not."""
-    volcano_3 = plugin(Vst2Id(1180054380))
-    assert not volcano_3.can_write(VST3)
+    measured = plugin(Vst2Id(1180054380))
+    assert measured.vst3 is not None
+    unmeasured = replace(measured, vst3=replace(measured.vst3, controller=None))
+    assert not unmeasured.can_write(VST3)
     with pytest.raises(StateTransformError, match="controller half is not measured"):
-        volcano_3.cross(FormatState(b"FFBS"), VST2, VST3)
+        unmeasured.cross(FormatState(b"FFBS"), VST2, VST3)
 
 
 # -- iZotope -------------------------------------------------------------------
