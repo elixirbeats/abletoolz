@@ -33,20 +33,8 @@ from abletoolz.run import console, report
 from abletoolz.run.job import SetJob, run_set
 from abletoolz.samples import database
 from abletoolz.samples.catalog import SampleCatalog
-from abletoolz.workers import worker_count
 
 logger = logging.getLogger(__name__)
-
-# ProcessPoolExecutor on Windows waits on at most 61 worker processes.
-_WINDOWS_WORKERS = 61
-
-
-def set_workers(requested: int | None, sets: int) -> int:
-    """How many processes a run over ``sets`` sets uses: ``requested``, or one per CPU, as many as the executor takes.
-
-    Raises ValueError for a request the executor on this OS cannot take.
-    """
-    return worker_count(requested, tasks=sets, limit=_WINDOWS_WORKERS if sys.platform == "win32" else None)
 
 
 def run_sets(

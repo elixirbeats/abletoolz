@@ -70,6 +70,8 @@ Changes since 2.1.0.
   that plugin; `plugins apply` reads the sets again and converts. Every format in
   a plugin map carries its plan name, written by hand (`serum_vst3`), and two that
   share one stop the catalog loading.
+- `plugins plan` and `plugins apply` read sets on every CPU core, like `-j` does
+  for the other commands.
 - A conversion never refuses over what it can't carry: automation and clip
   envelopes, MIDI and macro mappings and an arranged list of controls are removed,
   settings with no match in the target are left out, and each is said in the plan
@@ -86,6 +88,22 @@ Changes since 2.1.0.
 - FabFilter Pro-L 2, Pro-MB, Pro-G and Pro-DS devices convert from VST2 to VST3,
   like Pro-C 2. The plugin reads every converted patch back as written; Pro-DS
   can round one value to its own last bit.
+- FabFilter Pro-C devices, its side-chain build and the jBridged `.64` copies
+  included, convert to Pro-C 2, each control matched by what both plugins print.
+  An attack or release past Pro-C 2's range is written at its end and said.
+- FabFilter Pro-L devices and their jBridged copies convert to Pro-L 2 the same
+  way, with Pro-L 2's true-peak limiting off as Pro-L limited sample peaks.
+- FabFilter Saturn devices, the x64 and jBridged builds included, convert to
+  Saturn 2 the same way, its modulation slots and new controls included as
+  FabFilter's own importer sets them.
+- FabFilter Volcano 2 devices convert to Volcano 3 the same way, filters laid
+  out and modulation depths scaled as FabFilter's importer does, a depth on a
+  gain moving the gain with it. Banks from the later 757-control Volcano 2 build
+  are left as they are.
+- FabFilter Timeless 2 devices convert to Timeless 3 as FabFilter's own importer
+  converts its presets: the two delays become one with a time pan, their
+  feedback one feedback and cross mix, and modulation keeps the slots Timeless 3
+  can hold.
 - Serum 2 is supported as a VST3 and an Audio Unit, and converts between the
   two. Serum's Audio Unit from a Mac set converts to its VST2 or VST3 with the
   patch; a plan marks that crossing unproved, since the AU side was only

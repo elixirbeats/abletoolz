@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import os
+import sys
 
 
 def available_cpu_count() -> int:
@@ -37,3 +39,28 @@ def worker_count(requested: int | None, *, tasks: int | None = None, limit: int 
             raise ValueError(f"This executor supports at most {limit} workers")
         selected = min(selected, limit)
     return selected
+
+
+def worker_argument(value: str) -> int | None:
+    """Accept auto or a positive worker override."""
+    if value == "auto":
+        return None
+    try:
+        count = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Expected auto or a positive worker count") from error
+    if count < 1:
+        raise argparse.ArgumentTypeError("Worker count must be positive")
+    return count
+
+
+# ProcessPoolExecutor on Windows waits on at most 61 worker processes.
+_WINDOWS_WORKERS = 61
+
+
+def set_workers(requested: int | None, sets: int) -> int:
+    """How many processes a run over ``sets`` sets uses: ``requested``, or one per CPU, as many as the executor takes.
+
+    Raises ValueError for a request the executor on this OS cannot take.
+    """
+    return worker_count(requested, tasks=sets, limit=_WINDOWS_WORKERS if sys.platform == "win32" else None)

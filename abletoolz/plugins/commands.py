@@ -21,6 +21,7 @@ from abletoolz.plugins.config import AbletoolzConfig
 from abletoolz.plugins.plan import apply_in_place, plan_sets, read_plan, this_machine, write_plan
 from abletoolz.plugins.plan.here import recovery_targets
 from abletoolz.run import console
+from abletoolz.workers import worker_argument
 
 DEFAULT_PLAN = pathlib.Path("plugin_plan.yaml")
 
@@ -39,6 +40,16 @@ def _parser() -> argparse.ArgumentParser:
             type=pathlib.Path,
             metavar="DIR",
             help="Search only these plugin folders for recovery binaries instead of the installed defaults",
+        )
+
+    def jobs_option(command: argparse.ArgumentParser) -> None:
+        command.add_argument(
+            "-j",
+            "--jobs",
+            type=worker_argument,
+            default=None,
+            metavar="N|auto",
+            help="Processes reading sets at once (default: available CPUs, bounded by set count)",
         )
 
     routes = verbs.add_parser("routes", help="List verified recovery routes and available native binaries")
@@ -60,6 +71,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     plan.add_argument("--force", action="store_true", help="Overwrite an existing plan file")
     recovery_options(plan)
+    jobs_option(plan)
 
     apply = verbs.add_parser(
         "apply", help="Convert every plugin whose convert_to names a target, keeping a backup of each set"
@@ -67,6 +79,7 @@ def _parser() -> argparse.ArgumentParser:
     apply.add_argument("plan", type=pathlib.Path, metavar="PLAN.yaml")
     apply.add_argument("--json", action="store_true", help="Print what was done as JSON")
     recovery_options(apply)
+    jobs_option(apply)
     return parser
 
 
@@ -84,16 +97,16 @@ def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locatio
             else:
                 console.render_recovery_routes(routes)
             return 0
-        machine = this_machine(args.plugin_dir, config=config, locations=locations)
         if args.command == "plan":
             output = args.output.resolve()
             if output.exists() and not args.force:
                 raise FileExistsError(f"{output} exists; pass --force to overwrite it")
-            plan = plan_sets(args.srcs, machine=machine)
+            plan = plan_sets(args.srcs, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
             write_plan(plan, output)
             console.render_plan(plan, output)
             return 0
-        outcomes = apply_in_place(read_plan(args.plan, machine=machine), machine=machine)
+        plan = read_plan(args.plan, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
+        outcomes = apply_in_place(plan, machine=this_machine(args.plugin_dir, config=config, locations=locations))
     except (OSError, ValueError, ET.ParseError) as error:
         print(f"abletoolz plugins {args.command} failed: {error}", file=sys.stderr)
         return 1
