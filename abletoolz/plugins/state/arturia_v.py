@@ -5,21 +5,33 @@ in the unit it prints. :class:`Control` evaluates the shapes those definitions
 use, and the instrument modules hold the measured controls as data. Their VST2
 state is two Boost text archives behind their lengths
 (:class:`~abletoolz.formats.arturia_archive.TwoArchives`); the VST3 keeps the
-same two archives as its processor and controller halves.
+same two archives as its processor and controller halves. An instrument that
+saves the same archive twice is an :class:`ArchiveInstrument`, edited by the
+names in its map.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import datetime
+import functools
 import math
+import pathlib
 from collections.abc import Mapping
 from typing import Any
 
 from abletoolz.formats.arturia_archive import TwoArchives
 from abletoolz.formats.errors import FormatError
+from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
 from abletoolz.plugins.state.errors import StateTransformError
+from abletoolz.plugins.state.framings import VERBATIM
+from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
+from abletoolz.plugins.state.plugin_map import Layout, PluginFormat, PluginMap
 
 type ArturiaValue = bool | int | float | str
+
+ARCHIVE_SIGNATURE = b"22 serialization::archive "
+DATA = pathlib.Path(__file__).with_name("data")
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -161,9 +173,89 @@ class SecondArchive:
             raise StateTransformError(f"not a {self.product} patch: {error}") from None
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class OneArchive:
+    """A VST3 that saves one archive as both its processor and its controller state: the archive twice."""
+
+    product: str
+
+    def lift(self, state: bytes) -> bytes:
+        if not state.startswith(ARCHIVE_SIGNATURE):
+            raise StateTransformError(f"a {self.product} state is a Boost text archive, and this one is not")
+        return TwoArchives.join(state, state)
+
+    def lower(self, patch: bytes) -> bytes:
+        raise StateTransformError(f"writing {self.product} is not measured")
+
+
+def holds_two_archives(patch: bytes) -> bool:
+    """Whether ``patch`` is two Boost text archives behind their lengths, whatever their maps hold."""
+    try:
+        return all(archive.startswith(ARCHIVE_SIGNATURE) for archive in TwoArchives.split(patch))
+    except FormatError:
+        return False
+
+
 def is_two_archives(patch: bytes) -> bool:
     try:
         TwoArchives.parse(patch)
     except FormatError:
         return False
     return True
+
+
+def with_values(patch: bytes, changes: Mapping[str, float], product: str) -> bytes:
+    """``patch`` with each named control set to its stored 0 to 1 in both archives, spelled as the plugin does."""
+    edits = {f"section[{n}]/{name}": value for n in (0, 1) for name, value in changes.items()}
+    try:
+        return TwoArchives.parse(patch).with_values(edits, single=True)
+    except FormatError as error:
+        raise StateTransformError(f"this {product} patch did not take the edit: {error}") from None
+
+
+@functools.cache
+def _read(path: pathlib.Path) -> bytes:
+    return path.read_bytes()
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ArchiveInstrument:
+    """A V instrument that saves the same archive twice, edited by the names in its map; its VST3 is written only.
+
+    ``baseline`` is a state the installed plugin saved, in the VST2 form, that a converted patch is built from.
+    """
+
+    map_id: str
+    product: str
+    unique_id: int
+    build: str
+    baseline_file: str
+    measured: datetime.date
+
+    def baseline(self) -> bytes:
+        return _read(DATA / self.baseline_file)
+
+    def with_values(self, patch: bytes, changes: Mapping[str, float]) -> bytes:
+        return with_values(patch, changes, self.product)
+
+    def plugin_map(self) -> PluginMap:
+        verbatim = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), self.measured)
+        split = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED,), self.measured)
+        plan_name = self.map_id.removeprefix("arturia.").replace("-", "_")
+        return PluginMap(
+            id=self.map_id,
+            name=self.product,
+            version="3",
+            scope=f"{self.build}; the same archive twice, with its map of named numbers; the VST3 is written, not read",
+            vendor="Arturia",
+            vst2=PluginFormat(Vst2Id(self.unique_id), self.product, VERBATIM, verbatim, plan_name=f"{plan_name}_vst2"),
+            vst3=PluginFormat(
+                Vst3Id((1098019957, 1096173907, self.unique_id, 1349676899)),
+                self.product,
+                FirstArchive(self.product),
+                split,
+                SecondArchive(self.product),
+                plan_name=f"{plan_name}_vst3",
+            ),
+            layouts=(Layout("two archives with their number maps", is_two_archives),),
+        )

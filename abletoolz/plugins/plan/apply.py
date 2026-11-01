@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pathlib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from xml.etree import ElementTree as ET
 
 import pydantic
@@ -18,7 +18,7 @@ from abletoolz.plugins.plan.model import Plan, set_sha256
 
 
 class DeviceOutcome(pydantic.BaseModel):
-    """What applying a plan did to one device."""
+    """What applying a plan did to one device: ``pick`` is the target it took, or the last it was refused."""
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
@@ -56,35 +56,55 @@ def apply_to_root(plan: Plan, set_index: int, root: ET.Element, machine: Machine
         if found is None:
             continue
         choice, ref = found
-        pick = choice.pick_for(set_index, device.ordinal)
-        target = choice.target(pick)
-        if target is None:
+        picks = choice.picks_for(set_index, device.ordinal)
+        if not picks:
             continue
         # A hand-edited plan whose sets were removed or reordered numbers other sets' devices.
-        answer = (
-            carry(device, choice, target, machine)
-            if device_key(device) == choice_key(choice)
-            else f"the plan lists {choice.plugin} here, but this device holds another plugin; make a fresh plan"
-        )
-        reason = answer if isinstance(answer, str) else None
-        if not isinstance(answer, str):
+        if device_key(device) != choice_key(choice):
+            reason = f"the plan lists {choice.plugin} here, but this device holds another plugin; make a fresh plan"
+            outcomes.append(_outcome(device.ordinal, ref.track, choice.plugin, picks[0], reason=reason))
+            continue
+        refusals: list[str] = []
+        for pick in picks:
+            target = choice.target(pick)
+            answer = carry(device, choice, target, machine)
+            if isinstance(answer, str):  # the next pick may take it
+                refusals.append(answer if len(picks) == 1 else f"{pick}: {answer}")
+                continue
             try:
                 write(device, answer)
             except ValueError as error:  # StateTransformError, or what the container refuses
-                reason = str(error)
-        outcomes.append(
-            DeviceOutcome(
-                device=device.ordinal,
-                track=ref.track,
-                plugin=choice.plugin,
-                pick=pick,
-                done=reason is None,
-                warnings=list(answer.warnings) if reason is None and not isinstance(answer, str) else [],
-                reason=reason,
-                evidence=target.evidence,
-            )
-        )
+                outcomes.append(_outcome(device.ordinal, ref.track, choice.plugin, pick, str(error), target.evidence))
+            else:
+                outcomes.append(
+                    _outcome(device.ordinal, ref.track, choice.plugin, pick, None, target.evidence, answer.warnings)
+                )
+            break
+        else:
+            reason = "; ".join(refusals)
+            outcomes.append(_outcome(device.ordinal, ref.track, choice.plugin, picks[-1], reason, target.evidence))
     return outcomes
+
+
+def _outcome(
+    device: int,
+    track: str,
+    plugin: str,
+    pick: str,
+    reason: str | None,
+    evidence: str | None = None,
+    warnings: Sequence[str] = (),
+) -> DeviceOutcome:
+    return DeviceOutcome(
+        device=device,
+        track=track,
+        plugin=plugin,
+        pick=pick,
+        done=reason is None,
+        reason=reason,
+        evidence=evidence,
+        warnings=list(warnings),
+    )
 
 
 def apply_plan(
@@ -102,9 +122,8 @@ def apply_plan(
     """
 
     for choice in plan.plugins:
-        choice.target(choice.pick)
-        for override in choice.overrides:
-            choice.target(override.pick)
+        for pick in [*choice.picks, *(pick for override in choice.overrides for pick in override.picks)]:
+            choice.target(pick)
     outcomes: list[SetOutcome] = []
     for index, planned in enumerate(plan.sets):
         path = planned.path

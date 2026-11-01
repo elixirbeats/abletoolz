@@ -25,6 +25,7 @@ from abletoolz.plugins.identity.ids import PluginKind
 from abletoolz.plugins.loadable import LoadableOracle
 from abletoolz.plugins.plan import Machine, PluginChoice, Route, Target, carry
 from abletoolz.schema import Tag
+from abletoolz.schema.upgrade import vst3_upgrade
 
 EXPECTED: dict[str, dict[str, Any]] = json.loads((SKELETONS / "expected.json").read_text(encoding="utf-8"))
 
@@ -194,9 +195,10 @@ def test_a_vst3_target_is_refused_below_the_schema_that_declares_vst3(key: str) 
 
     Below the measured floor the answer must be a refusal: a set whose schema
     never declared ``Vst3PluginInfo`` is rejected by Live outright once one is
-    written into it, so the whole document is at stake, not the one device. At
-    or above the floor nothing refuses: controls in use are a cost, said in
-    the answer's warnings.
+    written into it, so the whole document is at stake, not the one device. A
+    Live 10.0 document is moved up to a schema that declares it, which the
+    answer says. At or above the floor nothing refuses: controls in use are a
+    cost, said in the answer's warnings.
     """
     ableton_set = skeleton_set(key)
     version = tuple(EXPECTED[key]["version"])
@@ -217,7 +219,15 @@ def test_a_vst3_target_is_refused_below_the_schema_that_declares_vst3(key: str) 
     machine = Machine(vst2=(), vst3={}, au=lambda identifier: False, loadable=lambda info: True)
     answers = [carry(device, choice, guess, machine) for device in devices]
     reasons = [answer if isinstance(answer, str) else None for answer in answers]
-    if set_supports(PluginKind.VST3, version):
+    minor_version = ableton_set.root.get("MinorVersion", "")
+    move = devices[0].document.move_for(PluginKind.VST3) if devices[0].document is not None else None
+    if vst3_upgrade(minor_version) is not None and move is not None and move.refusal is not None:
+        assert all(reason is not None and move.refusal in reason for reason in reasons)
+    elif vst3_upgrade(minor_version) is not None:
+        assert all(
+            not isinstance(answer, str) and "Live 10.1's document format" in answer.warnings[-1] for answer in answers
+        )
+    elif set_supports(PluginKind.VST3, version, minor_version=minor_version):
         assert reasons == [None] * len(devices)
     else:
         assert all(reason is not None and "too old" in reason for reason in reasons)

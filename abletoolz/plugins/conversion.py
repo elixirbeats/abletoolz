@@ -37,7 +37,8 @@ from abletoolz.elements import drop_envelopes, remove_children
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, SavedState
 from abletoolz.plugins.container.parameter_list import UNASSIGNED, UNASSIGNED_VISUAL_INDEX, write_live_list
 from abletoolz.plugins.container.rewritable import control_losses, refuse_stub
-from abletoolz.plugins.identity.ids import AuId, Identity, PluginKind, Vst3Id, stored_id
+from abletoolz.plugins.identity.ids import AuId, Identity, PluginKind, Vst2Id, Vst3Id, stored_id
+from abletoolz.plugins.identity.vst2_records import Vst2Source, no_vst2_records
 from abletoolz.plugins.identity.vst3_parameters import ParameterSource, Vst3Parameter, live_list
 from abletoolz.plugins.state.catalog import Converter
 from abletoolz.plugins.state.plugin_map import FormatState, PluginMap
@@ -100,6 +101,7 @@ def write(device: PluginDevice, answer: Edit | Rebuild) -> None:
             forgetting.apply()
         return
     refuse_stub(device)
+    device.move_document_for(answer.kind)  # the controls are forgotten in the shape the document ends up in
     forgetting = _forgetting(device, answer.live_list)
     device.rewrite(answer.kind, answer.identity, answer.saved_state)
     if forgetting is not None:
@@ -190,10 +192,16 @@ def _rebuild(
     to_format: PluginKind,
     written: FormatState | None,
     parameters: ParameterSource,
+    records: Vst2Source,
     notices: tuple[str, ...] = (),
 ) -> Rebuild:
     """``device`` as ``plugin_map``'s plugin in ``to_format``, holding ``written``, or no patch for None."""
     target = plugin_map.plugin_format(to_format)
+    record = None
+    if isinstance(target.id, Vst2Id):
+        record = records(target.id.unique_id)
+        if record is None:
+            raise ValueError(f"{target.name}'s VST2 is not installed here, and a VST2 device names its file")
     identity = dataclasses.replace(
         device.identity,
         kind=to_format,
@@ -201,6 +209,15 @@ def _rebuild(
         uid_fields=target.id.uid_fields if isinstance(target.id, Vst3Id) else None,
         au=target.id.identifier if isinstance(target.id, AuId) else None,
     )
+    if record is not None:
+        identity = dataclasses.replace(
+            identity,
+            unique_id=record.unique_id,
+            parameter_count=record.parameters,
+            program_count=record.programs,
+            flags=record.flags,
+            vst2=record,
+        )
     if target.registration is not None:
         identity = dataclasses.replace(
             identity, manufacturer=target.registration.manufacturer, flags=target.registration.flags
@@ -214,7 +231,12 @@ def _rebuild(
 
 
 def as_format(
-    device: PluginDevice, plugin_map: PluginMap, to_format: PluginKind, *, parameters: ParameterSource
+    device: PluginDevice,
+    plugin_map: PluginMap,
+    to_format: PluginKind,
+    *,
+    parameters: ParameterSource,
+    records: Vst2Source = no_vst2_records,
 ) -> Rebuild:
     """``device`` as the same plugin in ``to_format``, its patch carried by the plugin's map.
 
@@ -224,7 +246,7 @@ def as_format(
     """
     saved = _saved_patch(device, plugin_map)
     written = None if saved is None else plugin_map.cross(saved, device.kind, to_format)
-    return _rebuild(device, plugin_map, to_format, written, parameters)
+    return _rebuild(device, plugin_map, to_format, written, parameters, records)
 
 
 def as_plugin(
@@ -235,6 +257,7 @@ def as_plugin(
     to_format: PluginKind,
     *,
     parameters: ParameterSource,
+    records: Vst2Source = no_vst2_records,
 ) -> Rebuild:
     """``device``, a device of ``source``'s plugin, as ``target``'s plugin in ``to_format``.
 
@@ -250,4 +273,4 @@ def as_plugin(
     if saved is not None:
         converted = converter.convert(source.lift(saved, device.kind), device.saved_state.program_number)
         written, notices = target.lower(converted.patch, to_format), converted.notices
-    return _rebuild(device, target, to_format, written, parameters, tuple(notices))
+    return _rebuild(device, target, to_format, written, parameters, records, tuple(notices))

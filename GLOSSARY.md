@@ -69,7 +69,7 @@ A worked-out conversion of one plugin's own patch into another plugin's, keyed b
 _Avoid_: translation (that is a plugin-format rewrite), custom state, plugin map, codec
 
 **Plan**:
-A file listing every plugin in some sets, each with the targets it can become on this machine, the evidence for each and its devices' refusals, and the pick its devices take; `apply` carries it out. Edited by hand between the two commands.
+A file listing every plugin in some sets, each with the targets it can become on this machine, the evidence for each and its devices' refusals, and the picks its devices take, best first; `apply` carries it out. A fresh plan fills in the picks for every plugin that doesn't load here; you can change them by hand between the two commands.
 _Avoid_: mapping table, repair
 
 **Target**:

@@ -79,3 +79,15 @@ def test_lengths_that_do_not_account_for_the_state_are_refused() -> None:
     state = two(archive({"A": "1"}), archive({"A": "2"}))
     with pytest.raises(FormatError, match="do not account"):
         TwoArchives.parse(state + b" ")
+
+
+def test_a_single_precision_rewrite_spells_the_number_as_the_plugin_does() -> None:
+    data = archive({"Out": "0.5", "In": "0.5"})
+    written = NumberMap.parse(data).with_values({"Out": 11 / 35, "In": 1e-5}, single=True)
+    assert b" 3 Out 0.31428573 " in written and b" 2 In 9.9999997e-06 " in written
+
+
+def test_a_one_entry_map_of_a_string_is_not_taken_for_the_map_of_numbers() -> None:
+    tags = b"22 serialization::archive 10 0 7 0 7 1 0 0 0 4 Type 8 Template 0 0 0 7 "
+    data = archive({"Cutoff": "0.25"}, before=tags)
+    assert NumberMap.parse(data).values == {"Cutoff": 0.25}

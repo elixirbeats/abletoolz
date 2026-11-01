@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import pathlib
+import struct
 
 type UidFields = tuple[int, int, int, int]
 type AuIdentifier = tuple[int, int, int]
@@ -20,6 +22,23 @@ class PluginKind(enum.StrEnum):
     VST = "vst"
     VST3 = "vst3"
     AU = "au"
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Vst2Record:
+    """One installed VST2 as Live records it: its file, and the fields of a device's host record."""
+
+    path: pathlib.Path
+    unique_id: int
+    parameters: int
+    programs: int
+    flags: int
+    """Live's flags, not the plugin's: see :mod:`abletoolz.plugins.identity.vst2_records`."""
+    version: int
+    vst_version: int
+    category: int
+    chunks: bool
+    """Whether the plugin saves its own chunk (a preset of Type FBCh) rather than its parameters (FxBk)."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -42,6 +61,8 @@ class Identity:
     parameter_count: int | None = None
     program_count: int | None = None
     flags: int | None = None
+    vst2: Vst2Record | None = None
+    """The installed VST2 a device is written as; None for a device read from a set."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -56,6 +77,12 @@ class Vst3Id:
     """The class id a VST3 device stores, as its four signed int32."""
 
     uid_fields: UidFields
+
+    @classmethod
+    def of(cls, text: str) -> Vst3Id:
+        """From the class id as ``moduleinfo.json`` prints it, dashed or not."""
+        first, second, third, fourth = struct.unpack(">4i", bytes.fromhex(text.replace("-", "")))
+        return cls((first, second, third, fourth))
 
 
 def fourcc(code: str) -> int:

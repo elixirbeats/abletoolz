@@ -544,16 +544,19 @@ def volcano_3() -> PluginMap:
     )
 
 
-def _host_bank_plugin(key: str, name: str, unique_id: int, parameters: int, plan_name: str) -> PluginMap:
-    """An older FabFilter whose VST2 exposes no chunk, so a set holds the host's bank."""
+def _host_bank_plugin(
+    key: str, name: str, unique_id: int, parameters: int, plan_name: str, *, later: tuple[int, ...] = ()
+) -> PluginMap:
+    """An older FabFilter whose VST2 exposes no chunk, so a set holds the host's bank; ``later`` builds' sizes too."""
+    counts = (parameters, *later)
     return PluginMap(
         id=f"fabfilter.{key}",
         name=name,
         version=None,
-        scope=f"VST2 host bank of {parameters} parameters, read in the host rig",
+        scope=f"VST2 host bank of {' or '.join(map(str, counts))} parameters, read in the host rig",
         vendor="FabFilter",
         vst2=PluginFormat(Vst2Id(unique_id), name, VERBATIM, _BANK_READ, plan_name=plan_name),
-        layouts=(_bank_of(parameters),),
+        layouts=tuple(_bank_of(count) for count in counts),
     )
 
 
@@ -597,9 +600,9 @@ def saturn_1() -> PluginMap:
 
 @register
 def volcano_2() -> PluginMap:
-    # The banks of the Volcano 2 build the legacy desktop hosts are a name and 666 floats; a later build's 757 are not
-    # read, so those devices are left as they are.
-    return _host_bank_plugin("volcano-2", "FabFilter Volcano 2", 1180054124, 666, "volcano_2_vst2")
+    # The 32-bit Volcano 2's banks are a name and 666 floats; the x64 builds 2.3.1 and 2.3.2 write the same 666
+    # controls, then 91 more.
+    return _host_bank_plugin("volcano-2", "FabFilter Volcano 2", 1180054124, 666, "volcano_2_vst2", later=(757,))
 
 
 @register

@@ -291,7 +291,7 @@ def pro_q2_to_pro_q3(patch: bytes, program: int | None = None) -> Converted:
 
 # -- older FabFilters into their successors, by what both print -------------
 #
-# Pro-C and Pro-L are 32-bit plugins no current Live loads. Each converts into its successor control by control:
+# Pro-C and Pro-L each convert into their successor control by control:
 # the table under data/ holds what both plugins print at every knob step, the originals hosted on the legacy desktop,
 # and each control is written where the successor prints what the original did.
 
@@ -592,14 +592,20 @@ _GAIN_DEPTH_TIMES = 10.0
 
 
 def volcano2_to_volcano3_parameters(bank: Sequence[float], notices: list[str] | None = None) -> tuple[float, ...]:
-    """Volcano 3's 896 stored floats for Volcano 2's 666 normalized controls.
+    """Volcano 3's 896 stored floats for Volcano 2's 666 or 757 normalized controls.
 
     Volcano 2 counts its active filters; Volcano 3 marks each one used, and in a split routing (per channel or
-    mid/side) with four filters it holds Volcano 2's second and third the other way round.
+    mid/side) with four filters it holds Volcano 2's second and third the other way round. The x64 builds add XY
+    controllers, phase offsets, snaps, envelope holds and delays and MIDI curves, all Volcano 3's too, and an Ex Slot
+    source and target per slot that stand in for the slot's own unless "(Other)".
     """
+    data = _table(VOLCANO_TABLE)
+    later = data["appended"]["defaults"]
+    if len(bank) == len(data["source_controls"]) - len(later):  # the 32-bit build has none of the x64's additions
+        bank = [*bank, *later]
     source, out = _stored_by_print(VOLCANO_TABLE, "Volcano 2", "Volcano 3", bank, notices)
     _older_envelope_curves(source, out)
-    modulation = _table(VOLCANO_TABLE)["modulation"]
+    modulation = data["modulation"]
     filters = _item(source["Num Active Filters"], 4) + 1
     split = _item(source["Routing Mode"], 3) != 0
     if split and filters == 3:
@@ -616,11 +622,18 @@ def volcano2_to_volcano3_parameters(bank: Sequence[float], notices: list[str] | 
     for slot in range(1, _item(source["Num Active Slots"], 25) + 1):
         depth = source[f"Slot {slot} Level"]
         target = modulation["targets"][_item(source[f"Slot {slot} Target"], len(modulation["targets"]))]
+        driver = modulation["sources"][_item(source[f"Slot {slot} Source"], len(modulation["sources"]))].split(" ")[0]
+        ex_source = modulation["ex_sources"][_item(source[f"Ex Slot {slot} Source"], len(modulation["ex_sources"]))]
+        if ex_source != "(Other)":
+            out[f"Slot {slot} Source"], driver = float(modulation["new_sources"].index(ex_source)), "XY"
+        ex_target = modulation["ex_targets"][_item(source[f"Ex Slot {slot} Target"], len(modulation["ex_targets"]))]
+        if ex_target != "(Other)":
+            target = ex_target
+            out[f"Slot {slot} Target"] = float(new_targets.index(target))
         kind = re.sub(r"\d+", "{}", target)
         if swapped and target[:9] in ("Filter 2 ", "Filter 3 "):
             moved = ("Filter 3 " if target[7] == "2" else "Filter 2 ") + target[9:]
             out[f"Slot {slot} Target"] = float(new_targets.index(moved))
-        driver = modulation["sources"][_item(source[f"Slot {slot} Source"], len(modulation["sources"]))].split(" ")[0]
         part = target.rsplit(" ", 1)[-1]
         if target.startswith("Filter ") and part in _VOLCANO_DEPTH and driver in ("XLFO", "EG"):
             out[f"Slot {slot} Level"] = _depth_knob(_VOLCANO_DEPTH[part] * _depth(depth))
@@ -631,7 +644,11 @@ def volcano2_to_volcano3_parameters(bank: Sequence[float], notices: list[str] | 
                 limitation(
                     notices, f"slot {slot} swings {target} through silence; written as FabFilter's importer does"
                 )
-        elif depth > 0 and target != "< Target >" and kind not in _VOLCANO_DEPTH_KEPT and part not in _VOLCANO_DEPTH:
+        elif (
+            depth > 0
+            and target != "< Target >"
+            and (driver == "XY" or (kind not in _VOLCANO_DEPTH_KEPT and part not in _VOLCANO_DEPTH))
+        ):
             limitation(notices, f"slot {slot}'s depth on {target} is kept; how Volcano 3 rescales it is unmeasured")
     return tuple(out.values())
 

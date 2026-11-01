@@ -26,6 +26,7 @@ import dataclasses
 import struct
 
 from abletoolz.plugins.state.errors import StateTransformError
+from abletoolz.plugins.state.plugin_map import Layout
 
 # Live pads the preset name to a fixed field and the parameters follow it.
 LEGACY_NAME_BYTES = 28
@@ -78,3 +79,41 @@ class LegacyBank:
         """The bytes an ``.als`` holds for this bank."""
         name = self.preset_name.encode("latin1").ljust(LEGACY_NAME_BYTES, b"\x00")
         return name + struct.pack(f"<{len(self.parameters)}f", *self.parameters)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ProgramBank:
+    """A whole bank of ``programs`` fixed-size records, as a chunk or Live's FxBk holds it.
+
+    Each record is a ``name``-byte name, one 0..1 float per control, then a tail
+    the plugin keeps for itself (MIDI controller assignments, say).
+    """
+
+    programs: int
+    record: int
+    name: int
+    controls: int
+
+    @property
+    def size(self) -> int:
+        return self.programs * self.record
+
+    def layout(self) -> Layout:
+        return Layout(f"bank of {self.programs} {self.record}-byte programs", lambda patch: len(patch) == self.size)
+
+    def check(self, bank: bytes, program: int | None) -> int:
+        """``program``, refused unless ``bank`` is this shape and the program one of its own."""
+        if len(bank) != self.size:
+            raise StateTransformError(f"A bank of {self.programs} {self.record}-byte programs, not {len(bank)} bytes")
+        if program is None or not 0 <= program < self.programs:
+            raise StateTransformError(
+                f"The device's selected program {program} is not one of the bank's {self.programs}"
+            )
+        return program
+
+    def values(self, bank: bytes, program: int) -> tuple[float, ...]:
+        return struct.unpack_from(f"<{self.controls}f", bank, program * self.record + self.name)
+
+    def tail(self, bank: bytes, program: int) -> bytes:
+        start = program * self.record + self.name + 4 * self.controls
+        return bank[start : (program + 1) * self.record]

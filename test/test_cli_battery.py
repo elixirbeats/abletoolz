@@ -175,6 +175,16 @@ def test_output_dir_skips_unchanged_set(tmp_path: pathlib.Path) -> None:
     assert not list(tmp_path.glob("*.meta.yaml"))
 
 
+def test_an_in_place_save_skips_a_set_the_run_does_not_change(tmp_path: pathlib.Path) -> None:
+    """No rewrite, and so no backup and nothing to undo, for a set the edits leave as it was."""
+    copy = copy_set(tmp_path, "11.3.42", "steady.als")
+    assert run_cli(str(copy), "--fold", "-s") == 0
+    folded = copy.read_bytes()
+    assert run_cli(str(copy), "--fold", "-s") == 0
+    assert copy.read_bytes() == folded
+    assert len(list((tmp_path / "abletoolz_backup").glob("*.als"))) == 1
+
+
 def test_unfold_through_cli(tmp_path: pathlib.Path) -> None:
     copy = copy_set(tmp_path, "11.3.42", "unfold.als")
     assert run_cli(str(copy), "--unfold", "-s") == 0

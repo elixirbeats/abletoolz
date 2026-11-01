@@ -20,7 +20,7 @@ from abletoolz.plugins.config import AbletoolzConfig, load_config
 from abletoolz.plugins.plan.apply import SetOutcome, apply_plan
 from abletoolz.plugins.plan.machine import Machine
 from abletoolz.plugins.plan.make import make_plan, merge_plans, plan_set
-from abletoolz.plugins.plan.model import Plan, PlannedSet, PluginChoice, dump_plan, load_plan, take_picks
+from abletoolz.plugins.plan.model import Plan, PlannedSet, PluginChoice, UnreadSet, dump_plan, load_plan, take_picks
 from abletoolz.plugins.recovery_routes import RecoveryTarget, load_recovery_routes, resolve_recovery_targets
 from abletoolz.workers import set_workers
 
@@ -136,7 +136,7 @@ def _start_worker(plugin_dirs: list[pathlib.Path] | None, config: AbletoolzConfi
     _machine = this_machine(plugin_dirs, config=config, locations=locations)
 
 
-def _plan_in_worker(index: int, path: pathlib.Path) -> tuple[PlannedSet, list[PluginChoice]]:
+def _plan_in_worker(index: int, path: pathlib.Path) -> tuple[PlannedSet, list[PluginChoice]] | UnreadSet:
     assert _machine is not None
     return plan_set(index, path, _machine)
 

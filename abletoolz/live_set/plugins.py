@@ -87,7 +87,7 @@ class Plugins(Domain):
         super().__init__(live_set)
         self._document: PluginDevices | None = None
 
-    def _devices(self) -> PluginDevices:
+    def devices(self) -> PluginDevices:
         """The set's plugin devices, read once; dropped by anything that moves elements."""
         if self._document is None:
             self._document = PluginDevices(self._root)
@@ -95,7 +95,7 @@ class Plugins(Domain):
 
     def containing_track(self, element: ET.Element) -> ET.Element | None:
         """The track element holding ``element``, or None when it sits outside every track."""
-        return self._devices().track_of(element)
+        return self.devices().track_of(element)
 
     def track_name(self, element: ET.Element) -> str:
         """Name of the track holding ``element``; the track type when unnamed, '?' outside one."""
@@ -112,7 +112,7 @@ class Plugins(Domain):
         macOS has not registered.
         """
         refs: list[PluginRef] = []
-        for device in self._devices():
+        for device in self.devices():
             identity, stored = device.identity, device.reference.path
             exists = oracle.loads(device)
             if device.kind is PluginKind.AU:
@@ -143,7 +143,7 @@ class Plugins(Domain):
         the files the patch names.
         """
         dumps: list[str] = []
-        for device in self._devices():
+        for device in self.devices():
             dump = dump_device(device, self.track_name(device.info), max_hex=max_hex, max_decoded=max_decoded)
             dumps.append(dump)
             print(dump)

@@ -28,7 +28,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from abletoolz.ansi import G, Y
-from abletoolz.plugins.container.device import PluginDevice, PluginDevices
+from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.identity.ids import PluginKind, stored_id
 from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.errors import StateTransformError
@@ -93,7 +93,7 @@ class PluginFiles:
 
     def _devices(self) -> Iterator[_Device | PluginFile]:
         """Every device whose plugin keeps file paths, read; or a note saying why one could not be."""
-        for device in PluginDevices(self._set.root):
+        for device in self._set.plugins.devices():
             stored = stored_id(device.identity)
             plugin_map = None if stored is None else CATALOG.find(stored)
             if plugin_map is None or plugin_map.file_paths is None or device.kind not in plugin_map.formats:

@@ -43,9 +43,10 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.formats import hex_text, path_data
 from abletoolz.formats.path_data import SetOperatingSystem
-from abletoolz.plugins.identity.ids import Identity, PluginKind, UidFields, fourcc
+from abletoolz.plugins.identity.ids import Identity, PluginKind, UidFields, Vst2Record, fourcc
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.live_schemas import live_schemas
+from abletoolz.schema.upgrade import Move, is_automated, preview, upgrade, vst3_upgrade
 from abletoolz.schema.versioning import MIN_SUPPORTED, Version, parse_creator
 
 
@@ -357,7 +358,10 @@ def _set_hex(element: ET.Element, parent: ET.Element, payload: bytes) -> None:
 # from the library, by document schema: MinorVersion 9.0_305 (9 sets), 9.5_326
 # (10), 9.5_327 (22) and 10.0_370 (61) carry no Vst3PluginInfo between them,
 # while 10.0_377 -- the schema Live 10.1 writes -- carries 129 across 23 sets.
-# By Creator the same line falls between 10.0.6 and 10.1.
+# By Creator the same line falls between 10.0.6 and 10.1. Live's own schemas
+# put it at 10.0_374, the first whose Vst3PluginInfo has every member a written
+# device holds, and a document older than that can be moved up to it
+# (abletoolz.schema.upgrade), so the schema decides wherever a set names one.
 #
 # An Audio Unit has no floor of its own: every schema Live 12.4.7 ships, from
 # 8.1_220 on, declares AuPluginInfo and AuPluginDevice. What decides is whether
@@ -371,7 +375,7 @@ _FORMAT_FLOORS: dict[PluginKind, Version] = {
     PluginKind.AU: MIN_SUPPORTED,
 }
 _SCHEMA = re.compile(r"(\d+)\.(\d+)_(\d+)")
-_VST3_SCHEMA_FLOOR = (10, 0, 377)
+_VST3_SCHEMA_FLOOR = (10, 0, 374)
 
 
 def set_supports(kind: PluginKind, version: Version, *, minor_version: str | None = None) -> bool:
@@ -382,13 +386,13 @@ def set_supports(kind: PluginKind, version: Version, *, minor_version: str | Non
     one device. ``minor_version`` is the document's own schema, which an older
     document keeps when a newer Live re-saves it, and it decides over the Creator.
     """
-    if version < _FORMAT_FLOORS[kind]:
-        return False
     if kind is PluginKind.VST3 and minor_version is not None:
         schema = _SCHEMA.fullmatch(minor_version)
         if schema is None:
             return False
         return tuple(int(part) for part in schema.groups()) >= _VST3_SCHEMA_FLOOR
+    if version < _FORMAT_FLOORS[kind]:
+        return False
     if kind is PluginKind.AU:
         return _au_info_order(version, minor_version) is not None
     return True
@@ -608,9 +612,181 @@ def _write_au(device: PluginDevice, identity: Identity, preset: SavedState) -> N
     info.tag = Tag.AU_PLUGIN_INFO
 
 
-# One per format a device can be rebuilt as. A format missing here is a writer
-# nobody has measured yet, which is a fact to report, not a pair to implement.
+# Everything a VstPluginInfo holds, in the order Live writes it from 10.1 on, read
+# off every VST2 device Live wrote in schemas 10.0_377 to 12.0_12402; each schema
+# holds a subset. Live 9 and 10.0 wrote the window position after VstVersion
+# instead, and a PresetDirectory or LastPresetFolder that a rebuild leaves out.
+_VST2_INFO_ORDER = (
+    Tag.WIN_POS_X,
+    Tag.WIN_POS_Y,
+    Tag.NUM_AUDIO_INPUTS,
+    Tag.NUM_AUDIO_OUTPUTS,
+    Tag.IS_PLACEHOLDER_DEVICE,
+    Tag.DIR,
+    Tag.FILE_NAME,
+    Tag.PATH,
+    Tag.PLUG_NAME,
+    Tag.UNIQUE_ID,
+    Tag.INPUTS,
+    Tag.OUTPUTS,
+    Tag.NUMBER_OF_PARAMETERS,
+    Tag.NUMBER_OF_PROGRAMS,
+    Tag.FLAGS,
+    Tag.PRESET,
+    Tag.VERSION,
+    Tag.VST_VERSION,
+    Tag.IS_SHELL_CLIENT,
+    Tag.CATEGORY,
+)
+_VST2_INFO_ORDER_BEFORE_10_1 = (
+    *_VST2_INFO_ORDER[_VST2_INFO_ORDER.index(Tag.DIR) : _VST2_INFO_ORDER.index(Tag.IS_SHELL_CLIENT)],
+    Tag.WIN_POS_X,
+    Tag.WIN_POS_Y,
+    Tag.IS_SHELL_CLIENT,
+    Tag.CATEGORY,
+)
+
+# The 13 shared preset tags, then the preset's own record of the plugin.
+_VST2_PRESET_ORDER = (
+    *_VST3_PRESET_ORDER[: _VST3_PRESET_ORDER.index(Tag.UID)],
+    Tag.TYPE,
+    Tag.PROGRAM_COUNT,
+    Tag.PARAMETER_COUNT,
+    Tag.PROGRAM_NUMBER,
+    Tag.BUFFER,
+    Tag.NAME,
+    Tag.PLUGIN_VERSION,
+    Tag.UNIQUE_ID,
+    Tag.BYTE_ORDER,
+    Tag.PRESET_REF,
+)
+# A VST2 preset's Type: the plugin's own chunk, or a bank of its parameters.
+_CHUNK_BANK = fourcc("FBCh")
+_PARAMETER_BANK = fourcc("FxBk")
+# What Live writes for every VST2 preset it saves, and for every device's channels.
+_BYTE_ORDER = "2"
+_CHANNELS = "0"
+
+
+def _vst2_values(identity: Identity, record: Vst2Record) -> dict[str, str]:
+    """The host record of a VST2 device of ``record``'s plugin, by tag."""
+    assert identity.name is not None
+    return {
+        Tag.PLUG_NAME: identity.name,
+        Tag.UNIQUE_ID: str(record.unique_id),
+        Tag.INPUTS: _CHANNELS,
+        Tag.OUTPUTS: _CHANNELS,
+        Tag.NUMBER_OF_PARAMETERS: str(record.parameters),
+        Tag.NUMBER_OF_PROGRAMS: str(record.programs),
+        Tag.FLAGS: str(record.flags),
+        Tag.VERSION: str(record.version),
+        Tag.VST_VERSION: str(record.vst_version),
+        Tag.IS_SHELL_CLIENT: "false",
+        Tag.CATEGORY: str(record.category),
+    }
+
+
+def _vst2_preset_values(record: Vst2Record, preset: SavedState) -> dict[str, str]:
+    """The preset's own record of ``record``'s plugin, by tag."""
+    return {
+        Tag.TYPE: str(_CHUNK_BANK if record.chunks else _PARAMETER_BANK),
+        Tag.PROGRAM_COUNT: str(record.programs),
+        Tag.PARAMETER_COUNT: str(record.parameters),
+        Tag.PROGRAM_NUMBER: str(preset.program_number or 0),
+        Tag.PLUGIN_VERSION: str(record.version),
+        Tag.UNIQUE_ID: str(record.unique_id),
+        Tag.BYTE_ORDER: _BYTE_ORDER,
+    }
+
+
+def _set_values(parent: ET.Element, values: dict[str, str]) -> None:
+    """Each tag's Value, on the child that has it or on a new one appended for a rebuild to place."""
+    for tag, value in values.items():
+        child = parent.find(tag)
+        if child is None:
+            parent.append(ET.Element(tag, {Attr.VALUE: value}))
+        else:
+            child.set(Attr.VALUE, value)
+
+
+def _write_vst2(device: PluginDevice, identity: Identity, preset: SavedState) -> None:
+    """Write ``device``'s element as the VstPluginInfo Live writes for ``identity.vst2``'s plugin.
+
+    A VST2 device of another plugin is edited in place, so its set's own layout
+    and every field the two share stay as they are; a VST3 or Audio Unit device
+    is rebuilt in the layout its set's schema holds.
+    """
+    record = identity.vst2
+    if identity.name is None or record is None:
+        raise ValueError("a VST2 device needs a name and the installed plugin it is written as")
+    info = device.info
+    preset_element = device._require_preset()
+    # Every lookup that can refuse comes before the first edit, so a refusal leaves the device as read.
+    state = device._require(_STATE_TAGS[device.kind], preset_element)
+    if device.kind is PluginKind.VST:
+        _set_file(info, record.path)
+        _set_values(info, _vst2_values(identity, record))
+        _set_values(preset_element, _vst2_preset_values(record, preset))
+        _set_hex(state, preset_element, preset.state)
+        return
+    document = device._document()
+    declared = live_schemas().members_of(document.minor_version, Tag.VST_PLUGIN_INFO)
+    # Live 11 replaced Dir and FileName with Path.
+    by_path = document.version >= (11, 0, 0) if declared is None else Tag.PATH in declared
+    info_closing = info[-1].tail
+    preset_closing = preset_element[-1].tail
+    preset_element.tag = Tag.VST_PRESET
+    state.tag = Tag.BUFFER
+    _set_hex(state, preset_element, preset.state)
+    _set_values(preset_element, _vst2_preset_values(record, preset))
+    _rebuild(preset_element, _VST2_PRESET_ORDER, preset_closing)
+
+    if by_path:
+        info.append(ET.Element(Tag.PATH, {Attr.VALUE: ""}))
+    else:
+        directory = ET.SubElement(info, Tag.DIR)
+        ET.SubElement(directory, Tag.TYPE, {Attr.VALUE: "2"})
+        ET.SubElement(directory, Tag.DATA)
+        info.append(ET.Element(Tag.FILE_NAME, {Attr.VALUE: ""}))
+    _set_file(info, record.path)
+    _set_values(info, _vst2_values(identity, record))
+    holds_vst3 = live_schemas().declares_class(document.minor_version, Tag.VST3_PLUGIN_INFO)
+    order = _VST2_INFO_ORDER if holds_vst3 or document.version >= (10, 1, 0) else _VST2_INFO_ORDER_BEFORE_10_1
+    _rebuild(
+        info, tuple(tag for tag in order if declared is None or tag in declared or tag == Tag.PRESET), info_closing
+    )
+    info.tag = Tag.VST_PLUGIN_INFO
+
+
+def _set_file(info: ET.Element, target: pathlib.Path) -> None:
+    """Point a VST2 or VST3 info element at ``target``, in whichever form it already spells its file.
+
+    A ``Dir`` blob is written in the Windows form whatever form it was read
+    in, as the library always has; see :mod:`abletoolz.formats.path_data`.
+    """
+    # A Windows path handed over on another OS is one component to pathlib;
+    # read it as Windows spells it, so its folder and file name come apart.
+    spelled: pathlib.PurePath = pathlib.PureWindowsPath(target) if "\\" in str(target) else target
+    directory = info.find(Tag.DIR)
+    if directory is not None:
+        data = directory.find(Tag.DATA)
+        kind = directory.find(Tag.TYPE)
+        file_name = info.find(Tag.FILE_NAME)
+        if data is None or kind is None or file_name is None:
+            raise ValueError(f"{info.tag} keeps a {Tag.DIR} without its {Tag.TYPE}, {Tag.DATA} or {Tag.FILE_NAME}")
+        _set_hex(data, directory, path_data.encode(str(spelled.parent)))
+        kind.set(Attr.VALUE, "2")
+        file_name.set(Attr.VALUE, spelled.name)
+        return
+    direct = info.find(Tag.PATH)
+    if direct is None:
+        raise ValueError(f"{info.tag} stores no file to point at")
+    direct.set(Attr.VALUE, spelled.as_posix())
+
+
+# One per format a device can be rebuilt as.
 _WRITERS: dict[PluginKind, Callable[[PluginDevice, Identity, SavedState], None]] = {
+    PluginKind.VST: _write_vst2,
     PluginKind.VST3: _write_vst3,
     PluginKind.AU: _write_au,
 }
@@ -770,20 +946,7 @@ class PluginDevice:
         """
         if self.kind is PluginKind.AU:
             raise ValueError("an Audio Unit device points at no file")
-        # A Windows path handed over on another OS is one component to pathlib;
-        # read it as Windows spells it, so its folder and file name come apart.
-        spelled: pathlib.PurePath = pathlib.PureWindowsPath(target) if "\\" in str(target) else target
-        directory = self.info.find(Tag.DIR) if self.kind is PluginKind.VST else None
-        if directory is not None:
-            data = self._require(Tag.DATA, directory)
-            _set_hex(data, directory, path_data.encode(str(spelled.parent)))
-            self._require(Tag.TYPE, directory).set(Attr.VALUE, "2")
-            self._require(Tag.FILE_NAME).set(Attr.VALUE, spelled.name)
-            return
-        direct = self.info.find(Tag.PATH)
-        if direct is None:
-            raise ValueError(f"{self.info.tag} stores no file to point at")
-        direct.set(Attr.VALUE, spelled.as_posix())
+        _set_file(self.info, target)
 
     def set_state(self, payload: bytes) -> None:
         """Replace the preset bytes; nothing at all is the empty element Live writes."""
@@ -832,10 +995,23 @@ class PluginDevice:
             owner = None if self.document is None else self.owner
             if owner is None:
                 raise ValueError(f"moving a device into or out of an {Tag.AU_PLUGIN_DEVICE} needs its owner element")
+        self.move_document_for(kind)
         writer(self, identity, preset)
         if owner is not None:
             owner.tag = Tag.AU_PLUGIN_DEVICE if kind is PluginKind.AU else Tag.PLUGIN_DEVICE
         self.kind = kind
+
+    def move_document_for(self, kind: PluginKind) -> None:
+        """Move the document up to the schema that holds ``kind``, when it has to; :meth:`rewrite` does it first.
+
+        Work read off the device's own elements to go with a rewrite -- its
+        list of controls, say -- reads them after this, in the new schema's shape.
+        """
+        schema = None if self.document is None else self.document.upgrade_for(kind)
+        if schema is not None:
+            assert self.document is not None
+            upgrade(self.document.root, schema)
+            self.document.changed()
 
     # -- the element --
 
@@ -902,10 +1078,20 @@ class PluginDevices:
 
     @functools.cached_property
     def pointees(self) -> collections.Counter[str]:
-        """How often something in the document points at each automation or modulation target id."""
-        return collections.Counter(
+        """How often something in the document points at each automation or modulation target id.
+
+        A Live 9 parameter keeps its arrangement envelope inline, which points at its own target.
+        """
+        found = collections.Counter(
             element.attrib[Attr.VALUE] for element in self.root.iter(Tag.POINTEE_ID) if Attr.VALUE in element.attrib
         )
+        parents = self.parents
+        for arranger in self.root.iter(Tag.ARRANGER_AUTOMATION):
+            target = parents[arranger].find(Tag.AUTOMATION_TARGET)
+            events = arranger.find(Tag.EVENTS)
+            if target is not None and Attr.ID in target.attrib and events is not None and is_automated(events):
+                found[target.attrib[Attr.ID]] += 1
+        return found
 
     @property
     def referenced_ids(self) -> frozenset[str]:
@@ -914,7 +1100,7 @@ class PluginDevices:
 
     def changed(self) -> None:
         """Forget what was read off the document, after an edit moved or removed elements."""
-        for cached in ("parents", "pointees"):
+        for cached in ("parents", "pointees", "_vst3_move"):
             self.__dict__.pop(cached, None)
 
     def track_of(self, element: ET.Element) -> ET.Element | None:
@@ -940,3 +1126,19 @@ class PluginDevices:
     def supports(self, kind: PluginKind) -> bool:
         """Whether this document may hold ``kind``'s info element at all."""
         return set_supports(kind, self.version, minor_version=self.minor_version)
+
+    def upgrade_for(self, kind: PluginKind) -> str | None:
+        """The schema this document moves to before it holds ``kind``, or None when no move is needed or possible."""
+        if kind is not PluginKind.VST3 or self.supports(kind):
+            return None
+        return vst3_upgrade(self.minor_version)
+
+    def move_for(self, kind: PluginKind) -> Move | None:
+        """What moving this document up to hold ``kind`` does, or None when no move is needed or possible."""
+        return None if self.upgrade_for(kind) is None else self._vst3_move
+
+    @functools.cached_property
+    def _vst3_move(self) -> Move:
+        schema = vst3_upgrade(self.minor_version)
+        assert schema is not None  # only asked for by move_for
+        return preview(self.root, schema)

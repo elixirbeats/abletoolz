@@ -132,6 +132,19 @@ def test_a_translation_into_the_same_plugin_is_its_map_s_job() -> None:
 
 
 SHIPPED = {
+    ("aas.lounge-lizard-3", "spectrasonics.keyscape"),
+    ("aas.lounge-lizard-ep-4", "spectrasonics.keyscape"),
+    ("arturia.analog-lab-4", "arturia.analog-lab-v"),
+    ("arturia.arp-2600-v2", "arturia.arp-2600-v3"),
+    ("arturia.cs-80-v2", "arturia.cs-80-v3"),
+    ("arturia.cs-80-v2-10-voices", "arturia.cs-80-v3"),
+    ("arturia.cs-80v", "arturia.cs-80-v3"),
+    ("arturia.cs-80v-10-voices", "arturia.cs-80-v3"),
+    ("arturia.minimoog-v-original", "arturia.mini-v3"),
+    ("arturia.modular-v2", "arturia.modular-v3"),
+    ("arturia.piano-v2", "arturia.piano-v3"),
+    ("arturia.prophet-v2", "arturia.prophet-v3"),
+    ("arturia.wurli-v2", "arturia.wurli-v3"),
     ("fabfilter.pro-c-1", "fabfilter.pro-c-2"),
     ("fabfilter.pro-c-1-sc", "fabfilter.pro-c-2"),
     ("fabfilter.pro-l-1", "fabfilter.pro-l-2"),
@@ -140,10 +153,13 @@ SHIPPED = {
     ("fabfilter.saturn-1", "fabfilter.saturn-2"),
     ("fabfilter.timeless-2", "fabfilter.timeless-3"),
     ("fabfilter.volcano-2", "fabfilter.volcano-3"),
+    ("izotope.ozone-8-elements", "izotope.ozone-9"),
     ("izotope.trash1", "izotope.trash2"),
     ("korg.legacy-cell", "arturia.korg-ms-20-v"),
     ("korg.ms-20", "arturia.korg-ms-20-v"),
+    ("native-instruments.absynth-3", "native-instruments.absynth-5"),
     ("ni.pro-53", "arturia.prophet-5-v"),
+    ("ohm-force.ohmicide", "ohm-force.ohmicide-s"),
     ("surge-synth-team.surge-1", "surge-synth-team.surge-xt"),
     ("xfer.serum", "xfer.serum-2"),
 }
@@ -165,7 +181,7 @@ def test_every_shipped_translation_is_found_from_its_two_plugins_and_goes_one_wa
         (1179677236, "fabfilter.pro-c-1-sc", "fabfilter.pro-c-2", 31),
         (1179667570, "fabfilter.pro-l-1", "fabfilter.pro-l-2", 19),
         (1179869556, "fabfilter.saturn-1", "fabfilter.saturn-2", 899),
-        (1180054124, "fabfilter.volcano-2", "fabfilter.volcano-3", 666),
+        (1180054124, "fabfilter.volcano-2", "fabfilter.volcano-3", 757),
         (1179938163, "fabfilter.timeless-2", "fabfilter.timeless-3", 705),
     ],
 )
@@ -371,6 +387,26 @@ def test_an_izotope_chunk_is_the_plugin_s_patch_and_holds_the_vst3_state() -> No
         ozone.plugin_format(VST3).framing.lift(state)
     with pytest.raises(StateTransformError, match="no recorded layout"):
         ozone.lift(FormatState(b"not a wrapper"), VST2)
+
+
+def test_a_stutter_edit_2_tree_crosses_to_vst3_behind_the_long_juce_trailer_and_back() -> None:
+    """The VST2 chunk is the JUCE tree; the VST3 adds JUCE's trailer with its Bypass tree and no controller half."""
+    stutter = plugin(Vst2Id(1400128818))
+    tree = b"PluginState\x00\x01\x02version\x00\x01\x0a\x052.0.0b34\x00"
+    vst3 = cross(stutter.plugin_format(VST2).id, tree, VST2, VST3)
+    assert vst3.controller == b""
+    assert (
+        vst3.state
+        == tree
+        + bytes(8)
+        + b"JUCEPrivateData\x00\x01\x01Bypass\x00\x01\x01\x03\x00"
+        + (29).to_bytes(8, "little")
+        + b"JUCEPrivateData"
+    )
+    assert plugin(stutter.plugin_format(VST3).id) is stutter
+    assert cross(stutter.plugin_format(VST3).id, vst3.state, VST3, VST2).state == tree
+    with pytest.raises(StateTransformError, match="no recorded layout"):
+        stutter.lift(FormatState(b"not a tree"), VST2)
 
 
 # -- Kilohearts ----------------------------------------------------------------

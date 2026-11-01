@@ -51,7 +51,9 @@ def test_every_printed_control_writes_back_what_it_reads(key: str) -> None:
     control = controls()[key]
     for requested, _ in DISPLAYS[key]:
         value = control.value(requested)
-        assert control.value(control.normalized(value)) == pytest.approx(value, rel=1e-9, abs=1e-12)
+        assert control.value(control.normalized(value)) == (
+            value if isinstance(value, str) else pytest.approx(value, rel=1e-9, abs=1e-12)
+        )
 
 
 def test_only_the_fx_switch_and_slot_type_go_unprinted() -> None:

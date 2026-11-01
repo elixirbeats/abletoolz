@@ -20,10 +20,11 @@ RETIRED_SECTIONS = ("plugin_upgrades", "plugin_parsers", "plugin_translation.tar
 class AbletoolzConfig:
     """Config container."""
 
-    sample_paths: list[pathlib.Path] = field(default_factory=list)
+    # Content folders shared by the sample and plugin-file catalogs.
+    file_paths: list[pathlib.Path] = field(default_factory=list)
     # Extra plugin folders on top of this OS's standard ones: the plugin
-    # database scans them and the plugin checks look in them. The sample
-    # database takes its folders the same way.
+    # database scans them and the plugin checks look in them. The file
+    # catalogs take their folders from file_paths.
     plugin_paths: list[pathlib.Path] = field(default_factory=list)
     # A probed file of VST3 class ids the plugin database reads beside its own
     # sources; see plugins.identity.uid_sources.read_uid_db.
@@ -31,7 +32,7 @@ class AbletoolzConfig:
 
 
 def load_config(path: pathlib.Path) -> AbletoolzConfig:
-    """Load config from the YAML file at ``path``. Returns empty config if missing/invalid."""
+    """Read settings; reject the retired sample_database section with ValueError."""
     config = AbletoolzConfig()
 
     if not path.exists():
@@ -41,8 +42,11 @@ def load_config(path: pathlib.Path) -> AbletoolzConfig:
         logger.info("Loading config from: %s", path)
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
-        if "sample_database" in raw and "paths" in raw["sample_database"]:
-            config.sample_paths = [pathlib.Path(p) for p in raw["sample_database"]["paths"]]
+        if "sample_database" in raw:
+            raise ValueError("config.yaml: sample_database was renamed to file_database; rename that section.")
+
+        if "file_database" in raw and "paths" in raw["file_database"]:
+            config.file_paths = [pathlib.Path(p) for p in raw["file_database"]["paths"]]
 
         plugin_database = raw.get("plugin_database") or {}
         if "paths" in plugin_database:

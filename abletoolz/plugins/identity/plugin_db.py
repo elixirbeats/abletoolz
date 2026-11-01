@@ -4,7 +4,7 @@ The same idea as the sample database: reading the machine is slow and every
 plugin command needs the same answers, so the scan happens once, lands in a
 JSON file beside the sample catalog in the user config dir, and everything else
 reads the file. ``--plugin-db`` builds it; ``plugin_database.paths`` in
-config.yaml adds plugin folders, exactly as ``sample_database.paths`` does.
+config.yaml adds plugin folders, exactly as ``file_database.paths`` does.
 
 What it holds is identity, not opinion
 --------------------------------------

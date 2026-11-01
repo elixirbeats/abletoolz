@@ -228,11 +228,10 @@ def test_a_refused_rewrite_leaves_the_device_as_it_was_read(kind: PluginKind) ->
     assert device.kind is PluginKind.VST
 
 
-def test_only_measured_formats_have_a_writer() -> None:
-    assert has_writer(PluginKind.VST3) and has_writer(PluginKind.AU)
-    assert not has_writer(PluginKind.VST)
+def test_every_format_has_a_writer_and_a_vst2_needs_its_installed_plugin() -> None:
+    assert all(has_writer(kind) for kind in PluginKind)
     device = next(device for device in PluginDevices(skeleton("11.3.42")) if device.kind is PluginKind.VST3)
-    with pytest.raises(ValueError, match="no writer"):
+    with pytest.raises(ValueError, match="installed plugin"):
         device.rewrite(PluginKind.VST, device.identity, device.saved_state)
 
 

@@ -25,7 +25,7 @@ import gzip
 import json
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TypedDict, cast
 
@@ -71,13 +71,15 @@ class LiveSchemas:
     change_counts: tuple[int | None, ...]
     classes: dict[str, int]
     members: dict[str, dict[str, dict[str, int]]]
+    _bits: dict[str, int] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        # A walk over a set asks for a bit millions of times; a search of the versions each time adds up.
+        object.__setattr__(self, "_bits", {version: 1 << index for index, version in enumerate(self.minor_versions)})
 
     def bit(self, minor_version: str) -> int | None:
         """The schema's bit in every mask, or None when Live ships no schema of that ``MinorVersion``."""
-        try:
-            return 1 << self.minor_versions.index(minor_version)
-        except ValueError:
-            return None
+        return self._bits.get(minor_version)
 
     def member_type(self, minor_version: str, owner: str, member: str) -> str | None:
         """The class ``owner``'s ``member`` holds in that schema, or None when it declares no such member."""

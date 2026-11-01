@@ -79,6 +79,8 @@ def to_xml_bytes(root: ET.Element) -> bytes:
 
 def parse(data: bytes) -> ET.Element:
     """The ``<Ableton>`` root of a document, compressed or not."""
+    if not data:
+        raise FormatError("an empty file, not a Live document")
     magic = data[:2]
     if magic == PRE_8_2_MAGIC:
         raise Pre82DocumentError("a document from before Live 8.2, which is not supported")

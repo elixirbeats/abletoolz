@@ -1,7 +1,6 @@
 """Pro-53 patches into Prophet-5 V, control by control, each by the best evidence there is.
 
-Pro-53 is a 32-bit plugin no current Live loads, and Prophet-5 V is Arturia's
-model of the same synth. The two engines share the front panel and little under
+Prophet-5 V is Arturia's model of the same synth. The two engines share the front panel and little under
 it, so a patch is rebuilt into the Prophet-5 V baseline (its init patch with every
 macro removed, the state its map was measured on) from both plugins' maps, in
 the units each one prints. Every Pro-53 control goes one of these ways, and each

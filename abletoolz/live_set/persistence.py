@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
+import json
 import logging
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 from abletoolz.ansi import B, G, R, Y
 from abletoolz.formats import FormatError, live_document
+from abletoolz.machine import Locations
 
 if TYPE_CHECKING:
     from abletoolz.live_set.document import AbletonSet
@@ -25,6 +29,13 @@ if sys.platform == "win32":
 logger = logging.getLogger(__name__)
 
 BACKUP_DIR = "abletoolz_backup"
+# Under abletoolz's config folder: one small JSON file per in-place save, so ``abletoolz undo`` can put it back.
+UNDO_DIR = "undo"
+# The command a save belongs to, so undo puts back a whole run. ``cli.main`` sets both before any worker starts,
+# and workers inherit them; a save from Python without the command line is its own process's run.
+RUN_ENV = "ABLETOOLZ_RUN"
+COMMAND_ENV = "ABLETOOLZ_COMMAND"
+_PROCESS_RUN = f"{time.time_ns()}-{os.getpid()}"
 
 # Live's own backup folder, and the one abletoolz writes. A set inside either is
 # a copy of one the user already has.
@@ -84,8 +95,8 @@ def unclaimed_path(pathlib_obj: pathlib.Path) -> pathlib.Path:
         ending_int += 1
 
 
-def create_backup(pathlib_obj: pathlib.Path) -> None:
-    """Copy file to the backup directory, never replacing an earlier backup there.
+def create_backup(pathlib_obj: pathlib.Path) -> pathlib.Path:
+    """Copy file to the backup directory, never replacing an earlier backup there; answers the backup's path.
 
     A copy, not a move: the original stays at its path until the new file
     replaces it in one step, so an interrupted save leaves the old file there.
@@ -103,6 +114,35 @@ def create_backup(pathlib_obj: pathlib.Path) -> None:
     partial = backup_path.with_name(backup_path.name + ".tmp")
     shutil.copy2(pathlib_obj, partial)
     os.replace(partial, backup_path)
+    return backup_path
+
+
+def undo_journal() -> pathlib.Path:
+    """The folder of undo records, under this computer's abletoolz config folder."""
+    return Locations.this_computer().config_dir / UNDO_DIR
+
+
+def record_save(path: pathlib.Path, backup: pathlib.Path, document: bytes) -> None:
+    """Note that ``document`` replaced the set at ``path``, whose previous bytes are now at ``backup``.
+
+    One file per save, named by time, so workers saving sets at once never write the same file.
+    """
+    entry = {
+        "run": os.environ.get(RUN_ENV, _PROCESS_RUN),
+        "command": os.environ.get(COMMAND_ENV, "Python"),
+        "set": str(path.resolve()),
+        "backup": str(backup.resolve()),
+        "sha256": hashlib.sha256(document).hexdigest(),
+        # Backup names are reused once undo moves or trim deletes one, so the record names the bytes too.
+        "backup_sha256": hashlib.sha256(backup.read_bytes()).hexdigest(),
+        "saved": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    journal = undo_journal()
+    try:
+        journal.mkdir(parents=True, exist_ok=True)
+        (journal / f"{time.time_ns()}-{os.getpid()}.json").write_text(json.dumps(entry), encoding="utf-8")
+    except OSError as error:  # the set is saved and backed up either way; only undo loses track of it
+        logger.warning("%sSaved %s, but abletoolz undo won't know about it: %s", Y, path, error)
 
 
 def read_set(live_set: AbletonSet) -> bool:
@@ -195,8 +235,9 @@ def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> No
     # must fail loudly here, while the original file is still in place.
     document = live_document.encode(live_set.root)
     if output_dir is None:
-        create_backup(live_set.path)
+        backup = create_backup(live_set.path)
         write_set(live_set, document)
+        record_save(live_set.path, backup, document)
         return
     output_dir.mkdir(parents=True, exist_ok=True)
     wanted = output_dir / live_set.path.name
@@ -219,6 +260,7 @@ def save_in_place(path: pathlib.Path, root: ET.Element) -> None:
     """Write ``root`` over the set at ``path`` the way ``-s`` does: original to the backup folder, times kept."""
     document = live_document.encode(root)
     times = path.stat()
-    create_backup(path)
+    backup = create_backup(path)
     live_document.write(path, document)
     os.utime(path, (times.st_atime, times.st_mtime))
+    record_save(path, backup, document)
