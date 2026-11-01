@@ -4,7 +4,9 @@ Only what would leave a set Live cannot open refuses a device (:func:`refusal`):
 
 * a stub device -- a set that never says what the device is -- cannot be
   rebuilt as another format, since nothing in it says what to build;
-* a document older than the target format's floor cannot hold it at all.
+* a document older than the target format's floor cannot hold it at all,
+  unless it can be moved to a schema that does (:func:`upgrade_note`) and holds
+  nothing that move cannot carry.
 
 Everything else is a cost, said up front and paid when the device is written
 (:func:`control_losses`): automation and clip envelopes, MIDI and macro
@@ -49,8 +51,31 @@ def refusal(device: PluginDevice, to: PluginKind) -> str | None:
         return "the set never says what this device is"
     assert device.document is not None  # read through PluginDevices
     if not device.document.supports(to):
-        return f"the set is too old to hold a {FORMAT_LABELS[to]} device; open and save it in Live first"
+        move = device.document.move_for(to)
+        if move is None:
+            return f"the set is too old to hold a {FORMAT_LABELS[to]} device; open and save it in Live first"
+        if move.refusal is not None:
+            label = FORMAT_LABELS[to]
+            return f"the set cannot move up to hold a {label} device: {move.refusal}; open and save it in Live first"
     return None
+
+
+def upgrade_note(device: PluginDevice, to: PluginKind) -> str | None:
+    """What writing a ``to`` device does to the whole set, when its document has to move to a newer schema first."""
+    assert device.document is not None  # read through PluginDevices
+    move = device.document.move_for(to)
+    if move is None:
+        return None
+    changes = []
+    if move.envelopes:
+        changes.append(f"moving its {move.envelopes} arrangement envelopes from their parameters onto their tracks")
+    if move.removed:
+        changes.append(f"removing what that format no longer stores ({', '.join(move.removed)})")
+    said = "".join(f", {change}" for change in changes)
+    return (
+        f"the set is moved to Live 10.1's document format ({move.to}) to hold a {FORMAT_LABELS[to]} device{said}; "
+        "Live finishes the upgrade when it saves the set"
+    )
 
 
 def control_losses(device: PluginDevice) -> tuple[str, ...]:

@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 
 from abletoolz.plugins.container.device import PluginDevice
-from abletoolz.plugins.container.rewritable import control_losses, refusal
+from abletoolz.plugins.container.rewritable import control_losses, refusal, upgrade_note
 from abletoolz.plugins.conversion import Answer, Edit, Rebuild, as_format, as_plugin
 from abletoolz.plugins.identity.ids import PluginKind
 from abletoolz.plugins.plan.evidence import _converter, _map_by_id
@@ -25,8 +25,18 @@ def carry(device: PluginDevice, choice: PluginChoice, target: Target, machine: M
     """What ``device``, one of ``choice``'s, becomes as ``target`` on ``machine``: a refusal, or what to write.
 
     ``machine`` holds the recovery routes a recovery target names, and reads
-    this machine's VST3 parameters for a device carrying Live's own list.
+    this machine's VST3 parameters for a device carrying Live's own list. A
+    rebuild into a format the set's document must move up to hold says so.
     """
+    answer = _carry(device, choice, target, machine)
+    if isinstance(answer, Rebuild):
+        note = upgrade_note(device, answer.kind)
+        if note is not None:
+            return dataclasses.replace(answer, warnings=(*answer.warnings, note))
+    return answer
+
+
+def _carry(device: PluginDevice, choice: PluginChoice, target: Target, machine: Machine) -> Answer:
     match target.route:
         case Route.RECOVERY:
             found = next((item for item in machine.recovery if item.route.id == target.route_id), None)
@@ -57,8 +67,16 @@ def carry(device: PluginDevice, choice: PluginChoice, target: Target, machine: M
     try:
         source, written = _map_by_id(choice.map_id), _map_by_id(target.map_id)
         if target.route is Route.FORMAT:
-            return as_format(device, source, target.format, parameters=machine.parameters)
+            return as_format(device, source, target.format, parameters=machine.parameters, records=machine.vst2_records)
         converter = _converter(source.id, written.id)
-        return as_plugin(device, converter, source, written, target.format, parameters=machine.parameters)
+        return as_plugin(
+            device,
+            converter,
+            source,
+            written,
+            target.format,
+            parameters=machine.parameters,
+            records=machine.vst2_records,
+        )
     except ValueError as error:  # StateTransformError, or a device the conversion cannot read
         return str(error)

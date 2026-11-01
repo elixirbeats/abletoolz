@@ -38,6 +38,7 @@ class Tag(enum.StrEnum):
     MASTER_TRACK = "MasterTrack"
     PRE_HEAR_TRACK = "PreHearTrack"
     NAME = "Name"
+    COLOR_INDEX = "ColorIndex"
 
     # A track's chain, and the devices in it. A rack holds further chains.
     DEVICE_CHAIN = "DeviceChain"
@@ -136,6 +137,11 @@ class Tag(enum.StrEnum):
     NUMBER_OF_PARAMETERS = "NumberOfParameters"
     NUMBER_OF_PROGRAMS = "NumberOfPrograms"
     FLAGS = "Flags"
+    INPUTS = "Inputs"
+    OUTPUTS = "Outputs"
+    VERSION = "Version"
+    VST_VERSION = "VstVersion"
+    IS_SHELL_CLIENT = "IsShellClient"
     DEVICE_TYPE = "DeviceType"
     UID = "Uid"
     WIN_POS_X = "WinPosX"
@@ -164,6 +170,8 @@ class Tag(enum.StrEnum):
     PROGRAM_COUNT = "ProgramCount"
     PARAMETER_COUNT = "ParameterCount"
     PROGRAM_NUMBER = "ProgramNumber"
+    PLUGIN_VERSION = "PluginVersion"
+    BYTE_ORDER = "ByteOrder"
 
     # A plugin preset's own settings, shared by VstPreset and Vst3Preset.
     OVERWRITE_PROTECTION_NUMBER = "OverwriteProtectionNumber"
@@ -186,7 +194,9 @@ class Attr(enum.StrEnum):
     VALUE = "Value"
     ID = "Id"
     CREATOR = "Creator"
+    MAJOR_VERSION = "MajorVersion"
     MINOR_VERSION = "MinorVersion"
+    SCHEMA_CHANGE_COUNT = "SchemaChangeCount"
     DIR = "Dir"
 
     # Clip events: warp markers and MIDI notes.

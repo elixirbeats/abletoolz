@@ -267,7 +267,7 @@ def test_a_file_an_older_version_wrote_is_read_past_rather_than_failing_the_comm
 
 
 def test_config_paths_are_read_alongside_the_standard_locations(tmp_path: pathlib.Path, locations: Locations) -> None:
-    """plugin_database.paths does for plugins what sample_database.paths does for samples."""
+    """plugin_database.paths does for plugins what file_database.paths does for samples."""
     write_moduleinfo(tmp_path / "Standard", "Standard", audio_module("00" * 15 + "63", "Standard"))
     write_moduleinfo(tmp_path / "Elsewhere", "Extra", audio_module("00" * 15 + "64", "Extra"))
     here = dataclasses.replace(locations, vst_dirs=(tmp_path / "Standard",))

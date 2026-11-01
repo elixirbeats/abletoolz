@@ -7,6 +7,7 @@ import datetime
 import enum
 import hashlib
 import pathlib
+from collections.abc import Callable
 
 import pydantic
 
@@ -14,7 +15,6 @@ from abletoolz.plugins.identity.ids import PluginKind, UidFields
 from abletoolz.plugins.identity.plugin_db import FORMAT_LABELS
 
 PLAN_VERSION = 2
-KEEP = "keep"
 
 
 class Route(enum.StrEnum):
@@ -71,13 +71,13 @@ class DeviceRef(pydantic.BaseModel):
 
 
 class Override(pydantic.BaseModel):
-    """One device that takes a different pick from the rest of its plugin's devices."""
+    """One device that takes different picks from the rest of its plugin's devices; none keeps it as it is."""
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
     set: int
     device: int
-    pick: str
+    picks: list[str] = pydantic.Field(default_factory=list)
 
 
 class PluginChoice(pydantic.BaseModel):
@@ -93,13 +93,11 @@ class PluginChoice(pydantic.BaseModel):
     broken: bool
     devices: list[DeviceRef]
     targets: list[Target] = pydantic.Field(default_factory=list)
-    pick: str = KEEP
+    picks: list[str] = pydantic.Field(default_factory=list)
     overrides: list[Override] = pydantic.Field(default_factory=list)
 
-    def target(self, pick: str) -> Target | None:
-        """The target ``pick`` names exactly, None for keep; an unknown name is refused with the names there are."""
-        if pick == KEEP:
-            return None
+    def target(self, pick: str) -> Target:
+        """The target ``pick`` names exactly; an unknown name is refused with the names there are."""
         for target in self.targets:
             if target.id == pick:
                 return target
@@ -108,11 +106,12 @@ class PluginChoice(pydantic.BaseModel):
             f"{self.plugin} {FORMAT_LABELS[self.format]}: no target named {pick!r} (it can become {known})"
         )
 
-    def pick_for(self, set_index: int, device: int) -> str:
+    def picks_for(self, set_index: int, device: int) -> list[str]:
+        """What one device may become, best first; it takes the first it can, and none keeps it as it is."""
         for override in self.overrides:
             if (override.set, override.device) == (set_index, device):
-                return override.pick
-        return self.pick
+                return override.picks
+        return self.picks
 
 
 def set_sha256(path: pathlib.Path) -> str:
@@ -129,6 +128,15 @@ class PlannedSet(pydantic.BaseModel):
     sha256: str
 
 
+class UnreadSet(pydantic.BaseModel):
+    """A set the plan could not read, such as an empty or truncated file, and why; nothing in it is planned."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    path: pathlib.Path
+    reason: str
+
+
 class Plan(pydantic.BaseModel):
     """What every plugin device in some sets becomes."""
 
@@ -138,6 +146,7 @@ class Plan(pydantic.BaseModel):
     made: datetime.datetime
     sets: list[PlannedSet]
     plugins: list[PluginChoice]
+    unread: list[UnreadSet] = pydantic.Field(default_factory=list)
 
     @pydantic.model_validator(mode="after")
     def _refs_name_listed_devices(self) -> Plan:
@@ -165,13 +174,19 @@ class Plan(pydantic.BaseModel):
 
 
 class PlanEntry(pydantic.BaseModel):
-    """One plugin in the file: null leaves it as it is, a target's name converts it."""
+    """One plugin in the file: null leaves it as it is; a target's name, or a list of them best first, converts it."""
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
     plugin: str
     format: str
-    convert_to: str | None = None
+    convert_to: str | list[str] | None = None
+
+    @property
+    def picks(self) -> list[str]:
+        if self.convert_to is None:
+            return []
+        return [self.convert_to] if isinstance(self.convert_to, str) else self.convert_to
 
 
 class PlanFile(pydantic.BaseModel):
@@ -212,14 +227,18 @@ def entries(plan: Plan) -> list[tuple[str, PluginChoice]]:
 
 
 def take_picks(plan: Plan, file: PlanFile) -> None:
-    """Set each plugin's pick from the file; a plugin the sets no longer hold, or an unknown name, is refused."""
+    """Set each plugin's picks from the file, and only from it; a plugin the sets no longer hold, or an unknown name,
+    is refused."""
     by_entry = {(name, FORMAT_LABELS[choice.format].casefold()): choice for name, choice in entries(plan)}
+    for planned in plan.plugins:
+        planned.picks = []
     for entry in file.plugins:
         choice = by_entry.get((entry.plugin, entry.format.casefold()))
         if choice is None:
             raise ValueError(f"{entry.plugin} {entry.format} is not in these sets any more; make a fresh plan")
-        choice.pick = KEEP if entry.convert_to is None else entry.convert_to
-        choice.target(choice.pick)
+        for pick in entry.picks:
+            choice.target(pick)
+        choice.picks = list(entry.picks)
 
 
 def _target_notes(target: Target, devices: int) -> list[str]:
@@ -242,11 +261,13 @@ def dump_plan(plan: Plan) -> str:
         return yaml.safe_dump(value, allow_unicode=True, width=10_000).removesuffix("...\n").strip()
 
     lines = [
-        "# abletoolz plugin plan. Set convert_to to one of the names listed above a plugin,",
-        "# then run: abletoolz plugins apply <this file>. null leaves a plugin as it is.",
+        "# abletoolz plugin plan. For each plugin that doesn't load here, convert_to lists what it can become",
+        "# on this computer, best first, and each device takes the first it can. Change the list with the names",
+        "# listed above a plugin, or set null to leave it as it is, then run: abletoolz plugins apply <this file>.",
         f"abletoolz_plan: {PLAN_VERSION}",
         "sets:",
         *(f"- {scalar(str(planned.path))}" for planned in plan.sets),
+        *(f"# not read, so not planned: {unread.path}: {unread.reason}" for unread in plan.unread),
         "plugins:" if plan.plugins else "plugins: []",
     ]
     for name, choice in entries(plan):
@@ -257,13 +278,19 @@ def dump_plan(plan: Plan) -> str:
             lines += [f"#   {target.id}", *(f"#       {note}" for note in _target_notes(target, devices))]
         if not choice.targets:
             lines.append("#   nothing it can become here")
-        convert_to = None if choice.pick == KEEP else choice.pick
         lines += [
             f"- plugin: {scalar(name)}",
             f"  format: {FORMAT_LABELS[choice.format]}",
-            f"  convert_to: {scalar(convert_to)}",
+            f"  convert_to: {_convert_to(choice.picks, scalar)}",
         ]
     return "\n".join(lines) + "\n"
+
+
+def _convert_to(picks: list[str], scalar: Callable[[object], str]) -> str:
+    """``null``, one name, or a flow list of names best first."""
+    if len(picks) < 2:
+        return scalar(picks[0] if picks else None)
+    return "[" + ", ".join(scalar(pick) for pick in picks) + "]"
 
 
 def load_plan(text: str) -> PlanFile:

@@ -13,7 +13,15 @@ were rewritten here, and read them back to within 2e-6. Everything around the
 map stays as the plugin wrote it, and a write that would move it is refused.
 
 The map is found by its header, so only an archive holding exactly one
-complete map is read; anything else is refused rather than guessed at.
+complete map is read; anything else is refused rather than guessed at. A
+number follows a map; a one-entry map of a string, ``1 0 0 0 4 Type 8
+Template``, reads like a map of numbers up to its value, but the string's
+bytes follow it, so it is not one.
+
+A number is written as Python spells the double unless ``single`` asks for the
+plugin's own spelling: the single-precision float to eight significant digits
+(``0.31428573``). Mini V3 rewrites every number it loads that way, so a state
+written in that spelling is one it saves back byte for byte.
 """
 
 from __future__ import annotations
@@ -35,6 +43,7 @@ _HEADER = re.compile(rb"(?<!\S)([0-9]{1,7}) 0 0 0 (?=[0-9]+ )")
 _NUMBER = re.compile(rb"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 _SPACE = b" \t\r\n"
 _LENGTHS = struct.Struct("<QQ")
+_SINGLE = struct.Struct("<f")
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -58,7 +67,7 @@ class NumberMap:
     def values(self) -> dict[str, float]:
         return {field.name: float(field.text) for field in self.fields}
 
-    def with_values(self, edits: Mapping[str, float]) -> bytes:
+    def with_values(self, edits: Mapping[str, float], *, single: bool = False) -> bytes:
         """The archive with each named number replaced, every other byte as it was."""
         unknown = set(edits) - {field.name for field in self.fields}
         if unknown:
@@ -70,7 +79,7 @@ class NumberMap:
                 value = edits[field.name]
                 if not math.isfinite(value):
                     raise FormatError(f"{field.name} cannot be {value}")
-                out += self.data[cursor : field.value_start] + repr(float(value)).encode("ascii")
+                out += self.data[cursor : field.value_start] + _spell(value, single).encode("ascii")
                 cursor = field.value_end
         out += self.data[cursor:]
         encoded = bytes(out)
@@ -99,10 +108,29 @@ class NumberMap:
             candidate
             for candidate in candidates
             if not any(other.start < candidate.start < other.end for other in candidates)
+            and _ends_a_map(data, candidate.end)
         ]
         if len(found) != 1:
             raise FormatError(f"expected one map of named numbers in this archive, found {len(found)}")
         return found[0]
+
+
+def _ends_a_map(data: bytes, end: int) -> bool:
+    """Whether a number follows ``end``, as one follows a map; a string's bytes follow its length."""
+    try:
+        token, _, _ = _token(data, end)
+    except FormatError:
+        return False
+    return not token or _NUMBER.fullmatch(token) is not None
+
+
+def _spell(value: float, single: bool) -> str:
+    if not single:
+        return repr(float(value))
+    try:
+        return f"{_SINGLE.unpack(_SINGLE.pack(value))[0]:.8g}"
+    except OverflowError:
+        raise FormatError(f"{value} does not fit a single-precision float") from None
 
 
 def _token(data: bytes, at: int) -> tuple[bytes, int, int]:
@@ -168,6 +196,11 @@ class TwoArchives:
         body = state[_LENGTHS.size :]
         return body[:first], body[first:]
 
+    @staticmethod
+    def join(first: bytes, second: bytes) -> bytes:
+        """The two archives behind their lengths, as :meth:`split` cuts them."""
+        return _LENGTHS.pack(len(first), len(second)) + first + second
+
     @classmethod
     def parse(cls, state: bytes) -> TwoArchives:
         first, second = cls.split(state)
@@ -182,7 +215,7 @@ class TwoArchives:
             for name, value in archive.values.items()
         }
 
-    def with_values(self, edits: Mapping[str, float]) -> bytes:
+    def with_values(self, edits: Mapping[str, float], *, single: bool = False) -> bytes:
         """The state with the named numbers replaced; the lengths follow the archives."""
         per_archive: list[dict[str, float]] = [{}, {}]
         for key, value in edits.items():
@@ -190,5 +223,8 @@ class TwoArchives:
             if section not in ("section[0]", "section[1]") or not name:
                 raise FormatError(f"{key} does not name an archive and a number in it")
             per_archive[int(section[8])][name] = value
-        parts = [archive.with_values(changes) for archive, changes in zip(self.archives, per_archive, strict=True)]
-        return _LENGTHS.pack(len(parts[0]), len(parts[1])) + parts[0] + parts[1]
+        parts = [
+            archive.with_values(changes, single=single)
+            for archive, changes in zip(self.archives, per_archive, strict=True)
+        ]
+        return self.join(*parts)

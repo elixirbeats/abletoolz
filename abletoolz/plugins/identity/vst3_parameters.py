@@ -69,9 +69,16 @@ def _key(module: pathlib.Path, uid_fields: UidFields) -> str:
 
 def _read_cache(cache_path: pathlib.Path) -> dict[str, list[dict[str, object]]]:
     try:
-        return dict(json.loads(cache_path.read_text(encoding="utf-8")))
+        status = cache_path.stat()
+        return dict(_parsed_cache(cache_path, status.st_mtime_ns, status.st_size))
     except (OSError, ValueError):
         return {}
+
+
+@functools.lru_cache(maxsize=1)
+def _parsed_cache(cache_path: pathlib.Path, mtime_ns: int, size: int) -> dict[str, list[dict[str, object]]]:
+    """The cache file as it is at that time and size, parsed once per process rather than once per set."""
+    return dict(json.loads(cache_path.read_text(encoding="utf-8")))
 
 
 def _write_cache(cache_path: pathlib.Path, key: str, parameters: list[dict[str, object]]) -> None:

@@ -1,6 +1,10 @@
 # Using abletoolz as a library
 
-Everything the command line does, you can call from Python. This guide starts with opening one set and works up a step at a time, each step adding one new idea. The examples are meant to be copied: change the paths to your own and run them.
+Everything the command line does, you can call from Python. This guide starts with opening one set and works up a step at a time, each step adding one new idea. Follow the numbered steps in order: later examples reuse imports and objects from earlier steps. Change the paths to your own, and start with a copy of a set while you get familiar with the library. You can do everything here from Python; the command line equivalents are only there for reference.
+
+For installation and the command line, see the [README](../README.md). For adding support for a plugin, see [Mapping a new plugin](DEVELOPMENT.md#mapping-a-new-plugin).
+
+For old sets that hold a binary document instead of XML, see the experimental [legacy set conversion](LEGACY_SETS.md).
 
 1. [Open a set and look around](#1-open-a-set-and-look-around)
 2. [Change something and save](#2-change-something-and-save)
@@ -20,7 +24,8 @@ from pathlib import Path
 from abletoolz.live_set import AbletonSet
 
 song = AbletonSet(Path("D:/sets/my song.als"))
-song.parse()  # reads the file; returns False (and logs why) if it isn't a set abletoolz can read
+if not song.parse():  # reads the file and logs why if it cannot
+    raise ValueError("Couldn't read the set; see the log for why")
 
 print(song.version)  # Ableton Live 11.3.42
 print(song.transport.bpm())  # 174.0
@@ -72,30 +77,45 @@ for found in missing.plugin_files:  # samples and kits saved inside a plugin's o
 
 ## 4. Fix them from your sample database
 
-First build the database, the same one `abletoolz --db` builds. It lives in abletoolz's config folder, so you only do this once, and again when you add samples:
+First build the database, the same one `abletoolz --db` builds. It lives in abletoolz's config folder. Run this again when you add samples; unchanged files keep their checksums:
 
 ```python
 from abletoolz.samples import database
 
-database.create_or_update_db(["D:/Samples", "D:/sets"])
+database.create_or_update_db(
+    [
+        "D:/Samples",
+        "D:/sets",
+        "D:/Kontakt Libraries",
+        "D:/Maschine Content",
+        "D:/Battery Kits",
+        "D:/Reaktor Ensembles",
+    ]
+)
 ```
+
+Use your own content-folder paths. This one call populates both databases: audio goes into the sample catalog, while file types declared by plugin maps (such as instruments, kits and ensembles) go into `plugin_files.sqlite3` beside it. Include every relevant content folder, or a parent containing them; these paths are unrelated to the installed-plugin inventory built by `--plugin-db`.
+
+The SQLite catalog stores the same checksum Live saves with a sample reference, along with its name, size and date. Indexing reads checksums in parallel; pass `workers=4` to `create_or_update_db` if you want to limit the readers. Loading the catalog opens indexed lookups rather than reading the entire database into memory.
 
 Then relink the set from it:
 
 ```python
-with database.load_db() as db:  # opens the database read-only
-    relinked = song.files.relink(db, collect=False)  # --fix-samples-absolute
+with database.load_db() as db, database.load_plugin_files_db() as plugin_files_db:  # read-only catalogs
+    relinked = song.files.relink(db, plugin_files_db, collect=False)  # --fix-samples-absolute
 
 for fix in relinked.samples:
     print(fix.old, "->", fix.new)
+for fix in relinked.plugin_files:
+    print("plugin file:", fix.old, "->", fix.new)
 for skipped in relinked.refused:  # found, but not sure enough to relink
     print("left alone:", skipped.what, "--", skipped.why)
 song.save_set()
 ```
 
-A file is only relinked when the database points at exactly one file for it: one with the same name, or for a renamed sample, one with the same size and the checksum Live stored. When several files could be it, a matching date decides, and if it can't, the reference is left alone and listed in `refused`.
+The lookup uses the information saved with each reference to check candidates. A conflicting size or checksum rules a candidate out. When it cannot resolve an ambiguous match, the reference stays as it was and appears in `refused`. Plugin-held paths often have less information than Live's own sample references, so the available evidence varies.
 
-`collect=True` is `--fix-samples-collect`: found audio is copied into the project folder. The copies are made by `relinked.collector.run()`, so a run that doesn't save copies nothing:
+`collect=True` is `--fix-samples-collect`: found audio is copied into the project folder. In Python, you explicitly run the planned copies with `relinked.collector.run()` before saving the rewritten set. Calling `relink` alone does neither. Once you call the collector, it copies files even if you decide not to save afterwards:
 
 ```python
 with database.load_db() as db, database.load_plugin_files_db() as plugin_files_db:
@@ -106,9 +126,11 @@ if relinked.collector is not None:  # None when nothing needed copying
 song.save_set()
 ```
 
+Plugin instruments and kits stay in their library locations; collecting only copies audio.
+
 `db.search("kick 174")` searches the database by file and folder names, like `--search-samples`.
 
-When a relink runs into database entries for files that no longer exist, it skips them and warns once per set. `database.prune_db()` removes them, like `--db-prune`.
+When a relink runs into database entries for files that no longer exist, it skips them and warns once per set. `database.prune_db()` removes them, like `--db-prune`. Connect your sample drives first, since a disconnected file counts as missing.
 
 ## 5. Do it for a whole folder
 
@@ -117,18 +139,20 @@ When a relink runs into database entries for files that no longer exist, it skip
 ```python
 from abletoolz.live_set import find_sets
 
-with database.load_db() as db:
+with database.load_db() as db, database.load_plugin_files_db() as plugin_files_db:
     for path in find_sets(["E:/Old Projects"]):
         song = AbletonSet(path)
         if not song.parse():
             continue  # not a set abletoolz can read; the log says why
-        if song.files.relink(db, collect=False).relinks:  # only save sets that changed
+        if song.files.relink(db, plugin_files_db, collect=False).relinks:  # only save sets that changed
             song.save_set()
 ```
 
+This loop processes one set at a time so you can see each step. The command line's batch runner uses worker processes; parallel processing is not implied by `find_sets`.
+
 ## 6. Change any setting by name
 
-Every setting of Live's own devices has a name in `abletoolz.schema.devices`, and tracks, mixers, clips and the transport have theirs in `abletoolz.schema.objects`. Your editor lists them as you type: `Sampler.` then tab. The names work on sets from any Live version, even where Live renamed a setting, so this runs unchanged on a Live 9 set and a Live 12 one:
+Mapped settings of Live's own devices have names in `abletoolz.schema.devices`, and tracks, mixers, clips and the transport have theirs in `abletoolz.schema.objects`. Your editor lists them as you type: `Sampler.` then tab. The library resolves names against the set's Live schema, including settings Live renamed. Availability still depends on the device and version; a setting introduced in a newer Live is not added to an older set by naming it:
 
 ```python
 from abletoolz.schema.devices import Device, EqEight, Sampler
@@ -186,21 +210,103 @@ for plugin in song.plugins.scan(can_load):  # --check-plugins
         print("missing:", plugin.name, "-- closest installed:", plugin.alternative)
 ```
 
-Converting works like the command line: make a plan, choose what each plugin becomes, apply it. [Converting plugins](PLUGIN_CONVERSION.md) walks through the plan file. In Python, a plugin's `pick` is its `convert_to`, one of the names in its `targets`; every plugin starts as `"keep"`. This converts every Serum VST2 in a folder of sets to Serum's VST3:
+### Make a plan and choose a conversion
+
+Converting works like the command line: make a plan, choose what each plugin becomes, apply it. Only mapped format swaps, upgrades and recovery routes are offered. [The README](../README.md#converting-plugins) explains the plan file and the current conversion limits. In Python, a plugin's `picks` is its `convert_to`: names from its `targets`, best first, each device taking the first it can, and an empty list keeps the plugin as it is. A fresh plan fills it in for every plugin that doesn't load here, as `suggest` ranks what is installed. This example converts only Serum, choosing its VST3 for Serum VST2 devices when that target is offered, so it first clears the suggestions for every other plugin. Before applying, it prints the target's warnings and any refusal:
 
 ```python
-from abletoolz.plugins.plan import apply_in_place, plan_sets
+from abletoolz.plugins.plan import apply_in_place, plan_sets, this_machine
 
-plan = plan_sets(["D:/Ableton Projects"])  # abletoolz plugins plan
+machine = this_machine()
+plan = plan_sets(["D:/Ableton Projects"], machine=machine)  # abletoolz plugins plan
 for entry in plan.plugins:  # one entry per plugin, like the plan file
+    entry.picks = []  # the plan suggested targets for every plugin that doesn't load; keep only Serum's
     if entry.plugin == "Serum" and entry.format == "vst":
-        entry.pick = "serum_vst3"  # a name from entry.targets
-for outcome in apply_in_place(plan):  # abletoolz plugins apply: originals are copied to abletoolz_backup
+        for target in entry.targets:
+            if target.id == "serum_vst3":
+                print(entry.plugin, target.id, target.warnings, target.refused)
+                if not target.refused:
+                    entry.picks = [target.id]
+```
+
+Nothing has been saved yet. Inspect the warnings before applying: conversions currently remove automation and MIDI/macro mappings from converted devices, and some upgrades approximate or omit settings. [What converting costs](../README.md#what-converting-costs) explains the limits.
+
+The next examples show ways to refine or replace those choices. Choose how to save only after the plan has the choices you want.
+
+### Keep one device unchanged
+
+A plugin choice normally applies to every instance of that plugin and format. To treat one device differently, add an override with its set and device number from `entry.devices`:
+
+```python
+from abletoolz.plugins.plan import Override
+
+serum = next(entry for entry in plan.plugins if entry.plugin == "Serum" and entry.format == "vst")
+serum.picks = ["serum_vst3"]
+device = serum.devices[0]  # choose the intended instance from this plan
+serum.overrides.append(Override(set=device.set, device=device.device, picks=[]))  # no picks: keep it
+```
+
+### Pick by your own rule
+
+Instead of choosing Serum by name, you can pick from what each target says about itself. This starts a fresh plan and selects same-plugin VST3 conversions with no reported warnings or refusals:
+
+```python
+from abletoolz.plugins.identity.ids import PluginKind
+from abletoolz.plugins.plan import Route
+
+plan = plan_sets(["D:/sets"], machine=machine)  # a fresh plan; previous picks are not reused
+for entry in plan.plugins:
+    free = [
+        target.id
+        for target in entry.targets
+        if target.route is Route.FORMAT  # the same plugin in another format, not a different plugin
+        and target.format is PluginKind.VST3
+        and not target.refused
+        and not target.warnings  # no known losses reported for these devices
+    ]
+    entry.picks = free[:1]
+```
+
+Add `and target.proved` to take only conversions someone has listened to. `entry.broken` tells you whether this machine can load the plugin as it is. `file_targets` and `experiments` in `abletoolz.plugins.plan` add targets a plan file never offers: another installed file of the same VST2, and an installed plugin named like one abletoolz hasn't mapped.
+
+### Apply your choices
+
+Use this block to save in place, or the next example to write copies elsewhere. They are alternative save steps; don't apply the same plan twice.
+
+```python
+for outcome in apply_in_place(plan, machine=machine):  # originals are copied to abletoolz_backup
     for device in outcome.devices:
         print(outcome.path.name, device.plugin, "done" if device.done else device.reason, device.warnings)
 ```
 
-`device.warnings` says what each converted device lost, like its automation; [what converting costs](PLUGIN_CONVERSION.md#what-converting-costs) explains why. `write_plan(plan, "plan.yaml")` and `read_plan("plan.yaml")` are the plan file. Each call reads this computer's plugins. To look for old plugins' recovery files only in some folders, like `--plugin-dir`, pass `machine=this_machine(["D:/VstPlugins"])` to both `plan_sets` and `apply_in_place`.
+`device.warnings` says what each converted device lost or approximated. If you need to make more changes after saving, make a fresh plan from the saved sets.
+
+If you want an editable plan file too, import `write_plan` and `read_plan` from `abletoolz.plugins.plan`. `write_plan(plan, "plan.yaml")` writes it, and `read_plan("plan.yaml")` reads the sets again with your saved choices. You can also restrict recovery-file searches when constructing the machine: `this_machine(["D:/VstPlugins"])`.
+
+### Write converted copies somewhere else
+
+`apply_in_place` saves over your sets, keeping backups. To leave them alone, `apply_plan` hands you each converted set instead, and you decide where it goes. After making your choices, this writes the copies into another folder:
+
+```python
+from abletoolz.formats import live_document
+from abletoolz.plugins.plan import apply_plan
+
+out = Path("D:/converted")
+out.mkdir(exist_ok=True)
+
+
+def save_copy(path, root):  # called once for each set that changed, with the converted set
+    live_document.write_new(out / path.name, live_document.encode(root))  # refuses an existing file
+
+
+outcomes = apply_plan(plan, save=save_copy, machine=machine)
+```
+
+If sets in different source folders share a filename, choose distinct output paths in `save_copy`; this simple example refuses a collision.
+
+The examples pass the same `machine` to planning and applying, so both use the same view of installed plugins and recovery files.
+
+A plan only offers what abletoolz already knows how to do: another format of a plugin, a recovery route, or a plugin it has a converter into. Anything else, like changing a plugin's settings, is code you write for that plugin: [Change a plugin's own settings](#change-a-plugins-own-settings) and [Rebuild a plugin as Live's own devices](#rebuild-a-plugin-as-lives-own-devices) show how.
 
 ## 9. Going further
 
@@ -327,11 +433,14 @@ A plugin's settings that abletoolz can't read raise `StateTransformError` instea
 
 ### Rebuild a plugin as Live's own devices
 
-This is the hand-written version of [checking and converting plugins](#8-check-and-convert-plugins): a plan moves a plugin to another format of itself, while turning it into a different device, like here, is code you write for that pair. [Converting plugins](PLUGIN_CONVERSION.md) walks through plans step by step, and ends with Python for picking by your own rules and writing converted copies elsewhere.
+Plans offer mapped format swaps and plugin-to-plugin conversions. Rebuilding a plugin as a native Live device is a separate recipe you write for that pair; this example shows how to use the saved settings as its starting point.
 
 The same reading works across plugins. This reads the bands of every FabFilter Pro-Q 3 in a set and rebuilds them on an EQ Eight at the end of the same track. The EQ Eight comes from a set of yours where a track holds only an EQ Eight, and the Pro-Q 3 stays, so you can compare them in Live:
 
 ```python
+from abletoolz.plugins.container.device import PluginDevices
+from abletoolz.plugins.identity.ids import stored_id
+from abletoolz.plugins.state.all_plugins import CATALOG
 from abletoolz.plugins.state.fabfilter import PRO_Q3_BAND_SLOTS, FfbsState, Q3BandField
 
 # Pro-Q 3 shape -> EQ Eight mode: bell, low shelf, low cut, high shelf, high cut, notch.
@@ -365,7 +474,7 @@ for device in list(PluginDevices(song.root)):
 song.save_set()
 ```
 
-A band past the eighth, or of a shape EQ Eight doesn't have (dynamic, tilt, band-pass), is dropped.
+This is an approximation for inspection, not an equivalent replacement: it copies up to eight mapped band shapes and does not transfer dynamic behavior, automation or all Pro-Q settings. The original Pro-Q 3 remains active, so bypass one device when comparing them in Live.
 
 ## Experimental: JSON for programs
 

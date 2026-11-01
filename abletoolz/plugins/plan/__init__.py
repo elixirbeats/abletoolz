@@ -5,11 +5,13 @@ and format, with three fields: ``plugin``, ``format`` and ``convert_to``. Above
 each entry a comment lists the names ``convert_to`` takes: the plugin's own
 other formats and the plugins its converters reach, each by the ``plan_name``
 written by hand in its map, and a verified native recovery route by its id.
-``null`` leaves a plugin as it is; a name converts every device of it.
+``convert_to`` is ``null``, which leaves a plugin as it is, or names, best
+first: each device takes the first it can. A fresh plan fills it in for every
+plugin that doesn't load here, with what is installed here (:func:`suggest`).
 
 Applying reads each set again, so the file holds no device numbers or hashes,
-converts every device whose plugin names a target, and leaves a device that
-cannot take it exactly as it was, saying why.
+converts every device whose plugin names targets, and leaves a device that
+can take none of them exactly as it was, saying why.
 
 On this computer, :func:`plan_sets`, :func:`write_plan`, :func:`read_plan` and
 :func:`apply_in_place` are ``abletoolz plugins plan`` and ``apply``. In Python
@@ -24,9 +26,8 @@ from abletoolz.plugins.plan.carry import carry
 from abletoolz.plugins.plan.evidence import known_state
 from abletoolz.plugins.plan.here import apply_in_place, plan_sets, read_plan, this_machine, write_plan
 from abletoolz.plugins.plan.machine import InstalledVst2, Machine
-from abletoolz.plugins.plan.make import make_plan
+from abletoolz.plugins.plan.make import make_plan, suggest
 from abletoolz.plugins.plan.model import (
-    KEEP,
     Override,
     Plan,
     PlanFile,
@@ -39,7 +40,6 @@ from abletoolz.plugins.plan.model import (
 from abletoolz.plugins.plan.targets import experiments, file_targets
 
 __all__ = [
-    "KEEP",
     "InstalledVst2",
     "Machine",
     "Override",
@@ -60,6 +60,7 @@ __all__ = [
     "make_plan",
     "plan_sets",
     "read_plan",
+    "suggest",
     "this_machine",
     "write_plan",
 ]

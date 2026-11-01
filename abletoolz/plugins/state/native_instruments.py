@@ -99,7 +99,7 @@ from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
-from abletoolz.plugins.state.plugin_map import AUDIO_SUFFIXES, FileRef, PluginFormat, PluginMap
+from abletoolz.plugins.state.plugin_map import AUDIO_SUFFIXES, FileRef, Layout, PluginFormat, PluginMap
 
 
 @register
@@ -118,6 +118,62 @@ def massive() -> PluginMap:
             VERBATIM,
             measured,
             plan_name="massive_vst3",
+        ),
+    )
+
+
+# -- Absynth ---------------------------------------------------------------------
+
+ABSYNTH_3_UNIQUE_ID = 1129079149
+ABSYNTH_5_UNIQUE_ID = 1131179317
+
+# An Absynth 3 chunk is a tree of tagged blocks whose four character tags are stored byte-reversed: the
+# outer ``clam`` block, then ``ptc4`` twelve bytes in, which holds the patch name.
+ABSYNTH_3_MAGIC = b"malc"
+ABSYNTH_3_PATCH_TAG = b"4ctp"
+ABSYNTH_3_PATCH_TAG_OFFSET = 12
+
+
+def is_absynth_3_patch(patch: bytes) -> bool:
+    """Whether ``patch`` opens the way an Absynth 3 chunk does."""
+    tag = patch[ABSYNTH_3_PATCH_TAG_OFFSET : ABSYNTH_3_PATCH_TAG_OFFSET + len(ABSYNTH_3_PATCH_TAG)]
+    return patch.startswith(ABSYNTH_3_MAGIC) and tag == ABSYNTH_3_PATCH_TAG
+
+
+@register
+def absynth_3() -> PluginMap:
+    return PluginMap(
+        id="native-instruments.absynth-3",
+        name="Absynth 3",
+        version="3",
+        scope="VST2 bank chunks as Live stores them",
+        vendor="Native Instruments",
+        vst2=PluginFormat(
+            Vst2Id(ABSYNTH_3_UNIQUE_ID),
+            "Absynth 3",
+            VERBATIM,
+            MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,), datetime.date(2026, 10, 31)),
+            plan_name="absynth_3_vst2",
+        ),
+        layouts=(Layout("Absynth 3 chunk", is_absynth_3_patch),),
+    )
+
+
+@register
+def absynth_5() -> PluginMap:
+    # Absynth 5 ships as a VST2 only; its chunk is an NI item container.
+    return PluginMap(
+        id="native-instruments.absynth-5",
+        name="Absynth 5",
+        version="5",
+        scope="Build 5.3.4 as a VST2, its chunk an NI item container",
+        vendor="Native Instruments",
+        vst2=PluginFormat(
+            Vst2Id(ABSYNTH_5_UNIQUE_ID),
+            "Absynth 5",
+            VERBATIM,
+            MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), datetime.date(2026, 10, 31)),
+            plan_name="absynth_5_vst2",
         ),
     )
 

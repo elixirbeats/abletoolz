@@ -45,10 +45,10 @@ def test_both_legacy_plugins_join_ms20_v_and_the_conversion_is_not_predictable(s
 
 @pytest.mark.parametrize("stored", [MS20_VST2, LEGACY_CELL_VST2])
 def test_a_plan_offers_ms20_v_as_the_format_a_device_can_be_rebuilt_in(stored: Any) -> None:
-    """A device is rebuilt as another plugin in VST3 or AU only, so the VST2 device is offered MS-20 V's VST3."""
     source = CATALOG.find(stored)
     assert source is not None
-    assert [target.id for target in mapped_targets(source, PluginKind.VST, machine())] == ["korg_ms_20_v_vst3"]
+    targets = [target.id for target in mapped_targets(source, PluginKind.VST, machine())]
+    assert targets == ["korg_ms_20_v_vst2", "korg_ms_20_v_vst3"]
 
 
 def test_calibrated_controls_land_where_ms20_v_measured_the_same_sound() -> None:

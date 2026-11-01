@@ -1,7 +1,9 @@
 """Arturia's plugins.
 
-Prophet V3's VST2 and VST3 save the same patch, and the VST3 writes no
-controller half; heard in Live 12.4.5 on 2026-08-10.
+Prophet V3, ARP 2600 V3, Modular V3, Piano V3 and Wurli V3 keep their patch as
+a Boost text archive with a map of named numbers: the same archive twice in a
+VST2 chunk, and one archive in each VST3 half, which is how Live saves them.
+Hosted, each VST3 plays a patch handed to it that way as its VST2 does.
 """
 
 from __future__ import annotations
@@ -11,34 +13,106 @@ import pathlib
 import re
 from dataclasses import dataclass
 
-from abletoolz.plugins.container.controller import NO_CONTROLLER_STATE
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
+from abletoolz.plugins.state.arturia_v import FirstArchive, OneArchive, SecondArchive, holds_two_archives
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
-from abletoolz.plugins.state.plugin_map import AUDIO_SUFFIXES, FileRef, PluginFormat, PluginMap
+from abletoolz.plugins.state.plugin_map import AUDIO_SUFFIXES, FileRef, Layout, PluginFormat, PluginMap
+
+ARTURIA_VST3 = (1098019957, 1096173907)
+ARTURIA_VST3_TAIL = 1349676899
+
+
+def _v3(map_id: str, name: str, unique_id: int, plan: str, version: str) -> PluginMap:
+    measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.HOSTED,), datetime.date(2026, 10, 31))
+    split = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED,), datetime.date(2026, 10, 31))
+    return PluginMap(
+        id=map_id,
+        name=name,
+        version="3",
+        scope=f"{version}; the same archive twice, with its map of named numbers; the VST3 is written, not read",
+        vendor="Arturia",
+        vst2=PluginFormat(Vst2Id(unique_id), name, VERBATIM, measured, plan_name=f"{plan}_vst2"),
+        vst3=PluginFormat(
+            Vst3Id((*ARTURIA_VST3, unique_id, ARTURIA_VST3_TAIL)),
+            name,
+            FirstArchive(name),
+            split,
+            SecondArchive(name),
+            plan_name=f"{plan}_vst3",
+        ),
+        layouts=(Layout("two archives", holds_two_archives),),
+    )
 
 
 @register
 def prophet_v3() -> PluginMap:
-    measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.EAR,), datetime.date(2026, 8, 10))
+    # The VST3 was once written as the VST2 chunk with no controller half; hosted, it ignores a patch handed that way.
+    return _v3("arturia.prophet-v3", "Prophet V3", 1347571507, "prophet_v3", "3.9.1.1843")
+
+
+# -- Piano V and Wurli V: the second generation, and the third that reads it -----------------
+#
+# Piano V2 and Wurli V2 already save what their V3 successors do: Boost text archives holding a map of named
+# numbers. Piano V2's VST2 chunk is two archives behind their lengths; the first is an older copy with fewer
+# names and no preset record, the second the patch. Wurli V2's VST3 writes one archive as both halves. Each V3
+# keeps the same archive twice in its VST2 chunk and as its VST3 halves.
+
+
+@register
+def piano_v2() -> PluginMap:
+    measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,))
     return PluginMap(
-        id="arturia.prophet-v3",
-        name="Prophet V3",
-        version="3",
-        scope="VST2 and VST3 save the same patch",
+        id="arturia.piano-v2",
+        name="Piano V2",
+        version="2",
+        scope="VST2; two archives behind their lengths, an older copy and the patch",
         vendor="Arturia",
-        vst2=PluginFormat(Vst2Id(1347571507), "Prophet V3", VERBATIM, measured, plan_name="prophet_v3_vst2"),
-        vst3=PluginFormat(
-            Vst3Id((1098019957, 1096173907, 1347571507, 1349676899)),
-            "Prophet V3",
-            VERBATIM,
-            measured,
-            NO_CONTROLLER_STATE,
-            plan_name="prophet_v3_vst3",
-        ),
+        vst2=PluginFormat(Vst2Id(1349083442), "Piano V2", VERBATIM, measured, plan_name="piano_v2_vst2"),
+        layouts=(Layout("two archives", holds_two_archives),),
     )
+
+
+@register
+def piano_v3() -> PluginMap:
+    return _v3("arturia.piano-v3", "Piano V3", 1349083443, "piano_v3", "3.3.3.6106")
+
+
+@register
+def wurli_v2() -> PluginMap:
+    measured = MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,))
+    return PluginMap(
+        id="arturia.wurli-v2",
+        name="Wurli V2",
+        version="2",
+        scope="VST3; one archive as both halves",
+        vendor="Arturia",
+        vst3=PluginFormat(
+            Vst3Id((*ARTURIA_VST3, 1465209394, ARTURIA_VST3_TAIL)),
+            "Wurli V2",
+            OneArchive("Wurli V2"),
+            measured,
+            plan_name="wurli_v2_vst3",
+        ),
+        layouts=(Layout("two archives", holds_two_archives),),
+    )
+
+
+@register
+def wurli_v3() -> PluginMap:
+    return _v3("arturia.wurli-v3", "Wurli V3", 1465209395, "wurli_v3", "3.0.3.6106")
+
+
+@register
+def arp_2600_v3() -> PluginMap:
+    return _v3("arturia.arp-2600-v3", "ARP 2600 V3", 1095913523, "arp_2600_v3", "3.13.3.6106")
+
+
+@register
+def modular_v3() -> PluginMap:
+    return _v3("arturia.modular-v3", "Modular V3", 1297040435, "modular_v3", "3.13.3.6106")
 
 
 # -- CMI V: the samples its voices play ------------------------------------------------

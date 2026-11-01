@@ -115,7 +115,6 @@ MEASURED_STATE: dict[str, MeasuredState] = {
     "FabFilter Pro-C": _hosted(StateRung.RE_ENCODE),
     "FabFilter Pro-C.64": _hosted(StateRung.RE_ENCODE),
     "iZotope Ozone 4": _hosted(StateRung.RE_ENCODE),
-    "Ozone 8 Elements": _hosted(StateRung.RE_ENCODE),
 }
 
 

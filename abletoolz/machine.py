@@ -62,6 +62,11 @@ class Locations:
         """Where the parameters read off installed VST3 modules are kept between runs."""
         return self.config_dir / "vst3_parameters.json"
 
+    @property
+    def vst2_records(self) -> pathlib.Path:
+        """Where what installed VST2 modules report about themselves is kept between runs."""
+        return self.config_dir / "vst2_records.json"
+
     def with_plugin_folders(self, folders: Iterable[pathlib.Path]) -> Locations:
         """These locations with the plugin folders config.yaml adds, each folder listed once."""
         extra = tuple(folder for folder in dict.fromkeys(folders) if folder not in self.vst_dirs)

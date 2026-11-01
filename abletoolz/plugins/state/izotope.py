@@ -13,6 +13,9 @@ Neither plugin's VST3 controller half is measured, and Trash 2 is known to
 revert to its defaults without one, so neither VST3 can be written from here
 yet. Trash 2's map, with its codec, is in
 :mod:`abletoolz.plugins.state.izotope_trash2`.
+
+Stutter Edit 2 is a JUCE build and has none of that wrapper: see
+:func:`stutter_edit_2`.
 """
 
 from __future__ import annotations
@@ -22,10 +25,11 @@ import datetime
 import pathlib
 import re
 
+from abletoolz.plugins.container.controller import NO_CONTROLLER_STATE
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
-from abletoolz.plugins.state.framings import VERBATIM, izotope_unwrap
+from abletoolz.plugins.state.framings import VERBATIM, JuceTrailer, izotope_unwrap
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.plugin_map import AUDIO_SUFFIXES, FileRef, Layout, PluginFormat, PluginMap
 
@@ -77,6 +81,42 @@ def ozone_9_exciter() -> PluginMap:
             plan_name="ozone_9_exciter_vst3",
         ),
         layouts=(WRAPPED,),
+    )
+
+
+# -- Stutter Edit 2 ------------------------------------------------------------------
+#
+# A JUCE build. Its patch is a ValueTree named PluginState (a version string, the selected gesture,
+# then the bank); the VST2 chunk is that tree and the VST3 state is the same tree followed by JUCE's
+# private-data trailer, the long form with a Bypass tree, and an empty ControllerState. The VST3 reads
+# a VST2 2.0.0b34 tree and saves it back unchanged but for the version string, which it restamps with
+# its own (2.1.0b2): in a pedalboard host for every distinct VST2 chunk, and in Live, which saved
+# VST3 devices holding VST2 patches the same way.
+
+STUTTER_EDIT_2_MEASURED = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED,), datetime.date(2026, 10, 31))
+PLUGIN_STATE_TREE = Layout("JUCE PluginState tree", lambda patch: patch.startswith(b"PluginState\x00"))
+
+
+@register
+def stutter_edit_2() -> PluginMap:
+    return PluginMap(
+        id="izotope.stutter-edit-2",
+        name="Stutter Edit 2",
+        version="2",
+        scope="JUCE PluginState tree; VST2 2.0.0b34 patches read back by the VST3 2.1.0b2, restamped only",
+        vendor="iZotope",
+        vst2=PluginFormat(
+            Vst2Id(1400128818), "Stutter Edit 2", VERBATIM, STUTTER_EDIT_2_MEASURED, plan_name="stutter_edit_2_vst2"
+        ),
+        vst3=PluginFormat(
+            Vst3Id((-1412567295, -1853687061, 1767535728, 1400128818)),
+            "Stutter Edit 2",
+            JuceTrailer(own_bypass=False),
+            STUTTER_EDIT_2_MEASURED,
+            NO_CONTROLLER_STATE,
+            plan_name="stutter_edit_2_vst3",
+        ),
+        layouts=(PLUGIN_STATE_TREE,),
     )
 
 

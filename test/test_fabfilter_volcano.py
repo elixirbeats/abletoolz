@@ -123,3 +123,39 @@ def test_an_envelope_not_in_use_at_the_old_default_threshold_gets_volcano_3_s() 
     out = converted(Num_Active_EGs=1 / 6, EG_1_Threshold=0.3, EG_2_Threshold=0.3, EG_3_Threshold=0.5)
     assert out["EG 1 Threshold"] == pytest.approx(0.3)
     assert (out["EG 2 Threshold"], out["EG 3 Threshold"]) == (pytest.approx(0.27976, abs=1e-5), pytest.approx(0.5))
+
+
+LATER: list[float] = TABLE["appended"]["defaults"]
+
+
+def test_a_32_bit_bank_converts_as_an_x64_bank_with_the_added_controls_at_their_defaults() -> None:
+    earlier = bank(Num_Active_EGs=1 / 6, Output_Gain=0.25)[: len(NAMES) - len(LATER)]
+    assert conversion.volcano2_to_volcano3_parameters(earlier, []) == conversion.volcano2_to_volcano3_parameters(
+        [*earlier, *LATER], []
+    )
+
+
+def test_the_x64_build_s_added_controls_are_volcano_3_s() -> None:
+    out = converted(Num_Active_XY_Controllers=0.25, XY_Controller_2_Ver=1.0, XLFO_3_Snap=1.0, EG_1_Hold=1.0)
+    assert (out["Num Active XY Controllers"], out["XY Controller 2 Ver"], out["XLFO 3 Snap"]) == (1.0, 1.0, 1.0)
+    assert out["EG 1 Hold"] == pytest.approx(1.0)  # 19 s on both
+
+
+def test_an_ex_slot_source_and_target_stand_in_for_the_slot_s_own() -> None:
+    """Volcano 2 plays an Ex Slot's XY controller and target over the slot's own until it is set back to "(Other)"."""
+    notices: list[str] = []
+    changes = slot("XLFO 1", "Filter 1 Peak", 0.5, Ex_Slot_1_Source=2 / 8, Ex_Slot_1_Target=1 / 18)
+    out = dict(zip(TARGETS, conversion.volcano2_to_volcano3_parameters(bank(**changes), notices), strict=True))
+    sources = TABLE["modulation"]["new_sources"]
+    assert (sources[int(out["Slot 1 Source"])], NEW_TARGETS[int(out["Slot 1 Target"])]) == (
+        "XY 1 Ver",
+        "XLFO 1 Phase Offset",
+    )
+    assert out["Slot 1 Level"] == pytest.approx(0.5) and "XLFO 1 Phase Offset is kept" in notices[0]
+
+
+def test_an_xy_controller_s_depth_on_a_filter_peak_is_kept_and_said() -> None:
+    notices: list[str] = []
+    changes = slot("XLFO 1", "Filter 1 Peak", 0.5, Ex_Slot_1_Source=1 / 8)
+    out = dict(zip(TARGETS, conversion.volcano2_to_volcano3_parameters(bank(**changes), notices), strict=True))
+    assert out["Slot 1 Level"] == pytest.approx(0.5) and "Filter 1 Peak is kept" in notices[0]

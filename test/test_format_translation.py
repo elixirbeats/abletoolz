@@ -152,7 +152,7 @@ def test_a_controller_state_is_laid_out_as_live_lays_out_a_blob() -> None:
 
 
 def test_state_carries_over_verbatim_by_default() -> None:
-    """Serum, Prophet V3, Serato Sample and FabFilter all read their VST2 blob unchanged."""
+    """Serum, Serato Sample and FabFilter all read their VST2 blob unchanged."""
     device = serum()
     device.set_state(bytes(range(256)) * 4)
     original = get_element(device.info, "Preset.VstPreset.Buffer").text

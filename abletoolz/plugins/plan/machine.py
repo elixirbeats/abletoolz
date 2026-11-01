@@ -12,6 +12,7 @@ from abletoolz.plugins.config import AbletoolzConfig
 from abletoolz.plugins.identity.ids import AuIdentifier, Identity, PluginKind, StoredId, UidFields, Vst2Id, Vst3Id
 from abletoolz.plugins.identity.mapping import best_match
 from abletoolz.plugins.identity.plugin_db import PluginDatabase, PluginEntry, load_plugin_db
+from abletoolz.plugins.identity.vst2_records import Vst2Source, no_vst2_records, record_source
 from abletoolz.plugins.identity.vst3_parameters import ParameterSource, no_parameters, parameter_source
 from abletoolz.plugins.loadable import oracle
 from abletoolz.plugins.plan.evidence import known_state
@@ -48,6 +49,7 @@ class Machine:
     recovery: tuple[RecoveryTarget, ...] = ()
     entries: tuple[PluginEntry, ...] = ()
     parameters: ParameterSource = no_parameters
+    vst2_records: Vst2Source = no_vst2_records
 
     @classmethod
     def here(cls, routes: tuple[RecoveryTarget, ...], *, config: AbletoolzConfig, locations: Locations) -> Machine:
@@ -64,6 +66,7 @@ class Machine:
             loadable=loads,
             au=loads.registered,
             parameters=parameter_source(database, locations.vst3_parameters),
+            vst2_records_cache=locations.vst2_records,
         )
 
     @classmethod
@@ -75,6 +78,7 @@ class Machine:
         loadable: Callable[[ET.Element], bool],
         au: Callable[[AuIdentifier], bool],
         parameters: ParameterSource = no_parameters,
+        vst2_records_cache: pathlib.Path | None = None,
     ) -> Machine:
         """The machine ``database`` describes, with these recovery routes and answers to loading."""
         vst2 = tuple(
@@ -95,6 +99,9 @@ class Machine:
             recovery=routes,
             entries=database.installed(PluginKind.VST) + database.installed(PluginKind.VST3),
             parameters=parameters,
+            vst2_records=no_vst2_records
+            if vst2_records_cache is None
+            else record_source(((entry.unique_id, entry.path) for entry in vst2), vst2_records_cache),
         )
 
     def vendor(self, identity: Identity) -> str | None:

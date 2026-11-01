@@ -1,8 +1,10 @@
 """``abletoolz plugins``: plan what plugin devices become, apply the plan, list recovery routes.
 
 ``plan`` reads sets and writes a plan file listing every plugin in them, with
-what each can become on this machine above it; ``apply`` converts every plugin
-whose ``convert_to`` names a target, in place, keeping the usual backup. ``routes``
+what each can become on this machine above it and, for each that doesn't load
+here, its suggested targets in ``convert_to``; ``apply`` converts every plugin
+whose ``convert_to`` names targets, in place, keeping the usual backup; ``plan --apply``
+does both without stopping to review the file. ``routes``
 lists the measured native recovery routes and the binaries found for them.
 See :mod:`abletoolz.plugins.plan`.
 """
@@ -70,11 +72,17 @@ def _parser() -> argparse.ArgumentParser:
         help=f"Where the plan is written (default: {DEFAULT_PLAN})",
     )
     plan.add_argument("--force", action="store_true", help="Overwrite an existing plan file")
+    plan.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the plan's suggestions straight away, without reviewing the file; it is still written",
+    )
+    plan.add_argument("--json", action="store_true", help="With --apply, print what was done as JSON")
     recovery_options(plan)
     jobs_option(plan)
 
     apply = verbs.add_parser(
-        "apply", help="Convert every plugin whose convert_to names a target, keeping a backup of each set"
+        "apply", help="Convert every plugin whose convert_to names targets, keeping a backup of each set"
     )
     apply.add_argument("plan", type=pathlib.Path, metavar="PLAN.yaml")
     apply.add_argument("--json", action="store_true", help="Print what was done as JSON")
@@ -103,9 +111,12 @@ def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locatio
                 raise FileExistsError(f"{output} exists; pass --force to overwrite it")
             plan = plan_sets(args.srcs, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
             write_plan(plan, output)
-            console.render_plan(plan, output)
-            return 0
-        plan = read_plan(args.plan, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
+            if not (args.apply and args.json):  # stdout is the JSON alone
+                console.render_plan(plan, output, applying=args.apply)
+            if not args.apply:
+                return 0
+        else:
+            plan = read_plan(args.plan, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
         outcomes = apply_in_place(plan, machine=this_machine(args.plugin_dir, config=config, locations=locations))
     except (OSError, ValueError, ET.ParseError) as error:
         print(f"abletoolz plugins {args.command} failed: {error}", file=sys.stderr)

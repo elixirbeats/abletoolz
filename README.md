@@ -1,224 +1,210 @@
 ![Abletoolz](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient.png)
 # Abletoolz
 
-Abletoolz is a Python command line tool to edit, fix and analyze Ableton Live sets. Primarily the purpose is to automate things that aren't available in Live and make your life easier.
+Abletoolz is a Python library and command line tool to edit, fix and analyze Ableton Live sets. Primarily the purpose is to automate things that aren't available in Live and make your life easier.
+
+Maybe you've moved your samples, switched computers, or opened an old project and found half the plugins missing. Or you've bought a new audio interface and now every set sends its master output to the wrong place. You can work on one set or point abletoolz at a whole folder and fix them together.
 
 It can:
 
-- Run on one set, or an entire directory of sets. So you can fix/analyze everything with one command.
-- Color all your tracks/clips with random color gradients.
-- Create a sample database of all your sample folders, which can then be used to automatically fix any broken samples in your Ableton sets, including samples that were renamed.
+- Build a database of your sample folders and use it to find missing samples in your sets. It stores the same checksum Live saves with its sample references, giving it more information to check a match.
+- Check which plugins a set needs and whether Live can load them on this computer.
+- Convert supported plugins between VST2, VST3 and Audio Units, or carry patches from certain older plugins into newer ones. Each conversion has to be mapped out first.
+- Find and fix missing files inside supported plugins too, including samples, kits and instruments that Live's own missing-media search doesn't see.
 - Set all your Master/Cue outputs to a specific output, so if you buy a new audio interface you can fix all your master outs to point to 7/8 in one go.
-- Validate all plugins in a set are installed.
-- Convert plugins to the ones you have, for example a Mac set's Audio Units to the same plugins' VST3s on Windows, keeping their sounds.
-- Fix the samples plugins keep inside their own settings (a sampler's sample, a drum kit, a Kontakt instrument), which Live never reports.
-- Fold/Unfold all tracks, and/or set track height and widths.
-- Dump the XML of the set, in case you want to dissect how they are structured or contribute to this project : )
+- Color your tracks/clips with random gradients, fold/unfold tracks, and set track heights and widths.
+- Read and edit sets from Python, including MIDI notes, device settings and supported plugins' saved patches.
+- Dump the XML of a set, in case you want to dissect how they are structured or contribute to this project : )
 
-It also:
-
-- Copies your original set files to a backup folder before writing any changes, so you are never at risk of losing anything.
-- Supports both Windows and macOS created sets.
-- Works on sets from Ableton 8.2 through Live 12 (not every command works with older versions though).
-- Preserves the original set modification time.
-- Works as a [Python library](doc/LIBRARY.md), if you want to script your own fixes.
+It works with Windows and macOS created sets, from Ableton 8.2 through Live 12 (not every operation works with every version). In-place edits keep a backup of the original, and ordinary saves preserve the set's modification time.
 
 ## Installation
 
-Minimum Python required is 3.12 (https://www.python.org/downloads/).
+Minimum Python required is [3.12](https://www.python.org/downloads/).
 
-Open a command line shell and make sure you installed Python 3.12+ correctly:
+Open a command line shell and make sure Python is installed:
 
-```
-python -V  # Should give you a version
-```
-
-Once you verify you have Python 3.12+, install with pip:
-
-```
+```bash
+python -V  # Should give you Python 3.12 or newer
 pip install abletoolz
 ```
 
-This will install abletoolz as a command in your command line, you can now call `abletoolz` from anywhere if the installation completed successfully. (Create an issue if you run into any errors please!)
+This installs `abletoolz` as a command you can call from anywhere. Create an issue if you run into any errors please!
 
-## Usage
+To run it from a clone of the repository, see [installing a development copy](doc/DEVELOPMENT.md#install-a-development-copy).
 
-`-h` Print argument usage.
+## Start with one set
 
-`-v` Verbosity. For some commands, displays more information.
+Check its samples and plugins:
 
-### Input - Parsing single or multiple sets
-
-`abletoolz setname.als` Process single set.
-
-`abletoolz setname.als folder/with/sets` Process single set and all sets within a directory (recursive).
-
-`abletoolz "D:\somefolder"` Finds all sets in directory and all subdirectories. Sets inside a "Backup" or "abletoolz_backup" folder are skipped.
-
-NOTE: On Windows, do NOT include the ending backslash when you have quotes! Python reads the backslash as an escape for the closing quote:
-
-`abletoolz "D:\somefolder\"` # BAD
-
-`abletoolz "D:\somefolder"` # GOOD
-
-Without quotes, backslashes are fine (but you'll need quotes if you have spaces in the directory path):
-
-`abletoolz D:\somefolder\` # GOOD
-
-`-j N` Number of sets to work on at the same time. By default abletoolz uses all your CPU cores; `-j 1` does one set at a time.
-
-### Analysis - checking samples/tracks/plugins
-
-`--check-samples` Checks relative and absolute sample paths and verifies if the file exists. Ableton will load the sample as long as one of the two are valid. If the relative path doesn't exist (not collected and saved) only the absolute path is checked. By default only missing samples are displayed to reduce clutter, use `-v` to show all found samples as well. It also checks the samples and kits plugins keep inside their own settings, which Live never warns you about: the plugin loads and simply plays nothing.
-
-`--check-plugins` Checks whether each plugin in the set is installed, the way Live would find it on this computer. **Note**: When loading a set, if Ableton finds the same plugin name in a different path it will automatically fix any broken paths the next time you save your project. When a plugin isn't found, this shows the closest installed one.
-
-```
-[1-Serum] Plugin: Serum_x64.dll, Path: C:\Program Files\VstPlugins\Xfer\Serum_x64.dll, Exists: True
-[2-Audio] Plugin: Effectrix.dll, Path: C:\Program Files\VstPlugins\Effectrix.dll, Exists: True
-[3-Audio] Plugin: DrumLeveler.dll, Path: None, Exists: False
-[4-Audio] Plugin: Apple: AUBandpass, Path: None, Exists: True
-[5-MIDI] Plugin: Arturia: Analog Lab V, Path: /Library/Audio/Plug-Ins/Components/Analog Lab V.component, Exists: True
+```bash
+abletoolz "my song.als" --check-samples --check-plugins
 ```
 
-`--list-tracks` List track information.
+Or use a folder to check all the sets inside it, including subfolders:
 
-```
-Tracks:
-Track type    MidiTrack, Name      1-LOW, Id   13, Group id   -1, Color  28, Width 120, Height  68, Unfolded: false
-Track type   AudioTrack, Name    2-Drums, Id    8, Group id   -1, Color  28, Width 120, Height  68, Unfolded: false
-Track type   AudioTrack, Name     3-Bass, Id   15, Group id   -1, Color  43, Width 120, Height  68, Unfolded: false
-Track type  ReturnTrack, Name   A-Reverb, Id    2, Group id   -1, Color  60, Width 120, Height  68, Unfolded: true
+```bash
+abletoolz "D:/sets" --check-samples --check-plugins
 ```
 
-### Create sample database (used for automatic sample fixing)
+Sets inside `Backup` and `abletoolz_backup` folders are skipped. You can also pass several sets or folders in one command. The paths here are examples; use your own folders on Windows or macOS.
 
-`--db folder/with/samples` Build up a database of all samples that is used when you run `--fix-samples-collect` or `--fix-samples-absolute`. For best results, run this on all folders that could have samples in them, including your set directories and your plugin libraries.
+Checking doesn't change your set, though it does write [scan results](#what-a-run-leaves-behind). All editing flags only change the set in memory until you add `-s` / `--save`. Plugin conversion has its own explicit save step, `plugins apply` (or `plugins plan --apply`).
 
-```
+Use `-h` for the command's options and `-v` for more detail. For example, sample checks normally show missing files; `-v` shows the ones found too.
+
+If you want to write your own scripts, the [Python tutorial](doc/LIBRARY.md) starts with opening a set and builds up one step at a time.
+
+## Finding your samples again
+
+First, point abletoolz at the folders where your samples might be. Include your project folders too:
+
+```bash
 abletoolz --db "D:/samples" "D:/sets" "C:/Users/Public/Documents"
 ```
 
-Running it again only re-reads what changed, so keep it up to date whenever you add samples. Folders you don't pass stay in the database. If you always scan the same folders, list them in your `config.yaml` (`%APPDATA%\abletoolz` on Windows, `~/Library/Application Support/abletoolz` on macOS, `~/.config/abletoolz` on Linux) and run `--db` with no folders:
+The database stores filenames, sizes, dates and the same checksum Live saves with its sample references. Abletoolz uses the information available in the set to check candidate files. If it can't settle on a match, it leaves that reference alone and tells you why.
+
+To fix missing references and collect the found audio into each project:
+
+```bash
+abletoolz "D:/sets" --fix-samples-collect -s
+```
+
+If you'd rather keep samples in your library, `--fix-samples-absolute` points the set at their full paths instead:
+
+```bash
+abletoolz "D:/sets" --fix-samples-absolute -s
+```
+
+### Samples and files inside plugins
+
+Sample checks and fixes also look inside supported plugins' saved settings. This can find a missing sample in Serato Sample, or a Battery kit or Kontakt instrument, even when Live opens the set without reporting missing media.
+
+To find replacements, you need to index the folders containing those files too. Include your Kontakt libraries, Maschine kits and user content, Battery kits, Reaktor ensembles, and any other folders holding files your supported plugins use. For example:
+
+```bash
+abletoolz --db "D:/samples" "D:/Kontakt Libraries" "D:/Maschine Content" "D:/Battery Kits" "D:/Reaktor Ensembles"
+```
+
+Use your own content-folder paths; those names are just examples. The scan includes their subfolders. If you've already indexed a parent folder containing these libraries, you don't need to list each one separately.
+
+The same `--db` command builds two databases automatically: audio files go into the sample database, and recognized plugin-specific files go into `plugin_files.sqlite3` beside it. Those include Kontakt instruments (`.nki`), Maschine groups and sounds (`.mxgrp`, `.mxsnd`), Battery kits (`.nbkt`) and Reaktor ensembles (`.ens`). The plugin maps determine which file types are indexed.
+
+You don't need a separate indexing command for plugin files. `--plugin-db` is different: it records installed plugins, not their sample libraries or kits. Point `--db` at the content folders, then run `--check-samples` and the sample-fixing commands as usual. Both databases are used automatically.
+
+Support is per plugin and saved format: some references can be relinked, while others are only reported for you to fix by hand. This repairs references found in the plugin's state saved in the set; it doesn't recursively repair every file inside a kit or instrument library. See the [support table](#supported-plugins) for an overview.
+
+Collecting copies found audio into the project. Files only a plugin loads, such as Kontakt instruments or Battery kits, are relinked where they are in your library and aren't copied.
+
+### Keeping the database up to date
+
+Run `--db` again whenever you add samples. It checks what's changed and reuses the checksums of unchanged files, so it doesn't have to read every sample again. Folders you don't pass stay in the database.
+
+The database uses SQLite to look up matches without loading the entire catalog into memory. Checksum readers work in parallel when indexing, and sets are processed across your available CPU cores. Use `--db-workers N` to limit checksum readers and `-j N` to limit simultaneous sets; `-j 1` processes one set at a time.
+
+Search your indexed files by file and folder names:
+
+```bash
+abletoolz --search-samples "kick 174"
+```
+
+If you always scan the same folders, put them in `config.yaml` and run `abletoolz --db` with no folders:
 
 ```yaml
-sample_database:
+file_database:
   paths:
     - "D:/samples"
     - "D:/sets"
+    - "D:/Kontakt Libraries"
+    - "D:/Maschine Content"
+    - "D:/Battery Kits"
+    - "D:/Reaktor Ensembles"
 ```
 
-`--search-samples "kick 174"` Search the database by file and folder names.
+These folders populate both the sample and plugin-file databases. Add any other content folders your plugins use here too.
 
-`--db-prune` Remove every sample from the database that no longer exists. A sample that's gone is never used to fix a set, but when fixing runs into some it tells you to run this. Plug in your sample drives first, since files on a drive that isn't connected count as gone too.
+The config folder is `%APPDATA%\abletoolz` on Windows, `~/Library/Application Support/abletoolz` on macOS, or `~/.config/abletoolz` on Linux.
 
-### Edit
-
-These will only edit sets in memory unless you use `-s/--save` explicitly to commit changes.
-
-`--fix-samples-collect` Go through each sample reference in the set, and if any are missing find them in the database created with `--db`. The sample is copied into the set's project folder, the same action as collect and save in Ableton. A sample is matched by its name, size, date and the checksum Live stores, so a renamed sample can be found too. Files only a plugin loads, like a Kontakt instrument, are pointed at where they are in your library and never copied.
-
-`--fix-samples-absolute` The same thing as `--fix-samples-collect`, just doesn't copy the sample and instead puts the full path.
-
-`--gradient-tracks` Generate random gradients for tracks and clips. The results from this are limited, since there are only 70 available colors in Ableton, but sometimes you get some pretty good results!
-![Abletoolz](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient_2.png)
-
-`--unfold` or `--fold` unfolds/folds all tracks in set.
-
-`--set-track-heights` Set arrangement track heights for all tracks, including groups and automation lanes. The values will be different on different computers/OSes because it's based on your screen resolution, so first experiment with this command and `--set-track-widths` on a set with different values and open it after to see how it looks. On my setup the Min is 17, Default 68, Max 425 for track height.
-
-`--set-track-widths` Set clip view track widths for all tracks. On my setup, Min 17, Default 24, Max 264.
-
-`--master-out` Number to set Master audio output channels to. 1 correlates to stereo out 1/2, 2 to stereo out 3/4 etc.
-
-`--cue-out` Set Cue audio output channels. Same numbering for stereo outputs as master out.
-
-### Output - saving edited sets to disk
-
-`-s`, `--save` Saves the modified set in the same location as the original file. This only applies if you use options that actually alter the set, not just analyze plugins/samples/etc. When you use this option, as a safety precaution the original file is copied to `abletoolz_backup/set_name__1.als` beside the set before the new one replaces it. If that file exists, it will create `abletoolz_backup/set_name__2.als` and keep increasing the number, so your previous versions are always still intact (be sure to clean this folder up if you run this a bunch of times).
-
-`--output DIRECTORY` Used with `-s`, writes the changed sets into another folder instead, and leaves the originals alone:
-
-```
-abletoolz "D:/sets" --fix-samples-absolute -s --output "D:/repaired_sets"
-```
-
-***Disclaimer*** Before using `Edit` options with save, experiment on a set you don't care about first and then open it in Ableton to be sure the changes are what you expect. Because I understand how many hours of hard work go into set files, I've put in multiple safeguards to prevent you losing anything:
-
-- The original file is ALWAYS copied to the backup folder as described above, so you can always re-open that file if for some reason the newly created set breaks.
-- The new set is written to a temporary file and swapped in at the very end in one step, so if you Ctrl + C the script or your computer loses power mid-save, the original set is still where it was. Rather than rely on this, please just allow the script to finish processing, and make sure the options you're using do what you expect before running on hundreds of sets.
-
-`-x`, `--xml` Dumps the uncompressed set XML in the same directory as set_name.xml. Useful to understand set structure for development. You can edit this xml file, rename it from `.xml` to `.als` and Ableton will load it! If you run with this option multiple times, the previous xml file is copied into the `abletoolz_backup` folder with the same renaming behavior as `-s/--save`. With `--output`, the xml goes into the output folder beside the copy instead.
-
-## Examples
-
-Check all samples in sets
-
-```
-abletoolz "D:\all_sets" --check-samples
-```
-
-```
-Parsing: D:\all_sets\Drum N Bass\nyphty.als
-Set version: Ableton Live 11.0.10
-Set name: nyphty, BPM: 87.0
-Longest clip or furthest arrangement position: 16 bars. Estimated length(Only valid for 4/4): 0:44
-Sample BGE_170_Fake_Eyes_Drums.wav missing:
-        Absolute[D:\Loopcloud\BGE_170_Fake_Eyes_Drums.wav], Relative [..\..\Loopcloud\BGE_170_Fake_Eyes_Drums.wav]
-Missing sample references: 1
-```
-
-Fix all broken samples, copying them into each project
-
-```
-abletoolz --db "D:\samples" "D:\all_sets"
-abletoolz "D:\all_sets" --fix-samples-collect -s
-```
-
-Set all master outs to stereo 1/2 and cue outs to 3/4
-
-```
-abletoolz "D:\all_sets" -s --master-out 1 --cue-out 2
-```
-
-Or a bunch of options
-
-```
-abletoolz "D:\all_sets\myset.als" -s -x --master-out 1 --cue-out 1  --unfold \
---set-track-heights 68 --set-track-widths 24
-```
-
-```
-Parsing: D:\all_sets\myset.als
-Set version: Ableton Live 12.2.6
-Set name: myset, BPM: 174.0
-Set MasterTrack to 1/2
-Set PreHearTrack to 1/2
-Unfolded all tracks.
-Set track heights to 68.
-Set track widths to 24.
-Saved xml to D:\all_sets\myset.xml
-Moving original file to backup directory:
-D:\all_sets\myset.als --> D:\all_sets\abletoolz_backup\myset__1.als
-Saved set to D:\all_sets\myset.als
-Took 0:00:00.371096 to process 1 set(s): 1 ok, 0 failed
-```
+`--db-prune` removes database entries whose files no longer exist. Connect your sample drives first, since files on a disconnected drive count as gone too. Missing files are never used to repair a set, even before pruning.
 
 ## Converting plugins
 
-A set made on another machine often has plugins this one can't load: an Audio Unit from a Mac, an old VST2 you replaced with its VST3. abletoolz can switch those devices to what you have, keeping their sounds. It works in two steps with a file in between, so nothing changes until you've looked at it:
+Opening an old set can mean finding plugins you haven't had installed for years. Maybe you've upgraded them since, or they no longer run on your computer. Sharing projects can cause the same problem: your friend uses Audio Units and you use VSTs, even though you both have the same plugin.
 
+Abletoolz can help recover those sets by converting supported devices to a plugin or format you can use, using the settings saved in the set as its starting point. That can mean switching formats, upgrading an old Pro-Q to Pro-Q 3, or rebuilding a Pro-53 patch in Prophet-5 V where some settings can only be approximated.
+
+The difficult part is understanding those saved settings. Live stores a buffer of data supplied by the plugin inside the set, and each plugin decides how to encode its sounds and settings. VST2, VST3 and AU tell Live how to host a plugin, but don't give every plugin a common patch format. Abletoolz already handles Live's outer wrappers and several common state wrappers; the contents still need to be understood and checked for each plugin and version.
+
+Sometimes the same patch can carry across with a different wrapper. Other conversions need individual settings translated, including their units and ranges. Automation adds another problem: the same knob can have a different parameter ID or value scale in another format or version. Restoring the patch doesn't automatically restore the automation that controlled it. The [conversion limits](#what-converting-costs) explain what currently gets removed or approximated.
+
+That's why conversions are mapped out case by case. The plugins mapped so far are the ones in my own library, often because I wanted an old project working again, so they likely won't cover what's in yours. [Make a plan](#make-a-plan-check-it-then-apply) to see what abletoolz can do with your sets. To recover a plugin it can't convert, look for a newer version from its maker; if it's abandonware, you can try reverse engineering it with REA. Recognizing a plugin doesn't mean every format swap or upgrade is supported.
+
+```bash
+abletoolz --plugin-maps
 ```
-abletoolz --plugin-db                                   # once: lists the plugins installed here
-abletoolz plugins plan "D:/sets" -o plan.yaml           # lists every plugin and what it can become
-abletoolz plugins apply plan.yaml                       # after you've written convert_to for the ones to change
+
+That lists what abletoolz knows about each plugin, including which formats and operations it supports. If yours isn't covered, [you can help map it](#helping-add-your-own-plugins).
+
+### Supported plugins
+
+This is a short overview of the implementations checked on 2026-11-02. New maps may reach the code before this table is updated, and an older installed release may support less. Run `abletoolz --plugin-maps` for your version's catalog, then make a plan to see what it can do with your actual patches.
+
+Arrows show implemented directions, not every format the plugin itself ships in. “None” means no format swap or further converter is listed here; recognition or state editing may still be supported. File repair is limited to the formats mapped for that plugin. A listed conversion can still have version limits or warnings, including the automation losses described below.
+
+| Plugin | Same-plugin format swaps | Upgrade / other converter | Files inside its saved patch |
+| --- | --- | --- | --- |
+| FabFilter Pro-Q, Pro-Q 2 | None | → Pro-Q 3 VST3 or VST2 | — |
+| FabFilter Pro-C (including SC), Pro-L | None | → Pro-C 2 / Pro-L 2 VST3 or VST2, respectively | — |
+| FabFilter Saturn, Volcano 2, Timeless 2 | None | → Saturn 2 / Volcano 3 / Timeless 3 VST3 or VST2, respectively | — |
+| FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3 | None | — |
+| Valhalla Delay, FreqEcho, Plate, Room, Shimmer, Supermassive | Between VST2, VST3 and AU, any direction | None | — |
+| Kilohearts kHs effects (listed below) | VST2 ↔ VST3 | None | — |
+| Xfer Serum | VST2 ↔ VST3; AU → VST2 or VST3 | → Serum 2 VST3 / AU (experimental) | — |
+| Xfer Serum 2 | VST3 ↔ AU | None | Relink samples and referenced images |
+| Surge | None | → Surge XT VST3 / AU | — |
+| Surge XT, Surge XT Effects | VST3 ↔ AU | None | — |
+| Arturia minimoog V Original | None | → Mini V3 VST3 or VST2 | — |
+| Arturia CS-80V, CS-80 V2 | None | → CS-80 V3 VST3 or VST2 | — |
+| Arturia Piano V2, Wurli V2, ARP 2600 V2, Prophet V2, Modular V2 | None | → their V3 VST3 or VST2 | — |
+| Arturia Analog Lab 3, Analog Lab 4 | None | → Analog Lab V VST2 | — |
+| Native Instruments Absynth 3 | None | → Absynth 5 VST2 | — |
+| AAS Lounge Lizard EP-4, Lounge Lizard 3 | None | → Spectrasonics Keyscape Rhodes - Classic VST3 or VST2 (approximations) | — |
+| Ohm Force Ohmicide | None | → Ohmicide[S] VST3 or VST2 | — |
+| iZotope Ozone 8 Elements | None | → Ozone 9 VST2 | — |
+| iZotope Stutter Edit 2 | VST2 ↔ VST3 | None | — |
+| Audio Damage Ratshack Reverb 2, DubStation 1.5, Discord 3 | None | None; mapped | — |
+| Sonimus Satson Channel | None | None; mapped | — |
+| Subsonic Labs Wolfram | None | None; mapped | — |
+| Camel Audio CamelPhat 3 | None | None; mapped | — |
+| Twin Delay | None | None; mapped | — |
+| Arturia Mini V3, Prophet V3, Prophet-5 V, MS-20 V | VST2 ↔ VST3 | None | — |
+| Native Instruments Pro-53 | None | → Arturia Prophet-5 V VST3 or VST2 (approximations) | — |
+| KORG MS-20, Legacy Cell | None | → Arturia MS-20 V VST3 or VST2 (experimental) | — |
+| KORG MDE-X, Polysix, WAVESTATION | None | None; recognized only | — |
+| Goodhertz Tupe 3 | VST2 ↔ VST3 | None | — |
+| Serato Sample | VST2 ↔ VST3 | None | Relink samples |
+| Devious Machines Texture | VST2 ↔ VST3 | None | Relink samples |
+| Native Instruments Battery 4 | None | None | Relink samples and kits |
+| Native Instruments Kontakt 5, Kontakt 5 16out | None | None | Relink mapped instrument/library references |
+| Native Instruments Maschine 2, Maschine 2 FX | None | None | Relink samples, groups and sounds |
+| Native Instruments Reaktor 6 | None | None | Relink ensemble references |
+| Arturia CMI V; xfadelooper | None | None | Relink samples |
+| iZotope Iris; Akai MPC Essentials | None | None | Report sample / project references, respectively; manual repair |
+| iZotope Trash | None | → Trash 2 VST2 | — |
+| Native Instruments Massive; iZotope Ozone 9 Exciter | None | None; mapped state, VST3 writing incomplete | — |
+
+The kHs effects covered are 3-Band EQ, Bitcrush, Channel Mixer, Chorus, Clipper, Comb Filter, Compactor, Compressor, Convolver, Delay, Distortion, Dual Delay, Dynamics, Ensemble, Filter, Flanger, Formant Filter, Frequency Shifter, Gain, Gate, Haas, Ladder Filter, Limiter, Nonlinear Filter, Phase Distortion, Phaser, Pitch Shifter, Resonator, Reverb, Reverser, Ring Mod, Shaper, Stereo, Tape Stop, Trance Gate and Transient Shaper. Evidence varies across these maps; a listed implementation is not a claim that every patch has been auditioned.
+
+### Make a plan, check it, then apply
+
+First record the plugins installed on this computer. Run this again after installing or removing plugins:
+
+```bash
+abletoolz --plugin-db
 ```
 
-Nothing converts unless you write a name in its `convert_to`. A converted device keeps its sound, but its automation and MIDI mappings are removed, because another format numbers the plugin's controls differently; the plan says so before you apply. [Converting plugins](doc/PLUGIN_CONVERSION.md) walks through a real plan.
-
-`--plugin-maps` Lists every plugin abletoolz knows how to convert or fix, and what it can do with each.
-
-`--plugin-db` Records the plugins installed on this computer. Run it again after installing plugins. Extra plugin folders go in your `config.yaml`:
+Extra plugin folders go in `config.yaml`:
 
 ```yaml
 plugin_database:
@@ -226,9 +212,110 @@ plugin_database:
     - "D:/VstPlugins"
 ```
 
+Make a plan for one set, or pass a folder to plan a whole library:
+
+```bash
+abletoolz plugins plan "my song.als" -o plan.yaml
+```
+
+This reads the sets and writes `plan.yaml`, without changing the sets. Each plugin appears once per format, with comments listing what it can become and what each conversion would lose. The last line it prints says how many of the plugins that don't load here have a target. Expect many to have none: only the plugins in the [support table](#supported-plugins) are mapped so far.
+
+For every plugin that doesn't load here, `convert_to` is already filled in with what it can become on this computer, best first: the same plugin in another format before a different plugin, VST3 before VST2, and only plugins you have installed. Each device takes the first one it can, so a set too old for the VST3 gets the VST2. A plugin with nothing installed to become stays `null`, which means leave it alone:
+
+```yaml
+- plugin: FabFilter Pro-Q 2
+  format: VST2
+  convert_to: [pro_q_3_vst3, pro_q_3_vst2]
+```
+
+Change the list with the names in the comment above a plugin, or set it to `null` to keep that plugin as it is. Then apply:
+
+```bash
+abletoolz plugins apply plan.yaml
+```
+
+This saves the changed sets in place and copies the originals to `abletoolz_backup` first. One choice applies to every instance of that plugin and format in the planned sets. Apply reads the sets again; devices it can't convert stay as they were, with the reason. Add `--json` for structured results.
+
+A plan file that already exists isn't overwritten unless you pass `--force`. Open the result in Live and listen before deleting its backup.
+
+To skip checking the file, `abletoolz plugins plan "D:/Ableton Projects" --apply` writes the plan and applies its suggestions straight away.
+
+### What converting costs
+
+A saved patch and Live's automation are separate things. Even when a patch carries over, a converted device currently loses its automation and clip envelopes, MIDI and macro mappings, because the target's controls can have different numbers. Its configured control list is rebuilt where supported, or left empty.
+
+Upgrades can also leave out or approximate settings the target has no equivalent for. The plan shows these costs before you apply, and the result repeats them for each affected device. Some conversions are experimental; the plan's evidence and warnings matter even when a conversion succeeds.
+
+### A few common cases
+
+- **Sending a set to another computer:** the target plugin doesn't have to be installed here. Choose an offered format the other computer can use; that computer still needs the plugin installed.
+- **An older set:** Live 9 and 10.0 sets can't hold a VST3, so abletoolz moves such a set up to Live 10.1's format when it writes one, and the plan lists what that changes. A Live 9.0 set using some of Live's own devices can't be moved; open and save it in a newer Live first.
+- **Old wrapped VST2 plugins:** `abletoolz plugins routes` lists measured recovery routes and the binaries found for them. Use `--plugin-dir "D:/VstPlugins"` to restrict the recovery-file search to that folder.
+- **Missing samples as well as plugins:** fix and save the sample references first, then make the conversion plan. Converting a patch doesn't relink its files.
+
+The [Python tutorial](doc/LIBRARY.md#8-check-and-convert-plugins) shows how to inspect targets, choose by your own rules, keep individual devices unchanged and write converted copies elsewhere.
+
+## Other things you can do
+
+Set all master outs to stereo 1/2 and cue outs to 3/4:
+
+```bash
+abletoolz "D:/sets" --master-out 1 --cue-out 2 -s
+```
+
+The output numbers count stereo pairs: `1` is 1/2, `2` is 3/4, and so on.
+
+`--gradient-tracks` generates random gradients for tracks and clips. There are only 70 colors in Ableton's palette, but sometimes you get some pretty good results!
+
+![Abletoolz track gradients](https://github.com/elixirbeats/abletoolz/raw/master/doc/gradient_2.png)
+
+`--fold` / `--unfold` folds or unfolds tracks. `--set-track-heights` changes arrangement heights, including groups and automation lanes; `--set-track-widths` changes Session View widths. Try a few values on one set first, since how they look depends on your display. On my setup, 68 is the default track height and 24 the default width.
+
+You can combine edits:
+
+```bash
+abletoolz "my song.als" --unfold --set-track-heights 68 --set-track-widths 24 -s
+```
+
+`--list-tracks` lists track information. `-x` / `--xml` writes the uncompressed set XML beside the set, which is useful for exploring its structure. Live can also open uncompressed XML renamed to `.als`, provided the document is valid.
+
+## Saving your changes
+
+`-s` / `--save` saves ordinary edits in the original location. Before replacing a set, abletoolz copies it to `abletoolz_backup/set_name__1.als` beside the original. If that name exists, it uses `__2`, then `__3`, so earlier backups are kept. A set the run doesn't change isn't written.
+
+To write repaired copies into another folder instead:
+
+```bash
+abletoolz "D:/sets" --fix-samples-absolute -s --output "D:/repaired_sets"
+```
+
+The originals stay where they are. `--fix-samples-collect` can't be combined with `--output`, because collecting targets each original project's sample folder. With `-x`, the XML goes into the output folder too; repeated XML exports keep numbered backups.
+
+Because I understand how many hours of hard work go into set files, I've put safeguards around saving. In-place saves keep the backup, and the replacement is written to a temporary file before being swapped into place. Still, experiment on a set you don't care about first and open the result in Live before running edits over hundreds of projects.
+
+`plugins apply` saves directly with backups; it doesn't need `-s`. To choose another destination for plugin conversions, use the [Python copy example](doc/LIBRARY.md#write-converted-copies-somewhere-else).
+
+## Undoing a save
+
+Every time abletoolz saves over a set, it keeps the old version in `abletoolz_backup` and remembers which command saved it. To put back what the last command changed:
+
+```bash
+abletoolz undo
+```
+
+It lists each set, the backup it would come back from and when that version was last saved, then asks before changing anything. Check the dates: an old one means you'd be going back further than you might think. The version it replaces goes into `abletoolz_backup` too, so nothing is lost. Undo puts back sets only: samples `--fix-samples-collect` copied into a project stay there.
+
+```bash
+abletoolz undo 3          # the last three commands
+abletoolz undo --list     # every command that can be undone
+abletoolz undo --trim 5   # keep each set's 5 newest backups, delete the older ones
+```
+
+A set you've changed since is pointed out before you answer. If a backup was deleted, that set is left as it is and the rest are still restored. Trimming asks first, and the backups it deletes are gone for good; it covers the sets abletoolz has saved since undo existed.
+
 ## What a run leaves behind
 
-A run that checks or fixes samples or plugins leaves a small `<set name>.meta.yaml` beside each set (`<clip name>.alc.meta.yaml` for a clip file), with what it found. The `status` and `notes` fields are yours to fill in, abletoolz never touches them:
+A run that checks or fixes samples or plugins leaves a small `<set name>.meta.yaml` beside each set (`<clip name>.alc.meta.yaml` for a clip). The `status` and `notes` fields are yours to fill in; abletoolz leaves them alone:
 
 ```yaml
 status: needs work
@@ -242,9 +329,9 @@ scan:
   samples_missing: 3
 ```
 
-(The real file has a few more fields abletoolz uses to tell whether the set changed.) Running `--check-plugins` again on an unchanged set reads this file instead of opening the set, so a second pass over a big library is much faster. Sample checks always look at your drives. `--no-meta` skips these files and checks everything fresh.
+The real file has a few more fields to tell whether the scan needs refreshing. Plugin-only checks can reuse results for an unchanged set when the relevant configuration and plugin information also agree. Sample checks always look at your drives. `--no-meta` skips these files and checks fresh.
 
-Each run also writes `abletoolz_report_<timestamp>.json` into the folder it processed, with everything it found, changed and couldn't do, in case you want to process the results with your own scripts.
+Set-processing runs also write `abletoolz_report_<timestamp>.json` with what they found, changed and couldn't do. The [Python tutorial](doc/LIBRARY.md#read-what-a-scan-found) shows how to read a saved scan.
 
 ## Using it from Python
 
@@ -255,50 +342,51 @@ from pathlib import Path
 
 from abletoolz.live_set import AbletonSet
 
-song = AbletonSet(Path("D:/sets/my song.als"))
-song.parse()
+song = AbletonSet(Path("my song.als"))
+if not song.parse():
+    raise ValueError("Couldn't read the set; see the log for why")
 print(song.version, song.transport.bpm(), "bpm")
 for track in song.tracks.load():
     print(track.name)
 ```
 
-[Using abletoolz as a library](doc/LIBRARY.md) starts there and works up to fixing samples and converting plugins.
+[Using abletoolz as a library](doc/LIBRARY.md) starts there and works up to fixing samples, editing notes and settings, converting plugins and reading their saved patches. You can follow it entirely in Python.
 
-## Experimental: reading and editing a set as JSON
+## Experimental: JSON for programs
 
-Two commands let a program, such as a script or a language model, read a set and write changes back. Both speak JSON and may still change.
+`--describe structure|patterns|full` reads a set as JSON. `patterns` includes clips and notes:
 
-`--describe structure|patterns|full` prints the set as JSON: its tempo and version, every track with its devices, and with `patterns` or `full`, the clips and their notes.
-
-```
+```bash
 abletoolz "tune.als" --describe patterns
 ```
 
-`--apply-ops` takes a JSON file of changes and writes the result to a new set given with `--output`. The input set is never touched.
+`--apply-ops` applies a JSON document of edits to a new set. Its `--output` is a filename, unlike the directory used with ordinary `-s` edits:
 
-```
+```bash
 abletoolz "tune.als" --apply-ops edits.json --output "tune variation.als"
 ```
 
-```json
-{"ops": [
-  {"op": "copy_section", "src_start": 128.0, "src_end": 192.0, "dest_start": 384.0, "tracks": ["Drums"]},
-  {"op": "set_notes", "track": {"name": "Bass"}, "clip": {"start": 384.0}, "notes": [[36, 0.0, 1.0]]}
-]}
-```
+The input set is left alone. See [JSON for programs](doc/LIBRARY.md#experimental-json-for-programs) for an example and the supported operations. This interface may still change.
 
-If any change in the file is invalid, nothing is changed. Every kind of change is listed in [the library guide](doc/LIBRARY.md#experimental-json-for-programs).
+## Helping add your own plugins
 
-## Future plans
+If your plugin isn't supported yet, you can help map it out : )
 
-- Make sending a set to an older Live reliable. `save_as` does it already, but it's experimental and some copies still crash Live.
-- More plugin maps. The framework is in place; each plugin's format is decoded one at a time.
-- Support time signatures other than 4/4, and maybe signature changes within a set.
-- Figure out why Live rejects `.asd` files created by hand, and fix it.
-- More AI agentic tool interaction interfacing.
+Abletoolz already handles how Live carries VST2, VST3 and Audio Unit devices, and several common wrappers around their patches. The remaining work depends on the plugin: its identity, how it saves settings, and whether those settings carry across formats or versions.
 
-## Development
+A useful starting point is to save a patch, change one control and compare another save. For upgrades, try importing old presets into the newer plugin and saving them there. Those pairs show how the plugin itself translates its settings.
 
-The plugin data and test fixtures are stored with Git LFS, so install `git lfs` before cloning. [Developing abletoolz](doc/DEVELOPMENT.md) explains how the code is laid out and how to add support for a new plugin.
+For a plugin whose maker is gone, see [salvaging an old plugin](doc/DEVELOPMENT.md#salvaging-an-old-plugin). The [plugin mapping walkthrough](doc/DEVELOPMENT.md#mapping-a-new-plugin) covers these experiments, using DawDreamer or Pedalboard to automate them, and investigating unfamiliar formats with Ghidra. Mapping a sample path or one format swap is useful too; you don't have to decode every control before contributing.
 
-`-x` and `--dump-plugins` are the tools for looking inside sets and plugin settings. `abletoolz-dj-crates` builds pre-warped `.alc` clips from a TSV of track analysis; run `abletoolz-dj-crates --help` for its options.
+## Development and future work
+
+[Developing abletoolz](doc/DEVELOPMENT.md) explains the code layout and how to contribute. Plugin data and test fixtures use Git LFS, so install it before cloning.
+
+Some things still need work:
+
+- More plugin maps, conversions and support for carrying automation across them.
+- Making copies for older Live versions reliable. Python's `save_as` is experimental and some copies still crash Live.
+- Time signatures other than 4/4 and signature changes within a set.
+- More ways for scripts and other programs to work with sets.
+
+`--dump-plugins` and `-x` help inspect plugin settings and set XML. `abletoolz-dj-crates` builds pre-warped `.alc` clips from a TSV of track analysis; run `abletoolz-dj-crates --help` for its options.

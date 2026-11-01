@@ -1,4 +1,4 @@
-"""Making a plan from sets: every plugin in them and what each can become here, nothing picked."""
+"""Making a plan from sets: every plugin in them, what each can become here, and the picks abletoolz suggests."""
 
 from __future__ import annotations
 
@@ -7,18 +7,21 @@ import pathlib
 from collections.abc import Iterable
 
 from abletoolz.formats import live_document
+from abletoolz.formats.errors import FormatError
 from abletoolz.live_set.tracks import track_label
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices
 from abletoolz.plugins.identity.ids import PluginKind, stored_id
 from abletoolz.plugins.plan.carry import carry
 from abletoolz.plugins.plan.machine import Machine
-from abletoolz.plugins.plan.model import DeviceRef, Plan, PlannedSet, PluginChoice, Route, set_sha256
+from abletoolz.plugins.plan.model import DeviceRef, Plan, PlannedSet, PluginChoice, Route, UnreadSet, set_sha256
 from abletoolz.plugins.plan.targets import mapped_targets, recovery_target, stored_label
 from abletoolz.plugins.recovery import route_for
 from abletoolz.plugins.state.all_plugins import CATALOG
 
 # The order a plan lists targets in: the same plugin first, guesses last.
 _ROUTE_ORDER = (Route.FORMAT, Route.RECOVERY, Route.FILE, Route.CONVERTER, Route.EXPERIMENT)
+# The format a suggestion prefers when the same plugin is offered in several.
+_FORMAT_ORDER = (PluginKind.VST3, PluginKind.VST, PluginKind.AU)
 
 
 def _track_name(device: PluginDevice) -> str:
@@ -28,16 +31,24 @@ def _track_name(device: PluginDevice) -> str:
 
 
 def make_plan(paths: Iterable[pathlib.Path], machine: Machine) -> Plan:
-    """Read ``paths`` and plan every plugin device in them, every pick ``keep``; nothing is written."""
+    """Read ``paths`` and plan every plugin device in them, with the suggested picks; nothing is written.
+
+    A path that is not a Live document is listed in ``unread`` with the reason, and the rest are planned.
+    """
     return merge_plans(plan_set(index, path, machine) for index, path in enumerate(paths))
 
 
-def plan_set(index: int, path: pathlib.Path, machine: Machine) -> tuple[PlannedSet, list[PluginChoice]]:
+def plan_set(index: int, path: pathlib.Path, machine: Machine) -> tuple[PlannedSet, list[PluginChoice]] | UnreadSet:
     """The set at ``path``, the ``index``-th of a plan, and its plugins planned; ``merge_plans`` joins sets."""
     path = path.resolve()
-    planned = PlannedSet(path=path, sha256=set_sha256(path))
+    try:
+        root = live_document.read(path)
+        planned = PlannedSet(path=path, sha256=set_sha256(path))
+    # An empty, truncated or unreadable file (no permission, a cloud placeholder) must not stop a plan over a library.
+    except (FormatError, OSError) as error:
+        return UnreadSet(path=path, reason=str(error).removeprefix(f"{path}: "))
     choices: dict[tuple[PluginKind, str | None, str], PluginChoice] = {}
-    for device in PluginDevices(live_document.read(path)):
+    for device in PluginDevices(root):
         assert device.ordinal is not None
         identity = device.identity
         stored = stored_id(identity)
@@ -74,11 +85,22 @@ def plan_set(index: int, path: pathlib.Path, machine: Machine) -> tuple[PlannedS
     return planned, list(choices.values())
 
 
-def merge_plans(parts: Iterable[tuple[PlannedSet, list[PluginChoice]]]) -> Plan:
-    """One plan from ``plan_set``'s answers, in set order: each plugin's devices, breakage and counts added up."""
+def merge_plans(parts: Iterable[tuple[PlannedSet, list[PluginChoice]] | UnreadSet]) -> Plan:
+    """One plan from ``plan_set``'s answers, in set order: each plugin's devices, breakage and counts added up.
+
+    The sets read are numbered again, so an unread one leaves no gap in the devices' set numbers.
+    """
     sets: list[PlannedSet] = []
+    unread: list[UnreadSet] = []
     choices: dict[tuple[PluginKind, str | None, str], PluginChoice] = {}
-    for planned, part in parts:
+    for answer in parts:
+        if isinstance(answer, UnreadSet):
+            unread.append(answer)
+            continue
+        planned, part = answer
+        for choice in part:
+            for ref in choice.devices:
+                ref.set = len(sets)
         sets.append(planned)
         for choice in part:
             seen = choices.setdefault(choice_key(choice), choice)
@@ -91,7 +113,36 @@ def merge_plans(parts: Iterable[tuple[PlannedSet, list[PluginChoice]]]) -> Plan:
                     for reason, number in more.items():
                         count[reason] = count.get(reason, 0) + number
     ordered = sorted(choices.values(), key=lambda choice: (not choice.broken, choice.plugin.lower(), choice.format))
-    return Plan(made=datetime.datetime.now(datetime.UTC), sets=sets, plugins=ordered)
+    for choice in ordered:
+        choice.picks = suggest(choice) if choice.broken else []
+    return Plan(made=datetime.datetime.now(datetime.UTC), sets=sets, plugins=ordered, unread=unread)
+
+
+def suggest(choice: PluginChoice) -> list[str]:
+    """What a plugin that doesn't load here should become, best first; each device takes the first it can.
+
+    Only targets installed here that at least one device can take, and never a
+    guess. The same plugin comes before another one, a VST3 before a VST2 before
+    an AU, a conversion someone has listened to before one nobody has, and then
+    the target fewer devices refuse and fewer pay for.
+    """
+    devices = len(choice.devices)
+    usable = [
+        target
+        for target in choice.targets
+        if target.installed and target.route is not Route.EXPERIMENT and sum(target.refused.values()) < devices
+    ]
+    usable.sort(
+        key=lambda target: (
+            _ROUTE_ORDER.index(target.route) >= _ROUTE_ORDER.index(Route.CONVERTER),
+            _FORMAT_ORDER.index(target.format),
+            not target.proved,
+            sum(target.refused.values()),
+            sum(target.warnings.values()),
+            target.id,
+        )
+    )
+    return [target.id for target in usable]
 
 
 def choice_key(choice: PluginChoice) -> tuple[PluginKind, str | None, str]:

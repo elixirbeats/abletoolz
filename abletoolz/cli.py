@@ -4,15 +4,18 @@
 of reading ``sys.argv``, the config file and the OS, and answers the exit code,
 so a test calls it the way the console script does. A run over sets goes to
 :func:`abletoolz.run.batch.run_sets`, ``abletoolz plugins`` to
-:func:`abletoolz.plugins.commands.run_plugin_commands`.
+:func:`abletoolz.plugins.commands.run_plugin_commands`, ``abletoolz undo`` to
+:func:`abletoolz.live_set.undo.run_undo`.
 """
 
 import argparse
 import datetime
 import json
 import logging
+import os
 import pathlib
 import sys
+import time
 from collections.abc import Sequence
 
 import pydantic
@@ -23,7 +26,8 @@ from abletoolz.formats import live_document
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
 from abletoolz.live_set.describe import DescribeLevel
-from abletoolz.live_set.persistence import BACKUP_DIR, find_sets
+from abletoolz.live_set.persistence import BACKUP_DIR, COMMAND_ENV, RUN_ENV, find_sets
+from abletoolz.live_set.undo import run_undo
 from abletoolz.machine import Locations
 from abletoolz.plugins.commands import run_plugin_commands
 from abletoolz.plugins.config import AbletoolzConfig, load_config
@@ -179,7 +183,7 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
         default=False,
         help="Instead of parsing sets, create/update sample database for fast lookups when fixing broken paths. "
         "Files only a plugin loads, such as Kontakt instruments and Maschine groups, go to a plugin files "
-        "database beside it. With no folders, scans sample_database.paths in config.yaml.",
+        "database beside it. With no folders, scans file_database.paths in config.yaml.",
     )
     database.add_argument(
         "--db-path",
@@ -395,9 +399,9 @@ def process(args: argparse.Namespace, config: AbletoolzConfig, locations: Locati
         database.prune_db(db_path)
         return 0
     if args.db:
-        folders = args.srcs or [str(path) for path in config.sample_paths]
+        folders = args.srcs or [str(path) for path in config.file_paths]
         if not folders:
-            logger.error("%sNo folders given, and none under sample_database.paths in config.yaml.", R)
+            logger.error("%sNo folders given, and none under file_database.paths in config.yaml.", R)
             return 1
         database.create_or_update_db(
             folders,
@@ -481,9 +485,18 @@ def main(
     """
     argv = sys.argv[1:] if argv is None else list(argv)
     locations = Locations.this_computer() if locations is None else locations
+    # Every set this command saves is one undo step; worker processes inherit both.
+    os.environ[RUN_ENV] = f"{time.time_ns()}-{os.getpid()}"
+    os.environ[COMMAND_ENV] = " ".join(["abletoolz", *argv])
     try:
+        if argv[:1] == ["undo"]:
+            return run_undo(argv[1:])
         if argv[:1] == ["plugins"]:
-            config = load_config(locations.config_file) if config is None else config
+            try:
+                config = load_config(locations.config_file) if config is None else config
+            except ValueError as error:
+                logger.error("%s", error)
+                return 2
             return run_plugin_commands(argv[1:], config=config, locations=locations)
         args = parse_arguments(argv)
     except SystemExit as exited:  # argparse exits on --help (0) and on a command line it refuses (2)
@@ -500,7 +513,11 @@ def main(
         with database.load_db(args.db_path if args.db_path is not None else locations.sample_db) as catalog:
             print(json.dumps(catalog.search(args.search_samples), ensure_ascii=False))
         return 0
-    config = load_config(locations.config_file) if config is None else config
+    try:
+        config = load_config(locations.config_file) if config is None else config
+    except ValueError as error:
+        logger.error("%s", error)
+        return 2
     locations = locations.with_plugin_folders(config.plugin_paths)
     if args.plugin_db:
         return run_build_plugin_db(args.plugin_db_path, config, locations)

@@ -249,13 +249,26 @@ def render_recovery_routes(routes: Sequence[RecoveryTarget]) -> None:
         print(f"  {target.path if target.path is not None else target.reason}")
 
 
-def render_plan(plan: Plan, output: pathlib.Path) -> None:
-    """Each plugin of a plan with the names its convert_to takes, and what to do with the file."""
+def render_plan(plan: Plan, output: pathlib.Path, *, applying: bool = False) -> None:
+    """Each plugin of a plan with the names its convert_to takes, how many have a target, and what to do next."""
     for name, choice in entries(plan):
         state = ", doesn't load here" if choice.broken else ""
         options = ", ".join(target.id for target in choice.targets) or "nothing here"
-        print(f"{name} {FORMAT_LABELS[choice.format]}, {len(choice.devices)} device(s){state}: {options}")
-    print(f"Plan written to {output}. Set convert_to, then run: abletoolz plugins apply {output}")
+        picked = f" -> {', then '.join(choice.picks)}" if choice.picks else ""
+        print(f"{name} {FORMAT_LABELS[choice.format]}, {len(choice.devices)} device(s){state}: {options}{picked}")
+    for unread in plan.unread:
+        print(f"Not read, so not planned: {unread.path}: {unread.reason}")
+    broken = [choice for choice in plan.plugins if choice.broken]
+    targeted = [choice for choice in broken if choice.picks]
+    print(
+        f"{len(targeted)} of {len(broken)} plugin(s) that don't load here "
+        f"({sum(len(choice.devices) for choice in targeted)} of {sum(len(choice.devices) for choice in broken)} "
+        "device(s)) have a target installed here; the rest aren't mapped yet or have nothing installed to become."
+    )
+    if applying:
+        print(f"Plan written to {output}. Applying it.")
+    else:
+        print(f"Plan written to {output}. Check convert_to, then run: abletoolz plugins apply {output}")
 
 
 def render_applied_plan(outcomes: Sequence[SetOutcome]) -> None:
@@ -272,3 +285,8 @@ def render_applied_plan(outcomes: Sequence[SetOutcome]) -> None:
             print(f"  [{device.device}] {device.plugin} on {device.track} {mark} {detail}")
             for warning in device.warnings:
                 print(f"      warning: {warning}")
+    converted = sum(outcome.changed for outcome in outcomes)
+    kept = sum(1 for outcome in outcomes for device in outcome.devices if not device.done)
+    sets = sum(1 for outcome in outcomes if outcome.changed)
+    skipped = sum(1 for outcome in outcomes if outcome.skipped is not None)
+    print(f"{converted} device(s) converted in {sets} set(s), {kept} left as they were, {skipped} set(s) skipped")

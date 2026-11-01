@@ -3,21 +3,26 @@
 User-facing changes and migration notes, newest first. Current usage belongs in
 the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin support.
 
-## 2.2.0 — unreleased
+## 2.2.0 — 2026-11-02
 
 Changes since 2.1.0.
 
 ### License
 
 - abletoolz is now licensed under the Mozilla Public License 2.0 (MPL-2.0).
-  Versions up to and including 2.1.0 remain under the GNU GPL v3.
+  Versions up to and including 2.1.0 remain under the GNU GPL v3. Feel free to
+  use it in proprietary and open source work, I only ask that you contribute back
+  improvements that are specific to the library! (GPL has weird rules that I
+  didn't like, MPL is much more sensible).
 
 ### Sample indexing and recovery
 
 - The sample database is SQLite, with indexed filename, size and CRC lookups and
   full-text filename/folder search through `--search-samples`. JSON sample
   databases are no longer read or written.
-- `--db` with no folders scans `sample_database.paths` from config.yaml.
+- `--db` with no folders scans `file_database.paths` from config.yaml for both
+  samples and plugin content. Rename the old `sample_database` section to
+  `file_database`; the old name is rejected. Python configuration uses `file_paths`.
 - `--db` skips a subfolder it can't open, such as `System Volume Information`
   on a drive root, with a warning instead of stopping the scan.
 - `--fix-samples-collect` is refused with `--output`: collecting copies into each
@@ -38,6 +43,14 @@ Changes since 2.1.0.
 
 ### Batch processing and records
 
+- `abletoolz undo` puts back the sets the last command saved over: it lists
+  each set with the backup it comes back from and when that version was last
+  saved, asks, then moves each backup back into place. The version it replaces
+  is backed up too. `abletoolz undo 3` undoes the last three commands, `--list`
+  shows what can be undone, and `--trim 5` keeps each set's 5 newest backups
+  and deletes the rest, after asking.
+- `-s` no longer rewrites a set the run didn't change, so it gets no backup or
+  undo entry either; `--output` already skipped these.
 - Set parsing uses worker processes. `-j` / `--jobs` accepts a positive count or
   `auto`, with available CPUs as the default and set count/executor bounds.
   `--db-workers` separately controls checksum reader threads. A run with many
@@ -64,19 +77,42 @@ Changes since 2.1.0.
 
 ### Plugins
 
+- `plugins plan` ends by saying how many plugins that don't load here have a
+  target, and `plugins plan --apply` applies its suggestions without stopping
+  to review the file.
 - `plugins plan` writes a short file listing every plugin in the sets, each with
-  `plugin`, `format` and `convert_to: null`, and the names it can become in a
-  comment above it. Writing one of those names, exactly, converts every device of
-  that plugin; `plugins apply` reads the sets again and converts. Every format in
+  `plugin`, `format` and `convert_to`, and the names it can become in a comment
+  above it. For a plugin that doesn't load here, `convert_to` is filled in with
+  what is installed here, best first, and each device takes the first it can, so
+  one plan covers sets too old for a VST3; `null` leaves a plugin as it is.
+  `plugins apply` reads the sets again and converts. Every format in
   a plugin map carries its plan name, written by hand (`serum_vst3`), and two that
-  share one stop the catalog loading.
+  share one stop the catalog loading. A set that can't be read, such as an empty
+  or truncated file, is listed in the plan with the reason and the rest are planned.
 - `plugins plan` and `plugins apply` read sets on every CPU core, like `-j` does
   for the other commands.
+- Older sets can take a VST3. Live 9 and Live 10.0 sets can't hold a VST3
+  device, so when a conversion writes one into such a set, abletoolz first
+  moves the set up to Live 10.1's format, the oldest that can. The original is
+  backed up as usual, and the plan lists what the move changes before you
+  apply it:
+  - MIDI clips lose their warp markers.
+  - A Live 9 set's arrangement automation moves onto its tracks, where Live 10
+    keeps it.
+  - View settings Live 10 no longer saves are removed.
+
+  Live finishes the upgrade the next time you save the set. A Live 9.0 set
+  using Simpler, Sampler, Auto Filter, Operator's filter or Utility can't be
+  moved this way, since Live later rebuilt those devices; its plugins stay as
+  they are, and the plan says why. Open and save it in a newer Live first, or
+  take a VST2 target where the plan offers one.
+- A plugin converts into any format, VST2 included: a VST2 target takes the
+  installed plugin's own record, so even a Live 9 set takes a newer plugin.
 - A conversion never refuses over what it can't carry: automation and clip
   envelopes, MIDI and macro mappings and an arranged list of controls are removed,
   settings with no match in the target are left out, and each is said in the plan
   and under the device after apply; see
-  [what converting costs](doc/PLUGIN_CONVERSION.md#what-converting-costs). Only a
+  [what converting costs](README.md#what-converting-costs). Only a
   device that can't be converted at all stays as it was, with the reason.
 - In Python, `file_targets` and `experiments` add what a plan file never offers:
   another installed file of the same VST2, and an installed plugin named like an
@@ -98,12 +134,54 @@ Changes since 2.1.0.
   FabFilter's own importer sets them.
 - FabFilter Volcano 2 devices convert to Volcano 3 the same way, filters laid
   out and modulation depths scaled as FabFilter's importer does, a depth on a
-  gain moving the gain with it. Banks from the later 757-control Volcano 2 build
-  are left as they are.
+  gain moving the gain with it. Banks of the x64 builds convert too, their XY
+  controllers, phase offsets, snaps, envelope holds and delays and MIDI curves
+  included.
 - FabFilter Timeless 2 devices convert to Timeless 3 as FabFilter's own importer
   converts its presets: the two delays become one with a time pan, their
   feedback one feedback and cross mix, and modulation keeps the slots Timeless 3
   can hold.
+- Arturia minimoog V Original devices convert to Mini V3, as a VST2 in sets too
+  old for a VST3, control by control under the names both plugins share, the
+  way Arturia's own Mini V3 ports of the original's factory patches carry them.
+  What Mini V3 has no place for (modulation slots past eight, the motion
+  recorder's curves) is said.
+- AAS Lounge Lizard EP-4 and Lounge Lizard 3 devices come back as Keyscape
+  (VST2 or VST3) playing its factory Rhodes - Classic, a sampled Rhodes in place
+  of the modelled one. The EP-4's tremolo (on, stereo or mono, rate, depth),
+  reverb (on, mix) and a chorus or phaser cross onto that patch's own controls;
+  Lounge Lizard 3's tremolo and reverb switches and amounts do. Each device says
+  what it left out, the piano's own model settings always among them.
+- Native Instruments Absynth 3 devices convert to Absynth 5 as a VST2. The
+  Absynth 3 sound goes across as it is and Absynth 5 migrates it when it loads,
+  finding its samples in Absynth 5's own library. Live's mappings to the old
+  device's parameters are not carried.
+- Arturia Analog Lab 3 and 4 devices, VST2 and VST3, convert to Analog Lab V as
+  a VST2. Analog Lab V converts the synth inside the preset itself; abletoolz
+  marks the preset as Analog Lab V's so the state it saves loads back the same
+  way. Analog Lab 1 and 2 devices are not converted: Analog Lab V ignores their
+  state.
+- iZotope Stutter Edit 2 devices convert between VST2 and VST3 with their
+  gesture bank. The VST3 reads every VST2 patch back as written, stamping only
+  its own version on it.
+- Ozone 8 Elements devices convert to Ozone 9: its equalizer, imager and
+  maximizer settings and its module order move into Ozone 9's modules of the
+  same names, and Ozone 9 reads every converted patch back as written.
+- Arturia Piano V2 and Wurli V2 devices convert to Piano V3 and Wurli V3, as a
+  VST2 or a VST3, with their patches: each V3 reads its predecessor's patch and
+  migrates it itself.
+- Arturia ARP 2600 V2 devices convert to ARP 2600 V3, as a VST2 or a VST3, setting
+  by setting: ARP 2600 V3 keeps its predecessor's patch record, and every setting
+  it names is copied into its factory Default.
+- Arturia Prophet V2 and Modular V2 devices convert to Prophet V3 and Modular V3
+  the same way.
+- Prophet V3 devices written as a VST3 hold the patch as Live saves it, one
+  archive in each half; the VST3 ignored the VST2 chunk handed over whole.
+- Audio Damage Ratshack Reverb 2, DubStation 1.5 and Discord 3, Sonimus Satson
+  Channel, Twin Delay, Subsonic Labs Wolfram and Camel Audio CamelPhat 3 are
+  recognized and their saved banks read, x64 and jBridged copies included.
+  Nothing converts them yet; the maps are where a converter into another plugin
+  starts.
 - Serum 2 is supported as a VST3 and an Audio Unit, and converts between the
   two. Serum's Audio Unit from a Mac set converts to its VST2 or VST3 with the
   patch; a plan marks that crossing unproved, since the AU side was only
@@ -151,6 +229,16 @@ Changes since 2.1.0.
   are listed on the device. A patch that depends on one it cannot imitate, such
   as the high-pass filter mode, converts as near as Prophet-5 V allows and warns
   that it will likely sound different.
+- Arturia CS-80V and CS-80 V2 devices, both builds of each, convert to CS-80 V3,
+  as a VST2 in sets too old for a VST3, control by control the way Arturia's own
+  CS-80 V3 ports of the old factory patches carry them. The voices' fine tuning,
+  which CS-80 V3 does not play, and the saved pitch bend are said.
+- Ohm Force Ohmicide devices convert to
+  Ohmicide[S] as a VST3, or as a VST2 in sets too old for a VST3, control by
+  control in the units both plugins print: every distortion type and family,
+  the four bands and their crossovers, gates, feedback and the dry/wet balance.
+  Ohmicide[S]'s crossovers are steeper, and the original's tone stage and
+  pre-distortion have no counterpart; a device using either says so.
 - KORG's legacy MS-20 devices are recognized, including jBridge wrappers, and
   their working patch reads and edits by control name in the units the plugin
   prints, patch-panel cables included.
@@ -166,6 +254,10 @@ Changes since 2.1.0.
 
 ### Library and authoring
 
+- Experimental, Python only: old sets saved as a binary document, before Live
+  8.2, convert to Live's XML format
+  (`abletoolz.experimental.legacy.convert_file`). See
+  [legacy set conversion](doc/LEGACY_SETS.md) for what converts so far.
 - Named settings cover native devices, tracks, mixers, clips and transport across
   measured Live schemas, including setting operations in JSON edit documents.
 - Whether a set's version has a setting is answered by Live's own schema of the
@@ -188,8 +280,7 @@ Changes since 2.1.0.
   until something else read the version first.
 - The [library examples](doc/LIBRARY.md#5-do-it-for-a-whole-folder) work on whole folders of sets:
   `find_sets` finds them the way the command line does.
-- The README, [library guide](doc/LIBRARY.md) and
-  [plugin conversion guide](doc/PLUGIN_CONVERSION.md) are step-by-step guides that
+- The README and the [library guide](doc/LIBRARY.md) are step-by-step guides that
   start simple. How the code is built moves to [doc/DEVELOPMENT.md](doc/DEVELOPMENT.md).
 
 ### Migration

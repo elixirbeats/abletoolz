@@ -303,8 +303,8 @@ def _measure(
 def _save(job: SetJob, live_set: AbletonSet, relinked: Relinked | None, *, changed: bool) -> bool:
     """Write the set if the job says to, answering whether it was written."""
     if job.save:
-        if job.output is not None and not changed:
-            logger.info("%sSet is unchanged, nothing written to %s", Y, job.output)
+        if not changed:
+            logger.info("%sSet is unchanged, nothing written", Y)
             return False
         # The collector's copies go into the project only when the set that
         # points at them is written, and before it, so the set never names a

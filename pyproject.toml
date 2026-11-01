@@ -58,7 +58,7 @@ version = {attr = "abletoolz.__version__"}
 
 [tool.setuptools.package-data]
 "abletoolz.data" = ["*.alc"]
-"abletoolz.plugins.state" = ["data/*.json"]
+"abletoolz.plugins.state" = ["data/*.json", "data/*.state"]
 "abletoolz.plugins.converters" = ["data/*.json"]
 "abletoolz.plugins" = ["data/*.json"]
 "abletoolz.schema" = ["data/*.json", "data/*.json.gz"]

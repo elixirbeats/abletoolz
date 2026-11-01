@@ -17,7 +17,8 @@ import pytest
 from conftest import SKELETONS, run_cli
 
 from abletoolz import cli
-from abletoolz.plugins.config import AbletoolzConfig
+from abletoolz.machine import Locations
+from abletoolz.plugins.config import load_config
 from abletoolz.run import batch
 from abletoolz.run.job import COMMAND_FLAGS, SetJob
 from abletoolz.samples import database
@@ -194,10 +195,38 @@ def test_db_without_folders_scans_the_ones_in_config(tmp_path: pathlib.Path) -> 
     (root / "kick.wav").write_bytes(b"RIFF")
     db_path = tmp_path / "samples.sqlite3"
 
-    assert run_cli("--db", "--db-path", str(db_path), config=AbletoolzConfig(sample_paths=[root])) == 0
+    (root / "Piano.nki").write_bytes(b"instrument")
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"file_database:\n  paths:\n    - {root.as_posix()}\n", encoding="utf-8")
+    config = load_config(config_path)
+    assert config.file_paths == [root]
+    assert run_cli("--db", "--db-path", str(db_path), config=config) == 0
 
     with database.load_db(db_path) as samples:
         assert list(samples.candidates("kick.wav")) == [str(root / "kick.wav")]
+    with database.load_plugin_files_db(database.plugin_files_db_path(db_path)) as plugin_files:
+        assert list(plugin_files.candidates("Piano.nki")) == [str(root / "Piano.nki")]
+
+
+@pytest.mark.parametrize("include_new", [False, True])
+def test_old_database_config_is_rejected(tmp_path: pathlib.Path, include_new: bool) -> None:
+    path = tmp_path / "config.yaml"
+    text = "sample_database:\n  paths: [old-library]\n"
+    if include_new:
+        text += "file_database:\n  paths: [new-library]\n"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="sample_database was renamed to file_database"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("argv", [("--db",), ("plugins", "routes")])
+def test_cli_reports_old_database_config(
+    locations: Locations, caplog: pytest.LogCaptureFixture, argv: tuple[str, ...]
+) -> None:
+    locations.config_file.write_text("sample_database:\n  paths: [old-library]\n", encoding="utf-8")
+    assert cli.main(argv, locations=locations) == 2
+    assert "rename that section" in caplog.text
+    assert not locations.sample_db.exists()
 
 
 def test_db_prune_removes_files_that_no_longer_exist(tmp_path: pathlib.Path) -> None:

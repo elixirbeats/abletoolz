@@ -1,5 +1,7 @@
 # Ableton Live 12 `.asd` format
 
+Historical research notes. The measurements below describe the listed fixtures; they do not establish a supported ASD-writing workflow. Live acceptance of generated files remains unresolved. For current usage, start with the [README](../README.md).
+
 Established by byte-exact structural parses of three files Live wrote
 (the fixtures and parser live in abletoolz v2.1.0, `abletoolz/asd/`):
 
@@ -7,9 +9,7 @@ Established by byte-exact structural parses of three files Live wrote
 - `with_warp_markers.asd` — Live 12, the same MP3 after auto-warp
 - `pine-021.wav.asd` — older Live, WAV source (legacy schema)
 
-All three parse **to the last byte** with the rules below (verified: walker
-end offset == file size). No public OSS project covers Live 12
-(`AbletonParsing` explicitly states Live 12 is unsupported).
+The recorded structural checks parsed all three **to the last byte** with the rules below (walker end offset == file size). Parsing the bytes does not establish that Live accepts a rewritten file.
 
 ## Top-level file layout
 
@@ -141,7 +141,7 @@ Present in both Live-12 fixtures, absent in pine. Likely a fast-access copy.
 
 ## Warp markers
 
-**Key finding: Live 12's auto-warp writes NO warp markers into the `.asd`.** The two Live-12
+**In the two Live-12 auto-warp fixtures, no explicit warp markers were written into the `.asd`.** The two Live-12
 fixtures differ *only* in AufTaktData content (first differing byte 0xF366 = AufTaktData.
 PreprocessedDataChunk count) — the grid Live shows after auto-warp is derived at load time from
 the opaque AufTaktData blob. `IsWarped=1`, `MarkersGenerated=0`, `WarpMarkers=[]` in both.

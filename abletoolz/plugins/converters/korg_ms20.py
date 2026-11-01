@@ -1,6 +1,5 @@
 """Legacy KORG MS-20 patches, standalone or inside Legacy Cell, into KORG MS-20 V, control by control.
 
-The legacy MS-20 and Legacy Cell are 32-bit plugins no current Live loads, and
 MS-20 V is Arturia's model of the same synth with the same front panel and patch
 panel. A patch is rebuilt into MS-20 V's factory ``Default`` from both plugins'
 maps, in the units each one prints. Every legacy control goes one of these ways,
