@@ -17,6 +17,8 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- A set's bar count follows its time signatures, changes along the arrangement
+  included, and its estimated length no longer assumes 4/4.
 
 ## 2.2.0 — 2026-11-02
 
