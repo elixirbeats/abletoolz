@@ -55,6 +55,7 @@ from abletoolz.plugins.state import (  # noqa: F401
     subsonic_labs,
     surge_synth_team,
     twin_delay,
+    u_he,
     valhalla,
     xfadelooper,
     xfer,

@@ -173,6 +173,7 @@ Arrows show implemented directions, not every format the plugin itself ships in.
 | Ohm Force Ohmicide | None | → Ohmicide[S] VST3 or VST2 | — |
 | iZotope Ozone 8 Elements | None | → Ozone 9 VST2 | — |
 | iZotope Stutter Edit 2 | VST2 ↔ VST3 | None | — |
+| u-he Podolski | VST2 ↔ VST3 | None | — |
 | Audio Damage Ratshack Reverb 2, DubStation 1.5, Discord 3 | None | None; mapped | — |
 | Sonimus Satson Channel | None | None; mapped | — |
 | Subsonic Labs Wolfram | None | None; mapped | — |

@@ -342,6 +342,25 @@ class Verbatim:
 VERBATIM = Verbatim()
 
 
+_LENGTH_PREFIX = struct.Struct("<I")
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class LengthPrefixed:
+    """The patch after its byte count as a little-endian u32: u-he's VST3s (Diva, Podolski) around the VST2 text."""
+
+    def lift(self, state: bytes) -> bytes:
+        if len(state) < _LENGTH_PREFIX.size or _LENGTH_PREFIX.unpack_from(state)[0] != len(state) - _LENGTH_PREFIX.size:
+            raise StateTransformError("This state does not start with the byte count of what follows")
+        return state[_LENGTH_PREFIX.size :]
+
+    def lower(self, patch: bytes) -> bytes:
+        return _LENGTH_PREFIX.pack(len(patch)) + patch
+
+
+LENGTH_PREFIXED = LengthPrefixed()
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class JuceTrailer:
     """A JUCE VST3: the plugin's own state, then JUCE's private-data trailer."""
