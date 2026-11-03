@@ -17,6 +17,9 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- A Live 9.0 or 9.1 set using Simpler or Auto Filter moves up to hold a VST3
+  device the way Live moves it, those filters in legacy mode so they play as
+  before; it was refused. Operator's filter and Utility still are.
 - Surge 1.x VST3 devices convert to Surge XT, like its VST2 devices.
 - iZotope Trash programs saved by its later build (revision 22) convert to
   Trash 2 like the earlier ones; they were refused. The plan says which they are.

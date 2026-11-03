@@ -77,6 +77,10 @@ def write_live_list(parameters: ET.Element, listed: tuple[Vst3Parameter, ...]) -
             continue
         parameter = listed[position]
         low, high = number_value(parameter.minimum), number_value(parameter.maximum)
+        if slot.find(Tag.PARAMETER_NAME) is None:  # Live 9.0 sometimes writes none; every later Live writes it first
+            name = ET.Element(Tag.PARAMETER_NAME)
+            name.tail = slot.text
+            slot.insert(0, name)
         _set(slot, Tag.PARAMETER_NAME, parameter.title)
         _set(slot, Tag.PARAMETER_ID, str(parameter.id))
         _set(slot, Tag.VISUAL_INDEX, str(position))

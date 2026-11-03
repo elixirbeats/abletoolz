@@ -180,6 +180,19 @@ def test_slots_without_a_last_user_range_still_take_the_list() -> None:
     assert get_element(get_element(owner, "ParameterList")[1], "ParameterId", attribute="Value") == "1"
 
 
+def test_slots_live_9_0_wrote_without_a_name_take_the_list_named_first() -> None:
+    """Live 9.0 sometimes writes a slot with no ParameterName; every later Live writes it as the slot's first member."""
+    _root, device = pro_c_2_device(PRO_C_2_PARAMETERS)
+    owner = device.owner
+    assert owner is not None
+    for slot in slots(device):
+        slot.remove(get_element(slot, "ParameterName"))
+    as_pro_c_2_vst3(device, installed)
+    first = get_element(owner, "ParameterList")[1]
+    assert first[0].tag == "ParameterName" and first[0].get("Value")
+    assert get_element(first, "ParameterId", attribute="Value") == "1"
+
+
 def test_a_slot_missing_what_live_always_writes_leaves_the_device_untouched() -> None:
     _root, device = pro_c_2_device(PRO_C_2_PARAMETERS)
     value = get_element(slots(device)[0], "ParameterValue")
