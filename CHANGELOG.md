@@ -17,6 +17,7 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- Surge 1.x VST3 devices convert to Surge XT, like its VST2 devices.
 - iZotope Trash programs saved by its later build (revision 22) convert to
   Trash 2 like the earlier ones; they were refused. The plan says which they are.
 - CS-80V and CS-80 V2 devices convert when a zone they don't use holds the 0.5

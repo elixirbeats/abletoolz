@@ -293,6 +293,14 @@ def test_a_surge_1_patch_goes_into_a_surge_xt_au_preset_as_it_is() -> None:
     assert SURGE_1_UNIQUE_ID not in {getattr(item.id, "unique_id", None) for item in surge_xt.formats.values()}
 
 
+def test_a_surge_1_vst3_device_holds_the_vst2_patch_in_both_halves() -> None:
+    surge_1 = CATALOG.by_map_id("surge-synth-team.surge-1")
+    assert surge_1 is not None
+    saved = FormatState(legacy_surge(), legacy_surge())
+    assert surge_1.lift(saved, PluginKind.VST3) == legacy_surge()
+    assert surge_1.cross(FormatState(legacy_surge(), None), PluginKind.VST, PluginKind.VST3) == saved
+
+
 def test_a_chunk_that_is_not_surge_1_is_refused() -> None:
     with pytest.raises(StateTransformError, match="opens with"):
         import_surge_1(b"sub2" + legacy_surge()[4:])

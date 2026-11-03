@@ -8,6 +8,7 @@ vendor.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from typing import Protocol
 
 # -- the ControllerState beside it ------------------------------------------
@@ -62,6 +63,16 @@ class ConstantControllerState:
 
     def build(self, source: bytes) -> bytes | None:
         return self.payload
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SameAsProcessor:
+    """The processor state again, byte for byte: what u-he's VST3s and Surge 1's save. ``lower`` is that format's."""
+
+    lower: Callable[[bytes], bytes]
+
+    def build(self, source: bytes) -> bytes | None:
+        return self.lower(source)
 
 
 # The default: say nothing, write the element empty. Correct for every plugin

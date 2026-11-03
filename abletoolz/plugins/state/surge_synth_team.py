@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import datetime
 
-from abletoolz.plugins.container.controller import NO_CONTROLLER_STATE
+from abletoolz.plugins.container.controller import NO_CONTROLLER_STATE, SameAsProcessor
 from abletoolz.plugins.identity.ids import AuId, AuRegistration, Vst2Id, Vst3Id
 from abletoolz.plugins.state.audio_unit import JuceClassInfo
 from abletoolz.plugins.state.catalog import register
@@ -96,7 +96,7 @@ def surge_1() -> PluginMap:
         id="surge-synth-team.surge-1",
         name="Surge",
         version="1",
-        scope="VST2 chunks of patch revision 10, as the user's sets hold them",
+        scope="sub3 patches of revision 10; the VST3 holds the same bytes in both halves",
         vendor="Surge Synth Team",
         vst2=PluginFormat(
             Vst2Id(SURGE_1_UNIQUE_ID),
@@ -105,6 +105,15 @@ def surge_1() -> PluginMap:
             VERBATIM,
             MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,), datetime.date(2026, 10, 22)),
             plan_name="surge_vst2",
+        ),
+        # Read off the one Surge 1 VST3 device in the library: the VST2's sub3 patch, repeated as its controller half.
+        vst3=PluginFormat(
+            Vst3Id((666254531, 812663150, -1252100295, 1892939220)),
+            "Surge",
+            VERBATIM,
+            MeasuredState(StateRung.VERBATIM, (StateEvidence.STRUCTURAL,), datetime.date(2026, 11, 2)),
+            SameAsProcessor(VERBATIM.lower),
+            plan_name="surge_vst3",
         ),
         layouts=(Layout("sub3 patch", lambda patch: patch.startswith(SURGE_1_MAGIC)),),
     )
