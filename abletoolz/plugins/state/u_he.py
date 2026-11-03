@@ -9,9 +9,9 @@ channel layout, surround and microtuning settings, and the revision stamp.
 
 from __future__ import annotations
 
-import dataclasses
 import datetime
 
+from abletoolz.plugins.container.controller import SameAsProcessor
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.framings import LENGTH_PREFIXED, VERBATIM
@@ -19,14 +19,6 @@ from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, State
 from abletoolz.plugins.state.plugin_map import Layout, PluginFormat, PluginMap
 
 _HOSTED = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED,), datetime.date(2026, 11, 2))
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class SameAsProcessor:
-    """The controller half is the processor state again, as u-he's VST3s save it."""
-
-    def build(self, source: bytes) -> bytes | None:
-        return LENGTH_PREFIXED.lower(source)
 
 
 @register
@@ -43,7 +35,7 @@ def podolski() -> PluginMap:
             "Podolski",
             LENGTH_PREFIXED,
             _HOSTED,
-            SameAsProcessor(),
+            SameAsProcessor(LENGTH_PREFIXED.lower),
             plan_name="podolski_vst3",
         ),
         layouts=(Layout("u-he preset text", lambda patch: b"\n#AM=Podolski\n" in patch[:256]),),
