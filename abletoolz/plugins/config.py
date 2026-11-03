@@ -39,7 +39,7 @@ def load_config(path: pathlib.Path) -> AbletoolzConfig:
         return config
 
     try:
-        logger.info("Loading config from: %s", path)
+        logger.debug("Loading config from: %s", path)
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
         if "sample_database" in raw:

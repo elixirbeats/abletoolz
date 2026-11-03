@@ -7,7 +7,6 @@ import pathlib
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from abletoolz.ansi import G, R, Y
 from abletoolz.live_set import sample_ref
 from abletoolz.live_set.domain import Domain
 from abletoolz.live_set.sample_ref import Resolution
@@ -47,11 +46,10 @@ class Samples(Domain):
                 # Live loads this out of an installed Pack; no path on this
                 # machine can confirm or deny it, so calling it missing would
                 # be a guess dressed as a finding.
-                logger.debug("%sSample %s comes from Pack %s", G, parsed.name, parsed.live_pack)
+                logger.debug("Sample %s comes from Pack %s", parsed.name, parsed.live_pack)
             elif resolution is Resolution.LOADS:
                 logger.debug(
-                    "%sSample %s found: Relative %s, Absolute %s",
-                    G,
+                    "Sample %s found: Relative %s, Absolute %s",
                     parsed.name,
                     parsed.relative,
                     parsed.absolute,
@@ -79,30 +77,27 @@ class Samples(Domain):
         refused = [] if refused is None else refused
         gone = set() if gone is None else gone
         relinks: list[relink.Relink] = []
-        missing = 0
         located: dict[relink.Evidence, pathlib.Path | None] = {}
         for parsed in self.iterate():
             resolution = parsed.resolution
             if resolution is Resolution.PACK:
                 # Addressed by Pack id, not by path: there is nothing here to
                 # repair and rewriting it to a path would break what works.
-                logger.debug("%sSkipping Pack reference %s (%s)", Y, parsed.name, parsed.live_pack)
+                logger.debug("Skipping Pack reference %s (%s)", parsed.name, parsed.live_pack)
                 continue
             if resolution is Resolution.ONLY_BY_ABSOLUTE and parsed.absolute is not None:
                 # The file is where the absolute path says; point Live there.
-                missing += 1
                 old = str(parsed.relative)
                 parsed.point_absolute(parsed.absolute)
                 relinks.append(relink.Relink(old, str(parsed.absolute)))
                 continue
             if resolution is not Resolution.MISSING:
                 continue
-            missing += 1
             # A reference may store only a relative path or a name; search from whatever it has.
             original = parsed.absolute or parsed.relative or pathlib.Path(parsed.name)
             # Builtin pack content relinks itself when Live opens the set.
             if is_factory_pack_path(original.parent):
-                logger.debug("%sSkipping builtin pack content: %s", Y, original)
+                logger.debug("Skipping builtin pack content: %s", original)
                 continue
 
             evidence = relink.Evidence(
@@ -114,13 +109,6 @@ class Samples(Domain):
             found = located[evidence]
             if found is not None and self._point_at(parsed, found, collector):
                 relinks.append(relink.Relink(str(original), str(found)))
-        logger.info(
-            "%sOriginal missing sample count: %s, Samples fixed: %s, Couldn't fix: %s",
-            G if len(relinks) == missing else R,
-            missing,
-            len(relinks),
-            missing - len(relinks),
-        )
         return relinks
 
     def _point_at(self, parsed: sample_ref.SampleRef, found: pathlib.Path, collector: relink.Collector | None) -> bool:

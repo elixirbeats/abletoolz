@@ -115,7 +115,7 @@ class SampleRef:
         self.live_pack = get_element(file_ref, Tag.LIVE_PACK_NAME, attribute=Attr.VALUE, silent_error=True)
         self._read(file_ref)
         if self.crc == 0:
-            logger.warning("Sample %s stores CRC 0; checksum matching is disabled for this reference.", self.name)
+            logger.debug("Sample %s stores CRC 0; checksum matching is disabled for this reference.", self.name)
             self.crc = None
 
     @property

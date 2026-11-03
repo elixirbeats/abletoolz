@@ -37,7 +37,6 @@ from abletoolz.plugins import loadable
 from abletoolz.plugins.config import AbletoolzConfig
 from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.loadable import LoadableOracle
-from abletoolz.run.console import render_plugins
 
 # Dev identifiers as Live's database spells them. Decapitator's is the class id
 # the 11.3.42 skeleton's one VST3 device stores.
@@ -343,14 +342,12 @@ def test_a_registered_builtin_needs_no_bundle_and_reads_as_verified(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, locations: Locations
 ) -> None:
     registered(monkeypatch, APPLE_BANDPASS)
-    bandpass = audio_units(on_a_mac(locations))["AUBandpass"]
+    with caplog.at_level(logging.DEBUG):
+        bandpass = audio_units(on_a_mac(locations))["AUBandpass"]
     assert bandpass.exists
     assert bandpass.path is None
     assert bandpass.alternative is None
-
-    with caplog.at_level(logging.INFO):
-        render_plugins([bandpass])
-    assert "Plugin: Apple: AUBandpass, Path: None, Exists: True" in caplog.text
+    assert (bandpass.manufacturer, bandpass.name) == ("Apple", "AUBandpass")
     assert "cannot be verified" not in caplog.text
 
 

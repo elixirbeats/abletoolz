@@ -8,7 +8,6 @@ from collections.abc import Iterable, Iterator
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz.ansi import RST, G, R
 from abletoolz.elements import get_element
 from abletoolz.errors import ElementNotFound
 from abletoolz.live_set import sections
@@ -267,7 +266,7 @@ class Tracks(Domain):
         lanes = [lane for track in self.walk(cue=True) for lane in track.every(Track.LANE_HEIGHT)]
         for lane in lanes:
             lane.set(height)
-        logger.info("%sSet track heights to %s.", G, height)
+        logger.debug("Set track heights to %s.", height)
         return len(lanes)
 
     def set_widths(self, width: int) -> int:
@@ -280,7 +279,7 @@ class Tracks(Domain):
         ]
         for setting in widths:
             setting.set(width)
-        logger.info("%sSet track widths to %s.", G, width)
+        logger.debug("Set track widths to %s.", width)
         return len(widths)
 
     def _fold_settings(self) -> tuple[list[Setting], list[Setting]]:
@@ -308,7 +307,7 @@ class Tracks(Domain):
             setting.set(False)
         for setting in group_folds:
             setting.set(True)
-        logger.info("%sFolded all tracks.", G)
+        logger.debug("Folded all tracks.")
         return len(unfolded) + len(group_folds)
 
     def unfold(self) -> int:
@@ -318,11 +317,11 @@ class Tracks(Domain):
             setting.set(True)
         for setting in group_folds:
             setting.set(False)
-        logger.info("%sUnfolded all tracks.", G)
+        logger.debug("Unfolded all tracks.")
         return len(unfolded) + len(group_folds)
 
-    def set_audio_output(self, output_number: int, element_string: str) -> None:
-        """Route the main or cue track to a stereo output pair.
+    def set_audio_output(self, output_number: int, element_string: str) -> str | None:
+        """Route the main or cue track to a stereo output pair; answers its name, None when the set has no such track.
 
         ``element_string`` names the track: ``Tag.MAIN_TRACK`` or ``Tag.MASTER_TRACK``
         (either finds the main track on any Live version), or ``Tag.PRE_HEAR_TRACK``.
@@ -330,12 +329,12 @@ class Tracks(Domain):
         if element_string not in (*MAIN_TRACK_TAGS, Tag.PRE_HEAR_TRACK):
             raise ValueError(f"{element_string!r} is neither the main track nor the cue track (PreHearTrack)")
         if output_number not in STEREO_OUTPUTS:
-            raise ValueError(f"{R}Output number invalid!. Available options: \n{STEREO_OUTPUTS}{RST}")
+            raise ValueError(f"Output number invalid. Available options: \n{STEREO_OUTPUTS}")
         track = self.main() if element_string in MAIN_TRACK_TAGS else self.cue()
         # Some sets carry no cue track at all (seen in real 10.1 sets); nothing to route.
         if track is None:
-            logger.warning("%sSet has no %s, skipping audio output routing.", R, element_string)
-            return
+            logger.debug("Set has no %s, skipping audio output routing.", element_string)
+            return None
         output_obj = STEREO_OUTPUTS[output_number]
         target = track.find_setting(Track.AUDIO_OUTPUT_ROUTING_TARGET)
         label = track.find_setting(Track.AUDIO_OUTPUT_ROUTING_LOWER_DISPLAY_STRING)
@@ -348,7 +347,8 @@ class Tracks(Domain):
             routing = get_element(track.track_root, path(Tag.MASTER_CHAIN, Tag.AUDIO_OUTPUT_ROUTING))
             get_element(routing, Tag.TARGET).set(Attr.VALUE, output_obj["target"])
             get_element(routing, Tag.LOWER_DISPLAY_STRING).set(Attr.VALUE, output_obj["lower_display_string"])
-        logger.info("%sSet %s to %s", G, track.type, output_obj["lower_display_string"])
+        logger.debug("Set %s to %s", track.type, output_obj["lower_display_string"])
+        return str(output_obj["lower_display_string"])
 
     def gradient(self) -> None:
         """Make a rough gradient across tracks and their clips using built in colors."""

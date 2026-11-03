@@ -4,7 +4,6 @@ from collections.abc import Collection, Sequence
 from typing import Literal, overload
 from xml.etree import ElementTree as ET
 
-from abletoolz.ansi import R
 from abletoolz.errors import ElementNotFound
 from abletoolz.schema import Attr, Tag, path
 
@@ -68,11 +67,11 @@ def get_element(
     if not element:
         if silent_error:
             return None
-        raise ElementNotFound(f"{R}No element for path [{attribute_path}]")
+        raise ElementNotFound(f"No element for path [{attribute_path}]")
     if attribute:
         attr = element[0].get(attribute)
         if attr is None:
-            raise ElementNotFound(f"{R}Element {attribute}is empty!")
+            raise ElementNotFound(f"Element {attribute} is empty!")
         return attr
     return element[0]
 

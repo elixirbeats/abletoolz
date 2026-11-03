@@ -11,7 +11,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import pathlib
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ProcessPoolExecutor
 
 from abletoolz.live_set.persistence import is_backup_set, save_in_place
@@ -62,13 +62,15 @@ def plan_sets(
     plugin_dirs: Iterable[str | os.PathLike[str]] | None = None,
     config: AbletoolzConfig | None = None,
     locations: Locations | None = None,
+    worker_setup: Callable[[], object] | None = None,
 ) -> Plan:
     """Plan every plugin device in the sets ``sources`` name, folders searched recursively; nothing is written.
 
     ``jobs`` sets are read at once (None: one per CPU), each worker process
     building this computer's :class:`Machine` from ``plugin_dirs``, ``config``
     and ``locations`` as :func:`this_machine` does. A ``machine`` handed in
-    cannot cross into a worker, so it plans in this process only.
+    cannot cross into a worker, so it plans in this process only. Each worker
+    calls ``worker_setup`` first, which is how a command gives its workers its own output setup.
     """
     paths = _set_paths(sources)
     workers = set_workers(jobs, len(paths))
@@ -84,7 +86,7 @@ def plan_sets(
         max_workers=workers,
         mp_context=multiprocessing.get_context("spawn"),
         initializer=_start_worker,
-        initargs=(dirs, config, locations),
+        initargs=(dirs, config, locations, worker_setup),
     )
     try:
         return merge_plans(pool.map(_plan_in_worker, range(len(paths)), paths))
@@ -105,13 +107,22 @@ def read_plan(
     plugin_dirs: Iterable[str | os.PathLike[str]] | None = None,
     config: AbletoolzConfig | None = None,
     locations: Locations | None = None,
+    worker_setup: Callable[[], object] | None = None,
 ) -> Plan:
     """The sets a plan file names, planned again as they are now, with the file's convert_to as each pick.
 
     ``jobs`` and the rest are :func:`plan_sets`'s.
     """
     file = load_plan(pathlib.Path(path).read_text(encoding="utf-8"))
-    plan = plan_sets(file.sets, machine=machine, jobs=jobs, plugin_dirs=plugin_dirs, config=config, locations=locations)
+    plan = plan_sets(
+        file.sets,
+        machine=machine,
+        jobs=jobs,
+        plugin_dirs=plugin_dirs,
+        config=config,
+        locations=locations,
+        worker_setup=worker_setup,
+    )
     take_picks(plan, file)
     return plan
 
@@ -131,8 +142,15 @@ def _this_computer(config: AbletoolzConfig | None, locations: Locations | None) 
 _machine: Machine | None = None
 
 
-def _start_worker(plugin_dirs: list[pathlib.Path] | None, config: AbletoolzConfig, locations: Locations) -> None:
+def _start_worker(
+    plugin_dirs: list[pathlib.Path] | None,
+    config: AbletoolzConfig,
+    locations: Locations,
+    worker_setup: Callable[[], object] | None,
+) -> None:
     global _machine
+    if worker_setup is not None:
+        worker_setup()
     _machine = this_machine(plugin_dirs, config=config, locations=locations)
 
 

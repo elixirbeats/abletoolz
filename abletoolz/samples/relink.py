@@ -33,7 +33,6 @@ import logging
 import pathlib
 import shutil
 
-from abletoolz.ansi import Y
 from abletoolz.samples.catalog import SampleCatalog, SampleRecord
 from abletoolz.samples.crc import file_crc
 from abletoolz.samples.matcher import folder_scores, get_audio_length_seconds, length_score
@@ -189,18 +188,17 @@ def _choose(
 def locate(
     db: SampleCatalog, evidence: Evidence, what: str, refused: list[Refusal], gone: set[pathlib.Path]
 ) -> pathlib.Path | None:
-    """The file to point a missing reference at, or None after a warning that says why.
+    """The file to point a missing reference at, or None with the reason in ``refused``.
 
     Every kind of reference is relinked through here, so they all refuse the
     same way: a reference that cannot tell several files apart is left as it
-    is, never pointed at a guess, and goes into ``refused``. ``what`` names the
-    reference in the warning. Database records whose file is gone go into ``gone``.
+    is, never pointed at a guess, and goes into ``refused``, as does one found
+    nowhere. ``what`` names the reference there. Database records whose file is
+    gone go into ``gone``.
     """
     lookup = find(db, evidence)
     gone.update(lookup.gone)
     if lookup.found is None and lookup.candidates:
-        candidates = "".join(f"\n\t{path}" for path in lookup.candidates)
-        logger.warning("%sCould not tell which file is %s from what it stores; left as it is:%s", Y, what, candidates)
         refused.append(
             Refusal(
                 what,
@@ -208,13 +206,13 @@ def locate(
             )
         )
     elif lookup.found is None:
-        logger.warning("%sCould not find %s", Y, what)
+        refused.append(Refusal(what, "not found in the database"))
     return lookup.found
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Refusal:
-    """A missing file a run could have relinked but left as it was, and why."""
+    """A missing file a run left as it was, and why: not found, ambiguous, or not relinkable here."""
 
     what: str
     why: str
@@ -255,7 +253,6 @@ class Collector:
         if holder is None:
             self._planned[destination] = source
         elif not _same_file(holder, source):
-            logger.error("Not collecting %s: a different file named %s is already in %s", source, source.name, folder)
             self.refused.append(
                 Refusal(f"collecting {source}", f"a different file named {source.name} is already in {folder}")
             )
@@ -280,7 +277,7 @@ class Collector:
                     raise FileExistsError(
                         f"Not collecting {source}: a different {destination.name} appeared in {destination.parent}"
                     ) from None
-            logger.info("Collected %s into %s", source, destination.parent)
+            logger.debug("Collected %s into %s", source, destination.parent)
         self._planned.clear()
 
 

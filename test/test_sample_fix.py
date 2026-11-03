@@ -75,18 +75,15 @@ def test_fix_skips_offline_catalog_entries(tmp_path: pathlib.Path) -> None:
     assert gone == {offline}
 
 
-def test_a_relink_warns_once_per_set_about_files_gone_from_the_database(
-    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_a_relink_says_once_per_set_that_files_are_gone_from_the_database(tmp_path: pathlib.Path) -> None:
     ableton_set = skeleton_set("11.2.10")
     missing = ableton_set.samples.check()
     records = {str(tmp_path / "Unplugged" / ref.name): {"name": ref.name, "size": ref.size} for ref in missing}
 
-    ableton_set.files.relink(SampleCatalog.from_records(records), collect=False)
+    relinked = ableton_set.files.relink(SampleCatalog.from_records(records), collect=False)
 
-    warnings = [record.getMessage() for record in caplog.records if "--db-prune" in record.getMessage()]
-    assert len(warnings) == 1
-    assert f"{len(records)} file(s)" in warnings[0]
+    (notice,) = [notice for notice in relinked.notices if "--db-prune" in notice]
+    assert f"{len(records)} file(s)" in notice
 
 
 @pytest.mark.parametrize("key", ["9.0.1", "10.0.1"])

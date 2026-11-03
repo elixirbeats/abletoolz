@@ -6,7 +6,6 @@ import pathlib
 from typing import Self
 from xml.etree import ElementTree as ET
 
-from abletoolz.ansi import B, C, M, R, Y
 from abletoolz.errors import SetError
 from abletoolz.live_set import persistence
 from abletoolz.live_set.clips import Clips
@@ -70,12 +69,9 @@ class AbletonSet:
             return self._given_project_root
         for folder in self.path.parents:
             if (folder / "Ableton Project Info").exists():
-                logger.debug("%sProject root folder: %s", C, folder)
+                logger.debug("Project root folder: %s", folder)
                 return folder
-        logger.error(
-            "%sCould not find project folder(Ableton Project Info), unable to validate relative paths!",
-            R,
-        )
+        logger.debug("No project folder (Ableton Project Info) above %s", self.path)
         return None
 
     @functools.cached_property
@@ -161,12 +157,7 @@ class AbletonSet:
         except ValueError as exc:
             raise SetError(str(exc)) from exc
         self._version = creator
-        logger.info("%sSet version: %s%s", B, M, creator)
-        if "b" in creator.split()[-1]:
-            logger.warning(
-                "%sSet is from a beta version, some commands might not work properly!",
-                Y,
-            )
+        logger.debug("Set version: %s", creator)
 
     def parse(self) -> bool:
         """Uncompresses ableton set and loads into element tree."""
@@ -188,7 +179,7 @@ class AbletonSet:
         """Write a copy for an older Live release; see :func:`abletoolz.live_set.save_as.write_for`."""
         return write_for(self, target, output_dir)
 
-    def save_set(self, output_dir: pathlib.Path | None = None) -> None:
+    def save_set(self, output_dir: pathlib.Path | None = None) -> pathlib.Path | None:
         """Save set to disk: in place (backup first) by default; into ``output_dir``
-        (original untouched, no backup) when given."""
-        persistence.save_set(self, output_dir=output_dir)
+        (original untouched, no backup) when given. Answers the backup, None when there is none."""
+        return persistence.save_set(self, output_dir=output_dir)

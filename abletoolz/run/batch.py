@@ -3,8 +3,10 @@
 ``run_sets`` answers one record per set. A set that fails is that set's record
 with its error, never the end of the run; only Ctrl+C ends a run early, and then
 it answers nothing. Each worker gets the job and the run's locations pickled and
-its own snapshot of the sample catalogs, and returns its console output whole,
-so sets running side by side cannot interleave their lines.
+its own snapshot of the sample catalogs, and returns what it printed itself --
+diagnostics, --describe, --list-tracks -- whole with its record, so sets running
+side by side cannot interleave their lines. Each set's block is printed as its
+record comes in, in the order the sets were given.
 """
 
 from __future__ import annotations
@@ -15,18 +17,17 @@ import logging
 import multiprocessing
 import os
 import pathlib
-import shutil
 import signal
 import sys
 import tempfile
 import traceback
+from collections import deque
 from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import Future, ProcessPoolExecutor
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from itertools import islice
 
-from abletoolz.ansi import M, R
 from abletoolz.errors import ElementNotFound, SetError
 from abletoolz.machine import Locations
 from abletoolz.run import console, report
@@ -51,15 +52,20 @@ def run_sets(
     """Do ``job`` to every set in ``paths``, ``jobs`` at a time; None when Ctrl+C stopped the run.
 
     ``locations``, ``db``, ``plugin_files_db`` and ``fingerprint`` are what
-    :func:`run_set` takes. With one job the sets run in this process, in order;
-    with more the records come back in the order the sets finish.
+    :func:`run_set` takes. With one job the sets run in this process; with more
+    they run side by side. Either way each set's block is printed, and its
+    record answered, in the order the sets were given.
     """
+    records: list[report.SetRecord] = []
     if jobs == 1:
         try:
-            return [_record(job, path, locations, db, plugin_files_db, fingerprint) for path in paths]
+            for path in paths:
+                records.append(_record(job, path, locations, db, plugin_files_db, fingerprint))
+                console.render_set(records[-1])
         except KeyboardInterrupt:
-            logger.error("%sInterrupted!", R)
+            console.problem("Interrupted!")
             return None
+        return records
     with tempfile.TemporaryDirectory(prefix="abletoolz-workers-") as temporary:
         folder = pathlib.Path(temporary)
         snapshot = _snapshot(db, folder / "catalog.sqlite3") if db is not None else None
@@ -72,23 +78,23 @@ def run_sets(
             initializer=_initialize_worker,
             initargs=(_Worker(job, locations, fingerprint, verbose), snapshot, plugin_files),
         )
-        records: list[report.SetRecord] = []
         try:
             remaining = iter(paths)
-            pending = {executor.submit(_run_in_worker, path) for path in islice(remaining, jobs * 2)}
-            while pending:
-                for future in as_completed(pending):
-                    pending.remove(future)
-                    output = future.result()
-                    sys.stdout.write(output.stdout)
-                    sys.stderr.write(output.stderr)
-                    records.append(output.record)
-                    path = next(remaining, None)
-                    if path is not None:
-                        pending.add(executor.submit(_run_in_worker, path))
-                    break
+            # In the order given: the oldest set is waited on while the ones after it keep running.
+            queued: deque[Future[_Output]] = deque(
+                executor.submit(_run_in_worker, path) for path in islice(remaining, jobs * 2)
+            )
+            while queued:
+                output = queued.popleft().result()
+                sys.stdout.write(output.stdout)
+                sys.stderr.write(output.stderr)
+                console.render_set(output.record)
+                records.append(output.record)
+                following = next(remaining, None)
+                if following is not None:
+                    queued.append(executor.submit(_run_in_worker, following))
         except KeyboardInterrupt:
-            logger.error("%sInterrupted! Cancelling pending sets, waiting for dispatched sets to finish...", R)
+            console.problem("Interrupted! Cancelling pending sets, waiting for dispatched sets to finish...")
             executor.shutdown(wait=True, cancel_futures=True)
             return None
         finally:
@@ -108,14 +114,11 @@ def _record(
     try:
         return run_set(job, path, locations=locations, db=db, plugin_files_db=plugin_files_db, fingerprint=fingerprint)
     except (ElementNotFound, SetError) as error:
-        logger.info(traceback.format_exc())
+        logger.debug(traceback.format_exc())
         return report.SetRecord(path=str(path), error=f"{type(error).__name__}: {error}")
     except Exception as error:  # noqa: BLE001 -- one set's failure is that set's record, not the end of the run
-        logger.error("%sUnexpected error on %s:\n%s", R, path, traceback.format_exc())
+        logger.debug("Unexpected error on %s:\n%s", path, traceback.format_exc())
         return report.SetRecord(path=str(path), error=f"{type(error).__name__}: {error}")
-    finally:
-        columns = shutil.get_terminal_size(fallback=(120, 20)).columns
-        logger.info("%s\n\n%s\n\n", M, "^" * columns)
 
 
 def _snapshot(catalog: SampleCatalog, destination: pathlib.Path) -> pathlib.Path:
@@ -171,6 +174,6 @@ def _run_in_worker(path: pathlib.Path) -> _Output:
     stdout, stderr = io.StringIO(), io.StringIO()
     with redirect_stdout(stdout), redirect_stderr(stderr):
         # Onto this set's own streams, which is why it is forced.
-        console.configure_logging(machine_readable=bool(worker.job.describe), verbose=worker.verbose, force=True)
+        console.setup(verbose=worker.verbose, machine_readable=bool(worker.job.describe), force=True)
         record = _record(worker.job, path, worker.locations, state.db, state.plugin_files_db, worker.fingerprint)
     return _Output(record, stdout.getvalue(), stderr.getvalue())
