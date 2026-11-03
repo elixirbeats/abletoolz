@@ -59,7 +59,8 @@ PACKAGE_ROOT = pathlib.Path(__file__).resolve().parents[1]
 # Raised when what a scan measures changes between releases, so a block cached
 # before is thrown away. 2: --check-samples counts files inside plugin patches.
 # 3: a plugin patch that points at no file is no longer counted as a missing sample.
-SCAN_REVISION = 3
+# 4: bars are counted in the set's own time signatures.
+SCAN_REVISION = 4
 
 # What wrote a scan block, and what a cached block has to match to be reused.
 SCANNER = f"abletoolz {__version__} scan {SCAN_REVISION}"
