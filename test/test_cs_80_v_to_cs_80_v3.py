@@ -158,11 +158,14 @@ def test_a_value_outside_cs_80_v3_s_range_is_refused_directly_and_said_by_the_co
     assert values["Patch1_MODULATION01_OUTPUT"] == 1.0
 
 
-def test_only_a_zone_s_ends_may_hold_a_fraction_or_lie_outside_cs_80_v3_s_range() -> None:
+def test_only_a_zone_may_hold_a_fraction_and_only_its_ends_lie_outside_cs_80_v3_s_range() -> None:
     values = convert(chunk(ZONE1_INF=23.5, ZONE1_SUP=130.0))
     assert (values["ZONE1_INF"], values["ZONE1_SUP"]) == (0.0, 1.0)
-    with pytest.raises(StateTransformError, match="ZONE1_INPUT holds 3.5, not an item index"):
-        conversion.CONVERSIONS[V2.map_id](chunk(ZONE1_INPUT=3.5))
+    # The 0.5 the old plugins leave in an unused zone, kept as CS-80 V3's factory presets keep it.
+    values = convert(chunk(ZONE3_INPUT=0.5, ZONE3_MODE=0.5))
+    assert (values["ZONE3_INPUT"], values["ZONE3_MODE"]) == pytest.approx((0.5 / 16, 0.5 / 6))
+    with pytest.raises(StateTransformError, match="NUM_PATCH_VOIE1 holds 2.5, not an item index"):
+        conversion.CONVERSIONS[V2.map_id](chunk(NUM_PATCH_VOIE1=2.5))
     with pytest.raises(StateTransformError, match="ZONE2_MODE"):
         conversion.plan(chunk(ZONE2_MODE=9.0), V2)
     notices = conversion.CONVERSIONS[V2.map_id](chunk(ZONE2_MODE=9.0)).notices

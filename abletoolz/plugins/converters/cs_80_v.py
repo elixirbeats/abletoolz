@@ -9,7 +9,9 @@ A converted patch is the installed CS-80 V3's factory Default with every
 mapped control written over it. Every control goes one of these ways:
 
 * **copied** -- the value in CS-80 V3's stored 0 to 1: a knob as it is, an
-  item index or a note over CS-80 V3's range for it;
+  item index or a note over CS-80 V3's range for it, the 0.5 the old plugins
+  leave in an unused zone's input and mode included, as CS-80 V3's factory
+  presets keep it;
 * **switched** -- a two-way switch, which the old plugins store at 0.25 or
   0.75 and read as on from 0.5 (measured by hosting CS-80 V2), written 0 or 1
   as Arturia's own CS-80 V3 ports of the old factory patches write it;
@@ -133,7 +135,8 @@ def plan(
             continue
         # A zone's ends keep whatever the old plugin left in them, fractions of a note included; the ports clamp them.
         zone = name.startswith("ZONE") and name.endswith(("_INF", "_SUP"))
-        if (high != 1 or low != 0) and not zone and value != int(value):
+        # The old plugins leave 0.5 in an unused zone's input and mode, and CS-80 V3's factory presets keep it as it is.
+        if (high != 1 or low != 0) and not name.startswith("ZONE") and value != int(value):
             raise StateTransformError(f"{name} holds {value}, not an item index")
         stored = (value - low) / (high - low)
         out[name] = min(max(stored, 0.0), 1.0)
