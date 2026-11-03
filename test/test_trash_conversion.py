@@ -85,8 +85,8 @@ def test_unknown_correspondence_ranges_and_revision_stay_explicit() -> None:
             convert_single_band_distortion(source().with_values(0, changes), program=0)
     mixed = Bank.parse((FIXTURES / "trash1-mixed-revisions.state").read_bytes())
     index = next(i for i, program in enumerate(mixed.programs) if program.revision == 22)
-    with pytest.raises(StateTransformError, match="unmapped"):
-        convert_single_band_distortion(mixed, program=index)
+    converted = convert_single_band_distortion(mixed, program=index, lossy=True)
+    assert any("revision 22" in notice for notice in converted.notices)
 
 
 def test_a_plan_converts_what_has_no_match_by_leaving_it_out_and_saying_so() -> None:

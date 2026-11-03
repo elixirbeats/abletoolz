@@ -17,7 +17,7 @@ from pydantic import TypeAdapter
 from abletoolz.plugins.converters import limitation
 from abletoolz.plugins.state.catalog import Converted, converter
 from abletoolz.plugins.state.errors import StateTransformError
-from abletoolz.plugins.state.izotope_trash import Bank
+from abletoolz.plugins.state.izotope_trash import REVISION, Bank
 from abletoolz.plugins.state.izotope_trash2 import Trash2State
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.model import FieldKey, StateValue
@@ -56,15 +56,18 @@ def algorithm_rules() -> tuple[AlgorithmRule, ...]:
 
 
 def convert_single_band_distortion(source: Bank, *, program: int, lossy: bool = False) -> TrashConversion:
-    """Convert one selected revision-21 program into Trash 2's single-band distortion.
+    """Convert one selected program into Trash 2's single-band distortion; a revision-22 one says it was.
 
     What has no measured match -- an active module, a multiband mode, a bypass
     gain, an algorithm, differing locked gains, a value past the measured range
     -- is refused; with ``lossy`` it is left out or clamped and said in the
     notices. Container rewriting and host automation are handled elsewhere.
     """
-    settings = source.program(program).settings
+    selected = source.program(program)
+    settings = selected.settings
     notices = ["Distortion-only conversion; sound agreement varies with controls."]
+    if selected.revision != REVISION:
+        notices.append("Saved by a later Trash build (revision 22), read where revision 21 keeps each setting.")
     left_out = notices if lossy else None
     for module in ("PreFilter", "PostFilter", "BoxModel", "Squash", "Buzz"):
         if settings.value(f"{module}: Bypass") is not True:
