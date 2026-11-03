@@ -224,7 +224,7 @@ def write_plugin_db(database: PluginDatabase, db_path: pathlib.Path) -> pathlib.
     """Write the database, creating the config dir on a machine that has none yet."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     db_path.write_text(database.model_dump_json(indent=2), encoding="utf-8")
-    logger.info("Updated plugin database at %s", db_path.resolve())
+    logger.debug("Updated plugin database at %s", db_path.resolve())
     return db_path
 
 
@@ -260,7 +260,7 @@ def load_plugin_db(
     """
     path = locations.plugin_db if db_path is None else db_path
     if not path.exists():
-        logger.info("No plugin database at %s yet, reading this machine instead. Run --plugin-db to keep it.", path)
+        logger.warning("No plugin database at %s yet, reading this machine instead. Run --plugin-db to keep it.", path)
         return _build(config, locations)
     try:
         return read_plugin_db(path)

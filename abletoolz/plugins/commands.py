@@ -12,9 +12,9 @@ See :mod:`abletoolz.plugins.plan`.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import pathlib
-import sys
 from collections.abc import Sequence
 from xml.etree import ElementTree as ET
 
@@ -44,6 +44,9 @@ def _parser() -> argparse.ArgumentParser:
             help="Search only these plugin folders for recovery binaries instead of the installed defaults",
         )
 
+    def verbose_option(command: argparse.ArgumentParser) -> None:
+        command.add_argument("-v", "--verbose", action="store_true", help="Show more of what was done, and diagnostics")
+
     def jobs_option(command: argparse.ArgumentParser) -> None:
         command.add_argument(
             "-j",
@@ -57,6 +60,7 @@ def _parser() -> argparse.ArgumentParser:
     routes = verbs.add_parser("routes", help="List verified recovery routes and available native binaries")
     recovery_options(routes)
     routes.add_argument("--json", action="store_true", help="Print the routes as JSON")
+    verbose_option(routes)
 
     plan = verbs.add_parser(
         "plan",
@@ -80,6 +84,7 @@ def _parser() -> argparse.ArgumentParser:
     plan.add_argument("--json", action="store_true", help="With --apply, print what was done as JSON")
     recovery_options(plan)
     jobs_option(plan)
+    verbose_option(plan)
 
     apply = verbs.add_parser(
         "apply", help="Convert every plugin whose convert_to names targets, keeping a backup of each set"
@@ -88,6 +93,7 @@ def _parser() -> argparse.ArgumentParser:
     apply.add_argument("--json", action="store_true", help="Print what was done as JSON")
     recovery_options(apply)
     jobs_option(apply)
+    verbose_option(apply)
     return parser
 
 
@@ -97,6 +103,9 @@ def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locatio
     A command line argparse refuses raises its ``SystemExit``, for the caller to turn into the exit code.
     """
     args = _parser().parse_args(argv)
+    console.setup(verbose=args.verbose, machine_readable=args.json)
+    # Plan workers write only diagnostics, and never onto stdout, which may be the JSON.
+    worker_setup = functools.partial(console.setup, verbose=args.verbose, machine_readable=True)
     try:
         if args.command == "routes":
             routes = recovery_targets(args.plugin_dir, config=config, locations=locations)
@@ -109,17 +118,31 @@ def run_plugin_commands(argv: Sequence[str], *, config: AbletoolzConfig, locatio
             output = args.output.resolve()
             if output.exists() and not args.force:
                 raise FileExistsError(f"{output} exists; pass --force to overwrite it")
-            plan = plan_sets(args.srcs, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
+            plan = plan_sets(
+                args.srcs,
+                jobs=args.jobs,
+                plugin_dirs=args.plugin_dir,
+                config=config,
+                locations=locations,
+                worker_setup=worker_setup,
+            )
             write_plan(plan, output)
             if not (args.apply and args.json):  # stdout is the JSON alone
                 console.render_plan(plan, output, applying=args.apply)
             if not args.apply:
                 return 0
         else:
-            plan = read_plan(args.plan, jobs=args.jobs, plugin_dirs=args.plugin_dir, config=config, locations=locations)
+            plan = read_plan(
+                args.plan,
+                jobs=args.jobs,
+                plugin_dirs=args.plugin_dir,
+                config=config,
+                locations=locations,
+                worker_setup=worker_setup,
+            )
         outcomes = apply_in_place(plan, machine=this_machine(args.plugin_dir, config=config, locations=locations))
     except (OSError, ValueError, ET.ParseError) as error:
-        print(f"abletoolz plugins {args.command} failed: {error}", file=sys.stderr)
+        console.problem(f"abletoolz plugins {args.command} failed: {error}")
         return 1
     if args.json:
         print(json.dumps([outcome.model_dump(mode="json") for outcome in outcomes], indent=2))

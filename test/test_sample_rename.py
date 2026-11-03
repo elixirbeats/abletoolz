@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import gzip
+import logging
 import os
 import pathlib
 from collections.abc import Iterator
@@ -108,12 +109,13 @@ def test_renamed_sample_survives_repair_save_and_reload(
 
 
 @pytest.mark.parametrize("version", VERSIONS)
-def test_zero_live_crc_warns_and_cannot_repair_a_renamed_sample(
+def test_zero_live_crc_says_so_with_v_and_cannot_repair_a_renamed_sample(
     tmp_path: pathlib.Path, version: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     live_set, original = missing_reference(version, tmp_path)
     set_reference_metadata(original, len(DATA), 0)
-    live_set, reference = reparsed(live_set.root, tmp_path)
+    with caplog.at_level(logging.DEBUG):
+        live_set, reference = reparsed(live_set.root, tmp_path)
     assert reference.crc is None
     assert "stores CRC 0" in caplog.text
     replacement = tmp_path / "new-name.wav"

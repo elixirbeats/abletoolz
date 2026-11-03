@@ -30,6 +30,7 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 
 from abletoolz.live_set.persistence import BACKUP_DIR, create_backup, undo_journal
+from abletoolz.run import console
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -55,8 +56,10 @@ class Save:
         when = ""
         if self.backup_here:  # a backup keeps the set's own modified time: when that version was last saved
             modified = datetime.datetime.fromtimestamp(self.backup.stat().st_mtime)
-            when = f", last saved {modified:%Y-%m-%d %H:%M}"
-        return f"  {self.path}\n    <- {self.backup}{when}{self.note(before)}"
+            when = console.paint(console.Role.META, f", last saved {modified:%Y-%m-%d %H:%M}")
+        note = console.paint(console.Role.ATTENTION, self.note(before))
+        path, backup = console.paint(console.Role.NAME, self.path), console.paint(console.Role.PATH, self.backup)
+        return f"  {path}\n    <- {backup}{when}{note}"
 
     def note(self, before: str | None = None) -> str:
         """What the listing says about this set besides its backup."""
@@ -95,7 +98,7 @@ def history() -> list[Run]:
             )
             run, command, saved = entry["run"], entry["command"], entry["saved"]
         except (OSError, ValueError, KeyError, TypeError) as error:
-            print(f"Skipped a damaged undo record, {record}: {error}")
+            console.attention(f"Skipped a damaged undo record, {record}: {error}")
             continue
         runs.setdefault(run, []).append(({"command": command, "saved": saved}, save))
     ordered = sorted(runs.values(), key=lambda saves: saves[-1][1].record.name, reverse=True)
@@ -181,56 +184,63 @@ def run_undo(argv: Sequence[str], ask: Callable[[str], str] = input) -> int:
         metavar="KEEP",
         help="Keep each set's KEEP newest backups and delete the rest, after asking; they can't be undone after",
     )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show diagnostics too")
     args = parser.parse_args(argv)
+    console.setup(verbose=args.verbose)
     if args.count < 1:
         parser.error("COUNT is how many commands to undo, 1 or more")
     if args.trim is not None and args.trim < 0:
         parser.error("KEEP is how many backups to keep for each set, 0 or more")
     runs = history()
     if not runs:
-        print("Nothing to undo: abletoolz hasn't saved over any set yet.")
+        console.say("Nothing to undo: abletoolz hasn't saved over any set yet.")
         return 0
     if args.list:
         for number, run in enumerate(runs, 1):
-            print(f"{number}. {run.saved}  {run.command}  ({len(run.saves)} set(s))")
+            saved, command = console.paint(console.Role.META, run.saved), console.paint(console.Role.NAME, run.command)
+            console.say(f"{number}. {saved}  {command}  ({console.paint(console.Role.COUNT, len(run.saves))} set(s))")
         return 0
     if args.trim is not None:
         old = trimmed(runs, args.trim)
         count = sum(len(backups) for backups in old.values())
         if not count:
-            print(f"Every set has {args.trim} backup(s) or fewer; nothing to trim.")
+            console.say(f"Every set has {args.trim} backup(s) or fewer; nothing to trim.")
             return 0
-        print(f"Keeping each set's {args.trim} newest backup(s). These older ones will be deleted for good:")
+        console.attention(
+            f"Keeping each set's {args.trim} newest backup(s). These older ones will be deleted for good:"
+        )
         for path, backups in old.items():
-            print(f"  {path}")
+            console.say(f"  {console.paint(console.Role.NAME, path)}")
             for backup in backups:
                 modified = datetime.datetime.fromtimestamp(backup.stat().st_mtime)
-                print(f"    {backup.name}, last saved {modified:%Y-%m-%d %H:%M}")
+                when = console.paint(console.Role.META, f"last saved {modified:%Y-%m-%d %H:%M}")
+                console.say(f"    {console.paint(console.Role.PATH, backup.name)}, {when}")
         question = f"Delete {count} backup(s) of {len(old)} set(s)? They can't be undone after. [y/N] "
         if ask(question).strip().lower() not in ("y", "yes"):
-            print("Nothing was deleted.")
+            console.say("Nothing was deleted.")
             return 0
         trim(runs, old)
-        print(f"Deleted {count} backup(s).")
+        console.say(console.paint(console.Role.DONE, f"Deleted {count} backup(s)."))
         return 0
     chosen = runs[: args.count]
     if args.count > len(runs):
-        print(f"Only {len(runs)} command(s) can be undone; undoing those.")
+        console.attention(f"Only {len(runs)} command(s) can be undone; undoing those.")
     restored: dict[pathlib.Path, str] = {}  # what the newer undos listed so far leave each set at
     for run in chosen:
-        print(f"Undo {run.command}, run {run.saved}. Each set comes back from its backup:")
+        command, saved = console.paint(console.Role.NAME, run.command), console.paint(console.Role.META, run.saved)
+        console.say(f"Undo {command}, run {saved}. Each set comes back from its backup:")
         for save in run.saves:
-            print(save.listing(restored.get(save.path)))
+            console.say(save.listing(restored.get(save.path)))
         restored |= {save.path: save.backup_sha256 for save in run.saves if save.backup_here}
     sets = sum(save.backup_here for run in chosen for save in run.saves)
     if not sets:
-        print("None of these backups are there any more, so nothing can be restored.")
+        console.problem("None of these backups are there any more, so nothing can be restored.")
         return 1
     if ask(f"Restore {sets} set(s) from {len(chosen)} command(s)? [y/N] ").strip().lower() not in ("y", "yes"):
-        print("Nothing was restored.")
+        console.say("Nothing was restored.")
         return 0
     failed = [problem for run in chosen for problem in restore(run)]  # newest first: a set ends at its oldest version
     for problem in failed:
-        print(f"Couldn't restore {problem}")
-    print(f"Restored {sets - len(failed)} set(s).")
+        console.problem(f"Couldn't restore {problem}")
+    console.say(console.paint(console.Role.DONE, f"Restored {sets - len(failed)} set(s)."))
     return 1 if failed else 0

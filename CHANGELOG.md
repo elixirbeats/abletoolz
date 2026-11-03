@@ -3,6 +3,21 @@
 User-facing changes and migration notes, newest first. Current usage belongs in
 the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin support.
 
+## 2.3.0 — unreleased
+
+- Every command prints one short block per set: its Live version, BPM and
+  length, then what was found, with problems named and the rest counted. The
+  run ends in one summary line. `-v` adds every item behind the counts, such as
+  each relinked file, and diagnostics. Sets print in the order given, also with
+  several workers.
+- `abletoolz plugins` and `abletoolz undo` take `-v` too and use the same
+  colours. Lines they used to lose, such as an undo's backup, are no longer
+  dropped.
+- The run report records each set's Live version, BPM, length, backup, copied
+  files, missing plugin files, track edits and notices, so it holds everything
+  the console says. A file not found in the database is listed with why it was
+  left as it was.
+
 ## 2.2.0 — 2026-11-02
 
 Changes since 2.1.0.

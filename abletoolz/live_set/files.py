@@ -12,7 +12,6 @@ import logging
 import pathlib
 from typing import TYPE_CHECKING
 
-from abletoolz.ansi import Y
 from abletoolz.live_set.plugin_files import PluginFile
 from abletoolz.live_set.sample_ref import SampleRef
 from abletoolz.samples import relink
@@ -44,6 +43,7 @@ class Relinked:
     relinks: list[relink.Relink]
     collector: relink.Collector | None
     refused: list[relink.Refusal] = dataclasses.field(default_factory=list)
+    notices: list[str] = dataclasses.field(default_factory=list)
 
     @property
     def samples(self) -> list[relink.Relink]:
@@ -73,14 +73,15 @@ class SetFiles:
         Audio, Live's own samples and the audio plugin patches point at, is
         found in ``db`` and collected with ``collect``. Files only a plugin
         loads are found in ``plugin_files_db`` and relinked where they are.
-        Database records whose file is gone are skipped, and one warning per
+        Database records whose file is gone are skipped, and one notice per
         set says how many, so the user knows to run ``--db-prune``.
         """
         collector = None
+        notices: list[str] = []
         if collect:
             project_root = self._set.project_root
             if project_root is None:
-                logger.warning("%sNo project folder for this set; relinking to absolute paths instead", Y)
+                notices.append("no project folder to collect into, so files were relinked where they are")
             else:
                 collector = relink.Collector(project_root)
         refused: list[relink.Refusal] = []
@@ -89,9 +90,5 @@ class SetFiles:
             db, collector, plugin_files_db, refused, gone
         )
         if gone:
-            logger.warning(
-                "%s%s file(s) in the sample database no longer exist; run abletoolz --db-prune to remove them",
-                Y,
-                len(gone),
-            )
-        return Relinked(relinks, collector, refused + (collector.refused if collector is not None else []))
+            notices.append(f"{len(gone)} file(s) in the sample database no longer exist; run abletoolz --db-prune")
+        return Relinked(relinks, collector, refused + (collector.refused if collector is not None else []), notices)

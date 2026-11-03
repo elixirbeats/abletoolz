@@ -43,7 +43,7 @@ def test_spawned_workers_return_whole_json_documents(tmp_path: pathlib.Path, chi
     documents = [json.loads(line) for line in result.stdout.splitlines()]
     assert len(documents) == 2
     assert all(set(document) == {"set", "tracks", "patterns", "session", "arrangement"} for document in documents)
-    assert "Using 2 set worker(s)" in result.stderr
+    assert "2 set(s), 2 at a time" in result.stderr
     assert hashes(sets) == before
 
 

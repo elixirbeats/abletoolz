@@ -27,7 +27,6 @@ import pathlib
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from abletoolz.ansi import G, Y
 from abletoolz.plugins.container.device import PluginDevice
 from abletoolz.plugins.identity.ids import PluginKind, stored_id
 from abletoolz.plugins.state.all_plugins import CATALOG
@@ -166,7 +165,9 @@ class PluginFiles:
         relinks: list[relink.Relink] = []
         for found in self._devices():
             if isinstance(found, PluginFile):
-                logger.warning("%s%s on %s: %s", Y, found.device, found.track, found.note)
+                refused.append(
+                    relink.Refusal(f"{found.device} on {found.track}", found.note or "its patch could not be read")
+                )
                 continue
             patch, relinked = found.patch, []
             for ref in found.refs:
@@ -174,7 +175,6 @@ class PluginFiles:
                 if stored.exists():
                     continue
                 if not found.file_paths.rewrites:
-                    logger.warning("%s%s on %s: cannot relink %s here", Y, found.name, found.track, ref.path)
                     refused.append(
                         relink.Refusal(
                             f"{ref.path} for {found.name} on {found.track}",
@@ -185,13 +185,6 @@ class PluginFiles:
                 audio = stored.suffix.lower() in AUDIO_SUFFIXES
                 searched = db if audio else plugin_files_db
                 if searched is None:
-                    logger.warning(
-                        "%s%s on %s: no plugin files database to find %s in; run --db over its library folder",
-                        Y,
-                        found.name,
-                        found.track,
-                        stored.name,
-                    )
                     refused.append(
                         relink.Refusal(
                             f"{stored.name} for {found.name} on {found.track}",
@@ -211,7 +204,6 @@ class PluginFiles:
                 try:
                     patch = found.file_paths.rewrite(patch, ref, written_path)
                 except StateTransformError as error:
-                    logger.warning("%s%s on %s: %s", Y, found.name, found.track, error)
                     refused.append(relink.Refusal(f"{stored.name} for {found.name} on {found.track}", str(error)))
                     continue
                 relinked.append(relink.Relink(ref.path, str(written_path), device=found.name, track=found.track))
@@ -220,9 +212,6 @@ class PluginFiles:
             try:
                 self._write(found, patch)
             except StateTransformError as error:
-                logger.warning(
-                    "%s%s on %s: relinked patch could not be written back: %s", Y, found.name, found.track, error
-                )
                 refused.append(
                     relink.Refusal(
                         f"{found.name} on {found.track}", f"relinked patch could not be written back: {error}"
@@ -230,7 +219,7 @@ class PluginFiles:
                 )
                 continue
             for fix in relinked:
-                logger.info("%sRelinked %s on %s: %s -> %s", G, fix.device, fix.track, fix.old, fix.new)
+                logger.debug("Relinked %s on %s: %s -> %s", fix.device, fix.track, fix.old, fix.new)
             relinks.extend(relinked)
         return relinks
 

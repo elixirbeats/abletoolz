@@ -21,7 +21,6 @@ from collections.abc import Sequence
 import pydantic
 
 from abletoolz import __version__
-from abletoolz.ansi import CB, B, C, G, M, R, Y
 from abletoolz.formats import live_document
 from abletoolz.live_set import AbletonSet
 from abletoolz.live_set.apply_ops import OpsDocument, apply_ops
@@ -50,8 +49,8 @@ def is_valid_dir_path(path: str) -> str:
     """Refuse a Windows path whose trailing backslash escaped its closing quote."""
     if sys.platform.startswith("win") and '"' in path:
         raise argparse.ArgumentTypeError(
-            f"{R}Windows paths must not end in backslash: \n'C:\\somepath\\'(BAD)\n'C:\\somepath' "
-            f"(GOOD)\nThis is due to a bug in how Windows handles backslashes before quotes."
+            "Windows paths must not end in backslash: \n'C:\\somepath\\'(BAD)\n'C:\\somepath' "
+            "(GOOD)\nThis is due to a bug in how Windows handles backslashes before quotes."
         )
     return path
 
@@ -356,7 +355,7 @@ def run_apply_ops(args: argparse.Namespace) -> int:
     """
     output_path: pathlib.Path = args.output
     if output_path.exists():
-        logger.error("%sOutput %s already exists, refusing to overwrite.", R, output_path)
+        console.problem(f"Output {output_path} already exists, refusing to overwrite.")
         return 1
     ableton_set = AbletonSet(pathlib.Path(args.srcs[0]))
     if not ableton_set.parse():
@@ -367,7 +366,7 @@ def run_apply_ops(args: argparse.Namespace) -> int:
         live_document.write_new(output_path, live_document.encode(ableton_set.root))
     # TypeError and LookupError are a value of the wrong kind for a setting, or a setting this set lacks.
     except (pydantic.ValidationError, ValueError, TypeError, LookupError, OSError) as exc:
-        logger.error("%sCould not apply ops: %s", R, exc)
+        console.problem(f"Could not apply ops: {exc}")
         return 1
     document = {
         "applied": len(results),
@@ -376,7 +375,7 @@ def run_apply_ops(args: argparse.Namespace) -> int:
     }
     print(json.dumps(document, separators=(",", ":")))
     console.render_applied_ops(results)
-    logger.info("%sApplied %s op(s) and saved to %s", G, len(results), output_path)
+    console.say(f"Applied {len(results)} op(s) and saved to {output_path}")
     return 0
 
 
@@ -396,12 +395,12 @@ def process(args: argparse.Namespace, config: AbletoolzConfig, locations: Locati
     """Run the command ``args`` names and answer the exit code; ``argv`` is recorded in the run report."""
     db_path = args.db_path if args.db_path is not None else locations.sample_db
     if args.db_prune:
-        database.prune_db(db_path)
+        console.say(f"Removed {database.prune_db(db_path)} file(s) that no longer exist from {db_path}")
         return 0
     if args.db:
         folders = args.srcs or [str(path) for path in config.file_paths]
         if not folders:
-            logger.error("%sNo folders given, and none under file_database.paths in config.yaml.", R)
+            console.problem("No folders given, and none under file_database.paths in config.yaml.")
             return 1
         database.create_or_update_db(
             folders,
@@ -409,30 +408,32 @@ def process(args: argparse.Namespace, config: AbletoolzConfig, locations: Locati
             backend=args.db_backend,
             workers=args.db_workers,
         )
+        for built in (db_path, database.plugin_files_db_path(db_path)):
+            if built.exists():
+                console.say(f"{built}: {database.file_count(built)} file(s)")
         return 0
     db = None
     plugin_files_db = None
     if args.fix_samples_collect or args.fix_samples_absolute:
-        logger.info("%sLoading db...", M)
         db = database.load_db(db_path)
         plugin_files_path = database.plugin_files_db_path(db_path)
         if plugin_files_path.exists():
             plugin_files_db = database.load_plugin_files_db(plugin_files_path)
         else:
-            logger.info("%sNo plugin files database at %s; run --db to build it", Y, plugin_files_path)
+            console.attention(f"No plugin files database at {plugin_files_path}; run --db to build it")
 
     started = datetime.datetime.now().astimezone()
     try:
         pathlib_objects = find_sets(args.srcs)
         if not pathlib_objects:
-            logger.info("%sError, no sets to process!", R)
+            console.problem("No sets to process.")
             return 1
         try:
             jobs = set_workers(args.jobs, len(pathlib_objects))
         except ValueError as error:
-            logger.error("%s%s", R, error)
+            console.problem(str(error))
             return 2
-        logger.info("%sUsing %s set worker(s)", C, jobs)
+        console.hint(f"{len(pathlib_objects)} set(s), {jobs} at a time")
         job = SetJob.from_args(args)
         records = batch.run_sets(
             job,
@@ -451,24 +452,8 @@ def process(args: argparse.Namespace, config: AbletoolzConfig, locations: Locati
     if records is None:
         return 130
     run = report.build(records, command=list(argv), started=started)
-    failed = [record.path for record in records if record.error is not None]
-    logger.info(
-        "%sTook %s to process %s set(s): %s%s ok%s, %s%s failed",
-        CB,
-        run.finished - started,
-        len(pathlib_objects),
-        G,
-        len(pathlib_objects) - len(failed),
-        CB,
-        R if failed else G,
-        len(failed),
-    )
-    logger.info("%sWrote the run report to %s%s", M, B, report.write(run, report_directory(args)))
-    if failed:
-        for path in failed:
-            logger.info("%sFailed to process: %s", R, path)
-        return 1
-    return 0
+    console.render_run(records, elapsed=run.finished - started, report=report.write(run, report_directory(args)))
+    return 1 if any(record.error is not None for record in records) else 0
 
 
 def main(
@@ -495,7 +480,7 @@ def main(
             try:
                 config = load_config(locations.config_file) if config is None else config
             except ValueError as error:
-                logger.error("%s", error)
+                console.problem(str(error))
                 return 2
             return run_plugin_commands(argv[1:], config=config, locations=locations)
         args = parse_arguments(argv)
@@ -503,7 +488,7 @@ def main(
         return exited.code if isinstance(exited.code, int) else 0
 
     machine_readable = bool(args.describe or args.apply_ops or args.search_samples is not None)
-    console.configure_logging(machine_readable=machine_readable, verbose=args.verbose)
+    console.setup(verbose=args.verbose, machine_readable=machine_readable)
     if args.plugin_maps:
         console.render_catalog(CATALOG)
         return 0
@@ -516,7 +501,7 @@ def main(
     try:
         config = load_config(locations.config_file) if config is None else config
     except ValueError as error:
-        logger.error("%s", error)
+        console.problem(str(error))
         return 2
     locations = locations.with_plugin_folders(config.plugin_paths)
     if args.plugin_db:

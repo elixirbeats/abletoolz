@@ -51,7 +51,7 @@ Sets inside `Backup` and `abletoolz_backup` folders are skipped. You can also pa
 
 Checking doesn't change your set, though it does write [scan results](#what-a-run-leaves-behind). All editing flags only change the set in memory until you add `-s` / `--save`. Plugin conversion has its own explicit save step, `plugins apply` (or `plugins plan --apply`).
 
-Use `-h` for the command's options and `-v` for more detail. For example, sample checks normally show missing files; `-v` shows the ones found too.
+Use `-h` for the command's options. A run prints one short block per set: what it found, with problems named, then one line for the whole run. Add `-v` to list everything behind the counts, such as every relinked file, and to see diagnostics.
 
 If you want to write your own scripts, the [Python tutorial](doc/LIBRARY.md) starts with opening a set and builds up one step at a time.
 

@@ -22,6 +22,7 @@ from collections.abc import Iterable, Sequence
 import pydantic
 
 from abletoolz import __version__
+from abletoolz.live_set.plugin_files import PluginFile
 from abletoolz.live_set.plugins import PluginRef
 from abletoolz.samples.relink import Refusal, Relink
 
@@ -46,12 +47,43 @@ class RelinkRecord(pydantic.BaseModel):
 
 
 class RefusalRecord(pydantic.BaseModel):
-    """A missing file the run could have relinked but left as it was, and why."""
+    """A missing file the run left as it was, and why: not found, ambiguous, or not relinkable here."""
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
     what: str
     why: str
+
+
+class PluginFileRecord(pydantic.BaseModel):
+    """A file a plugin device's patch points at that is not on disk; ``relinkable``: abletoolz can relink it."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    device: str
+    track: str
+    kind: str
+    path: str
+    relinkable: bool
+
+
+class NoteRecord(pydantic.BaseModel):
+    """Something worth knowing about one plugin device's patch, such as that it could not be read."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    device: str
+    track: str
+    note: str
+
+
+class CopyRecord(pydantic.BaseModel):
+    """A file collected into the set's project."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    source: str
+    destination: str
 
 
 class SetRecord(pydantic.BaseModel):
@@ -64,7 +96,13 @@ class SetRecord(pydantic.BaseModel):
 
     ``plugins_missing`` and ``samples_missing`` are null when the run's flags
     never asked -- a run that only checks plugins says nothing about samples,
-    and saying zero would be a claim nobody measured.
+    and saying zero would be a claim nobody measured. ``samples_missing``
+    counts every missing file, the ones inside plugin patches included;
+    ``samples_missing_by_name`` is Live's own sample references only.
+
+    ``edits`` says what the run changed in the set, ``notices`` what is worth
+    knowing about it that is no single file, and ``cached`` that a sidecar
+    answered for the set and nothing was read.
     """
 
     model_config = pydantic.ConfigDict(extra="forbid")
@@ -73,10 +111,24 @@ class SetRecord(pydantic.BaseModel):
     written: str | None = None
     changed: bool = False
     error: str | None = None
+    live_version: str | None = None
+    bpm: float | None = None
+    bars: int | None = None
+    seconds: float | None = None
+    cached: bool = False
     relinks: list[RelinkRecord] = pydantic.Field(default_factory=list)
     refused: list[RefusalRecord] = pydantic.Field(default_factory=list)
+    collected: list[CopyRecord] = pydantic.Field(default_factory=list)
+    backup: str | None = None
     plugins_missing: dict[str, int] | None = None
+    plugins_loaded: dict[str, int] | None = None
+    plugin_alternatives: dict[str, str] = pydantic.Field(default_factory=dict)
     samples_missing: int | None = None
+    samples_missing_by_name: dict[str, int] | None = None
+    plugin_files_missing: list[PluginFileRecord] = pydantic.Field(default_factory=list)
+    plugin_notes: list[NoteRecord] = pydantic.Field(default_factory=list)
+    edits: list[str] = pydantic.Field(default_factory=list)
+    notices: list[str] = pydantic.Field(default_factory=list)
 
 
 class RunTotals(pydantic.BaseModel):
@@ -127,6 +179,22 @@ def relink_records(relinks: Sequence[Relink]) -> list[RelinkRecord]:
 def refusal_records(refused: Sequence[Refusal]) -> list[RefusalRecord]:
     """Every missing file the run left as it was although it could have relinked it, with the reason."""
     return [RefusalRecord(what=refusal.what, why=refusal.why) for refusal in refused]
+
+
+def plugin_file_records(missing: Sequence[PluginFile]) -> list[PluginFileRecord]:
+    """Every file a plugin patch points at that is not on disk."""
+    return [
+        PluginFileRecord(
+            device=found.device, track=found.track, kind=found.ref.kind, path=found.ref.path, relinkable=found.rewrites
+        )
+        for found in missing
+        if found.ref is not None
+    ]
+
+
+def note_records(notes: Sequence[PluginFile]) -> list[NoteRecord]:
+    """What is worth knowing about plugin patches that point at no missing file."""
+    return [NoteRecord(device=found.device, track=found.track, note=found.note or "") for found in notes]
 
 
 def plugin_relink_counts(relinks: Sequence[Relink]) -> dict[str, int]:

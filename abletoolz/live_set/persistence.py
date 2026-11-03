@@ -16,7 +16,6 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
-from abletoolz.ansi import B, G, R, Y
 from abletoolz.formats import FormatError, live_document
 from abletoolz.machine import Locations
 
@@ -104,12 +103,7 @@ def create_backup(pathlib_obj: pathlib.Path) -> pathlib.Path:
     backup_dir = pathlib_obj.parent / BACKUP_DIR
     backup_dir.mkdir(parents=True, exist_ok=True)
     backup_path = unclaimed_path(backup_dir / pathlib_obj.name)
-    logger.info(
-        "%sCopying original file to backup directory:\n%s --> %s",
-        B,
-        pathlib_obj,
-        backup_path,
-    )
+    logger.debug("Backing up %s to %s", pathlib_obj, backup_path)
     # Through a temp file, so an interrupted copy never leaves half a backup under the backup's name.
     partial = backup_path.with_name(backup_path.name + ".tmp")
     shutil.copy2(pathlib_obj, partial)
@@ -142,7 +136,7 @@ def record_save(path: pathlib.Path, backup: pathlib.Path, document: bytes) -> No
         journal.mkdir(parents=True, exist_ok=True)
         (journal / f"{time.time_ns()}-{os.getpid()}.json").write_text(json.dumps(entry), encoding="utf-8")
     except OSError as error:  # the set is saved and backed up either way; only undo loses track of it
-        logger.warning("%sSaved %s, but abletoolz undo won't know about it: %s", Y, path, error)
+        logger.warning("Saved %s, but abletoolz undo won't know about it: %s", path, error)
 
 
 def read_set(live_set: AbletonSet) -> bool:
@@ -157,7 +151,7 @@ def load_set(live_set: AbletonSet) -> str | None:
     except FormatError as error:
         # read() puts the path in front; the reason alone is its cause.
         reason = str(error.__cause__ if isinstance(error.__cause__, FormatError) else error)
-        logger.error("%s%s: %s", R, live_set.path, reason)
+        logger.debug("%s: %s", live_set.path, reason)
         return reason
     get_file_times(live_set)
     live_set._root = root
@@ -177,7 +171,7 @@ def save_xml(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> No
     if xml_file.exists():
         create_backup(xml_file)
     xml_file.write_bytes(to_xml_bytes(live_set))
-    logger.info("%sSaved xml to %s", G, xml_file)
+    logger.debug("Saved xml to %s", xml_file)
 
 
 def get_file_times(live_set: AbletonSet) -> None:
@@ -190,8 +184,7 @@ def get_file_times(live_set: AbletonSet) -> None:
         live_set.creation_time = getattr(stat_result, "st_birthtime", stat_result.st_mtime)
     live_set.last_modification_time = os.path.getmtime(live_set.path)
     logger.debug(
-        "%sFile creation time %s, Last modification time: %s",
-        B,
+        "File creation time %s, Last modification time: %s",
         format_date(live_set.creation_time),
         format_date(live_set.last_modification_time),
     )
@@ -211,8 +204,7 @@ def restore_file_times(live_set: AbletonSet) -> None:
         date = format_date(live_set.creation_time)
         subprocess.run(["SetFile", "-d", date, str(live_set.path)], capture_output=True, check=False)
     logger.debug(
-        "%sRestored set creation and modification times: %s, %s",
-        G,
+        "Restored set creation and modification times: %s, %s",
         format_date(live_set.creation_time),
         format_date(live_set.last_modification_time),
     )
@@ -221,12 +213,12 @@ def restore_file_times(live_set: AbletonSet) -> None:
 def write_set(live_set: AbletonSet, document: bytes) -> None:
     """Write the set the way Live does, replacing the file at its path in one step."""
     live_document.write(live_set.path, document)
-    logger.info("%sSaved set to %s", G, live_set.path)
+    logger.debug("Saved set to %s", live_set.path)
     restore_file_times(live_set)
 
 
-def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> None:
-    """Back up the original and replace it with the edited set.
+def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> pathlib.Path | None:
+    """Back up the original and replace it with the edited set; answers the backup, None when there is none.
 
     With ``output_dir`` the set is written into that directory under its own name,
     the original is never touched, and no backup is made.
@@ -238,7 +230,7 @@ def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> No
         backup = create_backup(live_set.path)
         write_set(live_set, document)
         record_save(live_set.path, backup, document)
-        return
+        return backup
     output_dir.mkdir(parents=True, exist_ok=True)
     wanted = output_dir / live_set.path.name
     target = unclaimed_path(wanted) if wanted.exists() else wanted
@@ -250,10 +242,11 @@ def save_set(live_set: AbletonSet, output_dir: pathlib.Path | None = None) -> No
         except FileExistsError:
             target = unclaimed_path(wanted)
     if target != wanted:
-        logger.info("%s%s already exists, saving as %s", Y, wanted, target.name)
+        logger.debug("%s already exists, saving as %s", wanted, target.name)
     live_set.path = target
-    logger.info("%sSaved set to %s", G, target)
+    logger.debug("Saved set to %s", target)
     restore_file_times(live_set)
+    return None
 
 
 def save_in_place(path: pathlib.Path, root: ET.Element) -> None:

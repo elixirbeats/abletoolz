@@ -175,7 +175,13 @@ def _update_sqlite(found: Found, db_path: pathlib.Path, workers: int) -> None:
                     (prefix, prefix[:-1] + chr(ord(prefix[-1]) + 1)),
                 )
         count = connection.execute("SELECT count(*) FROM samples").fetchone()[0]
-    logger.info("Database at %s contains %s files", db_path.resolve(), count)
+    logger.debug("Database at %s contains %s files", db_path.resolve(), count)
+
+
+def file_count(db_path: pathlib.Path) -> int:
+    """How many files the database at ``db_path`` holds."""
+    with closing(sqlite3.connect(db_path)) as connection:
+        return int(connection.execute("SELECT count(*) FROM samples").fetchone()[0])
 
 
 def prune_db(db_path: pathlib.Path | None = None) -> int:
@@ -202,7 +208,7 @@ def _prune(db_path: pathlib.Path) -> int:
         ]
         with connection:
             connection.executemany("DELETE FROM samples WHERE path=?", gone)
-    logger.info("Removed %s of %s files from %s that no longer exist", len(gone), len(paths), db_path.resolve())
+    logger.debug("Removed %s of %s files from %s that no longer exist", len(gone), len(paths), db_path.resolve())
     return len(gone)
 
 

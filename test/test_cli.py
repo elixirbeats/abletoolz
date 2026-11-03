@@ -19,7 +19,7 @@ from conftest import SKELETONS, run_cli
 from abletoolz import cli
 from abletoolz.machine import Locations
 from abletoolz.plugins.config import load_config
-from abletoolz.run import batch
+from abletoolz.run import console
 from abletoolz.run.job import COMMAND_FLAGS, SetJob
 from abletoolz.samples import database
 
@@ -33,10 +33,10 @@ def test_ctrl_c_cancels_batch(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib
     shutil.copy(SKELETONS / "11.3.42.als", tmp_path)
     shutil.copy(SKELETONS / "12.2.6.als", tmp_path)
 
-    def boom(_futures: object) -> object:
+    def boom(_record: object) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(batch, "as_completed", boom)
+    monkeypatch.setattr(console, "render_set", boom)
     assert run_cli(str(tmp_path)) == 130
 
 
@@ -157,7 +157,7 @@ def test_describe_stdout_is_json_and_nothing_else(tmp_path: pathlib.Path, child_
 
     document = json.loads(result.stdout)
     assert set(document) == {"set", "tracks", "patterns", "session", "arrangement"}
-    assert "Parsing:" in result.stderr
+    assert "described.als  Live 12.4.5b10" in result.stderr
 
 
 def test_apply_ops_stdout_is_a_json_report(tmp_path: pathlib.Path, child_env: dict[str, str]) -> None:
@@ -221,11 +221,11 @@ def test_old_database_config_is_rejected(tmp_path: pathlib.Path, include_new: bo
 
 @pytest.mark.parametrize("argv", [("--db",), ("plugins", "routes")])
 def test_cli_reports_old_database_config(
-    locations: Locations, caplog: pytest.LogCaptureFixture, argv: tuple[str, ...]
+    locations: Locations, capsys: pytest.CaptureFixture[str], argv: tuple[str, ...]
 ) -> None:
     locations.config_file.write_text("sample_database:\n  paths: [old-library]\n", encoding="utf-8")
     assert cli.main(argv, locations=locations) == 2
-    assert "rename that section" in caplog.text
+    assert "rename that section" in capsys.readouterr().out
     assert not locations.sample_db.exists()
 
 
