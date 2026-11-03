@@ -118,20 +118,21 @@ def test_the_default_bank_round_trips_and_every_field_reads() -> None:
         Program(b"short", b"Name")
 
 
-def test_a_mixed_revision_bank_keeps_its_opaque_programs_through_a_typed_edit() -> None:
-    """Revision 22 has no mapped fields: it is carried whole, never read with revision 21's coordinates."""
+def test_a_mixed_revision_bank_reads_revision_22_and_keeps_it_whole_through_a_typed_edit() -> None:
+    """Revision 22 is read at revision 21's places, past which it adds four bytes; it is carried whole, never edited."""
     raw = (FIXTURES / "trash1-mixed-revisions.state").read_bytes()
     model = decode(raw)
     assert model.encode() == raw
     old = next(i for i, program in enumerate(model.programs) if program.revision == 21)
-    opaque = next(i for i, program in enumerate(model.programs) if program.revision == 22)
+    newer = next(i for i, program in enumerate(model.programs) if program.revision == 22)
     changed = model.with_values(old, {"PreFilter: Node 1 Freq": 823.25})
-    assert changed.program(opaque) == model.program(opaque)
+    assert changed.program(newer) == model.program(newer)
     assert decode(changed.encode()) == changed
-    with pytest.raises(StateTransformError, match="unmapped"):
-        _ = changed.program(opaque).settings
-    with pytest.raises(StateTransformError, match="unmapped"):
-        model.with_values(opaque, {"PreFilter: Node 1 Freq": 823.25})
+    settings = model.program(newer).settings
+    for item in fields():
+        settings.value(item.id)
+    with pytest.raises(StateTransformError, match="not measured"):
+        model.with_values(newer, {"PreFilter: Node 1 Freq": 823.25})
     for index in (-1, 16):
         with pytest.raises(ValueError, match="index"):
             model.program(index)

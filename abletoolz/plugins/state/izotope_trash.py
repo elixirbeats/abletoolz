@@ -120,11 +120,17 @@ class Program:
 
     @property
     def settings(self) -> MappedState:
-        if self.revision != REVISION:
-            raise StateTransformError("Revision 22 fields are unmapped; its complete state is preserved")
-        return byte_map().decode(self.state)
+        """The program's settings; a revision-22 program is read, not edited, at revision 21's places."""
+        if self.revision == REVISION:
+            return byte_map().decode(self.state)
+        # Revision 22 adds four bytes past every mapped setting: the default programs saved in both revisions
+        # differ only there, and every revision-22 program in the library reads cleanly only with them taken out.
+        header = struct.pack("<4I", LENGTH, MAGIC, REVISION, LENGTH)
+        return byte_map().decode(header + self.state[16:LENGTH] + self.state[LENGTH + 4 :])
 
     def with_values(self, changes: Mapping[FieldKey, StateValue]) -> Program:
+        if self.revision != REVISION:
+            raise StateTransformError("Editing a revision-22 program is not measured; its complete state is preserved")
         return replace(self, state=self.settings.with_values(changes).encode())
 
 
@@ -168,7 +174,7 @@ class Bank:
 @register
 @cache
 def plugin_map() -> PluginMap:
-    """Bank framing and revision-21 knowledge; revision-22 fields stay opaque."""
+    """Bank framing and revision-21 knowledge; revision 22 reads at the same places and is never edited."""
     return PluginMap(
         id="izotope.trash1",
         name="iZotope Trash",
