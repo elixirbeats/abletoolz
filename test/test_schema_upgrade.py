@@ -108,15 +108,50 @@ def test_preview_says_what_upgrade_does_and_changes_nothing() -> None:
     assert upgrade(root, VST3_SCHEMA) == said
 
 
+# A Live 9.0 Auto Filter and Simpler, the Simpler's filter resonance automated.
+LIVE_9_0_FILTERS = (
+    "<AutoFilter><FilterType><Manual Value='1' /><AutomationTarget Id='50' /></FilterType>"
+    "<Cutoff><Manual Value='1' /></Cutoff><Resonance><Manual Value='0.62' /><AutomationTarget Id='51' /></Resonance>"
+    "</AutoFilter>"
+    "<OriginalSimpler><Filter><Slot><Value><SimplerFilter><Type><Manual Value='4' /><AutomationTarget Id='52' /></Type>"
+    "<Freq><Manual Value='800' /></Freq><Q><ArrangerAutomation><Events><FloatEvent Time='-63072000' Value='0.7' />"
+    "<FloatEvent Time='8' Value='2' /></Events></ArrangerAutomation><Manual Value='0.7' /><AutomationTarget Id='53' />"
+    "</Q></SimplerFilter></Value></Slot></Filter><Globals><NumVoices Value='4' /></Globals></OriginalSimpler>"
+)
+
+
+def test_live_9_0_filters_move_into_legacy_mode_as_live_moves_them() -> None:
+    """Their old type and resonance keep value and automation under the Legacy names, and legacy mode turns on."""
+    root = ET.fromstring(
+        LIVE_9.replace("9.5_326", "9.0_305").replace("<DrumGroupDevice", f"{LIVE_9_0_FILTERS}<DrumGroupDevice")
+    )
+    assert preview(root, VST3_SCHEMA).refusal is None
+    move = upgrade(root, VST3_SCHEMA)
+    auto_filter = root.find(".//AutoFilter")
+    assert auto_filter is not None
+    assert [(child.tag, child.get("Value")) for child in auto_filter][:2] == [
+        ("LegacyMode", "true"),
+        ("LegacyFilterType", None),
+    ]
+    assert [child.tag for child in auto_filter][2:] == ["Cutoff", "LegacyQ"]
+    assert [target.get("Id") for target in auto_filter.iter("AutomationTarget")] == ["50", "51"]
+    simpler_filter = root.find(".//SimplerFilter")
+    assert simpler_filter is not None and [child.tag for child in simpler_filter] == ["LegacyType", "Freq", "LegacyQ"]
+    globals_ = root.find(".//OriginalSimpler/Globals")
+    assert globals_ is not None and [(c.tag, c.get("Value")) for c in globals_] == [
+        ("NumVoices", "4"),
+        ("LegacyMode", "true"),
+    ]
+    # The renamed resonance's automation moves onto the track like any other parameter's.
+    assert "53" in [pointee.get("Value") for pointee in root.iter("PointeeId")] and move.envelopes == 2
+
+
 @pytest.mark.parametrize(
     ("version", "device", "rebuilt"),
-    [
-        ("9.0_305", "<AutoFilter><Cutoff><Manual Value='1' /></Cutoff></AutoFilter>", "AutoFilter"),
-        ("9.5_326", "<StereoGain><Panorama><Manual Value='0' /></Panorama></StereoGain>", "StereoGain"),
-    ],
+    [("9.5_326", "<StereoGain><Panorama><Manual Value='0' /></Panorama></StereoGain>", "StereoGain")],
 )
 def test_a_device_live_rebuilt_with_a_legacy_mode_refuses_the_move(version: str, device: str, rebuilt: str) -> None:
-    """Live sets a legacy mode when it converts the device itself; nothing here knows its values."""
+    """Utility's legacy mode, from Live 10: no set here shows what Live writes for it."""
     text = LIVE_9.replace("9.5_326", version).replace("<DrumGroupDevice", f"{device}<DrumGroupDevice")
     root = ET.fromstring(text)
     assert preview(root, VST3_SCHEMA).refusal == (

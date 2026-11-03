@@ -704,19 +704,13 @@ def test_applying_a_converter_writes_the_other_plugins_patch(tmp_path: pathlib.P
     assert FfbsState.parse(device.saved_state.state).tail == FABFILTER_PROCESSOR_TRAILER
 
 
-def test_a_set_that_cannot_move_up_refuses_every_vst3_target(tmp_path: pathlib.Path) -> None:
-    """A 9.0 set's schema never declared Vst3PluginInfo, and its Simpler is one Live 9.5 rebuilt."""
+def test_a_live_9_0_set_with_a_simpler_moves_up_to_hold_a_vst3_target(tmp_path: pathlib.Path) -> None:
+    """A 9.0 set holds no VST3 and its Simpler is one Live 9.5 rebuilt: both move up as Live moves them."""
     path = copy_set(tmp_path, key="9.0.1")
     plan = make_plan([path], machine(vst3=(PRO_Q3_VST3,)))
     pro_q = choice(plan, "FabFilter Pro-Q")
     target = next(target for target in pro_q.targets if target.format is PluginKind.VST3)
-    (reason,) = target.refused
-    assert "cannot move up to hold a VST3 device" in reason and "SimplerGlobals" in reason
-    pro_q.picks = ["pro_q_3_vst3"]
-    before = path.read_bytes()
-    (outcome,) = apply_plan(plan, machine=machine(), save=nothing_saved)
-    assert outcome.changed == 0 and all("legacy mode" in (device.reason or "") for device in outcome.devices)
-    assert path.read_bytes() == before
+    assert not target.refused
 
 
 def test_a_stub_device_is_refused_because_the_set_never_says_what_it_is(tmp_path: pathlib.Path) -> None:
