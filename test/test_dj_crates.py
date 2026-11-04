@@ -627,17 +627,27 @@ def test_read_duration_seconds_non_wav_uses_ffprobe(monkeypatch: pytest.MonkeyPa
 
 
 def _synthetic_mp3_bytes(
-    *, tag: bytes = b"Info", signature: bytes = b"LAME3.99r", delay: int = 576, with_gapless: bool = True
+    *,
+    tag: bytes = b"Info",
+    signature: bytes = b"LAME3.99r",
+    delay: int = 576,
+    with_gapless: bool = True,
+    mpeg2: bool = False,
 ) -> bytes:
-    """Build a minimal MPEG1-L3 stereo first frame with a Xing/Info header.
+    """Build a minimal Layer III stereo first frame with a Xing/Info header.
 
-    ``tag`` picks the header kind ("Info" = Live plays the frame as audio, +1152;
+    ``tag`` picks the header kind ("Info" = Live plays the frame as audio, +1 frame;
     "Xing" = both decoders skip it). ``with_gapless`` controls whether the extension
     carries ``signature`` + a plausible delay; without it the region stays zeros.
+    ``mpeg2`` writes an MPEG-2 frame (22.05 kHz, 576 samples, shorter side information).
     """
     frame = bytearray(1044)
-    frame[0:4] = bytes((0xFF, 0xFB, 0x90, 0x00))  # MPEG1 L3, 128kbps, 44.1kHz, stereo
-    xing_at = 4 + 32
+    if mpeg2:
+        frame[0:4] = bytes((0xFF, 0xF3, 0x90, 0x00))  # MPEG2 L3, 22.05kHz, stereo
+        xing_at = 4 + 17
+    else:
+        frame[0:4] = bytes((0xFF, 0xFB, 0x90, 0x00))  # MPEG1 L3, 128kbps, 44.1kHz, stereo
+        xing_at = 4 + 32
     frame[xing_at : xing_at + 4] = tag
     frame[xing_at + 4 : xing_at + 8] = (0x07).to_bytes(4, "big")  # frames+bytes+TOC
     ext = xing_at + 8 + 4 + 4 + 100
@@ -673,6 +683,8 @@ def _id3(body: bytes) -> bytes:
         pytest.param(bytes((0xFF, 0xFB, 0x90, 0x00)) + b"\x01" * 1040, 0.0, id="a real frame, no tag"),
         pytest.param(b"\x00" * 5000, 2257.0, id="no frame found: the majority class"),
         pytest.param(_synthetic_mp3_bytes(tag=b"Xing", delay=1024), 1024.0 + 529.0, id="a per-file trim"),
+        pytest.param(_synthetic_mp3_bytes(mpeg2=True), 576.0 + 529.0 + 576.0, id="MPEG-2 Info: a 576-sample frame"),
+        pytest.param(_synthetic_mp3_bytes(mpeg2=True, tag=b"Xing"), 1105.0, id="MPEG-2 Xing"),
         pytest.param(_id3(b"\x00" * 200) + _synthetic_mp3_bytes(), 2257.0, id="ID3v2 skipped, not scanned"),
         # Album art bigger than any sane read window is seeked past by its declared size (the R.E.M bug).
         pytest.param(_id3(b"\xaa" * 500_000) + _synthetic_mp3_bytes(), 2257.0, id="a multi-MB ID3"),
@@ -706,17 +718,20 @@ def test_mp3_decoder_offset_scales_with_sample_rate(tmp_path: Path) -> None:
         pytest.param(_mp3_row_fields(lame_ext=False, delay=None), 44100, 1152.0, id="Info, no extension (spliced)"),
         pytest.param(_mp3_row_fields(tag="Xing"), 44100, 1105.0, id="Xing"),
         pytest.param(_mp3_row_fields(tag="", lame_ext=False, delay=None), 44100, 0.0, id="tagless"),
-        pytest.param(_mp3_row_fields(), 48000, 2257.0, id="not 44.1kHz: scaled, and unverified"),
+        # Measured in Live 12.4.25b1 on 2026-11-03: 2257 samples at 32, 44.1 and 48 kHz, 1681 at 22.05 and 24 kHz.
+        pytest.param(_mp3_row_fields(), 48000, 2257.0, id="48 kHz"),
+        pytest.param(_mp3_row_fields(), 32000, 2257.0, id="32 kHz"),
+        pytest.param(_mp3_row_fields(), 24000, 1681.0, id="24 kHz, MPEG-2: a 576-sample frame"),
+        pytest.param(_mp3_row_fields(), 22050, 1681.0, id="22.05 kHz, MPEG-2: a 576-sample frame"),
     ],
 )
 def test_resolve_link_placement_offset_classes_from_columns(
     tmp_path: Path, fields: dict[str, object], rate: int, expected: float
 ) -> None:
-    """Column-computed classes, in samples at the file's rate; only 44.1kHz is a verified rate."""
+    """Column-computed classes, in samples at the file's own rate."""
     row = _make_row(path=tmp_path / "t.mp3", filename="t.mp3", **{**fields, "samplerate": rate})
     placement = resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="t")
     assert placement.time_offset_s * rate == pytest.approx(expected)
-    assert placement.offset_unverified is (rate != 44100)
 
 
 @pytest.mark.parametrize(
@@ -814,32 +829,6 @@ def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(tmp_path: Path
     drop_current_start = drop_clip.clip.find("CurrentStart")
     assert drop_current_start is not None
     assert float(drop_current_start.get("Value", "")) == pytest.approx(16.0)
-
-
-def test_run_crate_generation_link_mode_non_44k_mp3_is_flagged_not_failed(tmp_path: Path) -> None:
-    """A non-44.1kHz MP3 still generates in link mode -- just flagged as unverified."""
-    user_library = tmp_path / "User Library"
-    audio_dir = user_library / "DJ Crates" / "Audio"
-    crates_dir = user_library / "DJ Crates"
-
-    mp3_path = tmp_path / "off_rate.mp3"
-    fields = _mp3_row_fields()
-    fields["samplerate"] = 48000
-    row = _make_row(path=mp3_path, filename="off_rate.mp3", bpm=120.0, beat_offset_s=0.0, drop_s=8.0, **fields)
-
-    report = run_crate_generation(
-        [row],
-        crate_name="Crate",
-        audio_dir=audio_dir,
-        crates_dir=crates_dir,
-        audio_mode="link",
-        bar_tolerance=0.02,
-        dry_run=False,
-    )
-    assert not report.failures
-    assert report.generated_count == 1
-    assert len(report.non_44k_warnings) == 1
-    assert (crates_dir / "Crate" / "off_rate (full).alc").exists()
 
 
 def test_run_crate_generation_link_mode_default_audio_flag() -> None:

@@ -19,9 +19,8 @@ Audio strategy (``--audio {link,wav,flac}``, default ``link``):
   sets reference cross-volume files -- see the ``RelativePathType=1`` examples in
   ``test/sample_missing_fix Project/11.2.10_abs_rel.xml``). MP3 sources need every
   authored time shifted by Live's decoder offset (:func:`mp3_offset_from_row`, the
-  model above :data:`MPEG_DECODER_DELAY_SAMPLES`), verified sample-exact at 44100 Hz
-  only; other rates get the same sample count at their own rate and are flagged in
-  the end-of-run report as unverified. Lossless sources need no shift (their decode is
+  model above :data:`MPEG_DECODER_DELAY_SAMPLES`), counted in samples and converted
+  with each file's own sample rate. Lossless sources need no shift (their decode is
   deterministic) and are referenced in place.
 * ``wav`` / ``flac`` -- MP3 (and other compressed) sources are transcoded via ffmpeg
   into a shared cache under ``--audio-dir`` (Live's MP3 decoder is offset from
@@ -321,17 +320,27 @@ def sanitize_filename(name: str) -> str:
 # Live-vs-ffmpeg offset = trim + surplus:
 #   trim:    ffmpeg honors the gapless block (header delay + 529 samples) when the
 #            extension carries a valid LAME/Lavf/Lavc signature; Live never trims.
-#   surplus: Live decodes an "Info"-tagged metadata frame as audio (+1152 samples);
+#   surplus: Live decodes an "Info"-tagged metadata frame as audio (+1 frame: 1152
+#            samples, or 576 for the MPEG-2 and 2.5 files below 32 kHz);
 #            both decoders skip a "Xing"-tagged frame.
 # Measured: Info+sig d576 -> 2257 (golden + Gravity/Caligo/HandGestures/R.E.M);
 # Xing+sig d576 -> 1105 (Dune); real frame, no tag -> 0 (golden). The Info-without-
 # sig class (predicts 1152) is what cue_finder's Mixxx info-frame repair produces --
-# golden-verifiable the same way. Verified only at 44100 Hz; other rates get the
-# sample count scaled by their own rate but are flagged in the run report.
+# golden-verifiable the same way. Every term is a sample count, so the offset converts
+# to seconds with each file's own sample rate. Measured in Live 12.4.25b1 (2026-11-03)
+# against WAVs of the same click: 2257 samples at 32, 44.1 and 48 kHz, 1681 at the
+# MPEG-2 rates 22.05 and 24 kHz, each within half a sample.
 MPEG_DECODER_DELAY_SAMPLES = 529
 MPEG1_FRAME_SAMPLES = 1152
+MPEG2_FRAME_SAMPLES = 576
+# The lowest MPEG-1 rate; MPEG-2 and 2.5 Layer III, at half and quarter rates, have half-length frames.
+_MPEG1_LOWEST_RATE = 32000
 
-_VERIFIED_MP3_SAMPLE_RATE = 44100
+
+def layer3_frame_samples(sample_rate: int) -> int:
+    """Samples in one Layer III frame at ``sample_rate``: 1152 for MPEG-1 (32 to 48 kHz), 576 below."""
+    return MPEG1_FRAME_SAMPLES if sample_rate >= _MPEG1_LOWEST_RATE else MPEG2_FRAME_SAMPLES
+
 
 # A plausible gapless-block delay; the upper bound rejects 0xFFF garbage (the
 # block is absent or unusable). Zero is a real delay. Measured on an MP3
@@ -365,14 +374,15 @@ def mp3_decode_offset_samples(path: Path) -> int:
     pos = 0
     while pos + 4 <= len(data):
         b0, b1, b2, b3 = data[pos : pos + 4]
-        if b0 == 0xFF and (b1 & 0xE0) == 0xE0 and (b1 >> 3) & 0x03 == 0x03 and (b1 >> 1) & 0x03 == 0x01:
-            break  # MPEG1 Layer III frame header
+        if b0 == 0xFF and (b1 & 0xE0) == 0xE0 and (b1 >> 3) & 0x03 != 0x01 and (b1 >> 1) & 0x03 == 0x01:
+            break  # Layer III frame header, MPEG-1, 2 or 2.5
         pos += 1
     else:
         # Unparseable: assume the collection's majority class (Info + gapless sig).
         return MPEG1_FRAME_SAMPLES + 576 + MPEG_DECODER_DELAY_SAMPLES
     mono = (b3 >> 6) == 0x03
-    xing_at = pos + 4 + (17 if mono else 32)
+    mpeg1 = (b1 >> 3) & 0x03 == 0x03
+    xing_at = pos + 4 + ((17 if mono else 32) if mpeg1 else (9 if mono else 17))  # the side information
     tag = data[xing_at : xing_at + 4]
     if tag not in (b"Xing", b"Info"):
         return 0  # real audio frame first: both decoders start identically
@@ -386,16 +396,14 @@ def mp3_decode_offset_samples(path: Path) -> int:
         delay = (data[ext + 21] << 4) | (data[ext + 22] >> 4)
         if delay in _GAPLESS_DELAY_RANGE:
             trim = delay + MPEG_DECODER_DELAY_SAMPLES
-    surplus = MPEG1_FRAME_SAMPLES if tag == b"Info" else 0
+    surplus = (MPEG1_FRAME_SAMPLES if mpeg1 else MPEG2_FRAME_SAMPLES) if tag == b"Info" else 0
     return trim + surplus
 
 
 def mp3_decoder_offset_seconds(path: Path, sample_rate: int) -> float:
-    """Seconds to add to analyzer timestamps to match Live's MP3 decode timeline.
+    """Seconds to add to analyzer timestamps to match Live's MP3 decode timeline, at the file's ``sample_rate``.
 
-    See :func:`mp3_decode_offset_samples` -- verified only at 44100 Hz; other
-    rates apply the same sample count but the result is unverified (the caller
-    should flag it, see ``AudioPlacement.offset_unverified``).
+    See :func:`mp3_decode_offset_samples`.
     """
     return mp3_decode_offset_samples(path) / sample_rate
 
@@ -488,7 +496,6 @@ class AudioPlacement:
     duration_s: float
     time_offset_s: float
     did_work: bool
-    offset_unverified: bool = False
 
 
 def _fake_relative_path(audio_dir: Path, safe_name: str, ext: str) -> Path:
@@ -511,7 +518,7 @@ def mp3_offset_from_row(row: PicksRow) -> float:
     if row.samplerate is None:
         raise ValueError(f"{row.filename}: MP3 row without a samplerate column value")
     trim = (row.mp3_encoder_delay or 0) + MPEG_DECODER_DELAY_SAMPLES if row.mp3_lame_ext else 0
-    surplus = MPEG1_FRAME_SAMPLES if row.mp3_tag == "Info" else 0
+    surplus = layer3_frame_samples(row.samplerate) if row.mp3_tag == "Info" else 0
     return (trim + surplus) / row.samplerate
 
 
@@ -519,8 +526,7 @@ def resolve_link_placement(row: PicksRow, *, audio_dir: Path, safe_name: str) ->
     """Resolve a track's audio placement for ``--audio link`` (no copy, no transcode).
 
     MP3 offsets and durations come straight from the export's v2 columns -- no
-    ffprobe, no file reads. Non-44.1kHz MP3s still get the offset (scaled by their
-    own rate) but ``offset_unverified`` is set so the caller can flag it.
+    ffprobe, no file reads.
     """
     src = row.path
     suffix = src.suffix.lower()
@@ -534,7 +540,6 @@ def resolve_link_placement(row: PicksRow, *, audio_dir: Path, safe_name: str) ->
             duration_s=row.duration_s + offset,
             time_offset_s=offset,
             did_work=False,
-            offset_unverified=row.samplerate != _VERIFIED_MP3_SAMPLE_RATE,
         )
 
     return AudioPlacement(
@@ -663,7 +668,6 @@ class TrackResult:
     transcoded: bool = False
     generated_full: bool = False
     generated_drop: bool = False
-    offset_unverified: bool = False
     error: str | None = None
 
 
@@ -686,7 +690,6 @@ def generate_track(
             )
         )
         result.transcoded = placement.did_work
-        result.offset_unverified = placement.offset_unverified
         times = _adjust_times(plan, placement)
 
         full_clip = _build_variant(
@@ -763,11 +766,6 @@ class RunReport:
     def bar_phase_warnings(self) -> list[TrackResult]:
         """Tracks whose drop is out of bar-phase with their tagged first beat."""
         return [r for r in self.results if r.plan.anchor.bar_phase_warning and r.error is None]
-
-    @property
-    def non_44k_warnings(self) -> list[TrackResult]:
-        """Link-mode MP3s at a non-44.1kHz sample rate (decoder offset unverified there)."""
-        return [r for r in self.results if r.offset_unverified and r.error is None]
 
     @property
     def failures(self) -> list[TrackResult]:
@@ -894,17 +892,6 @@ def print_report(report: RunReport) -> None:
         for result in warnings:
             logger.info("%s  - %s: residual %.3f bars", R, result.plan.clip_name, result.plan.anchor.residual_bars)
 
-    non_44k = report.non_44k_warnings
-    if non_44k:
-        logger.info(
-            "%s%s track(s) are MP3 at a non-44.1kHz sample rate under --audio link "
-            "(decoder offset is unverified at that rate, still generated):",
-            Y,
-            len(non_44k),
-        )
-        for result in non_44k:
-            logger.info("%s  - %s", Y, result.plan.clip_name)
-
     failures = report.failures
     if failures:
         logger.info("%s%s failure(s):", R, len(failures))
@@ -939,8 +926,8 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=["link", "wav", "flac"],
         default="link",
         help="Audio strategy (default: link). 'link' references source files in place with no copy/transcode "
-        "(MP3 grids are shifted by a constant, empirically-measured decoder offset, verified only at "
-        "44100 Hz -- other rates are flagged in the report but still generated). 'wav'/'flac' transcode "
+        "(MP3 grids are shifted by Live's decoder offset, measured per file from its header). "
+        "'wav'/'flac' transcode "
         "into a shared library cache (self-contained crate, more disk use). FLAC's grid alignment in "
         "Live is UNTESTED.",
     )

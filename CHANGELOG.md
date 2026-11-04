@@ -17,6 +17,8 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- DJ crates line up MP3s below 32 kHz too: their shorter MPEG-2 frames gave them a
+  26 ms wrong offset. Live's offset was measured from 22.05 to 48 kHz.
 - `.asd` analysis files abletoolz writes load in Live, so a sample carries its warp grid
   beside the audio.
 - CS-80 V3, Chorus JUN-6, Dist TUBE-CULTURE and Pro-C 2 convert between their Mac Audio
