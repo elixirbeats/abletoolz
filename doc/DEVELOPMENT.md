@@ -213,4 +213,4 @@ It reads Live's own plugin database, then adds the VST3 class ids from `plugin_d
 ## Research notes and design decisions
 
 - [Plugin device writes](adr/0001-two-write-modes-for-plugin-devices.md) explains why a format swap rebuilds a device's info element while same-format edits preserve unknown fields.
-- [ASD format notes](ASD_FORMAT.md) record historical binary-format measurements and unresolved Live behavior. They are research notes, not a supported writing workflow.
+- [ASD format notes](ASD_FORMAT.md) describe the sidecar writer, its binary layout, and the Live acceptance checks.

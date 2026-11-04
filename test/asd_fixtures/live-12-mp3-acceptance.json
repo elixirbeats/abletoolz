@@ -1,0 +1,47 @@
+{
+  "observed_on": "2026-11-03",
+  "live_version": "12.4.25b1",
+  "platform": "Windows",
+  "source_track": "L 33 - Chase.mp3",
+  "sample_rate": 44100,
+  "mp3_header": {
+    "tag": "Info",
+    "gapless_extension": true,
+    "encoder_delay_samples": 576
+  },
+  "offset_samples": 2257,
+  "offset_seconds": 0.051179138321995464,
+  "imported_original": true,
+  "warp_markers": [
+    {
+      "sample_time": 0.13147186114171602,
+      "beat_time": 0
+    },
+    {
+      "sample_time": 67.10821604718824,
+      "beat_time": 192
+    },
+    {
+      "sample_time": 317.9363492063492,
+      "beat_time": 911.0406483895947
+    }
+  ],
+  "sidecar_after_import_sha256": "ee65d28b2e3d7133ffefc1287b7be552c5bdae18efc8da03e76577935c6d3631",
+  "sidecar_unchanged": true,
+  "audio_measurement": {
+    "method": "Live simultaneous internal Pre FX recordings compared with FFmpeg decode; 4-second window starting at arrangement beat 188, source tempo 172 BPM",
+    "reference_source_start_seconds": 65.66168807165693,
+    "uncorrected": {
+      "reference_shift_samples": -2257,
+      "correlation": 0.9999989003933123
+    },
+    "corrected": {
+      "reference_shift_samples": 0,
+      "correlation": 0.9999988172601103
+    }
+  },
+  "limitations": [
+    "One MP3 header class and sample rate tested.",
+    "ALC crate generation was checked structurally; an ALC was not imported in this run."
+  ]
+}

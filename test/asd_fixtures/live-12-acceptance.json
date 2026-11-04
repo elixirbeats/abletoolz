@@ -1,0 +1,89 @@
+{
+  "observed_on": "2026-11-03",
+  "live_version": "12.4.25b1",
+  "platform": "Windows",
+  "import_method": "Live.ClipSlot.create_audio_clip",
+  "read_method": "Live Python API via technogen lom_get",
+  "source_audio": {
+    "duration_seconds": 8,
+    "sample_rate": 44100,
+    "encoding": "PCM 16-bit"
+  },
+  "requested_grid": {
+    "bpm": 137,
+    "anchor_seconds": 0.321
+  },
+  "probes": [
+    {
+      "name": "fixed-mono",
+      "warp_markers": [
+        {
+          "beat_time": 0,
+          "sample_time": 0.321
+        },
+        {
+          "beat_time": 17.53371666666667,
+          "sample_time": 8
+        }
+      ],
+      "clip": {
+        "start_marker": 0,
+        "end_marker": 17.533716543872792,
+        "loop_start": 0,
+        "loop_end": 17.533716543872792,
+        "warping": true
+      },
+      "sidecar_before_sha256": "ab1bf8556516ef3a62b4d760f169392a614dbda146d88233a2c0d79eabde7884",
+      "sidecar_after_sha256": "ab1bf8556516ef3a62b4d760f169392a614dbda146d88233a2c0d79eabde7884"
+    },
+    {
+      "name": "fixed-stereo",
+      "warp_markers": [
+        {
+          "beat_time": 0,
+          "sample_time": 0.321
+        },
+        {
+          "beat_time": 17.53371666666667,
+          "sample_time": 8
+        }
+      ],
+      "clip": {
+        "start_marker": 0,
+        "end_marker": 17.533716543872792,
+        "loop_start": 0,
+        "loop_end": 17.533716543872792,
+        "warping": true
+      },
+      "sidecar_before_sha256": "a0a9d401a55578c371e24f32aca77bb7f590a385e36409dec6064473edb296b0",
+      "sidecar_after_sha256": "a0a9d401a55578c371e24f32aca77bb7f590a385e36409dec6064473edb296b0"
+    },
+    {
+      "name": "fixed-rewrite",
+      "warp_markers": [
+        {
+          "beat_time": 0,
+          "sample_time": 0.321
+        },
+        {
+          "beat_time": 17.53371666666667,
+          "sample_time": 8
+        }
+      ],
+      "clip": {
+        "start_marker": 0,
+        "end_marker": 17.533716543872792,
+        "loop_start": 0,
+        "loop_end": 17.533716543872792,
+        "warping": true
+      },
+      "sidecar_before_sha256": "f04a5326c12b60d452a5208a76bf8703d62e0023dd67aab9f0a7704cd51a0937",
+      "sidecar_after_sha256": "f04a5326c12b60d452a5208a76bf8703d62e0023dd67aab9f0a7704cd51a0937"
+    }
+  ],
+  "limitations": [
+    "Manual runtime observation; unit tests do not launch Live.",
+    "Playback and waveform rebuilding were not tested.",
+    "Other Live versions and compressed audio were not tested."
+  ]
+}

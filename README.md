@@ -391,7 +391,6 @@ Some things still need work:
 
 - More plugin maps, conversions and support for carrying automation across them.
 - Making copies for older Live versions reliable. Python's `save_as` is experimental and some copies still crash Live.
-- Figure out why Live rejects `.asd` files created by hand, and fix it.
 - More ways for scripts and other programs to work with sets.
 
 `--dump-plugins` and `-x` help inspect plugin settings and set XML. `abletoolz-dj-crates` builds pre-warped `.alc` clips from a TSV of track analysis; run `abletoolz-dj-crates --help` for its options.
