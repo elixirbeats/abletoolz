@@ -296,6 +296,8 @@ abletoolz "my song.als" --unfold --set-track-heights 68 --set-track-widths 24 -s
 
 `--list-tracks` lists track information. `-x` / `--xml` writes the uncompressed set XML beside the set, which is useful for exploring its structure. Live can also open uncompressed XML renamed to `.als`, provided the document is valid.
 
+If your DJ tracks already have a tempo, downbeat and drop cue, abletoolz can make clips and `.asd` files that open in Live already warped and on the bar: see [pre-warped clips for DJing](doc/DJ_CLIPS.md).
+
 ## Saving your changes
 
 `-s` / `--save` saves ordinary edits in the original location. Before replacing a set, abletoolz copies it to `abletoolz_backup/set_name__1.als` beside the original. If that name exists, it uses `__2`, then `__3`, so earlier backups are kept. A set the run doesn't change isn't written.
@@ -401,8 +403,10 @@ For a plugin whose maker is gone, see [salvaging an old plugin](doc/DEVELOPMENT.
 
 Some things still need work:
 
-- More plugin maps, conversions and support for carrying automation across them.
+- More plugin maps and conversions.
+- Keeping a converted device's automation, clip envelopes and MIDI and macro mappings, by matching its old controls to the new plugin's.
 - Making copies for older Live versions reliable. Python's `save_as` is experimental and some copies still crash Live.
+- Writing `.asd` sidecars from `abletoolz-dj-crates`, not only from Python.
 - More ways for scripts and other programs to work with sets.
 
-`--dump-plugins` and `-x` help inspect plugin settings and set XML. `abletoolz-dj-crates` builds pre-warped `.alc` clips from a TSV of track analysis; run `abletoolz-dj-crates --help` for its options.
+`--dump-plugins` and `-x` help inspect plugin settings and set XML.
