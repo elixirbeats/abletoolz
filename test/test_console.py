@@ -28,7 +28,7 @@ BROKEN = SetRecord(
     plugins_missing={"Serum": 2},
     plugins_loaded={"Pro-Q 3": 4},
     edits=["folded every track"],
-    notices=["saved by a beta of Live; some commands might not work properly"],
+    notices=["no project folder to collect into, so files were relinked where they are"],
 )
 
 
@@ -51,7 +51,7 @@ def test_a_set_is_a_header_then_counts_with_its_problems_by_name(capsys: pytest.
     assert lines[10] == "      and 2 more (-v lists them)"
     assert lines[11:] == [
         "  edits        folded every track",
-        "  note         saved by a beta of Live; some commands might not work properly",
+        "  note         no project folder to collect into, so files were relinked where they are",
         "  saved        to D:/sets/hazed.als, backup D:/sets/abletoolz_backup/hazed__1.als",
     ]
 
@@ -71,6 +71,10 @@ def test_a_cached_set_says_so_and_a_failed_one_says_why(capsys: pytest.CaptureFi
     assert printed(capsys, cached) == ["a.als  Live 11.3.42, 120 BPM, 8 bars (cached)", "  plugins      all load"]
     failed = SetRecord(path="b.als", error="SetError: an empty gzip stream")
     assert printed(capsys, failed) == ["b.als  failed: SetError: an empty gzip stream"]
+
+
+def test_a_length_rounding_up_to_a_minute_carries_into_the_minutes(capsys: pytest.CaptureFixture[str]) -> None:
+    assert printed(capsys, SetRecord(path="e.als", seconds=179.6))[0] == "e.als  3:00"
 
 
 def test_an_unsaved_change_says_how_to_save_it(capsys: pytest.CaptureFixture[str]) -> None:

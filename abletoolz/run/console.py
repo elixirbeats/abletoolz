@@ -192,7 +192,8 @@ def render_set(record: SetRecord) -> None:
     if record.bars is not None:
         facts.append(f"{record.bars} bars")
     if record.seconds is not None:
-        facts.append(f"{int(record.seconds // 60)}:{round(record.seconds % 60):02d}")
+        minutes, seconds = divmod(round(record.seconds), 60)
+        facts.append(f"{minutes}:{seconds:02d}")
     cached = paint(Role.HINT, " (cached)") if record.cached else ""
     say(f"{paint(Role.NAME, path.name)}  {paint(Role.META, ', '.join(facts))}{cached}")
     if _output.verbose:
