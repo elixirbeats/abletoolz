@@ -17,10 +17,12 @@ own spelling, the single-precision float to eight digits.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 
-from abletoolz.plugins.state.arturia_v import ArchiveInstrument
+from abletoolz.plugins.state.arturia_v import ArchiveInstrument, arturia_au
 from abletoolz.plugins.state.catalog import register
+from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.plugin_map import PluginMap
 
 CS_80_V3 = ArchiveInstrument(
@@ -30,6 +32,12 @@ baseline = CS_80_V3.baseline
 with_values = CS_80_V3.with_values
 
 
+# Presets written here restored into the unit on a Mac, every parameter read back, and converted sets
+# opened and listened to in Live there (2026-11-03).
+_AU_READ = MeasuredState(StateRung.REFRAME, (StateEvidence.HOSTED, StateEvidence.EAR), datetime.date(2026, 11, 3))
+
+
 @register
 def cs_80_v3() -> PluginMap:
-    return CS_80_V3.plugin_map()
+    au = arturia_au("CS-80 V3", "aumu", CS_80_V3.unique_id, "cs_80_v3_au", _AU_READ)
+    return dataclasses.replace(CS_80_V3.plugin_map(), au=au)

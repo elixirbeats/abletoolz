@@ -40,9 +40,11 @@ from __future__ import annotations
 
 import dataclasses
 import plistlib
+import struct
 from collections.abc import Mapping
 from xml.parsers.expat import ExpatError
 
+from abletoolz.formats.arturia_archive import TwoArchives
 from abletoolz.formats.errors import FormatError
 from abletoolz.formats.fxb import FxpChunkProgram
 from abletoolz.plugins.identity.ids import AuIdentifier
@@ -58,7 +60,19 @@ JUCE_STATE = "jucePluginState"
 VST_DATA = "vstdata"
 PROGRAM_NUMBER = "ProgramNumber"
 PROCESSOR_STATE = "Processor State"
+CONTROLLER_STATE = "Controller State"
+PARAMETERS = "data"
 _IDENTITY = (TYPE, SUBTYPE, MANUFACTURER)
+
+# A block of Apple's SDK snapshot: scope, element and parameter count, then that many id and float32 pairs, big-endian.
+_BLOCK = struct.Struct(">III")
+_PARAMETER = struct.Struct(">If")
+
+
+def parameter_snapshot(values: Mapping[int, float]) -> bytes:
+    """The SDK's ``data`` snapshot of ``values``: one global block, each parameter id with its float32."""
+    pairs = b"".join(_PARAMETER.pack(key, value) for key, value in values.items())
+    return _BLOCK.pack(0, 0, len(values)) + pairs
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -117,6 +131,32 @@ class ClassInfo:
     def encode(self) -> bytes:
         """The XML property list, as Live and CoreFoundation write it."""
         return plistlib.dumps(dict(self.entries), fmt=plistlib.FMT_XML)
+
+    def parameters(self) -> dict[int, float]:
+        """The global parameters in the SDK's ``data`` snapshot, by parameter id; refused when there is none."""
+        data = self.entries.get(PARAMETERS)
+        if not isinstance(data, bytes):
+            raise StateTransformError("this AU preset holds no parameter snapshot")
+        values: dict[int, float] = {}
+        cursor = 0
+        while cursor < len(data):
+            if len(data) - cursor < _BLOCK.size:
+                raise StateTransformError(f"a parameter snapshot with {len(data) - cursor} stray bytes at its end")
+            scope, element, count = _BLOCK.unpack_from(data, cursor)
+            cursor += _BLOCK.size
+            if cursor + count * _PARAMETER.size > len(data):
+                raise StateTransformError(f"a parameter block of {count} overruns the snapshot")
+            pairs = (_PARAMETER.unpack_from(data, cursor + n * _PARAMETER.size) for n in range(count))
+            if (scope, element) == (0, 0):
+                values.update(pairs)
+            cursor += count * _PARAMETER.size
+        return values
+
+    def checked(self, identifier: AuIdentifier) -> ClassInfo:
+        """This preset, refused when it is another unit's."""
+        if self.identifier != identifier:
+            raise StateTransformError(f"an AU preset for {self.identifier}, not {identifier}")
+        return self
 
 
 # -- the framing a JUCE unit's AU format names --------------------------------
@@ -224,5 +264,45 @@ class Vst3ClassInfo:
             VERSION: 0,
             NAME: "",
             PROCESSOR_STATE: patch,
+        }
+        return ClassInfo(entries).encode()
+
+
+# -- the framing of a unit that keeps its patch as its controller's state ------
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ArchiveClassInfo:
+    """Arturia's own Audio Unit: the patch archive under ``Controller State``, beside the SDK's parameter snapshot.
+
+    The archive is the one the plugin's VST2 chunk holds twice and its VST3 keeps in both halves (measured on
+    CS-80 V3, Chorus JUN-6 and Dist TUBE-CULTURE units saved on a Mac), so lifted it is that chunk. Written, a preset
+    is the identity, ``version`` 0, an empty name and the archive: restored into each of the three units on a Mac
+    (2026-11-03), one built from the unit's own archive left every parameter as the unit's own preset does, and one
+    from a Windows VST3's archive took.
+    """
+
+    identifier: AuIdentifier
+    product: str
+
+    def lift(self, state: bytes) -> bytes:
+        archive = ClassInfo.parse(state).checked(self.identifier).entries.get(CONTROLLER_STATE)
+        if not isinstance(archive, bytes):
+            raise StateTransformError(f"this {self.product} AU preset holds no Controller State to carry across")
+        return TwoArchives.join(archive, archive)
+
+    def lower(self, patch: bytes) -> bytes:
+        try:
+            archive = TwoArchives.split(patch)[0]
+        except FormatError as error:
+            raise StateTransformError(f"not a {self.product} patch: {error}") from None
+        component_type, subtype, manufacturer = self.identifier
+        entries = {
+            TYPE: component_type,
+            SUBTYPE: subtype,
+            MANUFACTURER: manufacturer,
+            VERSION: 0,
+            NAME: "",
+            CONTROLLER_STATE: archive,
         }
         return ClassInfo(entries).encode()

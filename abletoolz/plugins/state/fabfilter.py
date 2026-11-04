@@ -64,7 +64,17 @@ import struct
 from collections.abc import Callable
 
 from abletoolz.plugins.container.controller import ConstantControllerState
-from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
+from abletoolz.plugins.identity.ids import AuId, AuIdentifier, AuRegistration, Vst2Id, Vst3Id
+from abletoolz.plugins.state.audio_unit import (
+    MANUFACTURER,
+    NAME,
+    PARAMETERS,
+    SUBTYPE,
+    TYPE,
+    VERSION,
+    ClassInfo,
+    parameter_snapshot,
+)
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.derived import DERIVED_TABLES, DerivedTable, FabfState, read_derived_table
 from abletoolz.plugins.state.errors import StateTransformError
@@ -440,7 +450,43 @@ class DerivedFabF:
         return self.table.convert(patch)
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class DerivedAu:
+    """A FabF-generation Audio Unit: its parameters in the SDK snapshot, numbered and valued as its table says.
+
+    Lifted, the snapshot is the VST2 bank the table reads. Written, a preset is the identity, ``version`` 0, the
+    bank's preset name and the snapshot of every parameter: restored into Pro-C 2's unit on a Mac (2026-11-03), all
+    46 read back as written.
+    """
+
+    identifier: AuIdentifier
+    table: DerivedTable
+
+    def lift(self, state: bytes) -> bytes:
+        info = ClassInfo.parse(state).checked(self.identifier)
+        name = info.entries.get(NAME)
+        return self.table.bank(info.parameters(), name if isinstance(name, str) else "")
+
+    def lower(self, patch: bytes) -> bytes:
+        bank = LegacyBank.parse(patch)
+        native = self.table.native(bank.parameters)
+        component_type, subtype, manufacturer = self.identifier
+        entries = {
+            TYPE: component_type,
+            SUBTYPE: subtype,
+            MANUFACTURER: manufacturer,
+            VERSION: 0,
+            NAME: bank.preset_name,
+            PARAMETERS: parameter_snapshot(native),
+        }
+        return ClassInfo(entries).encode()
+
+
 _HOSTED_ON = datetime.date(2026, 8, 13)
+
+# Presets written here restored into the unit on a Mac, every parameter read back, and converted sets
+# opened and listened to in Live there (2026-11-03).
+_AU_RESTORED = MeasuredState(StateRung.RE_ENCODE, (StateEvidence.HOSTED, StateEvidence.EAR), datetime.date(2026, 11, 3))
 
 
 # Every FFBS-generation VST2 patch is version 1, and so is each successor's default.
@@ -715,7 +761,7 @@ PRO_C_2_TABLE = read_derived_table(DERIVED_TABLES / "pro-c-2.json")
 
 @register
 def pro_c_2() -> PluginMap:
-    return _derived_plugin(
+    plugin = _derived_plugin(
         "pro-c-2",
         "FabFilter Pro-C 2",
         1178808944,
@@ -726,6 +772,16 @@ def pro_c_2() -> PluginMap:
         vst2_plan="pro_c_2_vst2",
         vst3_plan="pro_c_2_vst3",
     )
+    au = AuId.of("aumf", "FC2p", "FabF")
+    au_format = PluginFormat(
+        au,
+        "Pro-C 2",
+        DerivedAu(au.identifier, PRO_C_2_TABLE),
+        _AU_RESTORED,
+        registration=AuRegistration("FabFilter", 2),
+        plan_name="pro_c_2_au",
+    )
+    return dataclasses.replace(plugin, au=au_format)
 
 
 # Pro-L 2, Pro-MB and Pro-G had their tables derived on 2026-08-13 and were

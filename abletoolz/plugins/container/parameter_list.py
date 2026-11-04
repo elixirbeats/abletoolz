@@ -21,10 +21,11 @@ with each slot's range in the plugin's units as Live writes it.
 
 from __future__ import annotations
 
+import copy
 from xml.etree import ElementTree as ET
 
 from abletoolz.elements import get_element
-from abletoolz.live_set.xml_edit import number_value
+from abletoolz.live_set.xml_edit import number_value, renumber_pointee_ids
 from abletoolz.plugins.identity.vst3_parameters import Vst3Parameter
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.schema import Attr, Tag, path
@@ -34,6 +35,12 @@ UNASSIGNED = -1
 
 UNASSIGNED_VISUAL_INDEX = 1073741823
 """``VisualIndex`` Live writes for a slot that names no parameter."""
+
+FLOAT_SLOT = "PluginFloatParameter"
+"""The one slot class a VST2 or VST3 device holds; an AU device also holds ``PluginEnumParameter`` slots."""
+
+VST_SLOTS = 128
+"""How many slots every VST2 and VST3 device holds (Live 10 to 12, measured over the library); an AU device 256."""
 
 
 def _int(slot: ET.Element, tag: str) -> int:
@@ -90,3 +97,33 @@ def write_live_list(parameters: ET.Element, listed: tuple[Vst3Parameter, ...]) -
         # Live 12 writes a last user range; most Live 10 and 11 slots have none.
         _set(slot, path(Tag.LAST_USER_RANGE, Tag.RANGE_FIRST), low, optional=True)
         _set(slot, path(Tag.LAST_USER_RANGE, Tag.RANGE_LAST), high, optional=True)
+
+
+def as_vst_slots(parameters: ET.Element, root: ET.Element) -> None:
+    """Give an AU device leaving for a VST the slots a VST device holds: its first 128, every one a float slot.
+
+    Each other slot becomes a copy of the list's first float slot, naming nothing, that keeps its own ``Id`` and
+    automation target; its modulation target, which an enum slot has none of, takes a fresh id from the set's
+    ``NextPointeeId``. The slots past 128 go, with the device's other controls the conversion forgets.
+    """
+    if len(parameters) > VST_SLOTS:
+        parameters[VST_SLOTS - 1].tail = parameters[-1].tail
+        del parameters[VST_SLOTS:]
+    template = parameters.find(FLOAT_SLOT)
+    for position, slot in enumerate(list(parameters)):
+        if slot.tag == FLOAT_SLOT:
+            continue
+        if template is None:
+            raise StateTransformError(f"A parameter list of {slot.tag} slots only has no float slot to model one on")
+        replacement = copy.deepcopy(template)
+        replacement.set(Attr.ID, slot.get(Attr.ID, ""))
+        replacement.tail = slot.tail
+        _set(replacement, Tag.PARAMETER_NAME, "")
+        _set(replacement, Tag.PARAMETER_ID, str(UNASSIGNED))
+        _set(replacement, Tag.VISUAL_INDEX, str(UNASSIGNED_VISUAL_INDEX))
+        automation = get_element(slot, path(Tag.PARAMETER_VALUE, Tag.AUTOMATION_TARGET))
+        get_element(replacement, path(Tag.PARAMETER_VALUE, Tag.AUTOMATION_TARGET)).set(
+            Attr.ID, automation.get(Attr.ID, "")
+        )
+        renumber_pointee_ids(get_element(replacement, path(Tag.PARAMETER_VALUE, Tag.MODULATION_TARGET)), root)
+        parameters[position] = replacement

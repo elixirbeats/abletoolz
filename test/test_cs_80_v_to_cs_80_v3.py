@@ -202,10 +202,10 @@ def test_the_baseline_is_the_plugin_s_default_and_unknown_names_are_refused() ->
         cs_80_v3.with_values(cs_80_v3.baseline(), {"NO_SUCH_CONTROL": 0.5})
 
 
-def test_a_plan_offers_cs_80_v3_as_a_vst2_and_a_vst3() -> None:
+def test_a_plan_offers_cs_80_v3_as_a_vst2_a_vst3_and_an_au() -> None:
     source = CATALOG.find(CATALOG.by_map_id(V2.map_id).vst2.id)  # type: ignore[union-attr]
     assert source is not None
     machine = Machine(vst2=(), vst3={}, au=lambda identifier: False, loadable=lambda info: False)
     targets = {target.id: target for target in mapped_targets(source, PluginKind.VST, machine)}
-    assert set(targets) == {"cs_80_v3_vst2", "cs_80_v3_vst3"}
+    assert set(targets) == {"cs_80_v3_vst2", "cs_80_v3_vst3", "cs_80_v3_au"}
     assert targets["cs_80_v3_vst2"].route is Route.CONVERTER

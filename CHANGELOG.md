@@ -17,6 +17,10 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- `.asd` analysis files abletoolz writes load in Live, so a sample carries its warp grid
+  beside the audio.
+- CS-80 V3, Chorus JUN-6, Dist TUBE-CULTURE and Pro-C 2 convert between their Mac Audio
+  Unit and their VST3 or VST2, in both directions.
 - FabFilter Timeless 2 VST3 devices convert to Timeless 3, and Timeless 2 swaps between
   VST2 and VST3.
 - A Live 9.0 or 9.1 set using Simpler or Auto Filter moves up to hold a VST3

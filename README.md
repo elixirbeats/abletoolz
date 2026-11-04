@@ -160,7 +160,8 @@ Arrows show implemented directions, not every format the plugin itself ships in.
 | Arturia CS-80V, CS-80 V2 | None | → CS-80 V3 VST3 or VST2 | — |
 | Arturia Piano V2, Wurli V2, ARP 2600 V2, Prophet V2, Modular V2 | None | → their V3 VST3 or VST2 | — |
 | Arturia Analog Lab 3, Analog Lab 4 | None | → Analog Lab V VST2 | — |
-| Arturia Mini V3, Prophet V3, Prophet-5 V, MS-20 V | VST2 ↔ VST3 | None | — |
+| Arturia Mini V3, Prophet V3, Prophet-5 V, MS-20 V, CS-80 V3 | VST2 ↔ VST3; CS-80 V3: AU → VST3 or VST2, VST2 → AU | None | — |
+| Arturia Chorus JUN-6, Dist TUBE-CULTURE | VST3 ↔ AU | None | — |
 | Arturia CMI V | None | None | Relink samples |
 | Audio Damage Ratshack Reverb 2, DubStation 1.5, Discord 3 | None | None; mapped | — |
 | Camel Audio CamelPhat 3 | None | None; mapped | — |
@@ -169,7 +170,7 @@ Arrows show implemented directions, not every format the plugin itself ships in.
 | FabFilter Pro-C (including SC), Pro-L | None | → Pro-C 2 / Pro-L 2 VST3 or VST2, respectively | — |
 | FabFilter Saturn, Volcano 2 | None | → Saturn 2 / Volcano 3 VST3 or VST2, respectively | — |
 | FabFilter Timeless 2 | VST2 ↔ VST3 | → Timeless 3 VST3 or VST2 | — |
-| FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3 | None | — |
+| FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3; Pro-C 2: AU → VST3 or VST2, VST2 → AU | None | — |
 | Goodhertz Tupe 3 | VST2 ↔ VST3 | None | — |
 | iZotope Ozone 8 Elements | None | → Ozone 9 VST2 | — |
 | iZotope Stutter Edit 2 | VST2 ↔ VST3 | None | — |
@@ -245,6 +246,18 @@ A plan file that already exists isn't overwritten unless you pass `--force`. Ope
 
 To skip checking the file, `abletoolz plugins plan "D:/Ableton Projects" --apply` writes the plan and applies its suggestions straight away.
 
+### Convert for another computer
+
+A plugin that loads here is in the plan too, left at `null`. Its comment also lists formats marked "not installed here", which you can pick for a computer that has them, such as the AU when you give a set to a friend on a Mac:
+
+```yaml
+- plugin: Chorus JUN-6
+  format: VST3
+  convert_to: chorus_jun_6_au
+```
+
+Apply it the same way. The other computer still needs the plugin installed.
+
 ### What converting costs
 
 A saved patch and Live's automation are separate things. Even when a patch carries over, a converted device currently loses its automation and clip envelopes, MIDI and macro mappings, because the target's controls can have different numbers. Its configured control list is rebuilt where supported, or left empty.
@@ -253,7 +266,6 @@ Upgrades can also leave out or approximate settings the target has no equivalent
 
 ### A few common cases
 
-- **Sending a set to another computer:** the target plugin doesn't have to be installed here. Choose an offered format the other computer can use; that computer still needs the plugin installed.
 - **An older set:** Live 9 and 10.0 sets can't hold a VST3, so abletoolz moves such a set up to Live 10.1's format when it writes one, and the plan lists what that changes. A Live 9.0 set using some of Live's own devices can't be moved; open and save it in a newer Live first.
 - **Old wrapped VST2 plugins:** `abletoolz plugins routes` lists measured recovery routes and the binaries found for them. Use `--plugin-dir "D:/VstPlugins"` to restrict the recovery-file search to that folder.
 - **Missing samples as well as plugins:** fix and save the sample references first, then make the conversion plan. Converting a patch doesn't relink its files.

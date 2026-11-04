@@ -31,7 +31,7 @@ from collections.abc import Mapping
 from typing import cast
 
 from abletoolz.plugins.state.errors import StateTransformError
-from abletoolz.plugins.state.fxbk import LegacyBank
+from abletoolz.plugins.state.fxbk import LEGACY_NAME_BYTES, LegacyBank
 
 # Length-prefixed fields run through every FabFilter format: a little-endian
 # word, then that many bytes.
@@ -69,6 +69,10 @@ class LinearTransfer:
         product = _float32(_float32(self.slope) * _float32(normalized))
         return _float32(_float32(self.intercept) + product)
 
+    def normalized(self, native: float) -> float:
+        """The knob position at which the plugin stores ``native``."""
+        return (native - self.intercept) / self.slope
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class StepTransfer:
@@ -83,6 +87,12 @@ class StepTransfer:
     def __call__(self, normalized: float) -> float:
         last = len(self.values) - 1
         return self.values[min(math.floor(min(max(normalized, 0.0), 1.0) * last + 0.5), last)]
+
+    def normalized(self, native: float) -> float:
+        """The knob position of the step the plugin stores as ``native``; refused for a value it has no step for."""
+        if native not in self.values:
+            raise StateTransformError(f"{native} is none of the {len(self.values)} values this control steps through")
+        return self.values.index(native) / (len(self.values) - 1)
 
 
 # What a derived table may say a parameter's curve is.
@@ -243,6 +253,26 @@ class DerivedTable:
             parameters=tuple(values),
             trailing=self.trailing,
         ).encode()
+
+    def native(self, bank: tuple[float, ...]) -> dict[int, float]:
+        """Each parameter's value in the plugin's units, by its bank index: what the product's Audio Unit saves."""
+        if len(bank) <= max(parameter.bank_index for parameter in self.parameters):
+            raise StateTransformError(f"a {self.product} bank of {len(bank)} parameters is too short")
+        return {parameter.bank_index: parameter.transfer(bank[parameter.bank_index]) for parameter in self.parameters}
+
+    def bank(self, native: Mapping[int, float], preset_name: str) -> bytes:
+        """This product's VST2 bank from each parameter's value in the plugin's units, by its bank index.
+
+        What the product's Audio Unit saves: its parameters numbered as the VST2 numbers them, in the units the
+        VST3 state keeps (measured on a Pro-C 2 unit saved on a Mac, all 46 within the table's ranges).
+        """
+        missing = [parameter.name for parameter in self.parameters if parameter.bank_index not in native]
+        if missing:
+            raise StateTransformError(f"no value for {', '.join(missing)} among the {len(native)} saved")
+        values = [0.0] * (max(parameter.bank_index for parameter in self.parameters) + 1)
+        for parameter in self.parameters:
+            values[parameter.bank_index] = parameter.transfer.normalized(native[parameter.bank_index])
+        return LegacyBank(preset_name[: LEGACY_NAME_BYTES - 1], tuple(values)).encode()
 
 
 # Where the tables the rig produced are kept, one JSON file per product.
