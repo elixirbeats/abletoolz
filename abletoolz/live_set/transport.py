@@ -51,9 +51,6 @@ class SetLength:
     bpm: float
     seconds: float
 
-    def __str__(self) -> str:
-        return f"{int(self.seconds // 60)}:{round(self.seconds % 60):02d}"
-
 
 class Transport(Domain):
     """Tempo and timeline facts of one set."""

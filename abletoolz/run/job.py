@@ -224,8 +224,6 @@ def run_set(
     length = live_set.transport.length()
 
     edits, notices = _edit_tracks(job, live_set)
-    if live_set.version.split()[-1:] and "b" in live_set.version.split()[-1]:
-        notices.append("saved by a beta of Live; some commands might not work properly")
     if job.list_tracks:
         console.render_tracks(live_set.tracks.load())
     if job.describe:
