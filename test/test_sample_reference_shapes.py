@@ -27,7 +27,9 @@ def empty_slot() -> ET.Element:
 
 
 def test_empty_current_slot_does_not_recover_its_historical_source(tmp_path: Path) -> None:
-    live = AbletonSet.from_root(ET.Element("Ableton", Creator="Ableton Live 11.2.10"), tmp_path / "unsaved.als")
+    live = AbletonSet.from_root(
+        ET.Element("Ableton", Creator="Ableton Live 11.2.10", MinorVersion="11.0_11202"), tmp_path / "unsaved.als"
+    )
     element = empty_slot()
     live.root.append(element)
     before = ET.tostring(live.root)
@@ -59,7 +61,7 @@ def test_relative_only_sample_can_be_relinked(tmp_path: Path) -> None:
     size = element.find("FileRef/OriginalFileSize")
     assert size is not None
     size.set("Value", str(replacement.stat().st_size))
-    root = ET.Element("Ableton", Creator="Ableton Live 11.2.10")
+    root = ET.Element("Ableton", Creator="Ableton Live 11.2.10", MinorVersion="11.0_11202")
     root.append(element)
     live = AbletonSet.from_root(root, tmp_path / "unsaved.als", project_root=tmp_path)
     (reference,) = live.samples.iterate()
@@ -96,7 +98,7 @@ def test_legacy_paths_and_original_twins_relink_without_indentation(
     ET.SubElement(element, "LastModDate", Value="0")
     context = ET.SubElement(ET.SubElement(element, "SourceContext"), "SourceContext")
     ET.SubElement(context, "OriginalFileRef").append(copy.deepcopy(file_ref))
-    root = ET.Element("Ableton", Creator="Ableton Live 10.1.3")
+    root = ET.Element("Ableton", Creator="Ableton Live 10.1.3", MinorVersion="10.0_377")
     root.append(element)
     live = AbletonSet.from_root(root, tmp_path / "unsaved.als", project_root=tmp_path)
     (reference,) = live.samples.iterate()

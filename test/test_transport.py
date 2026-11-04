@@ -8,6 +8,7 @@ import pytest
 from conftest import skeleton_set
 
 from abletoolz.live_set.transport import Meter
+from abletoolz.schema.upgrade import VST3_SCHEMA, upgrade
 
 FOUR_FOUR, SIX_EIGHT, SEVEN_EIGHT = 201, 302, 303
 
@@ -45,6 +46,14 @@ def test_a_live_9_set_keeps_its_signature_inside_the_parameter(key: str) -> None
     (event,) = live_set.tracks.main().track_root.iterfind("DeviceChain/Mixer/TimeSignature/*/Events/EnumEvent")
     event.set("Value", str(SEVEN_EIGHT))
     assert live_set.transport.bars(14.0) == 4
+
+
+@pytest.mark.parametrize("key", ["9.0.1", "9.6.0"])
+def test_a_live_9_set_moved_up_to_hold_a_vst3_keeps_its_tempo_and_bars(key: str) -> None:
+    before = skeleton_set(key).transport.length()
+    live_set = skeleton_set(key)
+    upgrade(live_set.root, VST3_SCHEMA)
+    assert live_set.transport.length() == before
 
 
 def test_the_length_is_the_furthest_beat_at_the_tempo() -> None:

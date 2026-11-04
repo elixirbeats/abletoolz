@@ -20,6 +20,7 @@ type Version = tuple[int, int, int]
 MIN_SUPPORTED: Version = (8, 2, 0)
 
 _CREATOR_RE = re.compile(r"Ableton Live (\d{1,2})\.(\d{1,3})(?:[.b](\d{1,3}))?")
+_SCHEMA_RE = re.compile(r"(\d+)\.(\d+)_\d+")
 
 
 def parse_creator(creator: str) -> Version:
@@ -32,6 +33,19 @@ def parse_creator(creator: str) -> Version:
     if not match:
         raise ValueError(f"Cannot parse Live version from Creator: {creator!r}")
     return int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
+
+
+def document_version(creator: str, minor_version: str) -> Version:
+    """The version a set's document is laid out as: its Creator's, or its schema's where that is newer.
+
+    Live writes a document in its own release's schema, so the two agree in every set Live saved. Moving a set up
+    to hold a VST3 (:mod:`abletoolz.schema.upgrade`) keeps the Creator, since Live wrote it, but lays the document
+    out as the newer schema's Live does, so the schema decides then.
+    """
+    schema = _SCHEMA_RE.fullmatch(minor_version)
+    if schema is None:
+        raise ValueError(f"Cannot parse a schema from MinorVersion: {minor_version!r}")
+    return max(parse_creator(creator), (int(schema[1]), int(schema[2]), 0))
 
 
 def version_text(version: Version) -> str:

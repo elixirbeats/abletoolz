@@ -153,7 +153,7 @@ class AbletonSet:
         if not isinstance(creator, str):
             raise SetError("Couldn't parse Creator from set.")
         try:
-            self._version_tuple = versioning.parse_creator(creator)
+            self._version_tuple = versioning.document_version(creator, self.root.get(Attr.MINOR_VERSION, ""))
         except ValueError as exc:
             raise SetError(str(exc)) from exc
         self._version = creator
