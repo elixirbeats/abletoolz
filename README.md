@@ -154,46 +154,49 @@ Arrows show implemented directions, not every format the plugin itself ships in.
 
 | Plugin | Same-plugin format swaps | Upgrade / other converter | Files inside its saved patch |
 | --- | --- | --- | --- |
-| FabFilter Pro-Q, Pro-Q 2 | None | → Pro-Q 3 VST3 or VST2 | — |
-| FabFilter Pro-C (including SC), Pro-L | None | → Pro-C 2 / Pro-L 2 VST3 or VST2, respectively | — |
-| FabFilter Saturn, Volcano 2, Timeless 2 | None | → Saturn 2 / Volcano 3 / Timeless 3 VST3 or VST2, respectively | — |
-| FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3 | None | — |
-| Valhalla Delay, FreqEcho, Plate, Room, Shimmer, Supermassive | Between VST2, VST3 and AU, any direction | None | — |
-| Kilohearts kHs effects (listed below) | VST2 ↔ VST3 | None | — |
-| Xfer Serum | VST2 ↔ VST3; AU → VST2 or VST3 | → Serum 2 VST3 / AU (experimental) | — |
-| Xfer Serum 2 | VST3 ↔ AU | None | Relink samples and referenced images |
-| Surge | None | → Surge XT VST3 / AU | — |
-| Surge XT, Surge XT Effects | VST3 ↔ AU | None | — |
+| AAS Lounge Lizard EP-4, Lounge Lizard 3 | None | → Spectrasonics Keyscape Rhodes - Classic VST3 or VST2 (approximations) | — |
+| Akai MPC Essentials | None | None | Report project references; manual repair |
 | Arturia minimoog V Original | None | → Mini V3 VST3 or VST2 | — |
 | Arturia CS-80V, CS-80 V2 | None | → CS-80 V3 VST3 or VST2 | — |
 | Arturia Piano V2, Wurli V2, ARP 2600 V2, Prophet V2, Modular V2 | None | → their V3 VST3 or VST2 | — |
 | Arturia Analog Lab 3, Analog Lab 4 | None | → Analog Lab V VST2 | — |
-| Native Instruments Absynth 3 | None | → Absynth 5 VST2 | — |
-| AAS Lounge Lizard EP-4, Lounge Lizard 3 | None | → Spectrasonics Keyscape Rhodes - Classic VST3 or VST2 (approximations) | — |
-| Ohm Force Ohmicide | None | → Ohmicide[S] VST3 or VST2 | — |
+| Arturia Mini V3, Prophet V3, Prophet-5 V, MS-20 V | VST2 ↔ VST3 | None | — |
+| Arturia CMI V | None | None | Relink samples |
+| Audio Damage Ratshack Reverb 2, DubStation 1.5, Discord 3 | None | None; mapped | — |
+| Camel Audio CamelPhat 3 | None | None; mapped | — |
+| Devious Machines Texture | VST2 ↔ VST3 | None | Relink samples |
+| FabFilter Pro-Q, Pro-Q 2 | None | → Pro-Q 3 VST3 or VST2 | — |
+| FabFilter Pro-C (including SC), Pro-L | None | → Pro-C 2 / Pro-L 2 VST3 or VST2, respectively | — |
+| FabFilter Saturn, Volcano 2, Timeless 2 | None | → Saturn 2 / Volcano 3 / Timeless 3 VST3 or VST2, respectively | — |
+| FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3 | None | — |
+| Goodhertz Tupe 3 | VST2 ↔ VST3 | None | — |
 | iZotope Ozone 8 Elements | None | → Ozone 9 VST2 | — |
 | iZotope Stutter Edit 2 | VST2 ↔ VST3 | None | — |
-| u-he Podolski | VST2 ↔ VST3 | None | — |
-| Audio Damage Ratshack Reverb 2, DubStation 1.5, Discord 3 | None | None; mapped | — |
-| Sonimus Satson Channel | None | None; mapped | — |
-| Subsonic Labs Wolfram | None | None; mapped | — |
-| Camel Audio CamelPhat 3 | None | None; mapped | — |
-| Twin Delay | None | None; mapped | — |
-| Arturia Mini V3, Prophet V3, Prophet-5 V, MS-20 V | VST2 ↔ VST3 | None | — |
-| Native Instruments Pro-53 | None | → Arturia Prophet-5 V VST3 or VST2 (approximations) | — |
+| iZotope Iris | None | None | Report sample references; manual repair |
+| iZotope Trash | None | → Trash 2 VST2 | — |
+| iZotope Ozone 9 Exciter | None | None; mapped state, VST3 writing incomplete | — |
+| Kilohearts kHs effects (listed below) | VST2 ↔ VST3 | None | — |
 | KORG MS-20, Legacy Cell | None | → Arturia MS-20 V VST3 or VST2 (experimental) | — |
 | KORG MDE-X, Polysix, WAVESTATION | None | None; recognized only | — |
-| Goodhertz Tupe 3 | VST2 ↔ VST3 | None | — |
-| Serato Sample | VST2 ↔ VST3 | None | Relink samples |
-| Devious Machines Texture | VST2 ↔ VST3 | None | Relink samples |
+| Native Instruments Absynth 3 | None | → Absynth 5 VST2 | — |
+| Native Instruments Pro-53 | None | → Arturia Prophet-5 V VST3 or VST2 (approximations) | — |
 | Native Instruments Battery 4 | None | None | Relink samples and kits |
 | Native Instruments Kontakt 5, Kontakt 5 16out | None | None | Relink mapped instrument/library references |
 | Native Instruments Maschine 2, Maschine 2 FX | None | None | Relink samples, groups and sounds |
 | Native Instruments Reaktor 6 | None | None | Relink ensemble references |
-| Arturia CMI V; xfadelooper | None | None | Relink samples |
-| iZotope Iris; Akai MPC Essentials | None | None | Report sample / project references, respectively; manual repair |
-| iZotope Trash | None | → Trash 2 VST2 | — |
-| Native Instruments Massive; iZotope Ozone 9 Exciter | None | None; mapped state, VST3 writing incomplete | — |
+| Native Instruments Massive | None | None; mapped state, VST3 writing incomplete | — |
+| Ohm Force Ohmicide | None | → Ohmicide[S] VST3 or VST2 | — |
+| Serato Sample | VST2 ↔ VST3 | None | Relink samples |
+| Sonimus Satson Channel | None | None; mapped | — |
+| Subsonic Labs Wolfram | None | None; mapped | — |
+| Surge | None | → Surge XT VST3 / AU | — |
+| Surge XT, Surge XT Effects | VST3 ↔ AU | None | — |
+| Twin Delay | None | None; mapped | — |
+| u-he Podolski | VST2 ↔ VST3 | None | — |
+| Valhalla Delay, FreqEcho, Plate, Room, Shimmer, Supermassive | Between VST2, VST3 and AU, any direction | None | — |
+| xfadelooper | None | None | Relink samples |
+| Xfer Serum | VST2 ↔ VST3; AU → VST2 or VST3 | → Serum 2 VST3 / AU (experimental) | — |
+| Xfer Serum 2 | VST3 ↔ AU | None | Relink samples and referenced images |
 
 The kHs effects covered are 3-Band EQ, Bitcrush, Channel Mixer, Chorus, Clipper, Comb Filter, Compactor, Compressor, Convolver, Delay, Distortion, Dual Delay, Dynamics, Ensemble, Filter, Flanger, Formant Filter, Frequency Shifter, Gain, Gate, Haas, Ladder Filter, Limiter, Nonlinear Filter, Phase Distortion, Phaser, Pitch Shifter, Resonator, Reverb, Reverser, Ring Mod, Shaper, Stereo, Tape Stop, Trance Gate and Transient Shaper. Evidence varies across these maps; a listed implementation is not a claim that every patch has been auditioned.
 
@@ -387,6 +390,7 @@ Some things still need work:
 
 - More plugin maps, conversions and support for carrying automation across them.
 - Making copies for older Live versions reliable. Python's `save_as` is experimental and some copies still crash Live.
+- Figure out why Live rejects `.asd` files created by hand, and fix it.
 - More ways for scripts and other programs to work with sets.
 
 `--dump-plugins` and `-x` help inspect plugin settings and set XML. `abletoolz-dj-crates` builds pre-warped `.alc` clips from a TSV of track analysis; run `abletoolz-dj-crates --help` for its options.
