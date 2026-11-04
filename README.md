@@ -167,7 +167,8 @@ Arrows show implemented directions, not every format the plugin itself ships in.
 | Devious Machines Texture | VST2 ↔ VST3 | None | Relink samples |
 | FabFilter Pro-Q, Pro-Q 2 | None | → Pro-Q 3 VST3 or VST2 | — |
 | FabFilter Pro-C (including SC), Pro-L | None | → Pro-C 2 / Pro-L 2 VST3 or VST2, respectively | — |
-| FabFilter Saturn, Volcano 2, Timeless 2 | None | → Saturn 2 / Volcano 3 / Timeless 3 VST3 or VST2, respectively | — |
+| FabFilter Saturn, Volcano 2 | None | → Saturn 2 / Volcano 3 VST3 or VST2, respectively | — |
+| FabFilter Timeless 2 | VST2 ↔ VST3 | → Timeless 3 VST3 or VST2 | — |
 | FabFilter Pro-C 2, Pro-DS, Pro-G, Pro-L 2, Pro-MB, Pro-Q 3, Saturn 2, Timeless 3, Volcano 3 | VST2 ↔ VST3 | None | — |
 | Goodhertz Tupe 3 | VST2 ↔ VST3 | None | — |
 | iZotope Ozone 8 Elements | None | → Ozone 9 VST2 | — |

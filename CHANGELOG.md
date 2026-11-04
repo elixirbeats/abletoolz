@@ -17,6 +17,8 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   files, missing plugin files, track edits and notices, so it holds everything
   the console says. A file not found in the database is listed with why it was
   left as it was.
+- FabFilter Timeless 2 VST3 devices convert to Timeless 3, and Timeless 2 swaps between
+  VST2 and VST3.
 - A Live 9.0 or 9.1 set using Simpler or Auto Filter moves up to hold a VST3
   device the way Live moves it, those filters in legacy mode so they play as
   before; it was refused. Operator's filter and Utility still are.

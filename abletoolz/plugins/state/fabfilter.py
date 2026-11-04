@@ -55,16 +55,21 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
+import functools
+import gzip
+import json
 import math
+import pathlib
 import struct
+from collections.abc import Callable
 
 from abletoolz.plugins.container.controller import ConstantControllerState
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
 from abletoolz.plugins.state.catalog import register
-from abletoolz.plugins.state.derived import DERIVED_TABLES, DerivedTable, read_derived_table
+from abletoolz.plugins.state.derived import DERIVED_TABLES, DerivedTable, FabfState, read_derived_table
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
-from abletoolz.plugins.state.fxbk import LEGACY_NAME_BYTES
+from abletoolz.plugins.state.fxbk import LEGACY_NAME_BYTES, LegacyBank
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
 from abletoolz.plugins.state.plugin_map import Layout, PluginFormat, PluginMap
 
@@ -605,9 +610,65 @@ def volcano_2() -> PluginMap:
     return _host_bank_plugin("volcano-2", "FabFilter Volcano 2", 1180054124, 666, "volcano_2_vst2", later=(757,))
 
 
+# Timeless 2's controls and their ranges, from the table the Timeless 2 to Timeless 3 converter learned.
+_TIMELESS_2_TABLE = pathlib.Path(__file__).parents[1] / "converters" / "data" / "timeless-2-to-timeless-3.json.gz"
+
+
+@functools.cache
+def _timeless_2_ranges() -> tuple[tuple[float, float, bool], ...]:
+    table = json.loads(gzip.decompress(_TIMELESS_2_TABLE.read_bytes()))
+    ranges = map(table["ranges"].get, table["source_controls"])
+    return tuple((float(low), float(high), bool(steps)) for low, high, steps in ranges)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class FabfUnits:
+    """A FabF-generation VST3 that saves its preset's own units, beside a VST2 that leaves the host a bank.
+
+    Timeless 2's VST3 ``ProcessorState`` is a FabF state whose floats are the ones its ``.ffp`` preset holds, byte for
+    byte (measured on the factory preset "Auto Tremolo BM" in a set), and its VST2 bank holds each one normalized
+    over the control's range. Lifted, the VST3 state is that bank. ``ranges`` gives each control's low and high end
+    and whether it steps through whole numbers.
+    """
+
+    ranges: Callable[[], tuple[tuple[float, float, bool], ...]]
+
+    def lift(self, state: bytes) -> bytes:
+        fabf = FabfState.parse(state)
+        ranges = self.ranges()
+        if len(fabf.parameters) != len(ranges):
+            raise StateTransformError(f"a FabF state of {len(fabf.parameters)} controls, not {len(ranges)}")
+        normalized = tuple(
+            (unit - low) / (high - low) for unit, (low, high, _) in zip(fabf.parameters, ranges, strict=True)
+        )
+        # shortcut: a bank's name field holds 27 characters, so a longer preset name is cut there, as the VST2 shows it
+        return LegacyBank(fabf.preset_name[: LEGACY_NAME_BYTES - 1], normalized).encode()
+
+    def lower(self, patch: bytes) -> bytes:
+        bank = LegacyBank.parse(patch)
+        units = tuple(
+            low + (round(value * (high - low)) if steps else value * (high - low))
+            for value, (low, high, steps) in zip(bank.parameters, self.ranges(), strict=True)
+        )
+        return FabfState(version=2, preset_name=bank.preset_name, leading=0, parameters=units, trailing=(1, 1)).encode()
+
+
+# The VST3 state read against a factory preset and a set's device, not yet loaded into the plugin.
+_UNITS_READ = MeasuredState(StateRung.REFRAME, (StateEvidence.STRUCTURAL,), datetime.date(2026, 11, 3))
+
+
 @register
 def timeless_2() -> PluginMap:
-    return _host_bank_plugin("timeless-2", "FabFilter Timeless 2", 1179938163, 705, "timeless_2_vst2")
+    vst2 = _host_bank_plugin("timeless-2", "FabFilter Timeless 2", 1179938163, 705, "timeless_2_vst2")
+    vst3 = PluginFormat(
+        Vst3Id((-463772365, 1585270312, -1261824553, -1811269011)),
+        "Timeless 2",
+        FabfUnits(_timeless_2_ranges),
+        _UNITS_READ,
+        FABFILTER_CONSTANT_CONTROLLER,
+        plan_name="timeless_2_vst3",
+    )
+    return dataclasses.replace(vst2, scope=f"{vst2.scope}; VST3 FabF state in the preset's units", vst3=vst3)
 
 
 @register

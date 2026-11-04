@@ -11,6 +11,11 @@ from __future__ import annotations
 import pytest
 
 from abletoolz.plugins.converters import fabfilter as conversion
+from abletoolz.plugins.converters.fabfilter import timeless2_to_timeless3
+from abletoolz.plugins.identity.ids import PluginKind
+from abletoolz.plugins.state.catalog import CATALOG
+from abletoolz.plugins.state.derived import FabfState
+from abletoolz.plugins.state.fxbk import LegacyBank
 
 TABLE = conversion._timeless_table()
 NAMES: list[str] = TABLE["source_controls"]
@@ -116,3 +121,19 @@ def test_an_inverted_swing_through_silence_lowers_the_input_level_as_the_importe
     out = converted(notices, Num_Active_Slots=1, Num_Active_EGs=1, Input_Level=0, **changes)
     assert (out["Input Level"], out["Slot 1 Level"]) == (pytest.approx(-12.588, abs=0.02), 0.0)
     assert "through silence" in notices[0]
+
+
+def test_a_timeless_2_vst3_state_is_its_preset_s_units_and_converts_like_the_vst2_bank() -> None:
+    """The VST3 saves the preset's own floats in a FabF state; lifted, it is the bank the VST2 leaves the host."""
+    plugin = CATALOG.by_map_id("fabfilter.timeless-2")
+    assert plugin is not None
+    framing = plugin.plugin_format(PluginKind.VST3).framing
+    knobs = bank(Delay_1_Time=0.3, Delay_1_Offset=-0.5, Num_Active_Slots=2, Input_Level=-6)
+    patch = LegacyBank("Tape Echo", tuple(knobs)).encode()
+    state = framing.lower(patch)
+
+    units = FabfState.parse(state)
+    assert (units.preset_name, units.parameters[NAMES.index("Delay 1 Offset")]) == ("Tape Echo", -0.5)
+    assert units.parameters[NAMES.index("Num Active Slots")] == 2.0
+    assert framing.lower(framing.lift(state)) == state
+    assert timeless2_to_timeless3(framing.lift(state)) == timeless2_to_timeless3(patch)
