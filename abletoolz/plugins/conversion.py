@@ -35,7 +35,12 @@ from xml.etree import ElementTree as ET
 
 from abletoolz.elements import drop_envelopes, remove_children
 from abletoolz.plugins.container.device import PluginDevice, PluginDevices, SavedState
-from abletoolz.plugins.container.parameter_list import UNASSIGNED, UNASSIGNED_VISUAL_INDEX, write_live_list
+from abletoolz.plugins.container.parameter_list import (
+    UNASSIGNED,
+    UNASSIGNED_VISUAL_INDEX,
+    as_vst_slots,
+    write_live_list,
+)
 from abletoolz.plugins.container.rewritable import control_losses, refuse_stub
 from abletoolz.plugins.identity.ids import AuId, Identity, PluginKind, Vst2Id, Vst3Id, stored_id
 from abletoolz.plugins.identity.vst2_records import Vst2Source, no_vst2_records
@@ -102,7 +107,8 @@ def write(device: PluginDevice, answer: Edit | Rebuild) -> None:
         return
     refuse_stub(device)
     device.move_document_for(answer.kind)  # the controls are forgotten in the shape the document ends up in
-    forgetting = _forgetting(device, answer.live_list)
+    leaves_au = device.kind is PluginKind.AU and answer.kind is not PluginKind.AU
+    forgetting = _forgetting(device, answer.live_list, leaves_au=leaves_au)
     device.rewrite(answer.kind, answer.identity, answer.saved_state)
     if forgetting is not None:
         forgetting.apply()
@@ -126,11 +132,14 @@ class _Forgetting:
         self.document.changed()
 
 
-def _forgetting(device: PluginDevice, listed: tuple[Vst3Parameter, ...]) -> _Forgetting | None:
+def _forgetting(
+    device: PluginDevice, listed: tuple[Vst3Parameter, ...], *, leaves_au: bool = False
+) -> _Forgetting | None:
     """What forgetting the device's controls takes; None for a device read outside a document, which has none known.
 
     The list is filled on a copy, so a slot it cannot fill raises with the
     device as it was. Without ``listed`` every slot is left naming nothing.
+    An AU device leaving for a VST (``leaves_au``) gets the slots a VST device holds first.
     """
     document = device.document
     if document is None:
@@ -139,6 +148,8 @@ def _forgetting(device: PluginDevice, listed: tuple[Vst3Parameter, ...]) -> _For
     current = None if owner is None else owner.find(Tag.PARAMETER_LIST)
     rebuilt = None if current is None else copy.deepcopy(current)
     if rebuilt is not None:
+        if leaves_au:
+            as_vst_slots(rebuilt, document.root)
         if listed:
             write_live_list(rebuilt, listed)
         else:

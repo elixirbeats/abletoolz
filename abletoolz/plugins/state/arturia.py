@@ -14,7 +14,14 @@ import re
 from dataclasses import dataclass
 
 from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
-from abletoolz.plugins.state.arturia_v import FirstArchive, OneArchive, SecondArchive, holds_two_archives
+from abletoolz.plugins.state.arturia_v import (
+    BothHalves,
+    FirstArchive,
+    OneArchive,
+    SecondArchive,
+    arturia_au,
+    holds_two_archives,
+)
 from abletoolz.plugins.state.catalog import register
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
@@ -182,6 +189,47 @@ class CmiSamplePaths:
         if not count:
             raise StateTransformError(f"This CMI V patch does not point at {ref.path}")
         return bytes(out)
+
+
+# -- the effects: one archive as both VST3 halves, and the AU ------------------------------------
+#
+# Chorus JUN-6 and Dist TUBE-CULTURE keep the same Boost text archive in both VST3 halves (16 and 2 devices in the
+# library), and their AU keeps it under Controller State (one unit of each saved on a Mac, 2026-11-03).
+
+
+def _effect(map_id: str, name: str, unique_id: int, plan: str) -> PluginMap:
+    measured = MeasuredState(StateRung.REFRAME, (StateEvidence.STRUCTURAL,), datetime.date(2026, 11, 3))
+    # The AU: presets written here restored in each unit on a Mac and converted sets listened to in Live there.
+    au_restored = MeasuredState(
+        StateRung.REFRAME, (StateEvidence.HOSTED, StateEvidence.EAR), datetime.date(2026, 11, 3)
+    )
+    return PluginMap(
+        id=map_id,
+        name=name,
+        version=None,
+        scope="one archive as both VST3 halves and as the AU's Controller State",
+        vendor="Arturia",
+        vst3=PluginFormat(
+            Vst3Id((*ARTURIA_VST3, unique_id, ARTURIA_VST3_TAIL)),
+            name,
+            BothHalves(name),
+            measured,
+            SecondArchive(name),
+            plan_name=f"{plan}_vst3",
+        ),
+        au=arturia_au(name, "aumf", unique_id, f"{plan}_au", au_restored),
+        layouts=(Layout("two archives", holds_two_archives),),
+    )
+
+
+@register
+def chorus_jun_6() -> PluginMap:
+    return _effect("arturia.chorus-jun-6", "Chorus JUN-6", 1128944950, "chorus_jun_6")
+
+
+@register
+def dist_tube_culture() -> PluginMap:
+    return _effect("arturia.dist-tube-culture", "Dist TUBE-CULTURE", 1416971125, "dist_tube_culture")
 
 
 @register

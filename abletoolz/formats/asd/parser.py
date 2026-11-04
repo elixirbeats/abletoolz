@@ -427,7 +427,7 @@ class AsdFile:
         r.raw(8)
         channel_data_size = r.u32()
         r.raw(channel_data_size + 1)
-        pre_doc = data[pre_doc_start:r.pos]
+        pre_doc = data[pre_doc_start : r.pos]
         documents: list[Document] = []
         while r.pos < len(data):
             documents.append(_parse_document(r))

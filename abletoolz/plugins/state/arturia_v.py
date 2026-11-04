@@ -22,7 +22,8 @@ from typing import Any
 
 from abletoolz.formats.arturia_archive import TwoArchives
 from abletoolz.formats.errors import FormatError
-from abletoolz.plugins.identity.ids import Vst2Id, Vst3Id
+from abletoolz.plugins.identity.ids import AuId, AuRegistration, Vst2Id, Vst3Id, fourcc
+from abletoolz.plugins.state.audio_unit import ArchiveClassInfo
 from abletoolz.plugins.state.errors import StateTransformError
 from abletoolz.plugins.state.framings import VERBATIM
 from abletoolz.plugins.state.measured import MeasuredState, StateEvidence, StateRung
@@ -186,6 +187,41 @@ class OneArchive:
 
     def lower(self, patch: bytes) -> bytes:
         raise StateTransformError(f"writing {self.product} is not measured")
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class BothHalves:
+    """A VST3 that keeps one archive as both its processor and its controller state, read and written.
+
+    Its controller half is :class:`SecondArchive`; the two are the same archive in every device of such a plugin
+    measured.
+    """
+
+    product: str
+
+    def lift(self, state: bytes) -> bytes:
+        return OneArchive(self.product).lift(state)
+
+    def lower(self, patch: bytes) -> bytes:
+        return FirstArchive(self.product).lower(patch)
+
+
+ARTURIA_AU = fourcc("Artu")
+
+
+def arturia_au(
+    product: str, component_type: str, unique_id: int, plan_name: str, measured: MeasuredState
+) -> PluginFormat:
+    """Arturia's own Audio Unit of ``product``; its subtype is the VST2's UniqueId."""
+    au = AuId((fourcc(component_type), unique_id, ARTURIA_AU))
+    return PluginFormat(
+        au,
+        product,
+        ArchiveClassInfo(au.identifier, product),
+        measured,
+        registration=AuRegistration("Arturia", 0),
+        plan_name=plan_name,
+    )
 
 
 def holds_two_archives(patch: bytes) -> bool:
