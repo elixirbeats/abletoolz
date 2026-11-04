@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from abletoolz.schema.versioning import Version, parse_creator, versioned
+from abletoolz.schema.versioning import Version, document_version, parse_creator, versioned
 
 
 @pytest.mark.parametrize(
@@ -19,6 +19,20 @@ from abletoolz.schema.versioning import Version, parse_creator, versioned
 )
 def test_parse_creator(creator: str, expected: Version) -> None:
     assert parse_creator(creator) == expected
+
+
+@pytest.mark.parametrize(
+    ("creator", "minor_version", "expected"),
+    [
+        ("Ableton Live 9.7.5", "9.5_327", (9, 7, 5)),  # Live's own save: the Creator is the newer
+        ("Ableton Live 9.6", "10.0_374", (10, 0, 0)),  # moved up to hold a VST3: the schema is
+        ("Ableton Live 11.2b7", "11.0_11202", (11, 2, 7)),
+    ],
+)
+def test_a_document_reads_as_its_creator_or_its_newer_schema(
+    creator: str, minor_version: str, expected: Version
+) -> None:
+    assert document_version(creator, minor_version) == expected
 
 
 def test_parse_creator_rejects_garbage() -> None:

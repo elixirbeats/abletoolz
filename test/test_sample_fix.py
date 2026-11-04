@@ -214,7 +214,7 @@ def test_a_project_reference_found_only_by_its_absolute_path_is_repointed(tmp_pa
     sample.write_bytes(b"RIFF")
     path_element.set("Value", str(sample))
     target.relative_type_element.set("Value", str(RelativePathType.PROJECT.value))
-    root = ET.Element("Ableton", Creator=ableton_set.root.get("Creator", ""))
+    root = ET.Element("Ableton", ableton_set.root.attrib)
     root.append(target.sample_ref)
     ableton_set = AbletonSet.from_root(root, ableton_set.path, project_root=tmp_path / "elsewhere")
     (reparsed,) = ableton_set.samples.iterate()

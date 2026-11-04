@@ -54,7 +54,7 @@ def reparsed(root: ET.Element, project: pathlib.Path) -> tuple[AbletonSet, Sampl
 def missing_reference(version: str, project: pathlib.Path) -> tuple[AbletonSet, SampleRef]:
     """A set in ``project`` holding nothing but the fixture's first missing sample reference."""
     source = skeleton_set(version)
-    root = ET.Element("Ableton", Creator=source.root.get("Creator", ""))
+    root = ET.Element("Ableton", source.root.attrib)
     root.append(source.samples.check()[0].sample_ref)
     return reparsed(root, project)
 

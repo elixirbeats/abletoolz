@@ -47,7 +47,7 @@ from abletoolz.plugins.identity.ids import Identity, PluginKind, UidFields, Vst2
 from abletoolz.schema import Attr, Tag, path
 from abletoolz.schema.live_schemas import live_schemas
 from abletoolz.schema.upgrade import Move, is_automated, preview, upgrade, vst3_upgrade
-from abletoolz.schema.versioning import MIN_SUPPORTED, Version, parse_creator
+from abletoolz.schema.versioning import MIN_SUPPORTED, Version, document_version
 
 
 class EncodableState(Protocol):
@@ -1113,10 +1113,10 @@ class PluginDevices:
             current = parents.get(current)
         return None
 
-    @functools.cached_property
+    @property
     def version(self) -> Version:
-        """The Live that saved the document, from its Creator."""
-        return parse_creator(self.root.get(Attr.CREATOR, ""))
+        """The Live the document is laid out for (:func:`document_version`), read again after a schema move."""
+        return document_version(self.root.get(Attr.CREATOR, ""), self.minor_version)
 
     @property
     def minor_version(self) -> str:
