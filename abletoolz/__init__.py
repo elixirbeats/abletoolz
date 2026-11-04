@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 
 def __getattr__(name: str) -> Callable[..., int]:
