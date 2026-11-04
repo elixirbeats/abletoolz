@@ -3,7 +3,7 @@
 User-facing changes and migration notes, newest first. Current usage belongs in
 the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin support.
 
-## 2.3.0 — unreleased
+## 2.2.1 — 2026-11-03
 
 - Every command prints one short block per set: its Live version, BPM and
   length, then what was found, with problems named and the rest counted. The
