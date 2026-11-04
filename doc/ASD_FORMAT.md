@@ -216,4 +216,4 @@ The test used the catalog's corrected 172 BPM grid. The translated anchor is `(0
 
 Audio alignment was checked independently of marker serialization: Live recorded corrected and uncorrected copies simultaneously through internal Pre FX routing. A four-second passage around the drop was compared with the FFmpeg decode. The uncorrected copy was 2257 samples late; the corrected copy matched at zero samples of displacement, with correlation 0.999998817. [Captured values](../test/asd_fixtures/live-12-mp3-acceptance.json) retain the measurement. ALC generation from the same one-row Cue Finder TSV also produced the same corrected marker positions; ALC import was not retested in this run.
 
-One ASD holds one set of clip defaults. Separate full/drop clip variants still require separate ALC files. This test wrote only one original sidecar; bulk ASD output is not wired into the crate CLI yet.
+One ASD holds one set of clip defaults. Separate full/drop clip variants still require separate ALC files; `abletoolz-dj-crates --make asd` writes each track's full-clip grid as its sidecar.

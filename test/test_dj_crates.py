@@ -7,6 +7,7 @@ No test here depends on ffmpeg/ffprobe being installed: WAV sources exercise the
 
 from __future__ import annotations
 
+import json
 import subprocess
 import wave
 from pathlib import Path
@@ -16,7 +17,10 @@ import pytest
 from abletoolz import dj_crates
 from abletoolz.alc import AlcClip
 from abletoolz.dj_crates import (
-    PicksRow,
+    AsdOutcome,
+    Output,
+    RunReport,
+    TrackGrid,
     audio_dest_extension,
     build_plan,
     compute_anchor,
@@ -25,24 +29,14 @@ from abletoolz.dj_crates import (
     filter_rows,
     library_relative_path,
     mp3_decoder_offset_seconds,
-    parse_picks_row,
     read_duration_seconds,
-    read_picks_tsv,
+    read_mp3_header,
+    read_track_list,
     resolve_link_placement,
     run_crate_generation,
     sanitize_filename,
 )
-
-TSV_HEADER = (
-    "path\tfilename\ttitle_key\tduration_s\tbpm\tbeat_offset_s\tstart_s\tstart_beat\tstart_bar\t"
-    "drop_s\tdrop_beat\tdrop_bar\tbars_start_to_drop\tconfidence\tneeds_review\tverdict\thuman_reviewed\t"
-    "mp3_tag\tmp3_lame_ext\tmp3_encoder_delay\tsamplerate"
-)
-
-TSV_HEADER_V1 = (
-    "path\tfilename\ttitle_key\tduration_s\tbpm\tbeat_offset_s\tstart_s\tstart_beat\tstart_bar\t"
-    "drop_s\tdrop_beat\tdrop_bar\tbars_start_to_drop\tconfidence\tneeds_review\tverdict\thuman_reviewed"
-)
+from abletoolz.formats.asd import AsdFile, write_grid
 
 
 def _write_test_wav(path: Path, *, duration_s: float, rate: int = 8000) -> None:
@@ -55,173 +49,51 @@ def _write_test_wav(path: Path, *, duration_s: float, rate: int = 8000) -> None:
         wav_file.writeframes(b"\x00\x00" * nframes)
 
 
-def _make_row(**overrides: object) -> PicksRow:
-    """A PicksRow with sane defaults, overridable per test."""
-    defaults: dict[str, object] = {
-        "path": Path("track.wav"),
-        "filename": "track.wav",
-        "title_key": "track",
-        "duration_s": 10.0,
-        "bpm": 120.0,
-        "beat_offset_s": 0.0,
-        "start_s": 0.0,
-        "start_beat": 0.0,
-        "start_bar": 0.0,
-        "drop_s": None,
-        "drop_beat": None,
-        "drop_bar": None,
-        "bars_start_to_drop": None,
-        "confidence": 1.0,
-        "needs_review": False,
-        "verdict": "accepted",
-        "human_reviewed": True,
-        "mp3_tag": "",
-        "mp3_lame_ext": False,
-        "mp3_encoder_delay": None,
-        "samplerate": None,
-    }
-    defaults.update(overrides)
-    return PicksRow(**defaults)  # type: ignore[arg-type]  # kwargs are dynamically typed by design
+def _make_row(**overrides: object) -> TrackGrid:
+    """A TrackGrid with sane defaults, overridable per test."""
+    fields: dict[str, object] = {"path": Path("track.wav"), "bpm": 120.0, "downbeat": 0.0, "length": 10.0}
+    fields.update(overrides)
+    return TrackGrid(**fields)  # type: ignore[arg-type]  # kwargs are dynamically typed by design
 
 
-def _mp3_row_fields(*, tag: str = "Info", lame_ext: bool = True, delay: int | None = 576) -> dict[str, object]:
-    """v2 header-column overrides for an MP3 row (default: the Info+gapless class)."""
-    return {"mp3_tag": tag, "mp3_lame_ext": lame_ext, "mp3_encoder_delay": delay, "samplerate": 44100}
+# ── Track list ───────────────────────────────────────────────────────────────
 
 
-# ── TSV parsing ──────────────────────────────────────────────────────────────
-
-
-def test_parse_picks_row_full_fields() -> None:
-    """A fully populated TSV record round-trips through parse_picks_row."""
-    record = {
-        "path": "tunes/tune.mp3",
-        "filename": "tune - 9A - Energy 7.mp3",
-        "title_key": "tune",
-        "duration_s": "266.25",
-        "bpm": "160.0",
-        "beat_offset_s": "0.005",
-        "start_s": "0.38",
-        "start_beat": "1.0",
-        "start_bar": "0.25",
-        "drop_s": "24.38",
-        "drop_beat": "65.0",
-        "drop_bar": "16.25",
-        "bars_start_to_drop": "16.0",
-        "confidence": "0.3",
-        "needs_review": "True",
-        "verdict": "corrected",
-        "human_reviewed": "True",
-        "mp3_tag": "Info",
-        "mp3_lame_ext": "True",
-        "mp3_encoder_delay": "576",
-        "samplerate": "44100",
-    }
-    row = parse_picks_row(record)
-    assert row.path == Path("tunes/tune.mp3")
-    assert row.bpm == 160.0
-    assert row.drop_s == 24.38
-    assert row.needs_review is True
-    assert row.human_reviewed is True
-    assert row.verdict == "corrected"
-    assert row.mp3_tag == "Info"
-    assert row.mp3_lame_ext is True
-    assert row.mp3_encoder_delay == 576
-    assert row.samplerate == 44100
-
-
-def test_parse_picks_row_empty_drop_is_none() -> None:
-    """Empty drop_s/drop_beat/drop_bar/bars_start_to_drop fields parse to None."""
-    record = {
-        "path": "track.mp3",
-        "filename": "track.mp3",
-        "title_key": "track",
-        "duration_s": "100.0",
-        "bpm": "174.0",
-        "beat_offset_s": "0.1",
-        "start_s": "0.1",
-        "start_beat": "0.0",
-        "start_bar": "0.0",
-        "drop_s": "",
-        "drop_beat": "",
-        "drop_bar": "",
-        "bars_start_to_drop": "",
-        "confidence": "1.0",
-        "needs_review": "False",
-        "verdict": "",
-        "human_reviewed": "False",
-        "mp3_tag": "",
-        "mp3_lame_ext": "",
-        "mp3_encoder_delay": "",
-        "samplerate": "",
-    }
-    row = parse_picks_row(record)
-    assert row.drop_s is None
-    assert row.drop_beat is None
-    assert row.drop_bar is None
-    assert row.bars_start_to_drop is None
-    assert row.needs_review is False
-    assert row.human_reviewed is False
-    assert row.verdict == ""
-    assert row.mp3_lame_ext is False
-    assert row.mp3_encoder_delay is None
-    assert row.samplerate is None
-
-
-def test_parse_picks_row_rejects_bad_bool() -> None:
-    """A boolean field that isn't exactly "True"/"False" is a hard parse error."""
-    record = {
-        "path": "t.mp3",
-        "filename": "t.mp3",
-        "title_key": "t",
-        "duration_s": "1.0",
-        "bpm": "120.0",
-        "beat_offset_s": "0.0",
-        "start_s": "0.0",
-        "start_beat": "0.0",
-        "start_bar": "0.0",
-        "drop_s": "",
-        "drop_beat": "",
-        "drop_bar": "",
-        "bars_start_to_drop": "",
-        "confidence": "1.0",
-        "needs_review": "yes",  # invalid
-        "verdict": "",
-        "human_reviewed": "False",
-    }
-    with pytest.raises(ValueError, match=r"True.*False"):
-        parse_picks_row(record)
-
-
-def test_read_picks_tsv(tmp_path: Path) -> None:
-    """A real TSV file (header + two rows) parses into a list of PicksRow."""
-    tsv_path = tmp_path / "picks.tsv"
-    tsv_path.write_text(
-        TSV_HEADER + "\n"
-        "a.mp3" + "\ta.mp3\ta\t100.0\t174.0\t0.1\t0.1\t0.0\t0.0\t\t\t\t\t1.0\tFalse\t\tFalse"
-        "\tInfo\tTrue\t576\t44100\n"
-        "b.mp3" + "\tb.mp3\tb\t200.0\t170.0\t0.2\t0.2\t0.0\t0.0\t50.0\t144.0\t36.0\t35.9\t0.9\tTrue\tcorrected\tTrue"
-        "\tXing\tFalse\t\t44100\n",
+def test_a_csv_track_list_reads_its_columns_and_ignores_the_rest(tmp_path: Path) -> None:
+    """A spreadsheet's CSV, BOM and extra columns included: empty cells are absent values."""
+    tracks = tmp_path / "tracks.csv"
+    tracks.write_text(
+        "\ufeffpath,bpm,downbeat,drop,start,length,rating\n"
+        "D:/Music/a.mp3,174,0.1,44.2,0.1,300,5\n"
+        "D:/Music/b.wav,128,0.5,,,,\n",
         encoding="utf-8",
     )
-    rows = read_picks_tsv(tsv_path)
-    assert len(rows) == 2
-    assert rows[0].drop_s is None
-    assert rows[0].mp3_tag == "Info"
-    assert rows[1].drop_s == 50.0
-    assert rows[1].human_reviewed is True
-    assert rows[1].mp3_lame_ext is False
+    first, second = read_track_list(tracks)
+    assert first == TrackGrid(Path("D:/Music/a.mp3"), 174.0, 0.1, drop=44.2, start=0.1, length=300.0)
+    assert second == TrackGrid(Path("D:/Music/b.wav"), 128.0, 0.5)
 
 
-def test_read_picks_tsv_rejects_v1_schema(tmp_path: Path) -> None:
-    """A pre-v2 export (no header-class columns) must fail loudly, not run with guesses."""
-    tsv_path = tmp_path / "old.tsv"
-    tsv_path.write_text(
-        TSV_HEADER_V1 + "\na.mp3" + "\ta.mp3\ta\t100.0\t174.0\t0.1\t0.1\t0.0\t0.0\t\t\t\t\t1.0\tFalse\t\tFalse\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="pre-v2"):
-        read_picks_tsv(tsv_path)
+def test_a_json_track_list_is_a_list_of_objects(tmp_path: Path) -> None:
+    tracks = tmp_path / "tracks.json"
+    tracks.write_text(json.dumps([{"path": "a.wav", "bpm": 120, "downbeat": 1.5, "drop": None, "label": "x"}]))
+    assert read_track_list(tracks) == [TrackGrid(Path("a.wav"), 120.0, 1.5)]
+
+
+@pytest.mark.parametrize(
+    ("name", "text", "error"),
+    [
+        ("tracks.csv", "path,bpm\na.wav,120\n", "tracks.csv, track 2: no downbeat"),
+        ("tracks.csv", "path,bpm,downbeat\na.wav,fast,0\n", "bpm is 'fast', not a number"),
+        ("tracks.csv", "path,bpm,downbeat\na.wav,0,0\n", "bpm is 0.0"),
+        ("tracks.json", '{"path": "a.wav"}', "a list of objects"),
+        ("tracks.tsv", "", "a .csv or .json file"),
+    ],
+)
+def test_a_track_list_that_cannot_be_read_says_where(tmp_path: Path, name: str, text: str, error: str) -> None:
+    tracks = tmp_path / name
+    tracks.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match=error):
+        read_track_list(tracks)
 
 
 # ── filter_rows ──────────────────────────────────────────────────────────────
@@ -230,45 +102,42 @@ def test_read_picks_tsv_rejects_v1_schema(tmp_path: Path) -> None:
 def test_filter_rows_include_is_case_insensitive_and_ored() -> None:
     """Multiple --include substrings are OR'd together, case-insensitively."""
     rows = [
-        _make_row(path=Path(r"\\nas\Dnb Picks\a.mp3")),
-        _make_row(path=Path(r"\\nas\House Picks\b.mp3")),
-        _make_row(path=Path(r"\\nas\Techno Picks\c.mp3")),
+        _make_row(path=Path(r"\nas\Dnb Picks\a.mp3")),
+        _make_row(path=Path(r"\nas\House Picks\b.mp3")),
+        _make_row(path=Path(r"\nas\Techno Picks\c.mp3")),
     ]
     filtered = filter_rows(rows, includes=["dnb picks", "TECHNO"])
-    assert {str(r.path) for r in filtered} == {r"\\nas\Dnb Picks\a.mp3", r"\\nas\Techno Picks\c.mp3"}
+    assert {str(r.path) for r in filtered} == {r"\nas\Dnb Picks\a.mp3", r"\nas\Techno Picks\c.mp3"}
 
 
-def test_filter_rows_reviewed_only_and_limit() -> None:
-    """--reviewed-only and --limit compose: filter first, then cap the count."""
-    rows = [
-        _make_row(title_key="a", human_reviewed=True),
-        _make_row(title_key="b", human_reviewed=False),
-        _make_row(title_key="c", human_reviewed=True),
-    ]
-    reviewed = filter_rows(rows, reviewed_only=True)
-    assert [r.title_key for r in reviewed] == ["a", "c"]
-    limited = filter_rows(rows, limit=1)
-    assert [r.title_key for r in limited] == ["a"]
+def test_filter_rows_limit_caps_the_count() -> None:
+    rows = [_make_row(path=Path(name)) for name in ("a.wav", "b.wav", "c.wav")]
+    assert [r.path.name for r in filter_rows(rows, limit=1)] == ["a.wav"]
 
 
 # ── compute_anchor (bar-fold rule) ───────────────────────────────────────────
 
 
-def test_compute_anchor_no_drop_uses_beat_offset() -> None:
-    """With no drop cue, the anchor is simply the tagged first beat."""
-    result = compute_anchor(bpm=174.0, beat_offset_s=0.5, drop_s=None)
+def test_compute_anchor_no_drop_uses_the_downbeat_in_the_first_bar() -> None:
+    """With no drop cue, a downbeat in the first bar is the anchor."""
+    result = compute_anchor(bpm=174.0, downbeat=0.5, drop=None)
     assert result.anchor_s == 0.5
     assert result.n_bars is None
     assert result.bar_phase_warning is False
 
 
+def test_compute_anchor_no_drop_folds_a_later_downbeat_back() -> None:
+    """Any downbeat will do: one 15 bars in (120 BPM, 2 s bars) folds back to the first bar."""
+    assert compute_anchor(bpm=120.0, downbeat=30.25, drop=None).anchor_s == pytest.approx(0.25)
+
+
 def test_compute_anchor_gravity_lands_on_beat_offset() -> None:
-    """Real cue_finder numbers (Agbo - Gravity): in-phase drop, anchor == beat_offset."""
+    """Real cue_finder numbers (Agbo - Gravity): in-phase drop, anchor == the downbeat."""
     bpm = 174.0
-    beat_offset_s = 6.89655172365633e-05
-    drop_s = 44.138
-    result = compute_anchor(bpm=bpm, beat_offset_s=beat_offset_s, drop_s=drop_s)
-    assert result.anchor_s == pytest.approx(beat_offset_s)
+    downbeat = 6.89655172365633e-05
+    drop = 44.138
+    result = compute_anchor(bpm=bpm, downbeat=downbeat, drop=drop)
+    assert result.anchor_s == pytest.approx(downbeat)
     assert result.n_bars == 32
     assert result.n_bars * 4 == 128  # matches cue_finder's tagged drop_beat
     assert result.bar_phase_warning is False
@@ -277,10 +146,7 @@ def test_compute_anchor_gravity_lands_on_beat_offset() -> None:
 
 def test_compute_anchor_caligo_flags_bar_phase_mismatch() -> None:
     """Real cue_finder numbers (Alix Perez & Monty - Caligo): 47.75-bar fold, flagged."""
-    bpm = 174.0
-    beat_offset_s = 0.3119310344827608
-    drop_s = 66.174
-    result = compute_anchor(bpm=bpm, beat_offset_s=beat_offset_s, drop_s=drop_s, bar_tolerance=0.02)
+    result = compute_anchor(bpm=174.0, downbeat=0.3119310344827608, drop=66.174, bar_tolerance=0.02)
     assert result.n_bars == 47
     assert result.anchor_s == pytest.approx(1.3464137931034514)
     assert result.anchor_s >= 0.0
@@ -290,8 +156,7 @@ def test_compute_anchor_caligo_flags_bar_phase_mismatch() -> None:
 
 def test_compute_anchor_respects_bar_tolerance() -> None:
     """A generous --bar-tolerance suppresses the warning for the same off-phase drop."""
-    # Same Caligo numbers, but a generous tolerance should not flag it.
-    result = compute_anchor(bpm=174.0, beat_offset_s=0.3119310344827608, drop_s=66.174, bar_tolerance=0.5)
+    result = compute_anchor(bpm=174.0, downbeat=0.3119310344827608, drop=66.174, bar_tolerance=0.5)
     assert result.bar_phase_warning is False
 
 
@@ -423,10 +288,10 @@ def test_run_crate_generation_dedupes_same_clip_name(tmp_path: Path) -> None:
     model vs unverified) -- and the loser is reported, never silently overwritten.
     """
     rows = [
-        _make_row(path=Path("tunes/Tune.m4a"), filename="Tune.m4a"),
-        _make_row(path=Path("tunes/Tune.mp3"), filename="Tune.mp3", **_mp3_row_fields()),
-        _make_row(path=Path("tunes/Other.wav"), filename="Other.wav"),
-        _make_row(path=Path("tunes/Other.mp3"), filename="Other.mp3", **_mp3_row_fields()),
+        _make_row(path=Path("tunes/Tune.m4a")),
+        _make_row(path=Path("tunes/Tune.mp3")),
+        _make_row(path=Path("tunes/Other.wav")),
+        _make_row(path=Path("tunes/Other.mp3")),
     ]
     report = run_crate_generation(
         rows,
@@ -459,18 +324,7 @@ def test_run_crate_generation_writes_valid_alc_clips(tmp_path: Path) -> None:
     # bpm 120 -> bar_s 2.0s; drop at 8.0s is exactly 4 bars in, beat_offset 0.0 is in-phase.
     _write_test_wav(src_wav, duration_s=12.0, rate=8000)
 
-    row = _make_row(
-        path=src_wav,
-        filename=src_wav.name,
-        title_key="testtune",
-        bpm=120.0,
-        beat_offset_s=0.0,
-        start_s=1.0,  # off the anchor -> should get an explicit start marker
-        drop_s=8.0,
-        drop_beat=16.0,
-        human_reviewed=True,
-        verdict="accepted",
-    )
+    row = _make_row(path=src_wav, bpm=120.0, downbeat=0.0, start=1.0, drop=8.0)
 
     report = run_crate_generation(
         [row],
@@ -546,7 +400,7 @@ def test_run_crate_generation_no_drop_track_has_no_drop_variant(tmp_path: Path) 
     src_wav = tmp_path / "No Drop Tune.wav"
     _write_test_wav(src_wav, duration_s=5.0, rate=8000)
 
-    row = _make_row(path=src_wav, filename=src_wav.name, bpm=120.0, beat_offset_s=0.25, drop_s=None)
+    row = _make_row(path=src_wav, bpm=120.0, downbeat=0.25)
 
     report = run_crate_generation(
         [row],
@@ -574,7 +428,7 @@ def test_run_crate_generation_dry_run_writes_nothing(tmp_path: Path) -> None:
     crates_dir = user_library / "DJ Crates"
     src_wav = tmp_path / "Dry Run Tune.wav"
     # File doesn't even need to exist for a dry run -- no I/O should be attempted.
-    row = _make_row(path=src_wav, filename=src_wav.name, bpm=140.0, beat_offset_s=0.0, drop_s=16.0)
+    row = _make_row(path=src_wav, bpm=140.0, downbeat=0.0, drop=16.0)
 
     report = run_crate_generation(
         [row],
@@ -593,17 +447,11 @@ def test_run_crate_generation_dry_run_writes_nothing(tmp_path: Path) -> None:
 
 def test_build_plan_uses_derived_name_and_bar_fold_anchor(tmp_path: Path) -> None:
     """build_plan wires derive_clip_name/sanitize_filename/compute_anchor together."""
-    row = _make_row(
-        path=Path("t.mp3"),
-        filename="Some Tune - 9A - Energy 7.mp3",
-        bpm=174.0,
-        beat_offset_s=6.89655172365633e-05,
-        drop_s=44.138,
-    )
+    row = _make_row(path=Path("Some Tune - 9A - Energy 7.mp3"), bpm=174.0, downbeat=6.89655172365633e-05, drop=44.138)
     plan = build_plan(row, bar_tolerance=0.02)
     assert plan.clip_name == "Some Tune"
     assert plan.safe_name == "Some Tune"
-    assert plan.anchor.anchor_s == pytest.approx(row.beat_offset_s)
+    assert plan.anchor.anchor_s == pytest.approx(row.downbeat)
     assert plan.has_drop is True
 
 
@@ -632,22 +480,22 @@ def _synthetic_mp3_bytes(
     signature: bytes = b"LAME3.99r",
     delay: int = 576,
     with_gapless: bool = True,
-    mpeg2: bool = False,
+    rate: int = 44100,
 ) -> bytes:
     """Build a minimal Layer III stereo first frame with a Xing/Info header.
 
     ``tag`` picks the header kind ("Info" = Live plays the frame as audio, +1 frame;
     "Xing" = both decoders skip it). ``with_gapless`` controls whether the extension
     carries ``signature`` + a plausible delay; without it the region stays zeros.
-    ``mpeg2`` writes an MPEG-2 frame (22.05 kHz, 576 samples, shorter side information).
+    ``rate`` picks the MPEG version: 32 to 48 kHz is MPEG-1, 16 to 24 kHz MPEG-2, with
+    576-sample frames and shorter side information.
     """
+    mpeg1_rates, mpeg2_rates = (44100, 48000, 32000), (22050, 24000, 16000)
+    mpeg1 = rate in mpeg1_rates
+    index = (mpeg1_rates if mpeg1 else mpeg2_rates).index(rate)
     frame = bytearray(1044)
-    if mpeg2:
-        frame[0:4] = bytes((0xFF, 0xF3, 0x90, 0x00))  # MPEG2 L3, 22.05kHz, stereo
-        xing_at = 4 + 17
-    else:
-        frame[0:4] = bytes((0xFF, 0xFB, 0x90, 0x00))  # MPEG1 L3, 128kbps, 44.1kHz, stereo
-        xing_at = 4 + 32
+    frame[0:4] = bytes((0xFF, 0xFB if mpeg1 else 0xF3, 0x90 | index << 2, 0x00))  # Layer III, 128kbps, stereo
+    xing_at = 4 + (32 if mpeg1 else 17)
     frame[xing_at : xing_at + 4] = tag
     frame[xing_at + 4 : xing_at + 8] = (0x07).to_bytes(4, "big")  # frames+bytes+TOC
     ext = xing_at + 8 + 4 + 4 + 100
@@ -681,10 +529,13 @@ def _id3(body: bytes) -> bytes:
         pytest.param(_synthetic_mp3_bytes(tag=b"Xing", signature=b"Lavf56.4."), 1105.0, id="Xing, Lavf (Dune)"),
         pytest.param(_synthetic_mp3_bytes(tag=b"Xing", signature=b"LAME3.99r"), 1105.0, id="Xing, LAME"),
         pytest.param(bytes((0xFF, 0xFB, 0x90, 0x00)) + b"\x01" * 1040, 0.0, id="a real frame, no tag"),
-        pytest.param(b"\x00" * 5000, 2257.0, id="no frame found: the majority class"),
         pytest.param(_synthetic_mp3_bytes(tag=b"Xing", delay=1024), 1024.0 + 529.0, id="a per-file trim"),
-        pytest.param(_synthetic_mp3_bytes(mpeg2=True), 576.0 + 529.0 + 576.0, id="MPEG-2 Info: a 576-sample frame"),
-        pytest.param(_synthetic_mp3_bytes(mpeg2=True, tag=b"Xing"), 1105.0, id="MPEG-2 Xing"),
+        # Measured in Live 12.4.25b1 on 2026-11-03: 2257 samples at 32, 44.1 and 48 kHz, 1681 at 22.05 and 24 kHz.
+        pytest.param(_synthetic_mp3_bytes(rate=48000), 2257.0, id="48 kHz"),
+        pytest.param(_synthetic_mp3_bytes(rate=32000), 2257.0, id="32 kHz"),
+        pytest.param(_synthetic_mp3_bytes(rate=24000), 1681.0, id="24 kHz, MPEG-2: a 576-sample frame"),
+        pytest.param(_synthetic_mp3_bytes(rate=22050), 1681.0, id="22.05 kHz, MPEG-2: a 576-sample frame"),
+        pytest.param(_synthetic_mp3_bytes(rate=22050, tag=b"Xing"), 1105.0, id="MPEG-2 Xing"),
         pytest.param(_id3(b"\x00" * 200) + _synthetic_mp3_bytes(), 2257.0, id="ID3v2 skipped, not scanned"),
         # Album art bigger than any sane read window is seeked past by its declared size (the R.E.M bug).
         pytest.param(_id3(b"\xaa" * 500_000) + _synthetic_mp3_bytes(), 2257.0, id="a multi-MB ID3"),
@@ -697,59 +548,43 @@ def _id3(body: bytes) -> bytes:
     ],
 )
 def test_mp3_offset_classes(tmp_path: Path, data: bytes, expected: float) -> None:
-    """Trim+surplus model classes: Info+sig 2257, Xing 1105, tagless 0, Info-no-sig 1152."""
+    """Trim+surplus model classes, in samples at the file's own rate, read from its first frame."""
     path = _write_mp3(tmp_path, "tune.mp3", data)
-    assert mp3_decoder_offset_seconds(path, 44100) * 44100 == pytest.approx(expected)
+    header = read_mp3_header(path)
+    assert header.offset_samples == expected
+    assert mp3_decoder_offset_seconds(path) == pytest.approx(expected / header.sample_rate)
 
 
-def test_mp3_decoder_offset_scales_with_sample_rate(tmp_path: Path) -> None:
-    """The same sample count means a different number of seconds at a different rate."""
-    tagged = _write_mp3(tmp_path, "tagged.mp3", _synthetic_mp3_bytes())
-    assert mp3_decoder_offset_seconds(tagged, 48000) == pytest.approx(2257 / 48000)
+def test_an_mp3_header_gives_its_rate_and_channels(tmp_path: Path) -> None:
+    header = read_mp3_header(_write_mp3(tmp_path, "tune.mp3", _synthetic_mp3_bytes(rate=24000)))
+    assert (header.sample_rate, header.channels) == (24000, 2)
+
+
+def test_an_mp3_with_no_frame_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="no MPEG Layer III frame"):
+        read_mp3_header(_write_mp3(tmp_path, "tune.mp3", b"\x00" * 5000))
 
 
 # ── Link mode audio placement ─────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
-    ("fields", "rate", "expected"),
-    [
-        pytest.param(_mp3_row_fields(), 44100, 2257.0, id="Info with extension"),
-        pytest.param(_mp3_row_fields(lame_ext=False, delay=None), 44100, 1152.0, id="Info, no extension (spliced)"),
-        pytest.param(_mp3_row_fields(tag="Xing"), 44100, 1105.0, id="Xing"),
-        pytest.param(_mp3_row_fields(tag="", lame_ext=False, delay=None), 44100, 0.0, id="tagless"),
-        # Measured in Live 12.4.25b1 on 2026-11-03: 2257 samples at 32, 44.1 and 48 kHz, 1681 at 22.05 and 24 kHz.
-        pytest.param(_mp3_row_fields(), 48000, 2257.0, id="48 kHz"),
-        pytest.param(_mp3_row_fields(), 32000, 2257.0, id="32 kHz"),
-        pytest.param(_mp3_row_fields(), 24000, 1681.0, id="24 kHz, MPEG-2: a 576-sample frame"),
-        pytest.param(_mp3_row_fields(), 22050, 1681.0, id="22.05 kHz, MPEG-2: a 576-sample frame"),
-    ],
-)
-def test_resolve_link_placement_offset_classes_from_columns(
-    tmp_path: Path, fields: dict[str, object], rate: int, expected: float
-) -> None:
-    """Column-computed classes, in samples at the file's own rate."""
-    row = _make_row(path=tmp_path / "t.mp3", filename="t.mp3", **{**fields, "samplerate": rate})
-    placement = resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="t")
-    assert placement.time_offset_s * rate == pytest.approx(expected)
-
-
-@pytest.mark.parametrize(
-    ("filename", "fields", "offset_samples"),
-    [("tune.mp3", _mp3_row_fields(), 2257.0), ("tune.wav", {}, 0.0)],
+    ("name", "data", "offset_samples"),
+    [("tune.mp3", _synthetic_mp3_bytes(), 2257.0), ("tune.wav", None, 0.0)],
     ids=["mp3", "wav"],
 )
 def test_resolve_link_placement_references_the_source_in_place(
-    tmp_path: Path, filename: str, fields: dict[str, object], offset_samples: float
+    tmp_path: Path, name: str, data: bytes | None, offset_samples: float
 ) -> None:
-    """The source is referenced where it lies, never even read, and the clip runs its offset longer.
+    """The source is referenced where it lies, only an MP3's header read, and the clip runs its offset longer.
 
     Where the reference points in the written clip is the link-mode generation test's.
     """
-    source = tmp_path / filename
+    source = tmp_path / name
+    if data is not None:
+        source.write_bytes(data)
     audio_dir = tmp_path / "User Library" / "DJ Crates" / "Audio"
-    row = _make_row(path=source, filename=filename, duration_s=120.0, **fields)
-    placement = resolve_link_placement(row, audio_dir=audio_dir, safe_name="tune")
+    placement = resolve_link_placement(_make_row(path=source, length=120.0), audio_dir=audio_dir, safe_name="tune")
 
     offset = offset_samples / 44100
     assert placement.absolute_path == source
@@ -757,13 +592,6 @@ def test_resolve_link_placement_references_the_source_in_place(
     assert placement.duration_s == pytest.approx(120.0 + offset)
     assert placement.did_work is False
     assert not audio_dir.exists()
-
-
-def test_resolve_link_placement_mp3_missing_samplerate_is_loud(tmp_path: Path) -> None:
-    """An MP3 row without a samplerate column value is a hard error, not a guess."""
-    row = _make_row(path=tmp_path / "no_tag.mp3", filename="no_tag.mp3")
-    with pytest.raises(ValueError, match="samplerate"):
-        resolve_link_placement(row, audio_dir=tmp_path / "User Library" / "DJ Crates" / "Audio", safe_name="no_tag")
 
 
 def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(tmp_path: Path) -> None:
@@ -775,18 +603,10 @@ def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(tmp_path: Path
     src_dir = tmp_path / "source"
     src_dir.mkdir()
     mp3_path = src_dir / "Test Tune - 9A - Energy 7.mp3"
+    mp3_path.write_bytes(_synthetic_mp3_bytes())
 
-    # bpm 120 -> bar_s 2.0s; drop at 8.0s is exactly 4 bars in, beat_offset 0.0 is in-phase.
-    row = _make_row(
-        path=mp3_path,
-        filename=mp3_path.name,
-        bpm=120.0,
-        beat_offset_s=0.0,
-        start_s=0.0,
-        drop_s=8.0,
-        drop_beat=16.0,
-        **_mp3_row_fields(),
-    )
+    # bpm 120 -> bar_s 2.0s; drop at 8.0s is exactly 4 bars in, the downbeat at 0.0 is in-phase.
+    row = _make_row(path=mp3_path, bpm=120.0, downbeat=0.0, start=0.0, drop=8.0)
 
     report = run_crate_generation(
         [row],
@@ -833,7 +653,7 @@ def test_run_crate_generation_link_mode_mp3_shifts_grid_by_offset(tmp_path: Path
 
 def test_run_crate_generation_link_mode_default_audio_flag() -> None:
     """--audio defaults to "link" (no copy, no transcode)."""
-    args = dj_crates.parse_arguments(["picks.tsv", "--crate", "Test"])
+    args = dj_crates.parse_arguments(["tracks.csv", "--crate", "Test"])
     assert args.audio == "link"
 
 
@@ -859,7 +679,7 @@ def test_resolve_output_dirs_refuses_to_guess() -> None:
 def test_mirror_requires_a_marker_value() -> None:
     """--mirror without a folder name is an error; there is no default marker."""
     with pytest.raises(SystemExit):
-        dj_crates.parse_arguments(["picks.tsv", "--crate", "Test", "--mirror"])
+        dj_crates.parse_arguments(["tracks.csv", "--crate", "Test", "--mirror"])
 
 
 def test_sanitize_filename_normalizes_mac_decomposed_accents() -> None:
@@ -867,3 +687,82 @@ def test_sanitize_filename_normalizes_mac_decomposed_accents() -> None:
     precomposed = "Chant-M\u00e9 Bro"
     assert sanitize_filename(decomposed) == precomposed
     assert sanitize_filename(precomposed) == precomposed
+
+
+# ── .asd sidecars ─────────────────────────────────────────────────────────────
+
+
+def _crate_with_asd(tmp_path: Path, row: TrackGrid, *, dry_run: bool = False) -> RunReport:
+    crates_dir = tmp_path / "User Library" / "DJ Crates"
+    return run_crate_generation(
+        [row],
+        crate_name="Crate",
+        audio_dir=crates_dir / "Audio",
+        crates_dir=crates_dir,
+        audio_mode="link",
+        bar_tolerance=0.02,
+        dry_run=dry_run,
+        make=[Output.ASD],
+    )
+
+
+def _wav_row(tmp_path: Path) -> TrackGrid:
+    audio = tmp_path / "Tune.wav"
+    _write_test_wav(audio, duration_s=10.0)
+    # bpm 120: bars are 2 s, so a drop at 8.25 s folds back to an anchor at 0.25 s.
+    return _make_row(path=audio, bpm=120.0, downbeat=0.25, drop=8.25)
+
+
+def test_asd_carries_the_full_clip_grid_beside_a_wav(tmp_path: Path) -> None:
+    report = _crate_with_asd(tmp_path, _wav_row(tmp_path))
+    assert [r.asd for r in report.results] == [AsdOutcome.WRITTEN]
+    asd = AsdFile.load(tmp_path / "Tune.wav.asd")
+    assert asd.loads_clip_defaults
+    anchor, end = asd.markers[:2]
+    assert (anchor.sec_time, anchor.beat_time) == (pytest.approx(0.25), 0.0)
+    assert (end.sec_time, end.beat_time) == (pytest.approx(10.0), pytest.approx((10.0 - 0.25) * 2))
+
+
+def test_asd_beside_an_mp3_is_in_live_s_timeline(tmp_path: Path) -> None:
+    audio = _write_mp3(tmp_path, "Tune.mp3", _synthetic_mp3_bytes() + bytes(4096))
+    row = _make_row(path=audio, bpm=120.0, downbeat=0.25, drop=8.25)
+    _crate_with_asd(tmp_path, row)
+    anchor = AsdFile.load(tmp_path / "Tune.mp3.asd").markers[0]
+    assert anchor.sec_time == pytest.approx(0.25 + 2257 / 44100)
+
+
+def test_asd_with_settings_saved_in_live_for_another_grid_is_kept(tmp_path: Path) -> None:
+    row = _wav_row(tmp_path)
+    sidecar = tmp_path / "Tune.wav.asd"
+    write_grid(sidecar, bpm=128.0, anchor_seconds=0.5, audio_path=row.path)
+    before = sidecar.read_bytes()
+    report = _crate_with_asd(tmp_path, row)
+    assert [r.asd for r in report.results] == [AsdOutcome.KEPT]
+    assert sidecar.read_bytes() == before
+
+
+def test_asd_already_holding_this_grid_is_written_again(tmp_path: Path) -> None:
+    row = _wav_row(tmp_path)
+    _crate_with_asd(tmp_path, row)
+    report = _crate_with_asd(tmp_path, row)
+    assert [r.asd for r in report.results] == [AsdOutcome.WRITTEN]
+
+
+def test_asd_dry_run_writes_no_sidecar(tmp_path: Path) -> None:
+    report = _crate_with_asd(tmp_path, _wav_row(tmp_path), dry_run=True)
+    assert len(report.asd_results(AsdOutcome.WRITTEN)) == 1
+    assert not (tmp_path / "Tune.wav.asd").exists()
+
+
+def test_asd_alone_makes_no_crate(tmp_path: Path) -> None:
+    report = _crate_with_asd(tmp_path, _wav_row(tmp_path))
+    assert report.generated_count == 0
+    assert not (tmp_path / "User Library").exists()
+
+
+def test_make_names_the_outputs_and_alc_needs_a_crate() -> None:
+    assert dj_crates.parse_arguments(["tracks.csv", "--make", "asd"]).make == [Output.ASD]
+    both = dj_crates.parse_arguments(["tracks.csv", "--make", "alc", "asd", "--crate", "DnB"])
+    assert both.make == [Output.ALC, Output.ASD]
+    with pytest.raises(SystemExit):
+        dj_crates.parse_arguments(["tracks.csv", "--make", "alc"])

@@ -404,6 +404,11 @@ class AsdFile:
             _write_document(w, doc)
         return bytes(w.buf)
 
+    @property
+    def loads_clip_defaults(self) -> bool:
+        """Whether Live loads this sidecar's saved clip settings, its grid among them, when it imports the audio."""
+        return self.pre_doc[-1:] == b"\x01"
+
     def save(self, backup: bool = True) -> None:
         """Write in place, optionally keeping a one-time ``.bak`` copy of the original."""
         if backup and self.path.exists():

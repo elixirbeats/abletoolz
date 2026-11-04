@@ -406,7 +406,6 @@ Some things still need work:
 - More plugin maps and conversions.
 - Keeping a converted device's automation, clip envelopes and MIDI and macro mappings, by matching its old controls to the new plugin's.
 - Making copies for older Live versions reliable. Python's `save_as` is experimental and some copies still crash Live.
-- Writing `.asd` sidecars from `abletoolz-dj-crates`, not only from Python.
 - More ways for scripts and other programs to work with sets.
 
 `--dump-plugins` and `-x` help inspect plugin settings and set XML.

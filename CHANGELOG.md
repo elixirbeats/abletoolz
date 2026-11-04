@@ -19,8 +19,13 @@ the [README](README.md); `abletoolz --plugin-maps` prints plugin-by-plugin suppo
   left as it was.
 - DJ crates line up MP3s below 32 kHz too: their shorter MPEG-2 frames gave them a
   26 ms wrong offset. Live's offset was measured from 22.05 to 48 kHz.
-- `.asd` analysis files abletoolz writes load in Live, so a sample carries its warp grid
-  beside the audio.
+- `abletoolz-dj-crates` reads a track list any analyzer or spreadsheet can write: a CSV or
+  JSON with each track's `path`, `bpm` and `downbeat`, and optionally its `drop`, `start` and
+  `length`. `--make alc asd` makes the clips, `.asd` sidecars beside the audio, or both, and
+  MP3 timing comes from each file's own header. Cue Finder's TSV is no longer read, and
+  `--reviewed-only` is gone: export the tracks you want instead.
+- `.asd` files abletoolz writes load in Live, so a track carries its warp grid beside the
+  audio.
 - CS-80 V3, Chorus JUN-6, Dist TUBE-CULTURE and Pro-C 2 convert between their Mac Audio
   Unit and their VST3 or VST2, in both directions.
 - FabFilter Timeless 2 VST3 devices convert to Timeless 3, and Timeless 2 swaps between
