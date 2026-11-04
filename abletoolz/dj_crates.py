@@ -1,9 +1,14 @@
-r"""abletoolz.dj_crates -- build a DJ "crate" of pre-gridded ``.alc`` clips.
+r"""abletoolz.dj_crates -- make tracks open in Live already warped and on the bar.
 
-Turns a cue_finder TSV export (externally analyzed DJ tracks: BPM, first-beat time,
-start/drop hotcues) into a folder of Ableton Live Clip files inside the user's Ableton
-User Library. Two clip variants are written per track: ``(full)`` (starts at the grid
-anchor) and ``(drop)`` (starts at the drop cue, skipped when the track has no drop).
+Reads a track list (:func:`read_track_list`: a CSV or JSON of each track's audio
+file, tempo and a downbeat, optionally its drop, start and length, from any
+analyzer) and makes what ``--make`` names:
+
+* ``alc`` -- a folder of Ableton Live Clip files inside the user's Ableton User
+  Library, two per track: ``(full)`` (starts at the start cue) and ``(drop)``
+  (starts at the drop cue, skipped when the track has no drop).
+* ``asd`` -- a sidecar beside each track's audio (:func:`write_track_asd`), the
+  full clip's grid, so the file opens warped however it reaches Live.
 
 Grid convention (per :mod:`abletoolz.alc`): beat 0 (1.1.1) is the *anchor*, computed
 here by folding the drop back by whole bars until it sits as close to the track start
@@ -18,7 +23,7 @@ Audio strategy (``--audio {link,wav,flac}``, default ``link``):
   ``RelativePath`` so Live falls back to the absolute path (mirrors how Live's own
   sets reference cross-volume files -- see the ``RelativePathType=1`` examples in
   ``test/sample_missing_fix Project/11.2.10_abs_rel.xml``). MP3 sources need every
-  authored time shifted by Live's decoder offset (:func:`mp3_offset_from_row`, the
+  authored time shifted by Live's decoder offset (:func:`read_mp3_header`, the
   model above :data:`MPEG_DECODER_DELAY_SAMPLES`), counted in samples and converted
   with each file's own sample rate. Lossless sources need no shift (their decode is
   deterministic) and are referenced in place.
@@ -30,7 +35,7 @@ Audio strategy (``--audio {link,wav,flac}``, default ``link``):
 
 CLI usage::
 
-    python -m abletoolz.dj_crates picks.tsv --crate "Dnb Picks" --dry-run
+    abletoolz-dj-crates tracks.csv --make alc asd --crate "Dnb Picks" --dry-run
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from __future__ import annotations
 import argparse
 import csv
 import enum
+import json
 import logging
 import re
 import shutil
@@ -45,7 +51,7 @@ import subprocess
 import sys
 import unicodedata
 import wave
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -53,6 +59,7 @@ from typing import Literal
 
 from abletoolz.alc import AlcClip, AlcError
 from abletoolz.ansi import C, R, Y
+from abletoolz.formats.asd import AsdFile, write_grid
 from abletoolz.machine import Locations
 
 logger = logging.getLogger(__name__)
@@ -104,120 +111,92 @@ _CAMELOT_ENERGY_SUFFIX = re.compile(r"^(?P<name>.+?) - \d{1,2}[AB] - Energy \d+$
 _CAMELOT_SUFFIX = re.compile(r"^(?P<name>.+?) - \d{1,2}[AB]$")
 
 
-# ── TSV parsing ──────────────────────────────────────────────────────────────
+# ── Track list ───────────────────────────────────────────────────────────────
 
 
 @dataclass(slots=True, frozen=True)
-class PicksRow:
-    """One parsed row of a cue_finder TSV export (schema v2).
+class TrackGrid:
+    """One track's grid, as a track list gives it: seconds as FFmpeg decodes the file (gapless MP3s trimmed).
 
-    The ``mp3_*`` and ``samplerate`` columns are cue_finder's own structural header
-    parse (export contract: all times are in the honest-decode timeline; consumers
-    whose decoder disagrees translate using these fields). Empty for non-MP3 rows.
+    ``downbeat`` is any downbeat, the first beat of a bar; ``drop`` a cue on one, which decides the bar phase when
+    given. ``start`` is where the full clip begins, the grid's first downbeat when absent; ``length`` is the track's
+    length, read from the file when absent.
     """
 
     path: Path
-    filename: str
-    title_key: str
-    duration_s: float
     bpm: float
-    beat_offset_s: float
-    start_s: float
-    start_beat: float
-    start_bar: float
-    drop_s: float | None
-    drop_beat: float | None
-    drop_bar: float | None
-    bars_start_to_drop: float | None
-    confidence: float
-    needs_review: bool
-    verdict: str
-    human_reviewed: bool
-    mp3_tag: str
-    mp3_lame_ext: bool
-    mp3_encoder_delay: int | None
-    samplerate: int | None
+    downbeat: float
+    drop: float | None = None
+    start: float | None = None
+    length: float | None = None
 
 
-# Columns that distinguish a schema-v2 export from v1. Their absence means the TSV
-# predates the header-class contract and must be re-exported, not guessed at.
-_SCHEMA_V2_COLUMNS = ("mp3_tag", "mp3_lame_ext", "mp3_encoder_delay", "samplerate")
+TRACK_FIELDS = ("path", "bpm", "downbeat", "drop", "start", "length")
+_REQUIRED_FIELDS = ("path", "bpm", "downbeat")
 
 
-def _parse_bool(value: str) -> bool:
-    """Parse a TSV "True"/"False" boolean field."""
-    if value == "True":
-        return True
-    if value == "False":
-        return False
-    raise ValueError(f"expected 'True' or 'False', got {value!r}")
+def _seconds(value: object, field: str, where: str) -> float | None:
+    """A number in a track list, None when the cell is empty."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError(f"{where}: {field} is {value!r}, not a number")
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(f"{where}: {field} is {value!r}, not a number") from None
 
 
-def _parse_optional_float(value: str) -> float | None:
-    """Parse a TSV float field that may be empty (e.g. ``drop_s`` with no drop)."""
-    return float(value) if value else None
-
-
-def _parse_optional_int(value: str) -> int | None:
-    """Parse a TSV int field that may be empty (non-MP3 rows)."""
-    return int(value) if value else None
-
-
-def parse_picks_row(record: Mapping[str, str]) -> PicksRow:
-    """Parse one cue_finder TSV record (as produced by :class:`csv.DictReader`)."""
-    return PicksRow(
-        path=Path(record["path"]),
-        filename=record["filename"],
-        title_key=record["title_key"],
-        duration_s=float(record["duration_s"]),
-        bpm=float(record["bpm"]),
-        beat_offset_s=float(record["beat_offset_s"]),
-        start_s=float(record["start_s"]),
-        start_beat=float(record["start_beat"]),
-        start_bar=float(record["start_bar"]),
-        drop_s=_parse_optional_float(record["drop_s"]),
-        drop_beat=_parse_optional_float(record["drop_beat"]),
-        drop_bar=_parse_optional_float(record["drop_bar"]),
-        bars_start_to_drop=_parse_optional_float(record["bars_start_to_drop"]),
-        confidence=float(record["confidence"]),
-        needs_review=_parse_bool(record["needs_review"]),
-        verdict=record["verdict"],
-        human_reviewed=_parse_bool(record["human_reviewed"]),
-        mp3_tag=record["mp3_tag"],
-        mp3_lame_ext=_parse_bool(record["mp3_lame_ext"]) if record["mp3_lame_ext"] else False,
-        mp3_encoder_delay=_parse_optional_int(record["mp3_encoder_delay"]),
-        samplerate=_parse_optional_int(record["samplerate"]),
+def track_from_record(record: Mapping[str, object], where: str) -> TrackGrid:
+    """One track from a track list's row or object; ``where`` names it in errors."""
+    missing = [name for name in _REQUIRED_FIELDS if record.get(name) in (None, "")]
+    if missing:
+        raise ValueError(f"{where}: no {', '.join(missing)}")
+    bpm, downbeat = _seconds(record["bpm"], "bpm", where), _seconds(record["downbeat"], "downbeat", where)
+    assert bpm is not None and downbeat is not None
+    if bpm <= 0:
+        raise ValueError(f"{where}: bpm is {bpm}")
+    return TrackGrid(
+        path=Path(str(record["path"])),
+        bpm=bpm,
+        downbeat=downbeat,
+        drop=_seconds(record.get("drop"), "drop", where),
+        start=_seconds(record.get("start"), "start", where),
+        length=_seconds(record.get("length"), "length", where),
     )
 
 
-def read_picks_tsv(path: Path) -> list[PicksRow]:
-    """Read and parse a cue_finder TSV export. Rejects pre-v2 exports loudly."""
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        fields = reader.fieldnames or []
-        missing = [c for c in _SCHEMA_V2_COLUMNS if c not in fields]
-        if missing:
-            raise ValueError(
-                f"{path.name} is a pre-v2 cue_finder export (missing columns: {', '.join(missing)}). "
-                "Re-export with a schema_version >= 2 cue-finder."
-            )
-        return [parse_picks_row(record) for record in reader]
+def read_track_list(path: Path) -> list[TrackGrid]:
+    """A track list: a CSV with a header row, or a JSON list of objects, holding :data:`TRACK_FIELDS`.
+
+    Any other columns or keys are ignored, so a tool can write its own beside them.
+    """
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        with path.open(encoding="utf-8-sig", newline="") as handle:  # -sig: spreadsheets often write a BOM
+            records: list[Mapping[str, object]] = list(csv.DictReader(handle))
+        first = 2  # the header is row 1
+    elif suffix == ".json":
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+            raise ValueError(f"{path.name}: a JSON track list is a list of objects")
+        records, first = data, 1
+    else:
+        raise ValueError(f"{path.name}: a track list is a .csv or .json file")
+    return [track_from_record(record, f"{path.name}, track {n}") for n, record in enumerate(records, first)]
 
 
 def filter_rows(
-    rows: Sequence[PicksRow],
+    rows: Sequence[TrackGrid],
     *,
     includes: Sequence[str] = (),
-    reviewed_only: bool = False,
     limit: int | None = None,
-) -> list[PicksRow]:
-    """Filter TSV rows by path substring(s) (OR'd), review status, and a count cap."""
-    filtered: Sequence[PicksRow] = rows
+) -> list[TrackGrid]:
+    """Tracks whose path holds one of ``includes`` (any case), at most ``limit`` of them."""
+    filtered: Sequence[TrackGrid] = rows
     if includes:
         lowered = [s.lower() for s in includes]
         filtered = [row for row in filtered if any(s in str(row.path).lower() for s in lowered)]
-    if reviewed_only:
-        filtered = [row for row in filtered if row.human_reviewed]
     if limit is not None:
         filtered = filtered[:limit]
     return list(filtered)
@@ -232,9 +211,8 @@ class AnchorResult:
 
     ``residual_bars`` is the signed distance (in bars) between the drop and the
     nearest whole-bar multiple back from it, ignoring the "don't go negative" fold
-    adjustment -- it flags when the analyzer's ``beat_offset_s``/``drop_s``/``bpm``
-    disagree about bar phase (e.g. a track whose tagged first beat is 0.25 bars out
-    of phase with its drop).
+    adjustment -- it flags when a track's downbeat, drop and tempo disagree about bar
+    phase (e.g. a downbeat 0.25 bars out of phase with the drop).
     """
 
     anchor_s: float
@@ -244,25 +222,29 @@ class AnchorResult:
 
 
 def compute_anchor(
-    *, bpm: float, beat_offset_s: float, drop_s: float | None, bar_tolerance: float = _DEFAULT_BAR_TOLERANCE
+    *, bpm: float, downbeat: float, drop: float | None, bar_tolerance: float = _DEFAULT_BAR_TOLERANCE
 ) -> AnchorResult:
     """Compute the grid anchor (beat 0) for one track.
 
     With a drop: the anchor is the drop folded back by whole bars (``round``, not
     ``floor`` -- floor loses whole bars to float noise) so it lands on the same bar
     phase as the drop, as close to the track start as possible without going
-    negative. Without a drop: the anchor is the track's tagged first beat.
+    negative. Without a drop: the downbeat folded back the same way.
 
-    It works in the analyzer's own time. A per-track offset (the MP3 link-mode
-    decoder correction, :func:`mp3_offset_from_row`) is applied later, at clip
-    authoring, and shifts ``beat_offset_s`` and ``drop_s`` alike, so ``n_bars``
-    and ``residual_bars`` are unchanged by it.
+    It works in the track list's own time. A per-track offset (the MP3 decoder
+    correction, :func:`mp3_decoder_offset_seconds`) is applied later, at clip
+    authoring, and shifts the downbeat and the drop alike, so ``n_bars`` and
+    ``residual_bars`` are unchanged by it.
     """
-    if drop_s is None:
-        return AnchorResult(anchor_s=beat_offset_s, n_bars=None, residual_bars=0.0, bar_phase_warning=False)
-
     bar_s = 240.0 / bpm
-    raw_bars = (drop_s - beat_offset_s) / bar_s
+    if drop is None:
+        anchor_s = downbeat % bar_s
+        if bar_s - anchor_s <= _ANCHOR_SNAP_S:
+            anchor_s = 0.0
+        return AnchorResult(anchor_s=anchor_s, n_bars=None, residual_bars=0.0, bar_phase_warning=False)
+
+    drop_s = drop
+    raw_bars = (drop_s - downbeat) / bar_s
     n_bars = round(raw_bars)
     anchor_s = drop_s - n_bars * bar_s
     if anchor_s < 0.0:
@@ -333,13 +315,8 @@ def sanitize_filename(name: str) -> str:
 MPEG_DECODER_DELAY_SAMPLES = 529
 MPEG1_FRAME_SAMPLES = 1152
 MPEG2_FRAME_SAMPLES = 576
-# The lowest MPEG-1 rate; MPEG-2 and 2.5 Layer III, at half and quarter rates, have half-length frames.
-_MPEG1_LOWEST_RATE = 32000
-
-
-def layer3_frame_samples(sample_rate: int) -> int:
-    """Samples in one Layer III frame at ``sample_rate``: 1152 for MPEG-1 (32 to 48 kHz), 576 below."""
-    return MPEG1_FRAME_SAMPLES if sample_rate >= _MPEG1_LOWEST_RATE else MPEG2_FRAME_SAMPLES
+# Sample rates by MPEG version (the frame header's version bits) and rate index.
+_MPEG_SAMPLE_RATES = {0x03: (44100, 48000, 32000), 0x02: (22050, 24000, 16000), 0x00: (11025, 12000, 8000)}
 
 
 # A plausible gapless-block delay; the upper bound rejects 0xFFF garbage (the
@@ -348,20 +325,17 @@ def layer3_frame_samples(sample_rate: int) -> int:
 # 0: the stream holds 10070 frames = 11600640 samples and ffmpeg decodes
 # 11598959, discarding exactly 1681 = 1152 + 529. ffmpeg applies the 529 decoder
 # delay whenever the tag is present, whatever the declared value, which is what
-# the row-based `mp3_offset_from_row` does too (31 library files in this class).
+# the offset model does too (31 library files in this class).
 _GAPLESS_DELAY_RANGE = range(0, 4096)
 
 _GAPLESS_SIGNATURES = (b"LAME", b"Lavf", b"Lavc")
 
 
-def mp3_decode_offset_samples(path: Path) -> int:
-    """Samples to add to analyzer timestamps to match Live's decode of this MP3.
+def _first_layer3_frame(path: Path) -> tuple[bytes, int | None]:
+    """The bytes after an MP3's ID3v2 block, and where its first Layer III frame header starts there, if anywhere.
 
-    Seeks past the ID3v2 block by its declared size (embedded album art can be
-    multiple MB -- a fixed read window misclassifies those files), then reads the
-    first MPEG frame's tag and gapless extension at their structural offsets.
-    Loose encoder strings elsewhere (e.g. an ID3 TSSE "LAME ..." text frame) are
-    irrelevant. See the model comment above.
+    Seeks past the ID3v2 block by its declared size: embedded album art can be
+    multiple MB, so a fixed read window would miss the first frame.
     """
     with path.open("rb") as fh:
         head = fh.read(10)
@@ -371,21 +345,43 @@ def mp3_decode_offset_samples(path: Path) -> int:
             data = fh.read(65536)
         else:
             data = head + fh.read(65536)
-    pos = 0
-    while pos + 4 <= len(data):
-        b0, b1, b2, b3 = data[pos : pos + 4]
+    for pos in range(len(data) - 3):
+        b0, b1 = data[pos], data[pos + 1]
         if b0 == 0xFF and (b1 & 0xE0) == 0xE0 and (b1 >> 3) & 0x03 != 0x01 and (b1 >> 1) & 0x03 == 0x01:
-            break  # Layer III frame header, MPEG-1, 2 or 2.5
-        pos += 1
-    else:
-        # Unparseable: assume the collection's majority class (Info + gapless sig).
-        return MPEG1_FRAME_SAMPLES + 576 + MPEG_DECODER_DELAY_SAMPLES
+            return data, pos  # Layer III frame header, MPEG-1, 2 or 2.5
+    return data, None
+
+
+@dataclass(frozen=True, slots=True)
+class Mp3Header:
+    """What an MP3's first frame says: Live's decode offset in samples, the sample rate and the channel count."""
+
+    offset_samples: int
+    sample_rate: int
+    channels: int
+
+
+def read_mp3_header(path: Path) -> Mp3Header:
+    """Read the first MPEG frame's header, tag and gapless extension at their structural offsets.
+
+    Loose encoder strings elsewhere (e.g. an ID3 TSSE "LAME ..." text frame) are
+    irrelevant. See the model comment above. A file with no Layer III frame is refused.
+    """
+    data, pos = _first_layer3_frame(path)
+    if pos is None:
+        raise ValueError(f"{path.name}: no MPEG Layer III frame found")
+    b1, b2, b3 = data[pos + 1], data[pos + 2], data[pos + 3]
+    version, rate_index = (b1 >> 3) & 0x03, (b2 >> 2) & 0x03
+    if rate_index == 0x03:
+        raise ValueError(f"{path.name}: its first frame names no sample rate")
+    sample_rate = _MPEG_SAMPLE_RATES[version][rate_index]
     mono = (b3 >> 6) == 0x03
-    mpeg1 = (b1 >> 3) & 0x03 == 0x03
+    mpeg1 = version == 0x03
+    channels = 1 if mono else 2
     xing_at = pos + 4 + ((17 if mono else 32) if mpeg1 else (9 if mono else 17))  # the side information
     tag = data[xing_at : xing_at + 4]
     if tag not in (b"Xing", b"Info"):
-        return 0  # real audio frame first: both decoders start identically
+        return Mp3Header(0, sample_rate, channels)  # real audio frame first: both decoders start identically
     flags = int.from_bytes(data[xing_at + 4 : xing_at + 8], "big")
     ext = xing_at + 8
     for bit, width in ((0x01, 4), (0x02, 4), (0x04, 100), (0x08, 4)):
@@ -397,15 +393,18 @@ def mp3_decode_offset_samples(path: Path) -> int:
         if delay in _GAPLESS_DELAY_RANGE:
             trim = delay + MPEG_DECODER_DELAY_SAMPLES
     surplus = (MPEG1_FRAME_SAMPLES if mpeg1 else MPEG2_FRAME_SAMPLES) if tag == b"Info" else 0
-    return trim + surplus
+    return Mp3Header(trim + surplus, sample_rate, channels)
 
 
-def mp3_decoder_offset_seconds(path: Path, sample_rate: int) -> float:
-    """Seconds to add to analyzer timestamps to match Live's MP3 decode timeline, at the file's ``sample_rate``.
+def mp3_decode_offset_samples(path: Path) -> int:
+    """Samples to add to FFmpeg-decode times to match Live's decode of this MP3."""
+    return read_mp3_header(path).offset_samples
 
-    See :func:`mp3_decode_offset_samples`.
-    """
-    return mp3_decode_offset_samples(path) / sample_rate
+
+def mp3_decoder_offset_seconds(path: Path) -> float:
+    """Seconds to add to FFmpeg-decode times to match Live's decode of this MP3, at its own sample rate."""
+    header = read_mp3_header(path)
+    return header.offset_samples / header.sample_rate
 
 
 # ── Audio cache (transcode / copy, idempotent -- ``wav``/``flac`` modes) ─────
@@ -467,6 +466,34 @@ def read_duration_seconds(path: Path) -> float:
     return float(result.stdout.strip())
 
 
+def read_channel_count(path: Path) -> int:
+    """How many channels an audio file has: WAV through ``wave``, an MP3 from its first frame, others via ffprobe."""
+    suffix = path.suffix.lower()
+    if suffix == ".wav":
+        with wave.open(str(path), "rb") as wav_file:
+            return wav_file.getnchannels()
+    if suffix == ".mp3":
+        return read_mp3_header(path).channels
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=channels",
+            "-of",
+            "default=nw=1:nk=1",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return int(result.stdout.strip())
+
+
 # ── Library-relative sample paths (RelativePathType 6) ───────────────────────
 
 
@@ -506,53 +533,26 @@ def _fake_relative_path(audio_dir: Path, safe_name: str, ext: str) -> Path:
     return library_relative_path(audio_dir / f"{safe_name}{ext}")
 
 
-def mp3_offset_from_row(row: PicksRow) -> float:
-    """Live decode offset (seconds) computed from the export's v2 header columns.
-
-    Data-driven version of :func:`mp3_decode_offset_samples`: cue_finder's export
-    carries the same structural header parse (``mp3_tag``/``mp3_lame_ext``/
-    ``mp3_encoder_delay``/``samplerate``), so link mode needs no file access at all.
-    Same measured model: trim (delay + 529 when a gapless extension exists; Live
-    never trims) + surplus (1152 when the tag frame is "Info"; Live plays it).
-    """
-    if row.samplerate is None:
-        raise ValueError(f"{row.filename}: MP3 row without a samplerate column value")
-    trim = (row.mp3_encoder_delay or 0) + MPEG_DECODER_DELAY_SAMPLES if row.mp3_lame_ext else 0
-    surplus = layer3_frame_samples(row.samplerate) if row.mp3_tag == "Info" else 0
-    return (trim + surplus) / row.samplerate
-
-
-def resolve_link_placement(row: PicksRow, *, audio_dir: Path, safe_name: str) -> AudioPlacement:
+def resolve_link_placement(row: TrackGrid, *, audio_dir: Path, safe_name: str) -> AudioPlacement:
     """Resolve a track's audio placement for ``--audio link`` (no copy, no transcode).
 
-    MP3 offsets and durations come straight from the export's v2 columns -- no
-    ffprobe, no file reads.
+    An MP3's offset comes from its first frame header; the length from the track list, else from the file.
     """
     src = row.path
     suffix = src.suffix.lower()
-    relative_path = _fake_relative_path(audio_dir, safe_name, suffix)
-
-    if suffix == ".mp3":
-        offset = mp3_offset_from_row(row)
-        return AudioPlacement(
-            absolute_path=src,
-            relative_path=relative_path,
-            duration_s=row.duration_s + offset,
-            time_offset_s=offset,
-            did_work=False,
-        )
-
+    offset = mp3_decoder_offset_seconds(src) if suffix == ".mp3" else 0.0
+    length = row.length if row.length is not None else read_duration_seconds(src)
     return AudioPlacement(
         absolute_path=src,
-        relative_path=relative_path,
-        duration_s=row.duration_s,
-        time_offset_s=0.0,
+        relative_path=_fake_relative_path(audio_dir, safe_name, suffix),
+        duration_s=length + offset,
+        time_offset_s=offset,
         did_work=False,
     )
 
 
 def resolve_cached_placement(
-    row: PicksRow, *, audio_dir: Path, safe_name: str, audio_format: CacheFormat
+    row: TrackGrid, *, audio_dir: Path, safe_name: str, audio_format: CacheFormat
 ) -> AudioPlacement:
     """Resolve a track's audio placement for ``--audio wav``/``--audio flac``."""
     dest = audio_dir / f"{safe_name}{audio_dest_extension(row.path, audio_format)}"
@@ -572,9 +572,9 @@ def resolve_cached_placement(
 
 @dataclass(slots=True, frozen=True)
 class TrackPlan:
-    """Name and grid anchor computed for one TSV row, independent of audio strategy."""
+    """Name and grid anchor computed for one track, independent of audio strategy."""
 
-    row: PicksRow
+    row: TrackGrid
     clip_name: str
     safe_name: str
     anchor: AnchorResult
@@ -582,16 +582,14 @@ class TrackPlan:
     @property
     def has_drop(self) -> bool:
         """Whether this track has a drop cue (and therefore a "(drop)" variant)."""
-        return self.row.drop_s is not None
+        return self.row.drop is not None
 
 
-def build_plan(row: PicksRow, *, bar_tolerance: float) -> TrackPlan:
-    """Compute the clip name and grid anchor for one TSV row."""
-    clip_name = derive_clip_name(row.filename)
+def build_plan(row: TrackGrid, *, bar_tolerance: float) -> TrackPlan:
+    """Compute the clip name and grid anchor for one track."""
+    clip_name = derive_clip_name(row.path.name)
     safe_name = sanitize_filename(clip_name)
-    anchor = compute_anchor(
-        bpm=row.bpm, beat_offset_s=row.beat_offset_s, drop_s=row.drop_s, bar_tolerance=bar_tolerance
-    )
+    anchor = compute_anchor(bpm=row.bpm, downbeat=row.downbeat, drop=row.drop, bar_tolerance=bar_tolerance)
     return TrackPlan(row=row, clip_name=clip_name, safe_name=safe_name, anchor=anchor)
 
 
@@ -607,11 +605,12 @@ class _AdjustedTimes:
 
 def _adjust_times(plan: TrackPlan, placement: AudioPlacement) -> _AdjustedTimes:
     offset = placement.time_offset_s
-    drop_s = plan.row.drop_s + offset if plan.row.drop_s is not None else None
+    drop_s = plan.row.drop + offset if plan.row.drop is not None else None
+    start = plan.row.start if plan.row.start is not None else plan.anchor.anchor_s
     return _AdjustedTimes(
         anchor_s=plan.anchor.anchor_s + offset,
         drop_s=drop_s,
-        start_s=plan.row.start_s + offset,
+        start_s=start + offset,
         duration_s=placement.duration_s,
     )
 
@@ -660,6 +659,61 @@ def load_template() -> AlcClip:
         return AlcClip.load(template_path)
 
 
+class Output(enum.StrEnum):
+    """A format a track list is made into."""
+
+    ALC = "alc"  # a (full) clip and a (drop) clip per track, in a crate folder Live's browser shows
+    ASD = "asd"  # a sidecar beside each track's audio, so the file itself opens warped
+
+
+class AsdOutcome(enum.Enum):
+    """What happened to a track's ``.asd`` sidecar."""
+
+    WRITTEN = "written"
+    KEPT = "kept"  # it holds clip settings saved in Live, and another grid than this one
+    FAILED = "failed"
+
+
+# How close an existing sidecar's grid must be to count as the one abletoolz would write.
+_SAME_GRID_SECONDS = 1e-6
+
+
+def _holds_grid(asd: AsdFile, bpm: float, anchor_s: float) -> bool:
+    """Whether ``asd``'s first two warp markers are this grid: beat 0 at ``anchor_s``, at ``bpm``."""
+    markers = asd.markers
+    if len(markers) < 2 or markers[0].beat_time != 0.0 or abs(markers[0].sec_time - anchor_s) > _SAME_GRID_SECONDS:
+        return False
+    first, second = markers[0], markers[1]
+    return (
+        abs((second.beat_time - first.beat_time) * 60.0 / bpm - (second.sec_time - first.sec_time))
+        <= _SAME_GRID_SECONDS
+    )
+
+
+def write_track_asd(plan: TrackPlan, times: _AdjustedTimes, placement: AudioPlacement) -> AsdOutcome:
+    """Write the track's grid into the ``.asd`` beside its audio, so the file opens warped however it reaches Live.
+
+    The grid is the full clip's: beat 0 at the anchor, at the track's tempo, in the audio's own decode timeline. A
+    sidecar holding clip settings someone saved in Live is kept when its grid is another one; a sidecar of Live's
+    analysis alone is rewritten with that analysis kept.
+    """
+    audio = placement.absolute_path
+    asd_path = audio.with_name(audio.name + ".asd")
+    if asd_path.exists():
+        existing = AsdFile.load(asd_path)
+        if existing.loads_clip_defaults and not _holds_grid(existing, plan.row.bpm, times.anchor_s):
+            return AsdOutcome.KEPT
+    write_grid(
+        asd_path,
+        bpm=plan.row.bpm,
+        anchor_seconds=times.anchor_s,
+        audio_path=audio,
+        duration_seconds=times.duration_s,
+        channel_count=read_channel_count(audio),
+    )
+    return AsdOutcome.WRITTEN
+
+
 @dataclass(slots=True)
 class TrackResult:
     """The outcome of generating (or planning) one track."""
@@ -669,6 +723,8 @@ class TrackResult:
     generated_full: bool = False
     generated_drop: bool = False
     error: str | None = None
+    asd: AsdOutcome | None = None
+    asd_error: str | None = None
 
 
 def generate_track(
@@ -678,8 +734,9 @@ def generate_track(
     audio_dir: Path,
     audio_mode: AudioMode,
     relative_path_type: int | None = None,
+    make: Collection[Output] = (Output.ALC,),
 ) -> TrackResult:
-    """Resolve the audio placement and write the (full)/(drop) .alc clips."""
+    """Resolve the audio placement, then write what ``make`` names: the (full)/(drop) clips, the audio's sidecar."""
     result = TrackResult(plan=plan)
     try:
         placement = (
@@ -691,42 +748,60 @@ def generate_track(
         )
         result.transcoded = placement.did_work
         times = _adjust_times(plan, placement)
+        if Output.ALC in make:
+            _write_clips(plan, times, placement, crate_dir, relative_path_type, result)
+    except (OSError, ValueError, subprocess.CalledProcessError, AlcError) as exc:
+        result.error = str(exc)
+        return result
+    if Output.ASD in make:
+        try:
+            result.asd = write_track_asd(plan, times, placement)
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            result.asd, result.asd_error = AsdOutcome.FAILED, str(exc)
+    return result
 
-        full_clip = _build_variant(
+
+def _write_clips(
+    plan: TrackPlan,
+    times: _AdjustedTimes,
+    placement: AudioPlacement,
+    crate_dir: Path,
+    relative_path_type: int | None,
+    result: TrackResult,
+) -> None:
+    """Write the track's (full) clip and, when it has a drop, its (drop) clip."""
+    full_clip = _build_variant(
+        plan,
+        times,
+        placement,
+        name=plan.clip_name,
+        # The start CUE, not the grid anchor: the anchor is a downbeat a
+        # whole number of bars before the drop, incidental to where the
+        # music starts. Starting there opened full clips early or late
+        # (-3.99 beats on Bredren "Flick Knife", start 0.000, anchor 1.375;
+        # +4 on Enei "The Greatest Trick", start 2.525, anchor 1.146) while
+        # both drops stayed exact.
+        clip_start_s=times.start_s,
+        # Start through drop on screen at once makes the grid checkable at
+        # a glance; the start alone when there is no drop.
+        view_end_s=times.drop_s if times.drop_s is not None else times.start_s,
+        relative_path_type=relative_path_type,
+    )
+    full_clip.save(crate_dir / f"{plan.safe_name} (full).alc")
+    result.generated_full = True
+
+    if times.drop_s is not None:
+        drop_clip = _build_variant(
             plan,
             times,
             placement,
-            name=plan.clip_name,
-            # The start CUE, not the grid anchor: the anchor is a downbeat a
-            # whole number of bars before the drop, incidental to where the
-            # music starts. Starting there opened full clips early or late
-            # (-3.99 beats on Bredren "Flick Knife", start 0.000, anchor 1.375;
-            # +4 on Enei "The Greatest Trick", start 2.525, anchor 1.146) while
-            # both drops stayed exact.
-            clip_start_s=times.start_s,
-            # Start through drop on screen at once makes the grid checkable at
-            # a glance; the start alone when there is no drop.
-            view_end_s=times.drop_s if times.drop_s is not None else times.start_s,
+            name=f"{plan.clip_name} DROP",
+            clip_start_s=times.drop_s,
+            view_end_s=times.drop_s,
             relative_path_type=relative_path_type,
         )
-        full_clip.save(crate_dir / f"{plan.safe_name} (full).alc")
-        result.generated_full = True
-
-        if times.drop_s is not None:
-            drop_clip = _build_variant(
-                plan,
-                times,
-                placement,
-                name=f"{plan.clip_name} DROP",
-                clip_start_s=times.drop_s,
-                view_end_s=times.drop_s,
-                relative_path_type=relative_path_type,
-            )
-            drop_clip.save(crate_dir / f"{plan.safe_name} (drop).alc")
-            result.generated_drop = True
-    except (OSError, ValueError, subprocess.CalledProcessError, AlcError) as exc:
-        result.error = str(exc)
-    return result
+        drop_clip.save(crate_dir / f"{plan.safe_name} (drop).alc")
+        result.generated_drop = True
 
 
 # ── Run report ────────────────────────────────────────────────────────────────
@@ -738,6 +813,7 @@ class RunReport:
 
     dry_run: bool
     audio_mode: AudioMode
+    make: frozenset[Output] = frozenset({Output.ALC})
     results: list[TrackResult] = field(default_factory=list)
     #: (skipped, kept) plans whose rows mapped to the same clip file (e.g. m4a + mp3 rips).
     duplicate_skips: list[tuple[TrackPlan, TrackPlan]] = field(default_factory=list)
@@ -752,6 +828,10 @@ class RunReport:
         """Tracks whose "(drop)" variant was generated (or planned, in a dry run)."""
         return sum(1 for r in self.results if r.generated_drop and r.error is None)
 
+    def asd_results(self, outcome: AsdOutcome) -> list[TrackResult]:
+        """Tracks whose ``.asd`` sidecar came out as ``outcome``."""
+        return [r for r in self.results if r.asd is outcome]
+
     @property
     def cached_skips(self) -> int:
         """Tracks whose audio was already cached (transcode/copy skipped)."""
@@ -760,7 +840,7 @@ class RunReport:
     @property
     def no_drop_tracks(self) -> list[TrackResult]:
         """Tracks with no drop cue (anchored at the tagged first beat instead)."""
-        return [r for r in self.results if r.plan.row.drop_s is None and r.error is None]
+        return [r for r in self.results if r.plan.row.drop is None and r.error is None]
 
     @property
     def bar_phase_warnings(self) -> list[TrackResult]:
@@ -805,7 +885,7 @@ def _source_preference(path: Path) -> int:
 
 
 def run_crate_generation(
-    rows: Sequence[PicksRow],
+    rows: Sequence[TrackGrid],
     *,
     crate_name: str,
     audio_dir: Path,
@@ -815,6 +895,7 @@ def run_crate_generation(
     dry_run: bool,
     relative_path_type: int | None = None,
     mirror_marker: str | None = None,
+    make: Collection[Output] = (Output.ALC,),
 ) -> RunReport:
     """Build the crate: plan every row, then generate (unless ``dry_run``).
 
@@ -823,7 +904,7 @@ def run_crate_generation(
     most grid-reliable source wins and the losers land in ``duplicate_skips``.
     """
     crate_root = crates_dir / crate_name
-    report = RunReport(dry_run=dry_run, audio_mode=audio_mode)
+    report = RunReport(dry_run=dry_run, audio_mode=audio_mode, make=frozenset(make))
     chosen: dict[tuple[Path, str], TrackPlan] = {}
     for row in rows:
         plan = build_plan(row, bar_tolerance=bar_tolerance)
@@ -842,7 +923,13 @@ def run_crate_generation(
     for (crate_dir, _), plan in chosen.items():
         if dry_run:
             report.results.append(
-                TrackResult(plan=plan, transcoded=False, generated_full=True, generated_drop=plan.has_drop)
+                TrackResult(
+                    plan=plan,
+                    transcoded=False,
+                    generated_full=Output.ALC in make,
+                    generated_drop=Output.ALC in make and plan.has_drop,
+                    asd=AsdOutcome.WRITTEN if Output.ASD in make else None,
+                )
             )
             continue
         report.results.append(
@@ -852,6 +939,7 @@ def run_crate_generation(
                 audio_dir=audio_dir,
                 audio_mode=audio_mode,
                 relative_path_type=relative_path_type,
+                make=make,
             )
         )
     return report
@@ -859,12 +947,25 @@ def run_crate_generation(
 
 def print_report(report: RunReport) -> None:
     """Log the end-of-run summary: counts, no-drop tracks, bar-phase warnings, failures."""
-    verb = "Would generate" if report.dry_run else "Generated"
-    logger.info(
-        "%s%s %s clip(s) (%s with a drop variant)", C, verb, report.generated_count, report.drop_generated_count
-    )
+    if Output.ALC in report.make:
+        verb = "Would generate" if report.dry_run else "Generated"
+        logger.info(
+            "%s%s %s clip(s) (%s with a drop variant)", C, verb, report.generated_count, report.drop_generated_count
+        )
     if not report.dry_run and report.audio_mode != AudioMode.LINK:
         logger.info("%sSkipped (already cached) transcodes: %s", C, report.cached_skips)
+    if Output.ASD in report.make:
+        verb = "Would write" if report.dry_run else "Wrote"
+        logger.info("%s%s %s .asd sidecar(s) beside the audio", C, verb, len(report.asd_results(AsdOutcome.WRITTEN)))
+        kept_asd = report.asd_results(AsdOutcome.KEPT)
+        if kept_asd:
+            logger.info(
+                "%s%s .asd sidecar(s) kept: they hold clip settings saved in Live, another grid:", Y, len(kept_asd)
+            )
+            for result in kept_asd:
+                logger.info("%s  - %s", Y, result.plan.row.path)
+        for result in report.asd_results(AsdOutcome.FAILED):
+            logger.info("%s  - .asd for %s: %s", R, result.plan.clip_name, result.asd_error)
 
     if report.duplicate_skips:
         logger.info(
@@ -905,20 +1006,34 @@ def print_report(report: RunReport) -> None:
 def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments for the DJ crate generator."""
     parser = argparse.ArgumentParser(
-        prog="python -m abletoolz.dj_crates",
-        description="Build a DJ crate of pre-gridded .alc clips from a cue_finder TSV export.",
+        prog="abletoolz-dj-crates",
+        description="Make tracks open in Live already warped and on the bar, from a list of their tempos and "
+        "downbeats: .alc clips in a crate, .asd sidecars beside the audio, or both.",
     )
-    parser.add_argument("tsv", type=Path, help="Path to the cue_finder TSV export.")
-    parser.add_argument("--crate", required=True, help="Crate name (created as a subfolder under --crates-dir).")
+    parser.add_argument(
+        "tracks",
+        type=Path,
+        help="The track list: a .csv with a header row, or a .json list of objects, with path, bpm and downbeat, "
+        "and optionally drop, start and length, in seconds. Other columns are ignored.",
+    )
+    parser.add_argument(
+        "--make",
+        nargs="+",
+        type=Output,
+        choices=list(Output),
+        default=[Output.ALC],
+        metavar="{alc,asd}",
+        help="What to make (default: alc). alc: a (full) and a (drop) clip per track in the crate. asd: a sidecar "
+        "beside each track's audio, so the file opens warped however it reaches Live; one holding clip settings "
+        "saved in Live with another grid is kept.",
+    )
+    parser.add_argument("--crate", help="Crate name for alc clips, created as a subfolder under --crates-dir.")
     parser.add_argument(
         "--include",
         action="append",
         default=[],
         metavar="SUBSTR",
         help="Case-insensitive substring filter on the source path; repeatable (OR'd together).",
-    )
-    parser.add_argument(
-        "--reviewed-only", action="store_true", default=False, help="Only include rows with human_reviewed=True."
     )
     parser.add_argument("--limit", type=int, default=None, help="Cap the number of tracks processed (after filtering).")
     parser.add_argument(
@@ -968,7 +1083,10 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "value (6) untouched -- the correct value for link mode's cross-volume references is pending a "
         "live drag test.",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if Output.ALC in args.make and not args.crate:
+        parser.error("--crate is needed to make alc clips")
+    return args
 
 
 def resolve_output_dirs(
@@ -1001,19 +1119,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.crates_dir, args.audio_dir, Locations.this_computer().user_library
         )
     except ValueError as exc:
+        if Output.ALC in args.make or args.audio != AudioMode.LINK:
+            logger.error("%s%s", R, exc)
+            return 2
+        crates_dir = audio_dir = Path()  # sidecars beside linked audio use neither folder
+
+    try:
+        rows = read_track_list(args.tracks)
+    except (OSError, ValueError) as exc:
         logger.error("%s%s", R, exc)
         return 2
-
-    rows = read_picks_tsv(args.tsv)
-    filtered = filter_rows(rows, includes=args.include, reviewed_only=args.reviewed_only, limit=args.limit)
+    filtered = filter_rows(rows, includes=args.include, limit=args.limit)
     if not filtered:
         logger.info("%sNo tracks matched the given filters.", R)
         return 1
 
-    logger.info("%s%s track(s) selected for crate %r", C, len(filtered), args.crate)
+    logger.info("%s%s track(s) selected", C, len(filtered))
     report = run_crate_generation(
         filtered,
-        crate_name=args.crate,
+        crate_name=args.crate or "",
         audio_dir=audio_dir.expanduser(),
         crates_dir=crates_dir.expanduser(),
         audio_mode=args.audio,
@@ -1021,9 +1145,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         dry_run=args.dry_run,
         relative_path_type=args.link_relative_path_type,
         mirror_marker=args.mirror,
+        make=args.make,
     )
     print_report(report)
-    return 1 if report.failures else 0
+    return 1 if report.failures or report.asd_results(AsdOutcome.FAILED) else 0
 
 
 if __name__ == "__main__":

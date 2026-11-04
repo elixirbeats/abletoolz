@@ -264,6 +264,8 @@ def write_grid(
     anchor_seconds: float,
     audio_path: Path | None = None,
     warp_mode: int | None = None,
+    duration_seconds: float | None = None,
+    channel_count: int | None = None,
 ) -> None:
     """Write a constant-tempo warp grid into ``asd_path`` (created if missing).
 
@@ -278,9 +280,10 @@ def write_grid(
         anchor_seconds: audio time of the downbeat that becomes beat 0.
         audio_path: source audio; required for cold synthesis, optional otherwise.
         warp_mode: optional Live warp-mode enum override.
+        duration_seconds: the track length in Live's timeline, for audio that is not WAV.
+        channel_count: the audio's channels, for audio that is not WAV; a cold sidecar's header depends on it.
     """
-    duration: float | None = None
-    channels = 2
+    duration, channels = duration_seconds, channel_count or 2
     if audio_path is not None:
         info = _wav_info(audio_path)
         if info is not None:
