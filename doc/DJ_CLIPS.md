@@ -57,8 +57,6 @@ Live's MP3 decoder starts up to about 50 ms later than FFmpeg's, depending on ho
 ```python
 from abletoolz.dj_crates import mp3_decoder_offset_seconds
 
-offset = mp3_decoder_offset_seconds(audio, sample_rate=44100)  # this file's own sample rate
+offset = mp3_decoder_offset_seconds(audio, sample_rate=44100)  # this file's sample rate
 write_grid(Path(f"{audio}.asd"), audio_path=audio, bpm=174.0, anchor_seconds=0.152 + offset)
 ```
-
-The offset is read from each file's own header and converted with its own sample rate. Live has only been checked with 44.1 kHz files, so the crate builder marks MP3s at other rates as unverified in its report.
