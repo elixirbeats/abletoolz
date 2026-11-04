@@ -39,7 +39,7 @@ abletoolz-dj-crates tracks.csv --make alc asd --crate "DnB"
 
 `--make asd` writes a sidecar beside each track's audio, holding the full clip's grid. Write them before Live loads the files: a clip already in a set keeps its own markers. A sidecar where you saved clip settings in Live with a different grid is left alone, and the report lists it.
 
-MP3s need no extra care. Live's MP3 decoder starts up to about 50 ms later than FFmpeg's, depending on how the file was encoded, and abletoolz reads each file's header to correct for it.
+MP3s line up to the sample. Live decodes an MP3 a set number of samples later than FFmpeg does, and that number follows from how the file was encoded. abletoolz reads it from each file's header and shifts the grid by exactly that much, a correction measured in Live at every MP3 sample rate.
 
 ## From Python
 
